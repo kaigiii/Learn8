@@ -1,3 +1,28 @@
+/**
+ * 檔案名稱: frontend/src/app/globals.css
+ * 功能描述: 全域樣式表 (Global Stylesheet)
+ * 
+ * 這是 Next.js 應用程式的全域 CSS 檔案，引入了 Tailwind CSS 
+ * 並定義了設計系統 (Design System) 的核心變數。
+ * 
+ * 主要設定:
+ *     1. @import "tailwindcss": 啟用 Tailwind v4 (或 v3+ postcss) 的指令。
+ *     2. :root (CSS Variables):
+ *         - 定義 Light Mode (淺色模式) 下的顏色變數。
+ *         - --background: 應用程式背景色 (#ffffff)。
+ *         - --foreground: 主要文字顏色 (#171717)。
+ * 
+ *     3. @media (prefers-color-scheme: dark):
+ *         - 定義 Dark Mode (深色模式) 下的顏色變數。
+ *         - 自動偵測作業系統設定。
+ * 
+ *     4. @theme inline:
+ *         - 這是 Tailwind CSS v4 的新語法，用於將 CSS 變數映射回 Tailwind 的 Utility Classes。
+ *         - 例如: `bg-background` 會使用 `var(--background)`。
+ * 
+ *     5. body:
+ *         - 設定全域預設字體 (Arial/Helvetica) 與背景色，防止瀏覽器預設樣式干擾。
+ */
 @import "tailwindcss";
 
 :root {

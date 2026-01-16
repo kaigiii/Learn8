@@ -1,3 +1,14 @@
+/**
+ * 檔案名稱: frontend/src/components/ui/input.tsx
+ * 功能描述: 通用輸入框組件 (Input UI)
+ * 
+ * 封裝了 HTML原生的 <input> 元素，統一應用程式的輸入框樣式。
+ * 
+ * 特色:
+ *     - 預設樣式: 圓角、邊框、Focus Ring (藍色光暈)。
+ *     - 狀態支援: Disabled, Placeholder, File Input。
+ *     - 整合: 透過 `React.forwardRef` 支援 React Hook Form。
+ */
 import * as React from "react"
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"

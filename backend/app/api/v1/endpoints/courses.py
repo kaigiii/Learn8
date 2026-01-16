@@ -76,12 +76,14 @@ def get_course_detail(course_id: int, current_user: UserModel = Depends(get_curr
         
     path = CoursePath(**course.syllabus_json)
     path.id = course.id
+    path.topic = course.topic # Populate topic
     return path
 
 @router.post("/generate-syllabus", response_model=CoursePath)
 async def generate_syllabus(
     topic: str,
     project_id: int = None,
+    regenerate: bool = False,
     current_user: UserModel = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -93,9 +95,10 @@ async def generate_syllabus(
         query = query.filter(CourseModel.project_id == project_id)
     existing_course = query.first()
     
-    if existing_course:
+    if existing_course and not regenerate:
         path = CoursePath(**existing_course.syllabus_json)
         path.id = existing_course.id
+        path.topic = existing_course.topic
         return path
 
     project_folder_name = None
@@ -113,19 +116,32 @@ async def generate_syllabus(
     if not syllabus:
          raise HTTPException(status_code=404, detail="Failed to generate syllabus.")
     
-    new_course = CourseModel(
-        user_id=current_user.id,
-        project_id=project_id,
-        topic=topic,
-        title=syllabus.courseTitle,
-        syllabus_json=syllabus.model_dump()
-    )
-    db.add(new_course)
+    if existing_course and regenerate:
+        # Update existing
+        existing_course.title = syllabus.courseTitle
+        existing_course.syllabus_json = syllabus.model_dump()
+        existing_course.updated_at = datetime.datetime.utcnow()
+        
+        # Clear old nodes
+        db.query(NodeModel).filter(NodeModel.course_id == existing_course.id).delete()
+        
+        new_course = existing_course # Reuse object reference for below
+    else:
+        new_course = CourseModel(
+            user_id=current_user.id,
+            project_id=project_id,
+            topic=topic,
+            title=syllabus.courseTitle,
+            syllabus_json=syllabus.model_dump()
+        )
+        db.add(new_course)
+    
     db.commit()
     db.refresh(new_course)
 
     # Populate ID
     syllabus.id = new_course.id
+    syllabus.topic = topic
 
     for unit in syllabus.units:
         for node in unit.nodes:

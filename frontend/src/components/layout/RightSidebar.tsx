@@ -1,3 +1,30 @@
+/**
+ * 檔案名稱: frontend/src/components/layout/RightSidebar.tsx
+ * 功能描述: 右側工具列 (Right Sidebar / Tools Panel)
+ * 
+ * 此組件位於應用程式右側，提供輔助工具與資源管理功能。
+ * 
+ * 主要區塊:
+ *     1. 專案資訊 Header:
+ *         - 顯示目前專案名稱。
+ * 
+ *     2. 學習組件庫 (Component Lab):
+ *         - 分類顯示所有可用的 AI 學習模組 (Instruction, Practice, Assessment, Incentive)。
+ *         - 點擊按鈕可載入 Mock Data 進行測試 (開發用途)。
+ * 
+ *     3. 檔案管理 (Project Files):
+ *         - 顯示目前專案已上傳的 PDF 檔案。
+ *         - 提供上傳按鈕 (多檔案支援) 與刪除功能。
+ * 
+ *     4. 系統管理 (Admin Controls):
+ *         - Logout: 登出功能。
+ *         - Reset Database (Danger): 開發者專用，重置整個資料庫。
+ *         - Clear Uploads (Danger): 刪除所有上傳檔案。
+ * 
+ * 狀態管理:
+ *     - 使用 `useProjectStore` 同步全域專案狀態與檔案列表。
+ *     - `handleSidebarUpload`: 使用 `projectService` 處理檔案上傳邏輯。
+ */
 import React from 'react';
 import { Play, Database, Box } from 'lucide-react';
 import { Button } from '@/components/ui/button';

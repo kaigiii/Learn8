@@ -1,3 +1,24 @@
+/**
+ * 檔案名稱: frontend/src/components/layout/Sidebar.tsx
+ * 功能描述: 左側導覽列 (Left Sidebar / Project Navigator)
+ * 
+ * 此組件是應用程式的主要導覽區域，負責管理 "專案 (Projects)" 的切換與 CRUD 操作。
+ * 
+ * 主要功能:
+ *     1. 專案列表 (Project List):
+ *         - 顯示使用者擁有的所有專案。
+ *         - 透過點擊切換當前專案 (`onSelectProject`)。
+ *         - `useProjectStore` 用於設定全域 Active Project。
+ * 
+ *     2. 專案管理 (CRUD):
+ *         - 新增專案 (Create): 輸入名稱後按 Enter 或點擊 Create。
+ *         - 修改名稱 (Rename): 點擊鉛筆圖示進入編輯模式，按 Check 或 Enter 儲存。
+ *         - 刪除專案 (Delete): 點擊垃圾桶圖示，需確認刪除 (會連帶刪除檔案與資料)。
+ * 
+ *     3. 狀態同步:
+ *         - `useEffect` 初次載入時呼叫 `apiClient.get('/projects')` 取得列表。
+ *         - 操作成功後 (Create/Update/Delete) 會即時更新 `projects` state。
+ */
 import React, { useState, useEffect } from 'react';
 import { Plus, Folder, Trash2, LayoutGrid, Cpu, Pencil, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';

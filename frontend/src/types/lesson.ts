@@ -66,5 +66,7 @@ export interface Unit {
 export interface CoursePath {
     id?: number;
     courseTitle: string;
+    topic?: string;
+    description?: string;
     units: Unit[];
 }

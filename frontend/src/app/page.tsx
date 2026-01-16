@@ -34,7 +34,8 @@ import RightSidebar from '@/components/layout/RightSidebar';
 
 import { LessonStage, CoursePath, LessonNode } from '@/types/lesson';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, LogOut } from 'lucide-react';
+import { ArrowLeft, LogOut, RefreshCw } from 'lucide-react';
+import { RegenerateDialog } from '@/components/ui/RegenerateDialog';
 
 export default function Home() {
   const router = useRouter();
@@ -50,6 +51,10 @@ export default function Home() {
   const [selectedNode, setSelectedNode] = useState<LessonNode | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isGeneratingNode, setIsGeneratingNode] = useState(false);
+
+  // Regenerate
+  const [isRegenerateOpen, setIsRegenerateOpen] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
 
   // Autoresume
   const [shouldAutoResume, setShouldAutoResume] = useState(false);
@@ -179,6 +184,20 @@ export default function Home() {
     setSelectedNode(null);
   };
 
+  const handleRegenerate = async (newTopic: string) => {
+    if (!currentProjectId_Local) return;
+    try {
+      setIsRegenerating(true);
+      const res = await apiClient.post(`/courses/generate-syllabus?topic=${encodeURIComponent(newTopic)}&project_id=${currentProjectId_Local}&regenerate=true`);
+      setCoursePath(res.data);
+      setIsRegenerateOpen(false);
+    } catch (e: any) {
+      alert("Regeneration failed: " + (e.response?.data?.detail || e.message));
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
+
   const handleResumeCourse = async (courseId: number) => {
     try {
       const res = await apiClient.get(`/courses/${courseId}`);
@@ -229,6 +248,18 @@ export default function Home() {
                   <p className="text-sm text-slate-500">{coursePath.units.length} Units • Learning Path</p>
                 </div>
               </div>
+
+              {/* Regenerate Button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsRegenerateOpen(true)}
+                className="flex items-center gap-2 text-slate-600 hover:text-blue-600"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Regenerate
+              </Button>
+
             </div>
 
             <div className="flex-1 relative overflow-hidden">
@@ -248,6 +279,14 @@ export default function Home() {
               node={selectedNode}
               onStartLesson={(node) => handleStartLesson(node)}
               isGenerating={isGeneratingNode}
+            />
+
+            <RegenerateDialog
+              isOpen={isRegenerateOpen}
+              onClose={() => setIsRegenerateOpen(false)}
+              currentTopic={coursePath.topic || coursePath.courseTitle}
+              onConfirm={handleRegenerate}
+              isRegenerating={isRegenerating}
             />
           </div>
         ) : (

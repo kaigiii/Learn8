@@ -51,6 +51,7 @@ class Unit(BaseModel):
 
 class CoursePath(BaseModel):
     id: Optional[int] = None
+    topic: Optional[str] = None # Added for regenerate context
     courseTitle: str
     description: Optional[str] = None
     units: List[Unit]
