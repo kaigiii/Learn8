@@ -1,0 +1,25 @@
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+python-multipart>=0.0.9
+python-dotenv>=1.0.1
+
+# Database
+sqlalchemy>=2.0.29
+
+# Pydantic
+pydantic>=2.7.0
+pydantic-settings>=2.2.1
+
+# LangChain & AI
+langchain>=0.1.16
+langchain-community>=0.0.33
+langchain-core>=0.1.42
+langchain-google-genai>=1.0.1
+langchain-chroma>=0.1.0
+
+# Vector DB
+chromadb>=0.4.24
+
+# Utilities
+watchfiles>=0.21.0
+requests>=2.31.0
