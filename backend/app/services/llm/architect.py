@@ -84,7 +84,7 @@ from pydantic import BaseModel
 
 # ... exists ...
 
-async def generate_lesson_from_node(node: LessonNode, topic: str, user_id: Optional[int] = None, project_folder: Optional[str] = None) -> Optional[LessonStage]:
+async def generate_lesson_from_node(node: LessonNode, topic: str, user_id: Optional[int] = None, project_folder: Optional[str] = None) -> List[LessonStage]:
     provider = LLMFactory.create()
     
     if user_id:
@@ -98,16 +98,21 @@ async def generate_lesson_from_node(node: LessonNode, topic: str, user_id: Optio
         ("user", f"TOPIC: {topic}\\nNODE TITLE: {node.title}\\nNODE DESC: {node.description}\\nNODE TYPE: {node.type}")
     ]
     
-    # Wrapper for Union support
-    class LessonStageWrapper(BaseModel):
-        stage: LessonStage
+    # Wrapper for List support
+    class StageListWrapper(BaseModel):
+        stages: List[LessonStage]
 
     try:
-        wrapper = await provider.generate_structured(messages, LessonStageWrapper)
-        if wrapper and wrapper.stage:
-            wrapper.stage.stageId = node.id
-            return wrapper.stage
-        return None
+        wrapper = await provider.generate_structured(messages, StageListWrapper)
+        if wrapper and wrapper.stages:
+            # Post-process IDs
+            for i, stage in enumerate(wrapper.stages):
+                 stage.stageId = f"{node.id}-s{i}"
+            return wrapper.stages
+        return []
+    except Exception as e:
+        print(f"Node Gen Error: {e}")
+        return []
     except Exception as e:
         print(f"Node Gen Error: {e}")
         return None

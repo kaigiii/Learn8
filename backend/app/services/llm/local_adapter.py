@@ -1,9 +1,23 @@
 
 import os
 import json
+import sys
+from pathlib import Path
+
+# [HACK] Add project root to sys.path to find 'FreeGemini' module
+# Since we moved it out of backend/app/services, it is now a sibling of backend
+# Assumes structure: /root/backend/app/services/llm/local_adapter.py
+# We want to add /root to sys.path
+project_root = Path(__file__).resolve().parents[4] # up to Learna_v3
+sys.path.append(str(project_root))
+
 from typing import Any, List, Type, Optional
 from pydantic import BaseModel
-from app.services.freegemini.freegemini_langchain import ChatFreeGemini
+try:
+    from FreeGemini.freegemini_langchain import ChatFreeGemini
+except ImportError:
+    print("Warning: FreeGemini module not found. Local adapter will fail.")
+    ChatFreeGemini = None
 from app.core.config import settings
 from app.services.llm.base import BaseLLMProvider
 from langchain_core.output_parsers import PydanticOutputParser

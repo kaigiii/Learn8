@@ -8,7 +8,9 @@ from app.models.user import UserModel
 from app.models.course import CourseModel, NodeModel
 from app.models.project import ProjectModel
 from app.schemas.course import CoursePath, RefineSyllabusRequest, UpdateNodeStatusRequest, LessonNode
-from app.services.llm.architect import generate_course_syllabus
+from app.services.llm.agents.syllabus_agent import SyllabusAgent
+
+
 from app.services.syllabus_graph import syllabus_graph
 import datetime
 
@@ -74,7 +76,9 @@ async def generate_syllabus(
          if db_project:
              project_folder_name = db_project.folder_name
 
-    syllabus = await generate_course_syllabus(topic, user_id=current_user.id, project_folder=project_folder_name)
+    # OLD: syllabus = await generate_course_syllabus(topic, user_id=current_user.id, project_folder=project_folder_name)
+    # NEW: Agentic Workflow
+    syllabus = await SyllabusAgent.run(topic, user_id=current_user.id, project_folder=project_folder_name, project_id=project_id)
     if not syllabus:
          raise HTTPException(status_code=404, detail="Failed to generate syllabus.")
     

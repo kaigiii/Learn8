@@ -1,55 +1,68 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-venv/
-.env
+# System
 .DS_Store
-
-# Frontend / Node.js
-frontend/node_modules/
-frontend/.next/
-frontend/dist/
-frontend/build/
-frontend/.env
-frontend/.env.local
-frontend/.env.development.local
-frontend/.env.test.local
-frontend/.env.production.local
-frontend/npm-debug.log*
-frontend/yarn-debug.log*
-frontend/yarn-error.log*
-
-# User specified explicitly
-frontend/public/file.svg
-frontend/public/globe.svg
-frontend/public/next.svg
-frontend/public/vercel.svg
-frontend/public/window.svg
-frontend/package-lock.json # Recommended to TRACK this file for consistent installs
-
-# Backend / RAG
-chroma_db/
-backend/__pycache__/
-backend/venv/
-backend/.env
-backend/*.pdf
-!backend/dummy.pdf
-temp_*.pdf
-*.log
+Thumbs.db
 
 # IDEs
 .vscode/
 .idea/
 
-# Backend Data
-backend/uploads/
-uploads/
+# Python / Backend
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual Env
+venv/
+.venv/
+
+# Node / Frontend
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.next/
+out/
+build/
+coverage/
+
+# Environment Variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+backend/.env
+frontend/.env
+
+# Database & Storage
+*.db
+*.sqlite3
 backend/learna.db
 backend/chroma_db/
-.gemini/
-backend/app/services/freegemini/projects_pool/
+backend/uploads/
 
-# OS
-.DS_Store
-**/.DS_Store
+# Learna Specific
+projects_pool/
+uploads/

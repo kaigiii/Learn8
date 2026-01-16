@@ -27,6 +27,7 @@ class Unit(BaseModel):
 class CoursePath(BaseModel):
     id: Optional[int] = None
     courseTitle: str
+    description: Optional[str] = None
     units: List[Unit]
 
 class RefineSyllabusRequest(BaseModel):

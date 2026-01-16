@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -26,7 +25,7 @@ export default function Home() {
 
   // Local state for specific page logic
   const [coursePath, setCoursePath] = useState<CoursePath | null>(null);
-  const [activeStage, setActiveStage] = useState<LessonStage | null>(null);
+  const [activeStages, setActiveStages] = useState<LessonStage[] | null>(null);
 
   // Drawer
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -112,7 +111,13 @@ export default function Home() {
         targetNode
       );
 
-      setActiveStage(res.data);
+      const data = res.data;
+      if (Array.isArray(data)) {
+        setActiveStages(data);
+      } else {
+        setActiveStages([data]);
+      }
+
       setIsDrawerOpen(false);
     } catch (e: any) {
       alert("Error generating lesson: " + (e.response?.data?.detail || e.message));
@@ -122,7 +127,7 @@ export default function Home() {
   };
 
   const handleExitLesson = () => {
-    setActiveStage(null);
+    setActiveStages(null);
   };
 
   const handleLessonComplete = async () => {
@@ -145,7 +150,7 @@ export default function Home() {
 
   const handleBackToDashboard = () => {
     setCoursePath(null);
-    setActiveStage(null);
+    setActiveStages(null);
     setSelectedNode(null);
   };
 
@@ -158,18 +163,14 @@ export default function Home() {
     }
   };
 
-
-
-  // ... (in page.tsx component)
-
   const handleMockLoad = (stage: LessonStage) => {
-    setActiveStage(stage);
+    setActiveStages([stage]);
   };
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50 font-[family-name:var(--font-geist-sans)]">
       {/* Sidebar */}
-      {!activeStage && (
+      {!activeStages && (
         <Sidebar
           currentProjectId={currentProjectId_Local}
           onSelectProject={(id) => {
@@ -177,7 +178,7 @@ export default function Home() {
             setShouldAutoResume(true);
             // Reset view to Dashboard so it can auto-resume the new project
             setCoursePath(null);
-            setActiveStage(null);
+            setActiveStages(null);
           }}
         />
       )}
@@ -185,7 +186,7 @@ export default function Home() {
       {/* Main Content */}
       <main className="flex-1 flex flex-col relative overflow-y-auto w-full">
         {/* ... existing main content ... */}
-        {!activeStage && (
+        {!activeStages && (
           <div className="absolute top-4 right-4 z-50">
             <Button variant="ghost" onClick={handleLogout} className="text-slate-500 hover:text-red-500">
               <LogOut className="w-4 h-4 mr-2" /> Logout
@@ -193,15 +194,14 @@ export default function Home() {
           </div>
         )}
 
-        {activeStage ? (
+        {activeStages ? (
           <StageRenderer
-            stages={[activeStage]}
+            stages={activeStages}
             onExit={handleExitLesson}
             onComplete={handleLessonComplete}
           />
         ) : coursePath ? (
           <div className="relative h-screen flex flex-col">
-            {/* ... existing map view ... */}
             <div className="bg-white border-b px-6 py-4 flex items-center justify-between shadow-sm z-10">
               <div className="flex items-center gap-4">
                 <Button variant="ghost" size="icon" onClick={handleBackToDashboard}>
@@ -248,7 +248,7 @@ export default function Home() {
       </main>
 
       {/* Right Sidebar (Always visible unless playing stage) */}
-      {!activeStage && (
+      {!activeStages && (
         <RightSidebar
           currentProjectName={currentProjectId_Local ? "Current Project" : "Global Scope"}
           onLoadMock={handleMockLoad}

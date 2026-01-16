@@ -97,31 +97,25 @@ Choose the component that best fits the specific learning goal:
 - If the goal is to **explore consequences of decisions**: Use `DilemmaSolver`.
 
 ### 3. COMPONENT DATA REFERENCE (CRITICAL)
-You MUST populate `config.data` with the specific fields required by the chosen component:
-
-- **TextToken**:
-  `{ "text": "Full sentence to split", "items": ["token1", "token2"] }` (Use `items` for manually segmented tokens)
-
-- **TaxonomyMatrix**:
-  `{ "buckets": ["Category A", "Category B"], "items": [{"id": "1", "content": "Item 1", "correctBucket": "Category A"}] }`
-
-- **SpatialAnatomy**:
-  `{ "imageUrl": "...", "areas": [{"id": "1", "label": "Label", "coords": [x, y, w, h], "description": "..."}] }`
-
-- **VariableBalancer**:
-  `{ "variables": [{"name": "Var1", "min": 0, "max": 100, "default": 50, "effect": "Target = Var1 * 2"}] }`
-
-- **LogicChain / Sequencer**:
-  `{ "steps": [{"id": "1", "content": "Step 1"}, {"id": "2", "content": "Step 2"}] }`
-
-- **DilemmaSolver**:
-  `{ "scenario": "...", "options": [{"id": "opt1", "label": "Choice A", "consequence": "..."}] }`
-
-- **PatternMatcher**:
-  `{ "pairs": [{"id": "1", "left": "Concept A", "right": "Definition A"}] }`
+You MUST populate `config.data` with the specific fields required by the chosen component.
+(Same component reference as before...)
 
 ### REQUIRED OUTPUT FORMAT
-Output a JSON object matching the `LessonStage` schema.
+You must output a VALID JSON object matching this schema:
+{
+  "stages": [
+    { ... LessonStage object ... },
+    { ... LessonStage object ... }
+  ]
+}
+
+### PEDAGOGY RULES (MULTI-STAGE)
+Design an optimal **Learning Sequence** for this node.
+Decide how many stages are needed based on the complexity of the topic.
+- A simple concept might only need 1 stage (Instruction).
+- A complex skill might need 3+ stages (Instruction -> Practice -> Application -> Advanced Challenge).
+
+Ensure the sequence makes pedagogical sense. Do not just generic quiz.
 """
 
 REMEDIAL_SYSTEM_PROMPT = """

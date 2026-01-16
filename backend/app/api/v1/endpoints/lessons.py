@@ -11,7 +11,9 @@ from app.services.llm.architect import generate_lesson_from_node
 
 router = APIRouter()
 
-@router.post("/generate-lesson-from-node", response_model=LessonStage)
+from typing import List
+
+@router.post("/generate-lesson-from-node", response_model=List[LessonStage])
 async def generate_lesson_from_node_endpoint(
     node: LessonNode, 
     topic: str, 
@@ -32,7 +34,13 @@ async def generate_lesson_from_node_endpoint(
 
     if cached_lesson:
         from pydantic import TypeAdapter
-        return TypeAdapter(LessonStage).validate_python(cached_lesson.stage_json)
+        # Check if legacy data (dict) or new data (list)
+        data = cached_lesson.stage_json
+        if isinstance(data, list):
+             return TypeAdapter(List[LessonStage]).validate_python(data)
+        elif isinstance(data, dict):
+             # Establish backward compatibility: wrap single stage in list
+             return [TypeAdapter(LessonStage).validate_python(data)]
 
     # 2. Generate
     project_folder_name = None
@@ -44,22 +52,25 @@ async def generate_lesson_from_node_endpoint(
          if db_project:
              project_folder_name = db_project.folder_name
 
-    stage = await generate_lesson_from_node(node, topic, user_id=current_user.id, project_folder=project_folder_name)
-    if not stage:
+    stages = await generate_lesson_from_node(node, topic, user_id=current_user.id, project_folder=project_folder_name)
+    if not stages:
          raise HTTPException(status_code=404, detail="Failed to generate lesson content.")
     
     # 3. Save
+    # We serialize the list of models to a list of dicts
+    stages_json = [s.model_dump() for s in stages]
+    
     new_lesson = LessonModel(
         node_id=node.id,
         course_topic=topic,
-        stage_json=stage.model_dump(),
+        stage_json=stages_json, # Stores list now
         user_id=current_user.id,
         project_id=project_id
     )
     db.add(new_lesson)
     db.commit()
     
-    return stage
+    return stages
 
 from app.models.lesson import LessonAttempt
 

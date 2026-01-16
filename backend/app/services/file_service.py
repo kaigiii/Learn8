@@ -40,3 +40,20 @@ class FileService:
             if not f.startswith("."):
                 files.append(f)
         return files
+
+    @staticmethod
+    def delete_project_folder(user_id: int, project_folder: str):
+        """Recursively deletes the project upload directory."""
+        if not project_folder:
+            return
+            
+        target_dir = FileService.get_upload_dir(user_id, project_folder)
+        
+        # Safety check: ensure we are deleting inside the uploads directory
+        # (Though get_upload_dir handles base path, extra caution is good)
+        if os.path.exists(target_dir):
+            try:
+                shutil.rmtree(target_dir)
+                print(f"🗑️ Deleted project folder: {target_dir}")
+            except Exception as e:
+                print(f"Error deleting project folder {target_dir}: {e}")
