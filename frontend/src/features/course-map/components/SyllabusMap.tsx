@@ -1,4 +1,16 @@
 
+/**
+ * 檔案名稱: features/course-map/components/SyllabusMap.tsx
+ * 功能描述: 課程地圖 (Syllabus Map Visualization)
+ * 
+ * 使用 React Flow 繪製課程的節點圖。將後端的樹狀結構 (Units -> Nodes)
+ * 轉換為視覺化的圖表。
+ * 
+ * 主要邏輯:
+ * - 自動佈局 (Auto Layout): 簡單的網格排列 (Grid Layout)，每個 Unit 一行。
+ * - 節點狀態視覺化: 根據 status ('locked', 'available', 'completed') 改變顏色與樣式。
+ * - 互動: 點擊節點觸發 `onNodeClick` (通常是開啟 NodeDrawer)。
+ */
 "use client";
 
 import React, { useMemo } from 'react';

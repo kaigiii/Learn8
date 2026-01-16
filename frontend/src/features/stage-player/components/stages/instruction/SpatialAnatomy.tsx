@@ -1,3 +1,13 @@
+/**
+ * 檔案名稱: features/stage-player/components/stages/instruction/SpatialAnatomy.tsx
+ * 功能描述: 空間解剖 (Spatial Anatomy) - 教學組件
+ * 
+ * 用於展示物件結構、層次或解剖圖的互動組件。
+ * 
+ * 互動邏輯:
+ * 1. 顯示一個複雜的 SVG 或圖像。
+ * 2. 使用者可點擊不同部位 (Parts) 查看詳細說明 (Highlights)。
+ */
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { LessonStage } from '@/types/lesson';

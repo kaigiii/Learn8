@@ -1,3 +1,13 @@
+/**
+ * 檔案名稱: features/stage-player/components/stages/instruction/TextToken.tsx
+ * 功能描述: 對應文本 (Text Token) - 教學組件
+ * 
+ * 用於語言學習或概念定義的關鍵字重組練習。
+ * 
+ * 互動邏輯:
+ * 1. 提供一段打散的文本或句子。
+ * 2. 使用者點擊 Token 依序還原正確的句子結構。
+ */
 import React, { useState, useEffect } from 'react';
 import { motion, Reorder } from 'framer-motion';
 import { Button } from '@/components/ui/button';

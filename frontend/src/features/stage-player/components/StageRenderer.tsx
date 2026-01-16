@@ -1,3 +1,16 @@
+/**
+ * 檔案名稱: features/stage-player/components/StageRenderer.tsx
+ * 功能描述: 階段渲染器 (Stage Renderer)
+ * 
+ * 負責單元內多個階段 (Stages) 的流暢切換與狀態管理。
+ * 相當於 "播放器" 的容器。
+ * 
+ * 主要職責:
+ * 1. 狀態管理: 當前播放到第幾個 Stage (`currentIndex`)。
+ * 2. 提交答案: 處理 `onSubmit` 回調，將使用者答案發送回後端 `/submit-answer`。
+ * 3. 補救教學 (Remedial): 若後端回傳 `nextAction: 'remedial'`，動態插入新的 Stage 到播放清單中。
+ * 4. UI 呈現: 進度條、轉場動畫 (Framer Motion)、回饋訊息顯示。
+ */
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LessonStage } from '@/types/lesson';

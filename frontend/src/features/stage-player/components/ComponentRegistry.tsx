@@ -1,3 +1,19 @@
+/**
+ * 檔案名稱: features/stage-player/components/ComponentRegistry.tsx
+ * 功能描述: 組件註冊表 (Component Registry)
+ * 
+ * 這是 "Feature Slicing" 架構的核心部分，將後端回傳的字串 key (例如 'VariableBalancer')
+ * 映射到實際的前端 React 組件。
+ * 
+ * 作用:
+ * - 實現動態渲染: `StageRenderer` 根據 `stage.component` 名稱來查表並渲染。
+ * - 擴充性: 新增遊戲類型時，只需在此處註冊，無需修改主要渲染邏輯。
+ * 
+ * 註冊組件:
+ * - Instruction: SpatialAnatomy, TextToken...
+ * - Practice: LogicChain, Sequencer...
+ * - Assessment: TaxonomyMatrix, FeynmanMirror...
+ */
 import React from 'react';
 import { LessonStage } from '@/types/lesson';
 import { VariableBalancer } from './stages/practice/VariableBalancer';

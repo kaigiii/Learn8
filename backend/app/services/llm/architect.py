@@ -1,3 +1,27 @@
+"""
+模組名稱: app.services.llm.architect
+功能描述: AI 架構師服務 (AI Architect Service)
+
+此模組是後端業務邏輯 (Services) 與 LLM 抽象層 (Provider) 之間的橋樑。
+負責將具體的業務需求 (如 "生成單元內容") 轉換為 LLM 能夠理解的 Prompt 組合。
+
+主要函式:
+    1. generate_course_syllabus (Legacy):
+       - 舊版的大綱生成邏輯，目前主要由 SyllabusAgent 取代。
+
+    2. refine_course_syllabus:
+       - 功能: 根據使用者回饋 (Feedback) 修改大綱。
+
+    3. generate_lesson_from_node:
+       - 功能: 為單一節點生成多階段 (Multi-stage) 的課程內容。
+       - 流程: 綁定 RAG 檔案 -> 組合 Prompt -> 呼叫 LLM -> 解析 JSON -> 補上 ID。
+
+    4. generate_remedial_stage:
+       - 功能: 生成補救教學內容 (當學生答錯時)。
+
+    5. grade_feynman_attempt:
+       - 功能: 對學生的「費曼解釋」進行評分與回饋。
+"""
 
 import json
 from typing import List, Optional

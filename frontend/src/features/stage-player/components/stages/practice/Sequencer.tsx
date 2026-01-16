@@ -1,3 +1,13 @@
+/**
+ * 檔案名稱: features/stage-player/components/stages/practice/Sequencer.tsx
+ * 功能描述: 排序器 (Sequencer) - 練習組件
+ * 
+ * 簡單的線性排序練習。
+ * 
+ * 互動邏輯:
+ * 1. 亂序列出歷史事件、實驗步驟或程式碼行。
+ * 2. 使用者拖曳排序至正確的時間軸或順序。
+ */
 import React, { useState, useEffect } from 'react';
 import { Reorder, useDragControls } from 'framer-motion';
 import { LessonStage } from '@/types/lesson';

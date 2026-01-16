@@ -1,3 +1,16 @@
+/**
+ * 檔案名稱: lib/mock-data.ts
+ * 功能描述: 靜態模擬資料 (Static Mock Data)
+ * 
+ * 定義了各種類型 Lesson Stage 的範例資料，用於前端開發與測試。
+ * 當後端尚未準備好或需要測試特定 UI 組件時，可直接使用此處的資料。
+ * 
+ * 包含組件範例:
+ * - Instruction: SpatialAnatomy, TextToken, PatternMatcher
+ * - Practice: VariableBalancer, LogicChain, Sequencer
+ * - Assessment: TaxonomyMatrix, FeynmanMirror
+ * - Incentive: DilemmaSolver
+ */
 import { LessonStage } from '@/types/lesson';
 
 const BASE_STAGE: Partial<LessonStage> = {

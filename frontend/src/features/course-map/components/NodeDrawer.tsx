@@ -1,4 +1,15 @@
 
+/**
+ * 檔案名稱: features/course-map/components/NodeDrawer.tsx
+ * 功能描述: 節點詳情側邊欄 (Node Detail Drawer)
+ * 
+ * 當使用者點擊地圖上的節點時，從右側滑出的詳細資訊面板。
+ * 
+ * 功能:
+ * - 顯示元數據: 標題、描述、類型 (Concept/Exercise/Quiz)。
+ * - 學習目標: 靜態的學習目標列表 (未來可由 AI 生成)。
+ * - 開始按鈕: 呼叫 `onStartLesson` 進入 StagePlayer。(若鎖定則禁用)
+ */
 "use client";
 
 import React from 'react';
@@ -38,8 +49,8 @@ export const NodeDrawer: React.FC<NodeDrawerProps> = ({ node, isOpen, onClose, o
                             <div>
                                 <h2 className="text-2xl font-bold text-slate-800">{node.title}</h2>
                                 <span className={`inline-block px-2 py-1 rounded text-xs font-semibold mt-2 ${node.type === 'concept' ? 'bg-blue-100 text-blue-700' :
-                                        node.type === 'exercise' ? 'bg-green-100 text-green-700' :
-                                            'bg-amber-100 text-amber-700'
+                                    node.type === 'exercise' ? 'bg-green-100 text-green-700' :
+                                        'bg-amber-100 text-amber-700'
                                     }`}>
                                     {node.type.toUpperCase()}
                                 </span>

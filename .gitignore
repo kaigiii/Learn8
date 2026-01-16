@@ -59,7 +59,7 @@ frontend/.env
 # Database & Storage
 *.db
 *.sqlite3
-backend/learna.db
+backend/learna_db/*.db
 backend/chroma_db/
 backend/uploads/
 

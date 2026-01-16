@@ -1,3 +1,26 @@
+"""
+模組名稱: app.schemas.lesson
+功能描述: 遊戲化課程內容架構 (Gamified Lesson Content Schemas)
+
+這是系統中最複雜的 Schema 模組，定義了 "Lesson Stage" (課程階段) 的多態性結構。
+利用 Pydantic 的 Union 與 Discriminator 機制，支援多種不同的遊戲化組件配置。
+
+主要枚舉 (Enums):
+    - ModuleType: 教學模組類型 (Instruction, Practice, Assessment, Incentive)。
+    - ComponentType: 前端 UI 組件類型 (TextToken, TaxonomyMatrix, PatternMatcher 等)。
+    - SkinType: 介面風格 (Scientific, Classic, Code)。
+    - ValidationType: 答案驗證邏輯 (Exact, Regex, Logic)。
+
+核心模型 (Stage Models):
+    - LessonStage (Union): 代表任意一種階段類型。
+    - TextTokenStage: 針對 TextToken 組件的設定。
+    - TaxonomyStage: 針對 TaxonomyMatrix 組件的設定。
+    - PatternMatcherStage: 針對 PatternMatcher 組件的設定。
+
+互動模型:
+    - SubmissionRequest: 前端提交答案的格式。
+    - SubmissionResponse: 後端回傳的判定結果 (包含 nextAction, remedialStage)。
+"""
 from typing import Any, Optional, List, Union, Literal
 from pydantic import BaseModel, Field, field_validator
 from enum import Enum

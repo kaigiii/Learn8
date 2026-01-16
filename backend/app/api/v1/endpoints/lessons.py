@@ -1,3 +1,23 @@
+"""
+模組名稱: app.api.v1.endpoints.lessons
+功能描述: 單元內容生成與互動 API (Lesson Content & Interaction Endpoints)
+
+負責生成具體的學習內容 (Stages) 以及處理使用者的互動回饋。
+此模組連接了 LLM Architect (生成端) 與 Frontend Player (互動端)。
+
+路由列表:
+    1. POST /generate-lesson-from-node
+        - 功能: 為特定節點生成多階段的學習內容 (Lesson Stages)。
+        - 緩存機制 (Caching): 若 DB 中已有生成過的內容，會優先回傳 (避免重複扣款與等待)。
+        - 輸出: 回傳 List[LessonStage]，前端依序播放。
+
+    2. POST /submit-answer
+        - 功能: 處理學生提交的答案。
+        - 邏輯:
+            - Client-side 驗證通過 -> 記錄 Log -> 回傳 Proceed。
+            - 失敗 -> 觸發 "Remedial Generation" (補救教學生成)。
+            - FeynmanMirror 組件 -> 使用 AI 評分 (Grade) -> 回傳詳細評語。
+"""
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session

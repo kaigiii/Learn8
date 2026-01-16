@@ -1,3 +1,22 @@
+"""
+模組名稱: app.api.v1.endpoints.auth
+功能描述: 認證相關 API (Authentication Endpoints)
+
+處理使用者註冊、登入以及開發者快速登入功能。
+
+路由列表:
+    1. POST /register
+        - 功能: 註冊新帳號。
+        - 邏輯: 檢查 Email 是否重複 -> 雜湊密碼 -> 寫入 DB。
+
+    2. POST /login
+        - 功能: 一般登入。
+        - 回傳: JWT Access Token (Bearer)。
+
+    3. POST /dev-login
+        - 功能: 開發者快速登入 (僅用於測試環境)。
+        - 邏輯: 自動建立或登入 "dev@learna.ai" 帳號，免輸入密碼。
+"""
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session

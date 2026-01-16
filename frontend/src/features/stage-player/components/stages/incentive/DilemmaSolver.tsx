@@ -1,3 +1,14 @@
+/**
+ * 檔案名稱: features/stage-player/components/stages/incentive/DilemmaSolver.tsx
+ * 功能描述: 兩難解算器 (Dilemma Solver) - 獎勵/情境組件
+ * 
+ * 用於創建模劃兩難情境的決策遊戲。
+ * 
+ * 互動邏輯:
+ * 1. 呈現一個具有道德或策略衝突的情境。
+ * 2. 使用者選擇解決方案。
+ * 3. 系統展示該選擇帶來的後果 (Consequences) 與省思。
+ */
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { LessonStage } from '@/types/lesson';

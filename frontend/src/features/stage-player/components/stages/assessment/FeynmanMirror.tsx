@@ -1,3 +1,14 @@
+/**
+ * 檔案名稱: features/stage-player/components/stages/assessment/FeynmanMirror.tsx
+ * 功能描述: 費曼鏡像 (Feynman Mirror) - 評量組件
+ * 
+ * 模擬「費曼學習法」的互動組件。
+ * 
+ * 互動邏輯:
+ * 1. 使用者用自己的話解釋一個概念。
+ * 2. 提交後，後端 (AI Agent) 扮演費曼的角色進行評分。
+ * 3. 系統回饋解釋的準確度、簡單度以及改進建議。
+ */
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { LessonStage } from '@/types/lesson';

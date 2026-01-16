@@ -1,3 +1,15 @@
+"""
+模組名稱: app.services.llm.local_adapter
+功能描述: FreeGemini 配接器 (Local Adapter)
+
+實作 BaseLLMProvider 介面，用於連接本地或非官方的 FreeGemini 服務。
+此模組包含較多的自定義邏輯，用於處理非官方 API 的格式怪癖 (Quirks)。
+
+特殊處理:
+    - bind_files: 支援本地檔案直接綁定 (這是 FreeGemini 的強項)。
+    - JSON Parsing: 內建了多重清洗邏輯 (去除 Markdown, 去除 [QUOTE] 標籤)，
+      盡力修復 LLM 輸出的損壞 JSON 字串。
+"""
 
 import os
 import json

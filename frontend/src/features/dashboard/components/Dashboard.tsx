@@ -1,3 +1,22 @@
+/**
+ * 檔案名稱: features/dashboard/components/Dashboard.tsx
+ * 功能描述: 主控台頁面 (Main Dashboard)
+ * 
+ * 應用程式的主要入口頁面，整合了 "檔案上傳" 與 "課程生成" 的核心流程。
+ * 
+ * 主要功能:
+ * 1. 檔案上傳 (RAG Ingestion):
+ *    - 允許使用者上傳 PDF。
+ *    - 呼叫 `POST /projects/upload-pdf`。
+ * 
+ * 2. 課程生成 (Syllabus Generation):
+ *    - 輸入 Topic (如 "Calculus")。
+ *    - 呼叫 `POST /courses/generate-syllabus`。
+ *    - 觸發 LLM Architect 進行生成。
+ * 
+ * 3. 自動恢復 (Auto Resume):
+ *    - 若有 `shouldAutoResume` 屬性，自動載入使用者上次的課程。
+ */
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';

@@ -1,3 +1,14 @@
+"""
+模組名稱: app.services.llm.google_adapter
+功能描述: Google Gemini API 配接器 (Google Adapter)
+
+實作 BaseLLMProvider 介面，封裝 langchain-google-genai 函式庫。
+用於與官方 Google Gemini API 進行通訊。
+
+實作細節:
+    - 支援 with_structured_output (若 LangChain 版本支援) 或 PydanticOutputParser。
+    - 目前暫未完整支援 bind_files (因官方 API 需要先上傳 File API)。
+"""
 
 from typing import Any, List, Type
 from pydantic import BaseModel

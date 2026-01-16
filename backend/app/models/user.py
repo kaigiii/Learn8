@@ -1,3 +1,19 @@
+"""
+模組名稱: app.models.user
+功能描述: 使用者資料模型 (User Model)
+
+定義了系統中的使用者帳戶資訊。
+
+資料表 (Tables):
+    1. users (UserModel)
+        - 欄位:
+            - email: 使用者信箱 (唯一識別)。
+            - hashed_password: 加密後的密碼 (絕不明文儲存)。
+        
+備註:
+    目前系統的設計偏向 MVP (Minimum Viable Product)，
+    因此使用者模型較為精簡，未來可擴充加入 Profile、Preferences 等欄位。
+"""
 
 from sqlalchemy import Column, Integer, String
 from app.db.base_class import Base

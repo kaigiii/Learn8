@@ -1,3 +1,26 @@
+"""
+模組名稱: app.services.rag_engine
+功能描述: RAG 知識檢索引擎 (Retrieval-Augmented Generation Engine)
+
+負責將使用者的 PDF 文件轉換為向量索引 (Vector Index)，並提供語意搜尋功能。
+整合了 Google Gemini Embeddings 與 ChromaDB。
+
+核心類別:
+    - RAGEngine (Static Methods Only)
+
+主要流程:
+    1. Ingestion (索引建立):
+       PDF -> PyPDFLoader -> Text Splitter (Chunking) -> Embeddings -> ChromaDB。
+       *重點*: 每個 Document 都會標記 `project_id` metadata 以實現資料隔離。
+
+    2. Retrieval (搜尋):
+       Query -> Query Expansion (生成 3 個相關查詢) -> Vector Search (Chroma) -> Reranking (過濾) -> Context。
+
+方法清單:
+    - ingest_pdf: 處理檔案上傳並建立索引。
+    - query_context: 根據 Topic 搜尋相關知識片段。
+    - delete_project_context: 清除指定專案的所有向量資料。
+"""
 
 import os
 import shutil

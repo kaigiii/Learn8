@@ -1,3 +1,13 @@
+/**
+ * 檔案名稱: features/stage-player/components/stages/practice/LogicChain.tsx
+ * 功能描述: 邏輯鏈 (Logic Chain) - 練習組件
+ * 
+ * 訓練因果關係與邏輯推演能力的組件。
+ * 
+ * 互動邏輯:
+ * 1. 提供一系列事件或邏輯步驟。
+ * 2. 使用者需將其依照正確的邏輯順序連接起來。
+ */
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowDown } from 'lucide-react';

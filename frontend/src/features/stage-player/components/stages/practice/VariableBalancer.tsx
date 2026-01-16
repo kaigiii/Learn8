@@ -1,3 +1,13 @@
+/**
+ * 檔案名稱: features/stage-player/components/stages/practice/VariableBalancer.tsx
+ * 功能描述: 變數平衡器 (Variable Balancer) - 練習組件
+ * 
+ * 用於理解多變數之間動態關係 (如公式、生態平衡) 的組件。
+ * 
+ * 互動邏輯:
+ * 1. 提供多個可調整的滑桿 (Sliders) 代表變數。
+ * 2. 使用者調整變數以達成特定的平衡目標 (Target State)。
+ */
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';

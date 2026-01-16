@@ -1,3 +1,19 @@
+"""
+模組名稱: app.services.file_service
+功能描述: 檔案管理服務 (File Management Service)
+
+負責處理本地檔案系統的操作，如上傳、列表查詢與刪除。
+確保所有檔案路徑都限制在 `uploads/{user_id}/{project_folder}` 沙盒中，
+防止 Directory Traversal 攻擊。
+
+主要類別:
+    - FileService (Static Methods Only)
+
+主要方法:
+    1. save_upload_file: 將上傳的檔案 (UploadFile) 寫入磁碟。
+    2. list_files: 列出該專案下的所有檔案名稱 (過濾隱藏檔)。
+    3. delete_project_folder: 遞迴刪除整個專案資料夾 (慎用)。
+"""
 
 import os
 import shutil

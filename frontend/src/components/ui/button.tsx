@@ -1,3 +1,14 @@
+/**
+ * 檔案名稱: components/ui/button.tsx
+ * 功能描述: 通用按鈕組件 (Button UI)
+ * 
+ * 基於 Radix UI / Shadcn UI 設計的高可客製化按鈕。
+ * 
+ * Props:
+ * - variant: 'default' | 'outline' | 'ghost' (外觀風格)。
+ * - size: 'default' | 'sm' | 'lg' | 'icon' (尺寸)。
+ * - asChild: 是否將樣式傳遞給子元素 (Slot Pattern)。
+ */
 import * as React from "react"
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"

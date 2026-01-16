@@ -1,3 +1,13 @@
+/**
+ * 檔案名稱: features/stage-player/components/stages/instruction/PatternMatcher.tsx
+ * 功能描述: 模式匹配器 (Pattern Matcher) - 教學組件
+ * 
+ * 訓練使用者識別視覺或數據模式的組件。
+ * 
+ * 互動邏輯:
+ * 1. 顯示一組隱含特定模式的圖像或數據。
+ * 2. 使用者需找出規律或下一個序列。
+ */
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { LessonStage } from '@/types/lesson';

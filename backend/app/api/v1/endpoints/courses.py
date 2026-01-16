@@ -1,3 +1,33 @@
+"""
+模組名稱: app.api.v1.endpoints.courses
+功能描述: 課程與大綱管理 API (Course Management Endpoints)
+
+負責課程大綱 (Syllabus) 的生成、查詢、修正以及學習進度的更新。
+這是 Learna v3 的核心業務邏輯入口。
+
+路由列表:
+    1. GET /
+        - 功能: 列出當前使用者的所有課程。
+        - 支援依 project_id 篩選。
+
+    2. GET /{course_id}
+        - 功能: 取得指定課程的完整大綱 (Syllabus JSON)。
+
+    3. POST /generate-syllabus
+        - 功能: AI 自動生成課程大綱。
+        - 流程:
+            1. 檢查是否已有相同主題的課程 (Cache Check)。
+            2. 呼叫 `SyllabusAgent` 進行 Agentic Workflow 生成。
+            3. 將生成結果存入 DB (同時建立 Course 與 Nodes 紀錄)。
+
+    4. POST /refine-syllabus
+        - 功能: 根據使用者回饋修正大綱。
+        - 工具: 使用 LangGraph (syllabus_graph) 進行多輪對話修正。
+
+    5. PATCH /{course_id}/node/{node_id}/status
+        - 功能: 更新學習節點狀態 (如從 locked -> available -> completed)。
+        - 邏輯: 當節點完成時，會自動解鎖下一個節點 (連鎖解鎖邏輯)。
+"""
 
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException

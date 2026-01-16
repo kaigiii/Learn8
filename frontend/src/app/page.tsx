@@ -1,3 +1,21 @@
+/**
+ * 檔案名稱: app/page.tsx
+ * 功能描述: 首頁 (Home Page)
+ * 
+ * 應用程式的主要 View Controller。
+ * 負責協調大多數的全域狀態與組件切換。
+ * 
+ * 核心狀態 (State):
+ * - `coursePath`: 存放目前生成的課程大綱。若有值則顯示地圖，否則顯示 Dashboard。
+ * - `activeStages`: 存放目前正在進行的課程單元 (StagePlayer)。
+ * - `isDrawerOpen`: 控制側邊欄顯示。
+ * - `shouldAutoResume`: 處理專案切換時的自動載入邏輯。
+ * 
+ * 主要邏輯:
+ * - `handleStartLesson`: 呼叫後端生成 Stage 並進入播放模式。
+ * - `handleRefineSyllabus`: 呼叫後端修改大綱。
+ * - Auth Guard: 檢查 Token，未登入則導向 `/login`。
+ */
 "use client";
 
 import { useState, useEffect } from 'react';

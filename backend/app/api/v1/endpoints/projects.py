@@ -1,3 +1,25 @@
+"""
+模組名稱: app.api.v1.endpoints.projects
+功能描述: 專案管理 API (Project Management Endpoints)
+
+處理專案的生命週期管理 (CRUD) 以及檔案資源的綁定。
+專案是 RAG 知識庫的邊界 (Boundary)，所有上傳的 PDF 都會被限制在特定專案中。
+
+路由列表:
+    1. POST / (Create)
+        - 功能: 建立新專案，自動產生 UUID 資料夾名稱。
+
+    2. DELETE /{project_id}
+        - 功能: 完整刪除專案。
+        - 清理流程:
+            1. 刪除實體檔案 (FileService)。
+            2. 刪除 RAG 向量索引 (RAGEngine)。
+            3. 刪除資料庫紀錄。
+
+    3. POST /upload-pdf
+        - 功能: 上傳 PDF 文件。
+        - 觸發: 若使用 Google RAG，則立即觸發 `ingest_pdf` 建立索引。
+"""
 
 import uuid
 import os

@@ -1,4 +1,18 @@
 
+/**
+ * 檔案名稱: features/auth/components/LoginForm.tsx
+ * 功能描述: 登入表單 (Login Component)
+ * 
+ * 提供使用者輸入 Email/Password 進行登入的介面，以及 "Dev Login" 快速通道。
+ * 
+ * 互動流程:
+ * 1. 提交表單 -> 呼叫 `POST /auth/login`。
+ * 2. 成功 -> 更新 `useAuthStore` 狀態 -> 導向 `/` (Dashboard)。
+ * 3. 失敗 -> 顯示錯誤訊息。
+ * 
+ * 特殊功能:
+ * - Dev Login: 方便開發者一鍵登入 (模擬帳號 dev@learna.ai)。
+ */
 "use client";
 
 import { useState } from "react";

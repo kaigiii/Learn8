@@ -1,3 +1,14 @@
+/**
+ * 檔案名稱: features/chat/components/ChatSidebar.tsx
+ * 功能描述: AI 課程架構師聊天室 (Architect Chat Sidebar)
+ * 
+ * 允許使用者與 AI Architect 進行對話，以微調 (Refine) 課程大綱。
+ * 
+ * 主要功能:
+ * - 即時對話: 顯示 User 與 Model 的訊息串。
+ * - 觸發修改: 使用者輸入指令後，由上層組件呼叫後端 `refine_syllabus`。
+ * - 狀態回饋: 顯示 "Architecting updates..." 等待動畫。
+ */
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, Send, X, Sparkles } from 'lucide-react';

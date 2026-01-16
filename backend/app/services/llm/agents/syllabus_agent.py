@@ -1,3 +1,24 @@
+"""
+模組名稱: app.services.llm.agents.syllabus_agent
+功能描述: 課程大綱生成代理人 (Syllabus Generation Agent)
+
+此 Agent 專責處理課程大綱的生成任務，採用 "Blueprint First" (先藍圖後細節) 的兩階段生成策略。
+相比於舊版的單次生成，此方法更能確保課程結構的邏輯性與深度。
+
+主要職責:
+    1. Blueprint Generation (藍圖生成):
+       - 階段目標: 規劃課程標題 (Title) 與單元列表 (Units)。
+       - 提示詞: BLUEPRINT_SYSTEM_PROMPT。
+
+    2. Unit Expansion (單元展開):
+       - 階段目標: 針對每一個單元，逐一生成詳細的學習節點 (Nodes)。
+       - 關鍵技術: RAG Context Injection。
+         在展開每個單元時，會根據單元標題與目標 (Unit Goal) 去檢索 RAG 知識庫，
+         確保生成的內容具有該領域的專業深度，而非泛泛而談。
+
+主要方法:
+    - run: Agent 入口點，協調上述兩個階段的流程。
+"""
 import asyncio
 from typing import List, Optional, Any
 from pydantic import BaseModel, Field

@@ -1,3 +1,14 @@
+"""
+模組名稱: app.services.llm.mock_adapter
+功能描述: 模擬 LLM 供應商 (Mock Provider)
+
+用於開發與測試階段，不進行真實的網絡請求，直接回傳預定義的假資料。
+大幅加快前端開發速度並節省 API 額度。
+
+支援模擬情境:
+    - CoursePath: 回傳一個量子力學 (Quantum Mechanics) 的範例課程。
+    - LessonStage: 回傳一個關於光速的範例測驗。
+"""
 
 from typing import Any, List, Type
 from pydantic import BaseModel

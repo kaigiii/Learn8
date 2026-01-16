@@ -1,3 +1,15 @@
+/**
+ * 檔案名稱: app/layout.tsx
+ * 功能描述: 根佈局 (Root Layout)
+ * 
+ * Next.js 13+ App Router 的全域佈局檔案。
+ * 定義了 HTML 結構、全域字型 (Geist) 與 CSS 樣式。
+ * 
+ * 作用:
+ * - 載入 `globals.css` (Tailwind)。
+ * - 設定頁面 Metadata (Title, Description)。
+ * - 包裝所有子頁面 (`children`)。
+ */
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";

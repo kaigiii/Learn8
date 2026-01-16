@@ -1,3 +1,14 @@
+/**
+ * 檔案名稱: features/stage-player/components/stages/assessment/TaxonomyMatrix.tsx
+ * 功能描述: 分類矩陣 (Taxonomy Matrix) - 評量組件
+ * 
+ * 一種矩陣式的配對或分類測驗。
+ * 
+ * 互動邏輯:
+ * 1. 顯示多個待分類的項目 (Items) 與目標類別 (Categories)。
+ * 2. 使用者進行拖放或點擊配對。
+ * 3. 驗證分類的正確性。
+ */
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LessonStage } from '@/types/lesson';

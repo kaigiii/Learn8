@@ -1,3 +1,31 @@
+"""
+模組名稱: app.core.config
+功能描述: 應用程式全域設定檔 (Application Configuration)
+
+此模組負責管理後端應用程式所有的環境變數與設定參數。
+使用 Pydantic 的 BaseSettings 類別來進行環境變數的讀取與驗證，
+確保在不同環境 (Developer, Production) 下能安全地切換設定。
+
+主要類別:
+    - Settings: 設定模型，定義了所有可用的環境變數及其預設值。
+
+主要屬性 (Attributes):
+    - PROJECT_NAME (str): 專案名稱 (預設: "Learna v3")
+    - API_V1_STR (str): API 版本前綴 (預設: "/api/v1")
+    - SECRET_KEY (str): 用於 JWT 加密簽名的密鑰 (應由 .env 讀取)
+    - ALGORITHM (str): 加密演算法 (預設: "HS256")
+    - ACCESS_TOKEN_EXPIRE_MINUTES (int): Access Token 的有效時間 (分鐘)
+    - DATABASE_URL (str): 資料庫連線字串 (預設: SQLite)
+    - GOOGLE_API_KEY (str): Google Gemini API 金鑰
+    - LLM_PROVIDER (str): LLM 供應商選擇 (google | freegemini | mock)
+    - GEMINI_MODEL (str): 使用的模型版本 (預設: "gemini-2.5-flash")
+
+內部類別:
+    - Config: 指定環境變數讀取規則 (大小寫敏感、讀取 .env 檔案)
+
+實例化物件:
+    - settings: 全域可用的設定實例，供其他模組 import 使用。
+"""
 
 from pydantic_settings import BaseSettings
 from typing import Optional
@@ -12,7 +40,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 3000
     
     # Database
-    DATABASE_URL: str = "sqlite:///./learna.db"
+    DATABASE_URL: str = "sqlite:///./learna_db/learna.db"
     
     # AI / LLM
     GOOGLE_API_KEY: Optional[str] = None

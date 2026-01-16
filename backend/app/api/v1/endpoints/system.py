@@ -1,3 +1,19 @@
+"""
+模組名稱: app.api.v1.endpoints.system
+功能描述: 系統管理與工具 API (System & Admin Endpoints)
+
+提供系統層級的管理功能，主要用於開發測試與除錯。
+
+路由列表:
+    1. POST /reset-db
+        - 對象: 僅限管理員或開發者。
+        - 功能: "Factory Reset" —— 刪除所有資料表並重建。
+        - 警告: 此操作不可逆，會清空所有使用者與課程資料。
+
+    2. POST /clear-files
+        - 對象: 僅限管理員。
+        - 功能: 清空 `uploads/` 資料夾下的所有檔案。
+"""
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.api.deps import get_current_user, get_db

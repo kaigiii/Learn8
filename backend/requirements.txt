@@ -23,3 +23,10 @@ chromadb>=0.4.24
 # Utilities
 watchfiles>=0.21.0
 requests>=2.31.0
+
+# Security
+python-jose[cryptography]
+passlib[bcrypt]
+
+# LangGraph
+langgraph>=0.0.10
