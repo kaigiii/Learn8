@@ -1,0 +1,55 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+.DS_Store
+
+# Frontend / Node.js
+frontend/node_modules/
+frontend/.next/
+frontend/dist/
+frontend/build/
+frontend/.env
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+
+# User specified explicitly
+frontend/public/file.svg
+frontend/public/globe.svg
+frontend/public/next.svg
+frontend/public/vercel.svg
+frontend/public/window.svg
+frontend/package-lock.json # Recommended to TRACK this file for consistent installs
+
+# Backend / RAG
+chroma_db/
+backend/__pycache__/
+backend/venv/
+backend/.env
+backend/*.pdf
+!backend/dummy.pdf
+temp_*.pdf
+*.log
+
+# IDEs
+.vscode/
+.idea/
+
+# Backend Data
+backend/uploads/
+uploads/
+backend/learna.db
+backend/chroma_db/
+.gemini/
+backend/app/services/freegemini/projects_pool/
+
+# OS
+.DS_Store
+**/.DS_Store

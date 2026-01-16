@@ -1,0 +1,132 @@
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from app.api.deps import get_db, get_current_user
+from app.models.user import UserModel
+from app.models.lesson import LessonModel
+from app.models.project import ProjectModel
+from app.schemas.course import LessonNode
+from app.schemas.lesson import LessonStage, SubmissionRequest, SubmissionResponse, ComponentType, SkinType, Validation, ValidationType, Feedback, ModuleType, TextTokenStage, TextTokenConfig, TextTokenData, PatternMatcherStage, PatternMatcherConfig, PatternMatcherData
+from app.services.llm.architect import generate_lesson_from_node
+
+router = APIRouter()
+
+@router.post("/generate-lesson-from-node", response_model=LessonStage)
+async def generate_lesson_from_node_endpoint(
+    node: LessonNode, 
+    topic: str, 
+    project_id: int = None,
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # 1. Fetch from DB
+    query = db.query(LessonModel).filter(
+        LessonModel.node_id == node.id,
+        LessonModel.course_topic == topic,
+        LessonModel.user_id == current_user.id
+    )
+    if project_id:
+        query = query.filter(LessonModel.project_id == project_id)
+        
+    cached_lesson = query.first()
+
+    if cached_lesson:
+        from pydantic import TypeAdapter
+        return TypeAdapter(LessonStage).validate_python(cached_lesson.stage_json)
+
+    # 2. Generate
+    project_folder_name = None
+    if project_id:
+         db_project = db.query(ProjectModel).filter(
+             ProjectModel.id == project_id,
+             ProjectModel.user_id == current_user.id
+         ).first()
+         if db_project:
+             project_folder_name = db_project.folder_name
+
+    stage = await generate_lesson_from_node(node, topic, user_id=current_user.id, project_folder=project_folder_name)
+    if not stage:
+         raise HTTPException(status_code=404, detail="Failed to generate lesson content.")
+    
+    # 3. Save
+    new_lesson = LessonModel(
+        node_id=node.id,
+        course_topic=topic,
+        stage_json=stage.model_dump(),
+        user_id=current_user.id,
+        project_id=project_id
+    )
+    db.add(new_lesson)
+    db.commit()
+    
+    return stage
+
+from app.models.lesson import LessonAttempt
+
+@router.post("/submit-answer", response_model=SubmissionResponse)
+async def submit_answer(
+    submission: SubmissionRequest,
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Log the attempt for future analytics
+    attempt = LessonAttempt(
+        user_id=current_user.id,
+        stage_id=submission.stageId,
+        user_input=str(submission.userInput),
+        is_correct=str(submission.isCorrect)
+    )
+    db.add(attempt)
+    db.commit()
+
+    # 0. FeynmanMirror Validation (Static)
+    if submission.component == "FeynmanMirror":
+        grading = await grade_feynman_attempt(str(submission.userInput), submission.context_topic or "Unknown")
+        
+        if grading.get("isCorrect"):
+            return SubmissionResponse(
+                nextAction="proceed",
+                message=grading.get("feedback", "Excellent explanation!")
+            )
+        else:
+             return SubmissionResponse(
+                nextAction="remedial",
+                message=grading.get("feedback", "Not quite. Try simpler terms.")
+             )
+
+    # 1. Client-side validated (default)
+    if submission.isCorrect:
+        return SubmissionResponse(
+            nextAction="proceed",
+            message="Great job! Moving to next stage."
+        )
+    
+    # 2. Remedial Generation
+    dummy_failed_stage = TextTokenStage(
+        stageId=submission.stageId,
+        topic=submission.context_topic or "Unknown",
+        module=ModuleType.Instruction, # Dummy default
+        component=ComponentType.TextToken, # Dummy
+        skin=SkinType.Classic,
+        config=TextTokenConfig(data=TextTokenData(items=[]), initialState={}),
+        validation=Validation(type=ValidationType.Exact, condition={}),
+        feedback=Feedback(success="", error="")
+    )
+    
+    remedial = await generate_remedial_stage(
+        failed_stage=dummy_failed_stage, 
+        user_input=str(submission.userInput),
+        topic=submission.context_topic or "General Concept"
+    )
+    
+    if remedial:
+        return SubmissionResponse(
+            nextAction="remedial",
+            remedialStage=remedial,
+            message="Let's review this concept with a simpler example."
+        )
+    else:
+        return SubmissionResponse(
+            nextAction="proceed", # Or retry
+            message="Incorrect. Try again or move on."
+        )
