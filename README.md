@@ -75,61 +75,51 @@
 
 ## 🚀 安裝與執行指南 (Installation Guide)
 
-### 前置需求 (Prerequisites)
--   **Python**: 3.10 或更高版本
--   **Node.js**: 18.0 或更高版本
--   **Google API Key**: 請至 [Google AI Studio](https://aistudio.google.com/) 申請免費 API Key。
+### 💎 快速啟動 (Docker Quick Start)
 
-### 步驟 1: 後端設置 (Back-End)
+我們強烈建議使用 Docker 進行一鍵部署，以確保環境一致性。
 
 ```bash
-# 1. 進入後端目錄
-cd backend
-
-# 2. 建立 Python 虛擬環境 (建議)
-python -m venv venv
-
-# 3. 啟動虛擬環境
-# MacOS / Linux:
-source venv/bin/activate
-# Windows:
-# venv\Scripts\activate
-
-# 4. 安裝依賴套件
-pip install -r requirements.txt
-
-# 5. 設定環境變數
+# 1. 設定環境變數
 cp .env.example .env
 # [重要] 打開 .env 檔案並填入您的 GOOGLE_API_KEY
 # 範例: GOOGLE_API_KEY=AIzaSyD...
 
-# 6. 初始化資料庫並啟動伺服器
-# 系統會自動建立 SQLite 資料庫與表格
+# 2. 啟動服務 (同時包含前後端)
+docker-compose up --build
+```
+
+**服務位置:**
+-   **Frontend**: `http://localhost:3000`
+-   **Backend**: `http://localhost:8000/docs`
+
+> ⚠️ **注意**: 啟動前請確保您沒有其他服務佔用 Port 3000 或 8000 (例如本地開發中的 npm run dev)。
+
+---
+
+### 🛠️ 手動開發設置 (Manual Setup for Developers)
+
+若您需要進行程式碼修改，可依照以下步驟分開啟動：
+
+#### 1. 後端 (Backend)
+
+```bash
+cd backend
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+cp .env.example .env      # 記得填入 API Key
 uvicorn app.main:app --reload --port 8000
 ```
 
-> ✅ 後端成功啟動後，您可以在瀏覽器訪問 `http://localhost:8000/docs` 查看 Swagger API 文件。
-
-### 步驟 2: 前端設置 (Front-End)
+#### 2. 前端 (Frontend)
 
 ```bash
-# 另開一個終端機視窗
-
-# 1. 進入前端目錄
 cd frontend
-
-# 2. 安裝 Node.js 依賴
 npm install
-
-# 3. 設定環境變數
 cp .env.example .env.local
-# 預設內容應為: NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
-
-# 4. 啟動開發伺服器
 npm run dev
 ```
-
-> ✅ 前端成功啟動後，請訪問 `http://localhost:3000` 開始使用。
 
 ---
 
@@ -176,6 +166,70 @@ Learna v3 目前處於開發預覽階段。在登入畫面，您可以點擊下�
     -   **Rule-Based**: 直接比對正確答案 (如排序題)
     -   **AI-Based**: LLM 扮演助教進行評分 (如費曼解釋題)
 4.  **導航**: 通過 -> 解鎖下一節點；失敗 -> 觸發補救教學 (Remedial Node)
+
+---
+
+## 🛠️ 開發者指南：單元課程生成引擎 (Developer Guide: Unit Lesson Generation Engine)
+
+Learna v3 的核心魔力在於 **"Just-in-Time Learning Generation"**。本節將深入剖析系統如何從一個簡單的「節點描述」生成出完整的互動課程，以及如何擴展新的遊戲組件。
+
+### 1. 核心工作流 (Core Workflow)
+
+當使用者在課程地圖上點擊一個節點 (Node) 時的完整資料流：
+
+1.  **觸發 (Trigger)**: 前端呼叫 `POST /api/v1/lessons/generate-lesson-from-node`。
+2.  **檢索與生成 (RAG + LLM)**:
+    -   後端 `SyllabusAgent` 會先去 ChromaDB 檢索與該節點描述相關的 PDF 內容片段。
+    -   將檢索內容 (Context) + 節點主題 (Topic) 餵給 Google Gemini 模型。
+    -   要求 LLM 輸出符合 `List[LessonStage]` Schema 的 JSON 結構。
+3.  **解析與儲存**:
+    -   Pydantic 驗證 JSON 格式。
+    -   將生成結果存入 SQLite `lessons` 表格 (以便下次快速讀取，節省 Token)。
+4.  **前端渲染 (Rendering)**:
+    -   前端接收 `LessonStage[]` 陣列。
+    -   `StageRenderer.tsx` 負責狀態管理 (進度條、上一頁/下一頁)。
+    -   `ComponentRegistry.tsx` 根據 `stage.component` 字串動態載入對應的 React 組件。
+
+### 2. 資料結構 (Data Artifacts)
+
+所有的學習內容都以 Polymorphic JSON 格式儲存。一個 `LessonStage` 包含：
+
+```typescript
+interface LessonStage {
+  stageId: string;
+  topic: string; // 該階段的小標題
+  module: 'Instruction' | 'Practice' | 'Assessment'; // 模組類型
+  component: string; // 關鍵映射欄位，如 'StartNode', 'MultipleChoice', 'FeynmanMirror'
+  config: {
+    data: any; // 組件專屬資料 (如題目內容、圖片 URL)
+    initialState: any; // 初始互動狀態
+  };
+  // ... validation & feedback
+}
+```
+
+### 3. 如何擴充新的遊戲組件？
+
+若您想加入一個新的互動模式 (例如：Drag-and-Drop 排序遊戲)，請遵循以下步驟：
+
+#### Step 1: 前端實作 (Frontend)
+1.  在 `src/features/stage-player/components/practice/` 建立 `DragSort.tsx`。
+2.  實作組件邏輯，接收 `stage` 與 `onSubmit` props。
+3.  **註冊組件**: 打開 `src/features/stage-player/components/ComponentRegistry.tsx`，將字串 `'DragSort'` 映射到您的新組件。
+
+#### Step 2: 後端定義 (Backend)
+1.  (Optional) 在 `app/schemas/lesson.py` 定義 `DragSortConfig` 的 Pydantic 模型，以獲得更強的型別檢查。
+2.  **更新 Prompt**: 修改 `app/services/llm/prompts_library.py` (或相關 Prompt 檔案)，告訴 AI：「現在你有一個新工具叫 'DragSort'，它的 JSON 格式長這樣...」。
+
+#### Step 3: 更新 Agent
+確保 `generate_lesson_from_node` 函式知道何時該使用這個新組件 (例如：當教材內容涉及「順序、步驟」時)。
+
+### 4. 評量與補救機制 (Assessment & Remedial Loop)
+
+後端 `/submit-answer` Endpoint 不僅僅是記錄分數：
+-   **Static Grading**: 對於簡單題型 (選擇、填空)，直接比對 JSON 中的 `validation` 規則。
+-   **AI Grading**: 對於 `FeynmanMirror` (費曼技巧) 等開放式問答，後端會再次呼叫 LLM 扮演助教進行評分。
+-   **Remedial Path**: 若判定失敗 (`isCorrect: false`)，系統會觸發 `generate_remedial_stage`，即時生成一個「簡化版」的教學階段插入到使用者的學習路徑中，實現真正的適性化教學。
 
 ---
 

@@ -16,7 +16,7 @@ export const MOCK_GALLERY: LessonStage[] = [
         },
         validation: { type: 'exact', condition: { price: 30 } },
         feedback: { success: "Equilibrium reached!", error: "Not balanced yet." }
-    },
+    } as any,
     {
         stageId: 'gallery-2',
         topic: 'Logic Chain: Photosynthesis',
@@ -30,7 +30,7 @@ export const MOCK_GALLERY: LessonStage[] = [
         },
         validation: { type: 'exact', condition: {} },
         feedback: { success: "Correct sequence!", error: "Check the order." }
-    },
+    } as any,
     {
         stageId: 'gallery-3',
         topic: 'Taxonomy Matrix: States of Matter',
@@ -51,7 +51,7 @@ export const MOCK_GALLERY: LessonStage[] = [
         },
         validation: { type: 'exact', condition: {} },
         feedback: { success: "All classified correctly!", error: "Review the states." }
-    },
+    } as any,
     {
         stageId: 'gallery-4',
         topic: 'Text Token: English Syntax',
@@ -65,7 +65,7 @@ export const MOCK_GALLERY: LessonStage[] = [
         },
         validation: { type: 'exact', condition: {} },
         feedback: { success: "Perfect sentence structure!", error: "Grammar check failed." }
-    },
+    } as any,
     {
         stageId: 'gallery-5',
         topic: 'Feynman Mirror: Explain Entropy',
@@ -77,7 +77,7 @@ export const MOCK_GALLERY: LessonStage[] = [
         },
         validation: { type: 'logic', condition: {} },
         feedback: { success: "Great explanation!", error: "Try simpler terms." }
-    },
+    } as any,
     {
         stageId: 'gallery-6',
         topic: 'Sequencer: Order of Operations',
@@ -91,7 +91,7 @@ export const MOCK_GALLERY: LessonStage[] = [
         },
         validation: { type: 'exact', condition: {} },
         feedback: { success: "Correct PEMDAS!", error: "Check operation order." }
-    },
+    } as any,
     {
         stageId: 'gallery-7',
         topic: 'Spatial Anatomy: Cell Structure',
@@ -110,7 +110,7 @@ export const MOCK_GALLERY: LessonStage[] = [
         },
         validation: { type: 'exact', condition: { target: "nucleus" } },
         feedback: { success: "Correct region identified!", error: "Wrong location." }
-    },
+    } as any,
     {
         stageId: 'gallery-8',
         topic: 'Dilemma Solver: The Trolley Problem',
@@ -128,7 +128,7 @@ export const MOCK_GALLERY: LessonStage[] = [
         },
         validation: { type: 'logic', condition: { choice: "pull" } }, // Arbitrary "correct" for demo
         feedback: { success: "Utilitarian choice made.", error: "Deontological choice made." }
-    },
+    } as any,
     {
         stageId: 'gallery-9',
         topic: 'Pattern Matcher: Math Functions',
@@ -146,5 +146,5 @@ export const MOCK_GALLERY: LessonStage[] = [
         },
         validation: { type: 'exact', condition: {} },
         feedback: { success: "All pairs matched!", error: "Keep trying." }
-    }
+    } as any
 ];

@@ -1,0 +1,15 @@
+node_modules
+npm-debug.log
+.next
+.git
+.gitignore
+.DS_Store
+.env*
+dist
+build
+venv
+__pycache__
+*.pyc
+backend/learna_db
+backend/chroma_db
+backend/uploads
