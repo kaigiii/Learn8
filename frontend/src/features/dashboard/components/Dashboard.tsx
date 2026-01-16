@@ -20,11 +20,13 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import { Upload, BookOpen, Sparkles, AlertCircle } from 'lucide-react';
+import { Upload, BookOpen, Sparkles, AlertCircle, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { LessonStage, ComponentType, SkinType, CoursePath } from '@/types/lesson';
 import { apiClient } from '@/lib/api-client';
+import { useProjectStore } from '@/stores/useProjectStore';
+import { projectService } from '@/services/projectService';
 
 interface DashboardProps {
     onLessonGenerated: (data: CoursePath) => void;
@@ -36,32 +38,33 @@ interface DashboardProps {
 
 export default function Dashboard({ onLessonGenerated, currentProjectId, onResume, shouldAutoResume, onAutoResumeComplete }: DashboardProps) {
     const router = useRouter();
-    const [file, setFile] = useState<File | null>(null);
+    const [filesToUpload, setFilesToUpload] = useState<File[]>([]);
     const [topic, setTopic] = useState('');
     const [isUploading, setIsUploading] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
     const [status, setStatus] = useState<string>('');
-    const [fileList, setFileList] = useState<string[]>([]);
     const [myCourses, setMyCourses] = useState<any[]>([]);
+
+    // Global Store
+    const { setFiles } = useProjectStore();
 
     React.useEffect(() => {
         if (currentProjectId) {
-            fetchFiles(currentProjectId);
             fetchCourses(currentProjectId);
+            // Files are now fetched by RightSidebar automatically based on project
+            // But we can trigger a fetch here if we want to ensure sync, or just rely on Sidebar
         } else {
-            setFileList([]);
             fetchCourses(null);
         }
     }, [currentProjectId]);
 
-    const fetchFiles = async (pId: number) => {
+    const refreshFiles = async () => {
+        if (!currentProjectId) return;
         try {
-            const res = await apiClient.get(`/projects/${pId}/files`);
-            setFileList(res.data);
-        } catch (e) {
-            console.error("Failed to fetch files", e);
-        }
-    };
+            const res = await apiClient.get(`/projects/${currentProjectId}/files`);
+            setFiles(res.data); // Update global store
+        } catch (e) { console.error(e); }
+    }
 
     const fetchCourses = async (pId: number | null) => {
         try {
@@ -83,34 +86,36 @@ export default function Dashboard({ onLessonGenerated, currentProjectId, onResum
     };
 
     const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            setFile(e.target.files[0]);
-            setStatus('File selected. ready for mock generation.');
+        if (e.target.files && e.target.files.length > 0) {
+            setFilesToUpload(Array.from(e.target.files));
+            setStatus(`${e.target.files.length} file(s) selected.`);
         }
     };
 
-    const uploadAndGenerate = async () => {
+    const handleFileIngest = async () => {
+        if (filesToUpload.length === 0) return;
+
         try {
-            if (file) {
-                setIsUploading(true);
-                setStatus('Uploading PDF...');
-                const formData = new FormData();
-                formData.append('file', file);
+            setIsUploading(true);
+            const count = await projectService.uploadFiles(
+                currentProjectId!,
+                filesToUpload,
+                (msg) => setStatus(msg)
+            );
 
-                const uploadUrl = `/projects/upload-pdf${currentProjectId ? `?project_id=${currentProjectId}` : ''}`;
-                // Note: apiClient auto-sets headers, but for FormData we might need to let browser set boundary.
-                // Axios usually handles this well.
-                await apiClient.post(uploadUrl, formData, {
-                    headers: {
-                        'Content-Type': 'multipart/form-data',
-                    }
-                });
+            setIsUploading(false);
+            setStatus(`Successfully ingested ${count} files.`);
+            refreshFiles();
+            setFilesToUpload([]); // Clear selection
+        } catch (err: any) {
+            console.error(err);
+            setStatus('Upload Error: ' + (err.response?.data?.detail || err.message));
+            setIsUploading(false);
+        }
+    }
 
-                setIsUploading(false);
-                setStatus('PDF processed. Ready to generate.');
-                if (currentProjectId) fetchFiles(currentProjectId); // Refresh list
-            }
-
+    const handleGenerate = async () => {
+        try {
             if (topic) {
                 setIsGenerating(true);
                 setStatus('Architecting your syllabus map... (this may take 10-20s)');
@@ -122,11 +127,14 @@ export default function Dashboard({ onLessonGenerated, currentProjectId, onResum
             }
         } catch (err: any) {
             console.error(err);
-            setStatus('Error: ' + (err.response?.data?.detail || err.message));
-            setIsUploading(false);
+            setStatus('Generation Error: ' + (err.response?.data?.detail || err.message));
+        } finally {
             setIsGenerating(false);
         }
-    };
+    }
+
+
+
 
     return (
         <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-8 p-8">
@@ -139,89 +147,94 @@ export default function Dashboard({ onLessonGenerated, currentProjectId, onResum
                 </p>
             </div>
 
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="w-full max-w-md bg-white p-8 rounded-2xl shadow-xl border border-slate-100 space-y-6"
-            >
-                <div className="space-y-4">
-                    <label className="block text-sm font-medium text-slate-700">
-                        1. Upload Material (Optional)
-                    </label>
-                    <div className="relative border-2 border-dashed border-slate-300 rounded-lg p-6 hover:bg-slate-50 transition-colors text-center cursor-pointer">
-                        <input
-                            type="file"
-                            accept=".pdf"
-                            onChange={handleUpload}
-                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                        />
-                        <div className="flex flex-col items-center space-y-2 pointer-events-none">
-                            <Upload className="w-8 h-8 text-slate-400" />
-                            <span className="text-sm text-slate-500">
-                                {file ? file.name : "Drop PDF or Click to Browse"}
-                            </span>
-                        </div>
-                    </div>
-                    {/* File List Display */}
-                    {fileList.length > 0 && (
-                        <div className="mt-2 space-y-1">
-                            <p className="text-xs text-slate-500 font-semibold mb-1">Project Context Files:</p>
-                            {fileList.map((f, i) => (
-                                <div key={i} className="flex items-center gap-2 text-xs text-slate-600 bg-slate-50 p-1.5 rounded border border-slate-100">
-                                    <BookOpen className="w-3 h-3 text-blue-500" />
-                                    <span className="truncate">{f}</span>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-
-                <div className="space-y-4">
-                    <label className="block text-sm font-medium text-slate-700">
-                        2. Choose Topic
-                    </label>
-                    <Input
-                        placeholder="e.g., Calculus, Roman History, Quantum Mechanics"
-                        value={topic}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTopic(e.target.value)}
-                        className="h-12 text-lg"
-                    />
-                </div>
-
-                <Button
-                    onClick={uploadAndGenerate}
-                    disabled={!topic || isUploading || isGenerating}
-                    className="w-full h-12 text-lg font-semibold bg-blue-600 hover:bg-blue-700"
+            {!currentProjectId ? (
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="p-8 border-2 border-dashed border-slate-300 rounded-2xl bg-slate-50 text-center max-w-md w-full"
                 >
-                    {isUploading ? 'Ingesting...' : isGenerating ? 'Architecting...' : (
-                        <span className="flex items-center gap-2">
-                            <Sparkles className="w-5 h-5" /> Generate Path
-                        </span>
-                    )}
-                </Button>
+                    <div className="flex flex-col items-center gap-4 text-slate-500">
+                        <AlertCircle className="w-12 h-12 text-blue-500 opacity-80" />
+                        <h3 className="text-lg font-semibold text-slate-700">No Project Selected</h3>
+                        <p className="text-sm">
+                            Please create or select a project on the left sidebar to start extracting knowledge and generating learning paths.
+                        </p>
+                    </div>
+                </motion.div>
+            ) : (
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="w-full max-w-md bg-white p-8 rounded-2xl shadow-xl border border-slate-100 space-y-6"
+                >
+                    <div className="space-y-4">
+                        <label className="block text-sm font-medium text-slate-700">
+                            1. Upload Material (Optional)
+                        </label>
+                        <div className="relative border-2 border-dashed border-slate-300 rounded-lg p-6 hover:bg-slate-50 transition-colors text-center cursor-pointer">
+                            <input
+                                type="file"
+                                accept=".pdf"
+                                multiple
+                                onChange={handleUpload}
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                            />
+                            <div className="flex flex-col items-center space-y-2 pointer-events-none">
+                                <Upload className="w-8 h-8 text-slate-400" />
+                                <span className="text-sm text-slate-500">
+                                    {filesToUpload.length > 0
+                                        ? `${filesToUpload.length} file(s) selected`
+                                        : "Drop PDF(s) or Click to Browse"}
+                                </span>
+                            </div>
+                        </div>
 
-                {status && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="p-3 bg-slate-50 rounded-lg text-sm text-slate-600 text-center"
+                        <Button
+                            className="w-full h-12 text-lg font-semibold bg-blue-600 hover:bg-blue-700"
+                            onClick={handleFileIngest}
+                            disabled={isUploading || filesToUpload.length === 0}
+                        >
+                            {isUploading ? "Uploading..." : `Upload ${filesToUpload.length > 0 ? `(${filesToUpload.length})` : ""} File(s)`}
+                        </Button>
+                    </div>
+
+                    <div className="space-y-4">
+                        <label className="block text-sm font-medium text-slate-700">
+                            2. Choose Topic
+                        </label>
+                        <Input
+                            placeholder="e.g., Calculus, Roman History, Quantum Mechanics"
+                            value={topic}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTopic(e.target.value)}
+                            className="h-12 text-lg"
+                        />
+                    </div>
+
+                    <Button
+                        onClick={handleGenerate}
+                        disabled={!topic || isUploading || isGenerating}
+                        className="w-full h-12 text-lg font-semibold bg-blue-600 hover:bg-blue-700"
                     >
-                        {status}
-                    </motion.div>
-                )}
-            </motion.div>
+                        {isGenerating ? 'Architecting...' : (
+                            <span className="flex items-center gap-2">
+                                <Sparkles className="w-5 h-5" /> Generate Path
+                            </span>
+                        )}
+                    </Button>
 
-            <div className="flex gap-4 text-slate-400 text-sm">
-                <div className="flex items-center gap-1">
-                    <BookOpen className="w-4 h-4" />
-                    <span>RAG Engine Ready</span>
-                </div>
-                <div className="w-px h-4 bg-slate-300" />
-                <div className="flex items-center gap-1">
-                    <Sparkles className="w-4 h-4" />
-                    <span>GPT-4 Turbo</span>
-                </div>
-            </div>
+                    {status && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="p-3 bg-slate-50 rounded-lg text-sm text-slate-600 text-center"
+                        >
+                            {status}
+                        </motion.div>
+                    )}
+                </motion.div>
+            )}
+
+
         </div>
     );
 }

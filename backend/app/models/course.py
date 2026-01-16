@@ -40,6 +40,7 @@ class CourseModel(Base):
     title = Column(String)
     syllabus_json = Column(JSON) 
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
 class NodeModel(Base):
     __tablename__ = "nodes"

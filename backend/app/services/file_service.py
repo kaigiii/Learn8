@@ -73,3 +73,22 @@ class FileService:
                 print(f"🗑️ Deleted project folder: {target_dir}")
             except Exception as e:
                 print(f"Error deleting project folder {target_dir}: {e}")
+
+    @staticmethod
+    def delete_file(user_id: int, project_folder: str, filename: str):
+        """Deletes a specific file from the project upload directory."""
+        upload_dir = FileService.get_upload_dir(user_id, project_folder)
+        file_path = os.path.join(upload_dir, filename)
+        
+        # Security check: ensure file path is within upload_dir
+        if not os.path.abspath(file_path).startswith(os.path.abspath(upload_dir)):
+             raise HTTPException(status_code=400, detail="Invalid file path")
+
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+                print(f"🗑️ Deleted file: {file_path}")
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Error deleting file: {str(e)}")
+        else:
+             raise HTTPException(status_code=404, detail="File not found")

@@ -38,7 +38,7 @@ import { ArrowLeft, LogOut } from 'lucide-react';
 
 export default function Home() {
   const router = useRouter();
-  const { token, logout } = useAuthStore();
+  const { token } = useAuthStore();
   const { currentProject, setCurrentProject } = useProjectStore(); // Use global project store if possible, local state in original
 
   // Local state for specific page logic
@@ -67,12 +67,19 @@ export default function Home() {
     }
   }, [token, router]);
 
+  // Sync Global Project State
+  useEffect(() => {
+    if (currentProject) {
+      setCurrentProjectId_Local(currentProject.id);
+      setShouldAutoResume(true);
+    } else {
+      setCurrentProjectId_Local(null);
+    }
+  }, [currentProject]);
+
   if (!token) return null; // Prevent flash
 
-  const handleLogout = () => {
-    logout();
-    router.push('/login');
-  };
+
 
   // Handlers
   const handleSyllabusGenerated = (path: CoursePath) => {
@@ -204,13 +211,7 @@ export default function Home() {
       {/* Main Content */}
       <main className="flex-1 flex flex-col relative overflow-y-auto w-full">
         {/* ... existing main content ... */}
-        {!activeStages && (
-          <div className="absolute top-4 right-4 z-50">
-            <Button variant="ghost" onClick={handleLogout} className="text-slate-500 hover:text-red-500">
-              <LogOut className="w-4 h-4 mr-2" /> Logout
-            </Button>
-          </div>
-        )}
+
 
         {activeStages ? (
           <StageRenderer
@@ -222,9 +223,7 @@ export default function Home() {
           <div className="relative h-screen flex flex-col">
             <div className="bg-white border-b px-6 py-4 flex items-center justify-between shadow-sm z-10">
               <div className="flex items-center gap-4">
-                <Button variant="ghost" size="icon" onClick={handleBackToDashboard}>
-                  <ArrowLeft className="w-5 h-5 text-slate-600" />
-                </Button>
+
                 <div>
                   <h1 className="text-xl font-bold text-slate-800">{coursePath.courseTitle}</h1>
                   <p className="text-sm text-slate-500">{coursePath.units.length} Units • Learning Path</p>
@@ -260,7 +259,7 @@ export default function Home() {
               shouldAutoResume={shouldAutoResume}
               onAutoResumeComplete={() => setShouldAutoResume(false)}
             />
-            <div className="bg-slate-50 py-12 px-6 border-t border-slate-200" />
+
           </div>
         )}
       </main>

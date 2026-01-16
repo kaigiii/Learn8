@@ -52,7 +52,8 @@ def get_courses(project_id: int = None, current_user: UserModel = Depends(get_cu
     if project_id:
         query = query.filter(CourseModel.project_id == project_id)
     
-    courses = query.all()
+    # Sort by updated_at desc to default to latest course
+    courses = query.order_by(CourseModel.updated_at.desc()).all()
     return [
         {
             "id": c.id,

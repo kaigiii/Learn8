@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Folder, Trash2, LayoutGrid, Cpu } from 'lucide-react';
+import { Plus, Folder, Trash2, LayoutGrid, Cpu, Pencil, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { apiClient } from '@/lib/api-client';
+import { useProjectStore } from '@/stores/useProjectStore';
 
 interface Project {
     id: number;
@@ -19,6 +20,11 @@ export default function Sidebar({ currentProjectId, onSelectProject }: SidebarPr
     const [projects, setProjects] = useState<Project[]>([]);
     const [isCreating, setIsCreating] = useState(false);
     const [newProjectName, setNewProjectName] = useState('');
+
+    const { setCurrentProject } = useProjectStore();
+
+    const [editingProjectId, setEditingProjectId] = useState<number | null>(null);
+    const [editName, setEditName] = useState('');
 
     useEffect(() => {
         fetchProjects();
@@ -41,11 +47,37 @@ export default function Sidebar({ currentProjectId, onSelectProject }: SidebarPr
             setProjects([...projects, res.data]);
             setNewProjectName('');
             setIsCreating(false);
-            onSelectProject(res.data.id); // Auto switch
+
+            // Auto switch
+            setCurrentProject(res.data);
+            onSelectProject(res.data.id);
         } catch (e) {
             console.error(e);
         }
     };
+
+    const handleStartEdit = (p: Project, e: React.MouseEvent) => {
+        e.stopPropagation();
+        setEditingProjectId(p.id);
+        setEditName(p.name);
+    }
+
+    const handleSaveEdit = async (e?: React.MouseEvent) => {
+        if (e) e.stopPropagation();
+        if (!editingProjectId || !editName.trim()) {
+            setEditingProjectId(null);
+            return;
+        }
+
+        try {
+            const res = await apiClient.patch(`/projects/${editingProjectId}`, { name: editName });
+            setProjects(projects.map(p => p.id === editingProjectId ? res.data : p));
+            setEditingProjectId(null);
+            setEditName('');
+        } catch (e) {
+            console.error("Failed to update project", e);
+        }
+    }
 
     // Optional: Delete project
     const handleDelete = async (id: number, e: React.MouseEvent) => {
@@ -55,7 +87,10 @@ export default function Sidebar({ currentProjectId, onSelectProject }: SidebarPr
         try {
             await apiClient.delete(`/projects/${id}`);
             setProjects(projects.filter(p => p.id !== id));
-            if (currentProjectId === id) onSelectProject(null);
+            if (currentProjectId === id) {
+                onSelectProject(null);
+                setCurrentProject(null);
+            }
         } catch (e) {
             console.error(e);
         }
@@ -69,16 +104,7 @@ export default function Sidebar({ currentProjectId, onSelectProject }: SidebarPr
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-2">
-                <div className="mb-4">
-                    <Button
-                        variant={currentProjectId === null ? "default" : "ghost"}
-                        className="w-full justify-start gap-2"
-                        onClick={() => onSelectProject(null)}
-                    >
-                        <LayoutGrid className="w-4 h-4" />
-                        Global / No Project
-                    </Button>
-                </div>
+
 
                 <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
                     My Projects
@@ -87,7 +113,10 @@ export default function Sidebar({ currentProjectId, onSelectProject }: SidebarPr
                 {projects.map(p => (
                     <div
                         key={p.id}
-                        onClick={() => onSelectProject(p.id)}
+                        onClick={() => {
+                            onSelectProject(p.id);
+                            setCurrentProject(p);
+                        }}
                         className={cn(
                             "group flex items-center justify-between p-2 rounded-md cursor-pointer text-sm transition-colors",
                             currentProjectId === p.id
@@ -95,14 +124,37 @@ export default function Sidebar({ currentProjectId, onSelectProject }: SidebarPr
                                 : "text-slate-600 hover:bg-slate-100"
                         )}
                     >
-                        <div className="flex items-center gap-2 overflow-hidden">
+                        <div className="flex items-center gap-2 overflow-hidden flex-1">
                             <Folder className={cn("w-4 h-4", currentProjectId === p.id ? "fill-blue-100" : "")} />
-                            <span className="truncate">{p.name}</span>
+
+                            {editingProjectId === p.id ? (
+                                <div className="flex items-center gap-1 flex-1 mr-2" onClick={e => e.stopPropagation()}>
+                                    <Input
+                                        value={editName}
+                                        onChange={e => setEditName(e.target.value)}
+                                        className="h-6 text-xs px-1 py-0 min-w-0"
+                                        autoFocus
+                                        onKeyDown={e => e.key === 'Enter' && handleSaveEdit()}
+                                    />
+                                    <Check className="w-4 h-4 text-green-500 cursor-pointer hover:bg-green-100 rounded" onClick={handleSaveEdit} />
+                                </div>
+                            ) : (
+                                <span className="truncate">{p.name}</span>
+                            )}
                         </div>
-                        <Trash2
-                            className="w-3 h-3 opacity-0 group-hover:opacity-50 hover:!opacity-100"
-                            onClick={(e) => handleDelete(p.id, e)}
-                        />
+
+                        <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity gap-1">
+                            {editingProjectId !== p.id && (
+                                <Pencil
+                                    className="w-3 h-3 text-slate-400 hover:text-blue-500 mr-1"
+                                    onClick={(e) => handleStartEdit(p, e)}
+                                />
+                            )}
+                            <Trash2
+                                className="w-3 h-3 text-slate-400 hover:text-red-500"
+                                onClick={(e) => handleDelete(p.id, e)}
+                            />
+                        </div>
                     </div>
                 ))}
 

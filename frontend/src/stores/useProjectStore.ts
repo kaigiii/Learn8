@@ -20,14 +20,18 @@ interface Project {
 
 interface ProjectState {
     currentProject: Project | null;
+    files: string[];
     setCurrentProject: (project: Project | null) => void;
+    setFiles: (files: string[]) => void;
 }
 
 export const useProjectStore = create<ProjectState>()(
     persist(
         (set) => ({
             currentProject: null,
+            files: [],
             setCurrentProject: (project) => set({ currentProject: project }),
+            setFiles: (files) => set({ files }),
         }),
         {
             name: 'project-storage',

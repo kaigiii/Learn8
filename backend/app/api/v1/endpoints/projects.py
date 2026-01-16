@@ -29,7 +29,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_db, get_current_user
 from app.models.user import UserModel
 from app.models.project import ProjectModel
-from app.schemas.project import ProjectCreate, ProjectResponse
+from app.schemas.project import ProjectCreate, ProjectResponse, ProjectUpdate
 from app.services.file_service import FileService
 
 router = APIRouter()
@@ -50,6 +50,20 @@ def create_project(project: ProjectCreate, current_user: UserModel = Depends(get
 @router.get("", response_model=List[ProjectResponse])
 def get_projects(current_user: UserModel = Depends(get_current_user), db: Session = Depends(get_db)):
     return db.query(ProjectModel).filter(ProjectModel.user_id == current_user.id).all()
+
+@router.patch("/{project_id}", response_model=ProjectResponse)
+def update_project(project_id: int, project_update: ProjectUpdate, current_user: UserModel = Depends(get_current_user), db: Session = Depends(get_db)):
+    db_project = db.query(ProjectModel).filter(
+        ProjectModel.id == project_id,
+        ProjectModel.user_id == current_user.id
+    ).first()
+    if not db_project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    db_project.name = project_update.name
+    db.commit()
+    db.refresh(db_project)
+    return db_project
 
 @router.delete("/{project_id}")
 async def delete_project(project_id: int, current_user: UserModel = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -88,6 +102,37 @@ def get_project_files(project_id: int, current_user: UserModel = Depends(get_cur
         raise HTTPException(status_code=404, detail="Project not found")
         
     return FileService.list_files(current_user.id, db_project.folder_name)
+
+@router.delete("/{project_id}/files/{filename}")
+async def delete_project_file(
+    project_id: int, 
+    filename: str, 
+    current_user: UserModel = Depends(get_current_user), 
+    db: Session = Depends(get_db)
+):
+    db_project = db.query(ProjectModel).filter(
+        ProjectModel.id == project_id,
+        ProjectModel.user_id == current_user.id
+    ).first()
+    
+    if not db_project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    try:
+        # 1. Delete physical file
+        FileService.delete_file(current_user.id, db_project.folder_name, filename)
+        
+        # 2. Delete RAG context
+        from app.core.config import settings
+        if settings.LLM_PROVIDER.lower() != "freegemini":
+             from app.services.rag_engine import RAGEngine
+             await RAGEngine.delete_file_context(project_id, filename)
+             
+        return {"message": f"File {filename} deleted successfully"}
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/upload-pdf")
 async def upload_pdf(

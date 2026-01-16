@@ -138,6 +138,18 @@ class RAGEngine:
                 print(f"Error deleting RAG context: {e}")
 
     @staticmethod
+    async def delete_file_context(project_id: int, filename: str):
+        """Deletes vector embeddings for a specific file in a project."""
+        vectorstore = RAGEngine.get_vectorstore()
+        if vectorstore:
+            try:
+                print(f"🗑️ Deleting RAG context for file={filename} in project_id={project_id}")
+                # ChromaDB where clause with multiple conditions
+                vectorstore.delete(where={"$and": [{"project_id": str(project_id)}, {"source": filename}]})
+            except Exception as e:
+                print(f"Error deleting file context: {e}")
+
+    @staticmethod
     async def query_context(topic: str, k: int = 4, project_id: Optional[int] = None) -> List[str]:
         vectorstore = RAGEngine.get_vectorstore()
         if not vectorstore:
