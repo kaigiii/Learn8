@@ -30,3 +30,9 @@ passlib[bcrypt]
 
 # LangGraph
 langgraph>=0.0.10
+
+# OpenTelemetry fix
+opentelemetry-api>=1.39.1
+opentelemetry-sdk>=1.39.1
+opentelemetry-exporter-otlp-proto-grpc>=1.39.1
+opentelemetry-exporter-otlp-proto-http>=1.39.1

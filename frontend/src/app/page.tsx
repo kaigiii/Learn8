@@ -198,12 +198,23 @@ export default function Home() {
     }
   };
 
-  const handleResumeCourse = async (courseId: number) => {
+  const handleResumeCourse = async (projectId: number) => {
     try {
-      const res = await apiClient.get(`/courses/${courseId}`);
-      setCoursePath(res.data);
+      // 1. Fetch courses for this project
+      const listRes = await apiClient.get<any[]>(`/courses?project_id=${projectId}`);
+      const courses = listRes.data;
+
+      if (courses.length > 0) {
+        // Pick the latest one
+        const latestCourse = courses[0];
+        const detailRes = await apiClient.get(`/courses/${latestCourse.id}`);
+        setCoursePath(detailRes.data);
+      } else {
+        // No course found, stay on dashboard
+        setCoursePath(null);
+      }
     } catch (e: any) {
-      alert("Failed to load course: " + e.message);
+      console.error("Failed to load course for project", projectId, e);
     }
   };
 

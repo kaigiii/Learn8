@@ -101,7 +101,13 @@ async def generate_syllabus(
         path.topic = existing_course.topic
         return path
 
+    # Credit Check
+    COST = 50
+    if current_user.credits < COST:
+         raise HTTPException(status_code=402, detail="Insufficient credits")
+
     project_folder_name = None
+    profile_summary = None
     if project_id:
          db_project = db.query(ProjectModel).filter(
              ProjectModel.id == project_id,
@@ -109,10 +115,19 @@ async def generate_syllabus(
          ).first()
          if db_project:
              project_folder_name = db_project.folder_name
+             if db_project.profile_json:
+                 # Extract summary from profile JSON
+                 profile_summary = db_project.profile_json.get("summary", "General Audience")
 
     # OLD: syllabus = await generate_course_syllabus(topic, user_id=current_user.id, project_folder=project_folder_name)
     # NEW: Agentic Workflow
-    syllabus = await SyllabusAgent.run(topic, user_id=current_user.id, project_folder=project_folder_name, project_id=project_id)
+    syllabus = await SyllabusAgent.run(
+        topic, 
+        user_id=current_user.id, 
+        project_folder=project_folder_name, 
+        project_id=project_id,
+        profile_summary=profile_summary
+    )
     if not syllabus:
          raise HTTPException(status_code=404, detail="Failed to generate syllabus.")
     
@@ -135,6 +150,10 @@ async def generate_syllabus(
             syllabus_json=syllabus.model_dump()
         )
         db.add(new_course)
+    
+    # Deduct credits
+    current_user.credits -= COST
+    db.add(current_user) # Ensure user update is tracked
     
     db.commit()
     db.refresh(new_course)

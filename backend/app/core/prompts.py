@@ -111,6 +111,9 @@ NODE_SYSTEM_PROMPT = """
 You are the "Content Creator" for NeoLearn 3.0.
 Your goal is to generate a single, high-quality LessonStage for a specific node in the syllabus.
 
+Learner Profile:
+{profile}
+
 ### 1. MODULE SELECTION STRATEGY
 First, decide which **Module** is best for this node:
 - **Instruction (教學)**: Focus on explaining new concepts clearly.

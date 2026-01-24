@@ -63,3 +63,16 @@ def dev_login(db: Session = Depends(get_db)):
         
     access_token = create_access_token(subject=db_user.email)
     return {"access_token": access_token, "token_type": "bearer"}
+
+from app.schemas.auth import UserResponse
+
+@router.get("/me", response_model=UserResponse)
+def read_users_me(current_user: UserModel = Depends(get_current_user)):
+    return current_user
+
+@router.post("/credits/topup", response_model=UserResponse)
+def top_up_credits(amount: int = 100, current_user: UserModel = Depends(get_current_user), db: Session = Depends(get_db)):
+    current_user.credits += amount
+    db.commit()
+    db.refresh(current_user)
+    return current_user

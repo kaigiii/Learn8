@@ -108,7 +108,7 @@ from pydantic import BaseModel
 
 # ... exists ...
 
-async def generate_lesson_from_node(node: LessonNode, topic: str, user_id: Optional[int] = None, project_folder: Optional[str] = None) -> List[LessonStage]:
+async def generate_lesson_from_node(node: LessonNode, topic: str, user_id: Optional[int] = None, project_folder: Optional[str] = None, profile: str = "General Learner") -> List[LessonStage]:
     provider = LLMFactory.create()
     
     if user_id:
@@ -118,7 +118,7 @@ async def generate_lesson_from_node(node: LessonNode, topic: str, user_id: Optio
              provider.bind_files(full_paths)
 
     messages = [
-        ("system", NODE_SYSTEM_PROMPT),
+        ("system", NODE_SYSTEM_PROMPT.format(profile=profile)),
         ("user", f"TOPIC: {topic}\\nNODE TITLE: {node.title}\\nNODE DESC: {node.description}\\nNODE TYPE: {node.type}")
     ]
     

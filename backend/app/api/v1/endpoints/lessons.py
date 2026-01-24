@@ -64,6 +64,7 @@ async def generate_lesson_from_node_endpoint(
 
     # 2. Generate
     project_folder_name = None
+    profile_summary = "General Learner"
     if project_id:
          db_project = db.query(ProjectModel).filter(
              ProjectModel.id == project_id,
@@ -71,8 +72,24 @@ async def generate_lesson_from_node_endpoint(
          ).first()
          if db_project:
              project_folder_name = db_project.folder_name
+             if db_project.profile_json:
+                 profile_summary = db_project.profile_json.get("summary", "General Learner")
 
-    stages = await generate_lesson_from_node(node, topic, user_id=current_user.id, project_folder=project_folder_name)
+             if db_project.profile_json:
+                 profile_summary = db_project.profile_json.get("summary", "General Learner")
+
+    # Credit Check (Only if generating new)
+    COST = 5
+    if current_user.credits < COST:
+         raise HTTPException(status_code=402, detail=f"Insufficient credits. Need {COST}.")
+
+    stages = await generate_lesson_from_node(
+        node, 
+        topic, 
+        user_id=current_user.id, 
+        project_folder=project_folder_name,
+        profile=profile_summary
+    )
     if not stages:
          raise HTTPException(status_code=404, detail="Failed to generate lesson content.")
     
@@ -88,6 +105,10 @@ async def generate_lesson_from_node_endpoint(
         project_id=project_id
     )
     db.add(new_lesson)
+    
+    current_user.credits -= COST
+    db.add(current_user)
+    
     db.commit()
     
     return stages

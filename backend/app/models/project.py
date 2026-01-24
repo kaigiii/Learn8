@@ -18,7 +18,7 @@
       避免使用者輸入惡意路徑或發生名稱衝突。
 """
 
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, JSON
 from sqlalchemy.orm import relationship
 from app.db.base_class import Base
 import datetime
@@ -30,4 +30,6 @@ class ProjectModel(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     name = Column(String, index=True)
     folder_name = Column(String, unique=True, nullable=False)
+    profile_json = Column(JSON, nullable=True)
+    draft_json = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)

@@ -16,8 +16,11 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+import { apiClient } from '@/lib/api-client';
+
 interface User {
     email: string;
+    credits: number;
 }
 
 interface AuthState {
@@ -25,15 +28,28 @@ interface AuthState {
     user: User | null;
     login: (token: string, user: User) => void;
     logout: () => void;
+    refreshUser: () => Promise<void>;
+    updateCredits: (newCredits: number) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
     persist(
-        (set) => ({
+        (set, get) => ({
             token: null,
             user: null,
             login: (token, user) => set({ token, user }),
             logout: () => set({ token: null, user: null }),
+            refreshUser: async () => {
+                try {
+                    const res = await apiClient.get('/auth/me');
+                    set({ user: res.data });
+                } catch (e) {
+                    console.error("Failed to refresh user", e);
+                }
+            },
+            updateCredits: (credits) => set((state) => ({
+                user: state.user ? { ...state.user, credits } : null
+            })),
         }),
         {
             name: 'auth-storage',

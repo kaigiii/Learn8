@@ -47,12 +47,27 @@ interface RightSidebarProps {
 export default function RightSidebar({ onLoadMock, currentProjectName }: RightSidebarProps) {
 
     const { currentProject, files, setFiles } = useProjectStore();
-    const { logout } = useAuthStore();
+    const { logout, user, refreshUser } = useAuthStore();
     const router = useRouter();
 
     const handleLogout = () => {
         logout();
         router.push('/login');
+    };
+
+    // Refresh user (credits) on mount
+    useEffect(() => {
+        refreshUser();
+    }, []);
+
+    const handleTopUp = async () => {
+        try {
+            const res = await apiClient.post('/auth/credits/topup?amount=100');
+            refreshUser(); // Should update with new credits
+            alert("Top-up successful! Added 100 credits.");
+        } catch (e) {
+            alert("Top-up failed");
+        }
     };
 
     useEffect(() => {
@@ -139,7 +154,14 @@ export default function RightSidebar({ onLoadMock, currentProjectName }: RightSi
                     <Database className="w-4 h-4 text-slate-500" />
                     {currentProjectName || "Dev Tools"}
                 </h2>
-                <p className="text-xs text-slate-400 mt-1">Component Lab & Syllabus</p>
+                <div className="flex justify-between items-center mt-2">
+                    <p className="text-xs text-slate-400">Component Lab & Syllabus</p>
+
+                    <div className="flex items-center gap-1 bg-white border border-slate-200 rounded px-2 py-0.5 shadow-sm">
+                        <span className="text-xs font-bold text-blue-600">💎 {user?.credits ?? 0}</span>
+                        <button onClick={handleTopUp} className="text-green-500 hover:text-green-700 font-bold ml-1 text-xs" title="Add 100 Credits">+</button>
+                    </div>
+                </div>
             </div>
 
             <div className="flex-1 p-4 overflow-y-auto">

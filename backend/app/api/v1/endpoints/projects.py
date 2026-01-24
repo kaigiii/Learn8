@@ -26,6 +26,7 @@ import os
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 from app.api.deps import get_db, get_current_user
 from app.models.user import UserModel
 from app.models.project import ProjectModel
@@ -167,3 +168,93 @@ async def upload_pdf(
         return {"message": f"File uploaded for User {current_user.id} (Project {project_id})."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+from app.schemas.questionnaire import Question, QuestionnaireSubmission, LearnerProfile
+from app.services.llm.agents.questionnaire_agent import QuestionnaireAgent
+
+@router.post("/{project_id}/questionnaire", response_model=List[Question])
+async def generate_project_questionnaire(
+    project_id: int, 
+    topic: str,
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Verify project ownership
+    project = db.query(ProjectModel).filter(ProjectModel.id == project_id, ProjectModel.user_id == current_user.id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    # Credit Check
+    COST = 5
+    if current_user.credits < COST:
+         raise HTTPException(status_code=402, detail=f"Insufficient credits. Need {COST}.")
+         
+    questions = await QuestionnaireAgent.generate_questions(topic, project_id=project_id)
+    
+    if questions:
+        current_user.credits -= COST
+        db.add(current_user)
+        db.commit()
+    
+    return questions
+
+@router.post("/{project_id}/questionnaire/submit", response_model=LearnerProfile)
+async def submit_project_questionnaire(
+    project_id: int,
+    submission: QuestionnaireSubmission,
+    topic: str, # We need topic here or we need to store questions. Passing topic is easier for stateless LLM sum.
+    questions: List[Question], # Pass back questions context for summarization
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    project = db.query(ProjectModel).filter(ProjectModel.id == project_id, ProjectModel.user_id == current_user.id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+        
+    profile = await QuestionnaireAgent.summarize_responses(topic, submission, questions)
+    
+    # Save to DB
+    project.profile_json = profile.model_dump()
+    flag_modified(project, "profile_json")
+    db.commit()
+    
+    return profile
+
+from pydantic import BaseModel
+
+class DraftRequest(BaseModel):
+    draft: dict
+
+@router.put("/{project_id}/draft")
+def save_project_draft(
+    project_id: int,
+    body: DraftRequest,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
+    project = db.query(ProjectModel).filter(
+        ProjectModel.id == project_id,
+        ProjectModel.user_id == current_user.id
+    ).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    project.draft_json = body.draft
+    flag_modified(project, "draft_json")
+    db.commit()
+    return {"status": "saved"}
+
+@router.get("/{project_id}/draft")
+def get_project_draft(
+    project_id: int,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
+    project = db.query(ProjectModel).filter(
+        ProjectModel.id == project_id,
+        ProjectModel.user_id == current_user.id
+    ).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    return {"draft": project.draft_json or {}}

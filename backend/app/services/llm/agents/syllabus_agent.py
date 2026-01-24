@@ -76,11 +76,11 @@ class UnitNodes(BaseModel):
 class SyllabusAgent:
     
     @staticmethod
-    async def generate_blueprint(topic: str, provider) -> Optional[Blueprint]:
+    async def generate_blueprint(topic: str, provider, profile: str = "General Audience") -> Optional[Blueprint]:
         """Step 1: Generate high-level outline."""
         messages = [
             ("system", BLUEPRINT_SYSTEM_PROMPT),
-            ("user", f"Create a course blueprint for: {topic}")
+            ("user", f"Create a course blueprint for: {topic}\nTarget Audience Profile: {profile}")
         ]
         try:
             return await provider.generate_structured(messages, Blueprint)
@@ -89,7 +89,7 @@ class SyllabusAgent:
             return None
 
     @staticmethod
-    async def expand_unit(topic: str, unit: BlueprintUnit, provider, project_id: Optional[int] = None) -> List[CourseNode]:
+    async def expand_unit(topic: str, unit: BlueprintUnit, provider, project_id: Optional[int] = None, profile: str = "General Audience") -> List[CourseNode]:
         """Step 2: Expand a single unit using specific RAG context."""
         
         # Specific RAG for this unit
@@ -102,7 +102,8 @@ class SyllabusAgent:
                 topic=topic,
                 unit_title=unit.unit_title,
                 unit_goal=unit.unit_goal,
-                context=context_str
+                context=context_str,
+                profile=profile
             )),
             ("user", "Generate the nodes for this unit.")
         ]
@@ -122,9 +123,17 @@ class SyllabusAgent:
             return []
 
     @staticmethod
-    async def run(topic: str, user_id: Optional[int] = None, project_folder: Optional[str] = None, project_id: Optional[int] = None) -> Optional[CoursePath]:
+    async def run(
+        topic: str, 
+        user_id: Optional[int] = None, 
+        project_folder: Optional[str] = None, 
+        project_id: Optional[int] = None,
+        profile_summary: str = None
+    ) -> Optional[CoursePath]:
         """Main Entry Point"""
         print(f"🚀 [SyllabusAgent] Starting generation for '{topic}'...")
+        print(f"👤 [SyllabusAgent] Profile: {profile_summary or 'Default'}")
+        
         provider = LLMFactory.create()
         
         # Bind files if needed (Optional, usually RAG handles it, but for direct FreeGemini context)
@@ -135,7 +144,9 @@ class SyllabusAgent:
                 provider.bind_files(full_paths)
 
         # 1. Generate Blueprint
-        blueprint = await SyllabusAgent.generate_blueprint(topic, provider)
+        # Provide a default if None
+        profile_str = profile_summary if profile_summary else "General Audience"
+        blueprint = await SyllabusAgent.generate_blueprint(topic, provider, profile=profile_str)
         if not blueprint:
             return None
         
@@ -147,7 +158,7 @@ class SyllabusAgent:
         
         for i, b_unit in enumerate(blueprint.units):
             print(f"  Doing Unit {i+1}: {b_unit.unit_title}...")
-            nodes = await SyllabusAgent.expand_unit(topic, b_unit, provider, project_id=project_id)
+            nodes = await SyllabusAgent.expand_unit(topic, b_unit, provider, project_id=project_id, profile=profile_str)
             
             # Create Final Unit
             final_units.append(CourseUnit(
