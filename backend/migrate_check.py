@@ -1,7 +1,7 @@
 import sqlite3
 import os
 
-db_path = 'learna_db/learna.db'
+db_path = 'learn8_db/learn8.db'
 abs_path = os.path.abspath(db_path)
 print(f"Checking DB at: {abs_path}")
 

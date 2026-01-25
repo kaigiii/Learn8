@@ -3,7 +3,7 @@
 功能描述: 課程與大綱管理 API (Course Management Endpoints)
 
 負責課程大綱 (Syllabus) 的生成、查詢、修正以及學習進度的更新。
-這是 Learna v3 的核心業務邏輯入口。
+這是 Learn8 的核心業務邏輯入口。
 
 路由列表:
     1. GET /

@@ -15,7 +15,7 @@
 
     3. POST /dev-login
         - 功能: 開發者快速登入 (僅用於測試環境)。
-        - 邏輯: 自動建立或登入 "dev@learna.ai" 帳號，免輸入密碼。
+        - 邏輯: 自動建立或登入 "dev@learn8.ai" 帳號，免輸入密碼。
 """
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -72,7 +72,7 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
 
 @router.post("/dev-login", response_model=Token)
 def dev_login(db: Session = Depends(get_db)):
-    dev_email = "dev@learna.ai"
+    dev_email = "dev@learn8.ai"
     db_user = db.query(UserModel).filter(UserModel.email == dev_email).first()
     
     if not db_user:

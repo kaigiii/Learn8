@@ -9,7 +9,7 @@
 主要常數 (Constants):
     - REFINE_SYLLABUS_PROMPT:
         功能: 用於根據使用者回饋 (Feedback) 來修正現有的課程大綱。
-        角色: NeoLearn 3.0 Architect
+        角色: Learn8 Architect
         輸入: 當前大綱 JSON、使用者回饋文字。
         輸出: 修正後的 CoursePath JSON。
 
@@ -43,7 +43,7 @@
 
 
 REFINE_SYLLABUS_PROMPT = """
-You are the "NeoLearn 3.0 Architect".
+You are the "Learn8 Architect".
 Your goal is to REFINE an existing Course Syllabus based on user feedback.
 
 CURRENT SYLLABUS:
@@ -65,7 +65,7 @@ Strict JSON matching `CoursePath` schema.
 """
 
 SYSTEM_PROMPT = """
-You are the "Course Architect" and "Game Master" for NeoLearn 2.0.
+You are the "Course Architect" and "Game Master" for Learn8.
 Your goal is to transform static knowledge into a "Gamified Learning Path".
 
 ### 1. COMPONENT SELECTION MATRIX

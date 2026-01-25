@@ -150,7 +150,7 @@ export function ProfileView({ onClose }: ProfileViewProps) {
 
             <div className="text-center text-xs text-slate-400 mt-4">
                 Secure payment processing. Purchases are non-refundable. <br />
-                Need help? Contact support@learna.ai
+                Need help? Contact support@learn8.ai
             </div>
         </motion.div>
     );

@@ -1,15 +1,1 @@
-2026-01-25 21:14:59 | INFO | PROJECT_CREATE | User[1:dev@learna.ai] created Project[3:123]
-2026-01-25 21:15:34 | INFO | FILE_UPLOAD | User[1:dev@learna.ai] uploaded to Project[3:123]: [管數ch3.pdf]
-2026-01-25 21:15:45 | INFO | QUESTIONNAIRE_GENERATE | User[1:dev@learna.ai] started questionnaire for Project[3:123] | Topic: 'math' | Files: [管數ch3.pdf]
-2026-01-25 21:16:01 | INFO | CREDITS_DEDUCT | User[1:dev@learna.ai] spent 5 credits for 'questionnaire_generation' | New balance: 1545
-2026-01-25 21:16:24 | INFO | SYLLABUS_GENERATE_START | User[1:dev@learna.ai] started syllabus generation for Project[3:123] | Topic: 'math'
-2026-01-25 21:16:24 | INFO |   └─ Files Context: [管數ch3.pdf]
-2026-01-25 21:16:24 | INFO |   └─ RAG Context: '
---- Document: 管數ch3.pdf ---
-第⼀部分 - ⾏列式(Determinants)的基本概念： 1. 基本定義 • (i,j) minor是從矩陣A中刪除第i列和第j⾏後得到的⾏列式 • (i,j) cofactor = (-1)^(i+j) × minor，記為cij • 矩陣A的⾏列式可以⽤任意⼀列(或⾏)的元素與其對應的cofactor的乘積之和來計算 2. ⾏列式重要性質： • ⾏列式是對每⼀列(⾏)都是線性的 • 有零列(⾏)的矩陣⾏列式為0 • 交換兩列(⾏)，⾏列式變號 • 有兩個相同列(⾏)的矩陣⾏列式為0 • ⼀列(⾏)是另⼀列(⾏)的倍數時，⾏列式為...'
-2026-01-25 21:19:07 | INFO | SYLLABUS_GENERATE_COMPLETE | User[1:dev@learna.ai] completed syllabus for Project[3:123] | Topic: 'math' | Generated: 8 units, 72 lessons
-2026-01-25 21:19:07 | INFO | CREDITS_DEDUCT | User[1:dev@learna.ai] spent 50 credits for 'syllabus_generation' | New balance: 1495
-2026-01-25 21:46:58 | INFO | LOGIN | User[3:12@gmail.com] logged in successfully
-2026-01-25 21:47:54 | INFO | PROJECT_CREATE | User[3:12@gmail.com] created Project[4:ㄉˇ]
-2026-01-25 21:48:01 | INFO | FILE_UPLOAD | User[3:12@gmail.com] uploaded to Project[4:ㄉˇ]: [管數ch2.pdf]
-2026-01-25 21:48:07 | INFO | QUESTIONNAIRE_GENERATE | User[3:12@gmail.com] started questionnaire for Project[4:ㄉˇ] | Topic: 'math' | Files: [管數ch2.pdf]
+2026-01-25 22:18:41 | INFO | REGISTER | User[5:12345@gmail.com] created new account

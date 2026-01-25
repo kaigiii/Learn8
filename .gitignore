@@ -59,10 +59,10 @@ frontend/.env
 # Database & Storage
 *.db
 *.sqlite3
-backend/learna_db/*.db
+backend/learn8_db/*.db
 backend/chroma_db/
 backend/uploads/
 
-# Learna Specific
+# Learn8 Specific
 projects_pool/
 uploads/

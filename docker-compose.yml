@@ -3,12 +3,12 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: learna_backend
+    container_name: learn8_backend
     ports:
       - "8000:8000"
     volumes:
       - ./backend/uploads:/app/uploads
-      - ./backend/learna_db:/app/learna_db
+      - ./backend/learn8_db:/app/learn8_db
       - ./backend/chroma_db:/app/chroma_db
       - ./backend/.env:/app/.env
     environment:
@@ -19,7 +19,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: learna_frontend
+    container_name: learn8_frontend
     ports:
       - "3000:3000"
     environment:
@@ -29,6 +29,6 @@ services:
     restart: unless-stopped
 
 volumes:
-  learna_db:
+  learn8_db:
   chroma_db:
   uploads:

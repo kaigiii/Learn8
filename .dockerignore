@@ -10,6 +10,6 @@ build
 venv
 __pycache__
 *.pyc
-backend/learna_db
+backend/learn8_db
 backend/chroma_db
 backend/uploads

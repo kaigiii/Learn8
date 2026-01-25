@@ -3,7 +3,7 @@
 功能描述: 專案資料模型 (Project Model)
 
 定義了使用者的專案 (Workspace) 概念。
-專案是 Learna v3 的核心隔離單位，所有的上傳檔案 (PDF) 與 RAG 向量索引
+專案是 Learn8 的核心隔離單位，所有的上傳檔案 (PDF) 與 RAG 向量索引
 都基於 Project 進行實體隔離。
 
 資料表 (Tables):

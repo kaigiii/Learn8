@@ -103,7 +103,7 @@ export function RegisterForm() {
                     <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto text-green-600">
                         <Check className="w-8 h-8" />
                     </div>
-                    <h2 className="text-2xl font-bold text-slate-800">Welcome to NeoLearn!</h2>
+                    <h2 className="text-2xl font-bold text-slate-800">Welcome to Learn8!</h2>
                     <p className="text-slate-600">Your account has been created successfully.</p>
                     <p className="text-sm text-slate-400">Redirecting to login...</p>
                     <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={() => router.push('/login')}>

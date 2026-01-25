@@ -11,7 +11,7 @@
  * 3. 失敗 -> 顯示錯誤訊息。
  * 
  * 特殊功能:
- * - Dev Login: 方便開發者一鍵登入 (模擬帳號 dev@learna.ai)。
+ * - Dev Login: 方便開發者一鍵登入 (模擬帳號 dev@learn8.ai)。
  */
 "use client";
 
@@ -73,7 +73,7 @@ export function LoginForm() {
         <div className="flex items-center justify-center min-h-screen bg-gray-100">
             <Card className="w-full max-w-md">
                 <CardHeader>
-                    <CardTitle>Login to Learna</CardTitle>
+                    <CardTitle>Login to Learn8</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <form onSubmit={handleSubmit} className="space-y-4">

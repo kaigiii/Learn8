@@ -112,7 +112,7 @@ export default function Dashboard({ onLessonGenerated, currentProjectId, onResum
             {/* ... (Header) */}
             <div className="text-center space-y-4 max-w-2xl shrink-0">
                 <h1 className="text-5xl font-extrabold tracking-tight text-slate-900">
-                    NeoLearn <span className="text-blue-600">2.0</span>
+                    Learn<span className="text-blue-600">8</span>
                 </h1>
                 <p className="text-xl text-slate-600">
                     Turn any textbook into an addictive, gamified learning path.

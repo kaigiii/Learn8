@@ -10,7 +10,7 @@
     - Settings: 設定模型，定義了所有可用的環境變數及其預設值。
 
 主要屬性 (Attributes):
-    - PROJECT_NAME (str): 專案名稱 (預設: "Learna v3")
+    - PROJECT_NAME (str): 專案名稱 (預設: "Learn8")
     - API_V1_STR (str): API 版本前綴 (預設: "/api/v1")
     - SECRET_KEY (str): 用於 JWT 加密簽名的密鑰 (應由 .env 讀取)
     - ALGORITHM (str): 加密演算法 (預設: "HS256")
@@ -31,7 +31,7 @@ from pydantic_settings import BaseSettings
 from typing import Optional
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "Learna v3"
+    PROJECT_NAME: str = "Learn8"
     API_V1_STR: str = "/api/v1"
     
     # Security
@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 3000
     
     # Database
-    DATABASE_URL: str = "sqlite:///./learna_db/learna.db"
+    DATABASE_URL: str = "sqlite:///./learn8_db/learn8.db"
     
     # AI / LLM
     GOOGLE_API_KEY: Optional[str] = None

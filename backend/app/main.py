@@ -39,4 +39,4 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 
 @app.get("/")
 def root():
-    return {"message": "Welcome to Learna v3 API"}
+    return {"message": "Welcome to Learn8 API"}

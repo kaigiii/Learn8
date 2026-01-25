@@ -134,7 +134,7 @@ export default function Sidebar({ currentProjectId, onSelectProject }: SidebarPr
         <div className="w-64 bg-slate-50 border-r border-slate-200 h-screen flex flex-col">
             <div className="p-4 border-b border-slate-100 flex items-center gap-2">
                 <Cpu className="w-6 h-6 text-blue-600" />
-                <span className="font-bold text-slate-800">Learna Spaces</span>
+                <span className="font-bold text-slate-800">Learn8 Spaces</span>
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-2">
@@ -220,7 +220,7 @@ export default function Sidebar({ currentProjectId, onSelectProject }: SidebarPr
             </div>
 
             <div className="p-4 border-t border-slate-100 text-xs text-slate-400 text-center">
-                Learna V2 Alpha
+                Learn8 Beta
             </div>
         </div>
     );

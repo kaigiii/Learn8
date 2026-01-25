@@ -1,10 +1,10 @@
-# Learna v3 (NeoLearn 3.0) 🪐
+# Learn8 🎱
 
 > **從教科書到無限遊戲：將靜態知識轉化為沉浸式學習路徑的 AI 平台。**
 
-**Learna v3** 是一個次世代的適性化學習系統 (Adaptive Learning System)，結合 **RAG (Retrieval-Augmented Generation)**、**Agentic Workflow** 與 **遊戲化教學法**，解決傳統線上學習缺乏互動性與個人化的痛點。
+**Learn8** 是一個次世代的適性化學習系統 (Adaptive Learning System)，結合 **RAG (Retrieval-Augmented Generation)**、**Agentic Workflow** 與 **遊戲化教學法**，解決傳統線上學習缺乏互動性與個人化的痛點。
 
-透過上傳 PDF 講義或教科書，Learna 的 AI 架構師會自動消化內容，建構出專屬於您的結構化課程大綱，並隨選生成豐富的互動式學習單元。
+透過上傳 PDF 講義或教科書，Learn8 的 AI 架構師會自動消化內容，建構出專屬於您的結構化課程大綱，並隨選生成豐富的互動式學習單元。
 
 ---
 
@@ -112,16 +112,16 @@
 全面的活動日誌，記錄所有用戶操作：
 
 ```
-2026-01-25 21:16:24 | INFO | LOGIN | User[1:dev@learna.ai] logged in successfully
-2026-01-25 21:16:30 | INFO | PROJECT_CREATE | User[1:dev@learna.ai] created Project[5:ML 101]
-2026-01-25 21:17:00 | INFO | FILE_UPLOAD | User[1:dev@learna.ai] uploaded to Project[5:ML 101]: [intro.pdf, data.csv]
-2026-01-25 21:17:30 | INFO | QUESTIONNAIRE_GENERATE | User[1:dev@learna.ai] started questionnaire for Project[5:ML 101] | Topic: 'Machine Learning' | Files: [intro.pdf, data.csv]
-2026-01-25 21:18:00 | INFO | QUESTIONNAIRE_SUBMIT | User[1:dev@learna.ai] submitted questionnaire for Project[5:ML 101] | Profile Summary: 'Summary: 具備程式基礎的視覺型學習者...'
-2026-01-25 21:19:00 | INFO | SYLLABUS_GENERATE_START | User[1:dev@learna.ai] started syllabus generation for Project[5:ML 101] | Topic: 'Machine Learning'
+2026-01-25 21:16:24 | INFO | LOGIN | User[1:dev@learn8.ai] logged in successfully
+2026-01-25 21:16:30 | INFO | PROJECT_CREATE | User[1:dev@learn8.ai] created Project[5:ML 101]
+2026-01-25 21:17:00 | INFO | FILE_UPLOAD | User[1:dev@learn8.ai] uploaded to Project[5:ML 101]: [intro.pdf, data.csv]
+2026-01-25 21:17:30 | INFO | QUESTIONNAIRE_GENERATE | User[1:dev@learn8.ai] started questionnaire for Project[5:ML 101] | Topic: 'Machine Learning' | Files: [intro.pdf, data.csv]
+2026-01-25 21:18:00 | INFO | QUESTIONNAIRE_SUBMIT | User[1:dev@learn8.ai] submitted questionnaire for Project[5:ML 101] | Profile Summary: 'Summary: 具備程式基礎的視覺型學習者...'
+2026-01-25 21:19:00 | INFO | SYLLABUS_GENERATE_START | User[1:dev@learn8.ai] started syllabus generation for Project[5:ML 101] | Topic: 'Machine Learning'
   └─ Files Context: [intro.pdf, data.csv]
   └─ RAG Context: '第一章 - 機器學習概論...'
   └─ Learner Profile: '具備程式基礎的視覺型學習者'
-2026-01-25 21:22:00 | INFO | SYLLABUS_GENERATE_COMPLETE | User[1:dev@learna.ai] completed syllabus for Project[5:ML 101] | Topic: 'Machine Learning' | Generated: 6 units, 42 lessons
+2026-01-25 21:22:00 | INFO | SYLLABUS_GENERATE_COMPLETE | User[1:dev@learn8.ai] completed syllabus for Project[5:ML 101] | Topic: 'Machine Learning' | Generated: 6 units, 42 lessons
   └─ Unit 1: Introduction to Machine Learning
   └─ Unit 2: Supervised Learning Algorithms
   └─ Unit 3: Unsupervised Learning
@@ -181,7 +181,7 @@ npm run dev
 ## 💡 使用手冊 (User Manual)
 
 ### 1. 登入與開發者模式
-在登入畫面，點擊 **"⚡ Dev Login"** 按鈕，系統將使用預設的測試帳號 (`dev@learna.ai`) 自動登入。
+在登入畫面，點擊 **"⚡ Dev Login"** 按鈕，系統將使用預設的測試帳號 (`dev@learn8.ai`) 自動登入。
 
 ### 2. 專案管理
 - **建立專案**: 在左側 Sidebar 點擊 "+" 按鈕
@@ -986,4 +986,4 @@ MIT License - 詳見 [LICENSE](LICENSE)
 
 ---
 
-*Built with ❤️ by the Learna Team*
+*Built with ❤️ by the Learn8 Team*
