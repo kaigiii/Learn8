@@ -7,7 +7,9 @@
 
 路由結構:
     - /auth: 認證相關 (登入、註冊)。
-    - /projects: 專案管理 (建立、刪除、檔案上傳)。
+    - /projects: 專案管理 (建立、刪除、草稿)。
+    - /projects: 專案檔案管理 (上傳、刪除、列表)。
+    - /projects: 問卷功能 (生成、提交)。
     - /courses: 課程大綱管理 (生成、查詢、狀態更新)。
     - /lessons: 單元內容生成與互動 (提交答案、生成補救教學)。
     - /system: 系統層級功能 (健康檢查等)。
@@ -16,11 +18,13 @@
 """
 
 from fastapi import APIRouter
-from app.api.v1.endpoints import auth, projects, courses, lessons, system
+from app.api.v1.endpoints import auth, projects, project_files, questionnaire, courses, lessons, system
 
 api_router = APIRouter()
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 api_router.include_router(projects.router, prefix="/projects", tags=["projects"])
+api_router.include_router(project_files.router, prefix="/projects", tags=["project-files"])
+api_router.include_router(questionnaire.router, prefix="/projects", tags=["questionnaire"])
 api_router.include_router(courses.router, prefix="/courses", tags=["courses"])
 api_router.include_router(lessons.router, prefix="/lessons", tags=["lessons"])
-api_router.include_router(system.router, prefix="/system", tags=["system"]) # Paths like /submit-answer
+api_router.include_router(system.router, prefix="/system", tags=["system"])

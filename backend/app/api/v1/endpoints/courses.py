@@ -41,7 +41,8 @@ from app.schemas.course import CoursePath, RefineSyllabusRequest, UpdateNodeStat
 from app.services.llm.agents.syllabus_agent import SyllabusAgent
 
 
-from app.services.syllabus_graph import syllabus_graph
+from app.services.llm.workflows.syllabus_graph import syllabus_graph
+from app.services.activity_logger import ActivityLogger
 import datetime
 
 router = APIRouter()
@@ -119,6 +120,36 @@ async def generate_syllabus(
                  # Extract summary from profile JSON
                  profile_summary = db_project.profile_json.get("summary", "General Audience")
 
+    # Prepare Context from Files (Full Text for Blueprint)
+    full_text_context = ""
+    if project_id and project_folder_name:
+        from app.services.file_service import FileService # Lazy import or move to top
+        files = FileService.list_files(current_user.id, project_folder_name)
+        
+        for fname in files:
+            # Skip hidden files
+            if fname.startswith("."): continue
+            
+            fpath = FileService.get_upload_dir(current_user.id, project_folder_name) + "/" + fname
+            # Read content (Safety limit defined in service)
+            content = FileService.read_file_content(fpath, max_chars=30000) 
+            if content:
+                full_text_context += f"\n--- Document: {fname} ---\n{content}\n"
+    
+    if full_text_context:
+        print(f"📄 [generate_syllabus] Injected {len(full_text_context)} chars of context into Blueprint.")
+
+    # Log syllabus generation start
+    project_name = db_project.name if (project_id and db_project) else "No Project"
+    ActivityLogger.log_syllabus_generate_start(
+        current_user.id, current_user.email, project_id or 0, project_name,
+        topic,
+        user_prompt=None,  # No explicit prompt in this flow
+        rag_context_preview=full_text_context[:500] if full_text_context else None,
+        questionnaire_profile=profile_summary,
+        files_context=files if project_id and project_folder_name else None
+    )
+
     # OLD: syllabus = await generate_course_syllabus(topic, user_id=current_user.id, project_folder=project_folder_name)
     # NEW: Agentic Workflow
     syllabus = await SyllabusAgent.run(
@@ -126,7 +157,8 @@ async def generate_syllabus(
         user_id=current_user.id, 
         project_folder=project_folder_name, 
         project_id=project_id,
-        profile_summary=profile_summary
+        profile_summary=profile_summary,
+        context=full_text_context
     )
     if not syllabus:
          raise HTTPException(status_code=404, detail="Failed to generate syllabus.")
@@ -173,6 +205,17 @@ async def generate_syllabus(
             )
             db.add(db_node)
     db.commit()
+    
+    # Log completion with stats
+    units_count = len(syllabus.units)
+    lessons_count = sum(len(u.nodes) for u in syllabus.units)
+    unit_titles = [u.title for u in syllabus.units]
+    project_name = db_project.name if (project_id and db_project) else "No Project"
+    ActivityLogger.log_syllabus_generate_complete(
+        current_user.id, current_user.email, project_id or 0, project_name,
+        topic, units_count, lessons_count, unit_titles
+    )
+    ActivityLogger.log_credits_deduct(current_user.id, current_user.email, COST, "syllabus_generation", current_user.credits)
 
     return syllabus
 
@@ -202,6 +245,13 @@ async def refine_syllabus_endpoint(
     
     if not result.get("syllabus"):
          raise HTTPException(status_code=500, detail="Refinement returned empty syllabus")
+    
+    # Log refinement
+    project_name = db_project.name if request.projectId and db_project else "No Project"
+    ActivityLogger.log_syllabus_refine(
+        current_user.id, current_user.email, request.projectId or 0, project_name,
+        request.topic, request.userFeedback
+    )
     
     # Update DB if we had an ID (refinement usually works on existing course?)
     # For now, just return result

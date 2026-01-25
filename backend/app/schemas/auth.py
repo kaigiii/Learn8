@@ -20,6 +20,8 @@
 
 from pydantic import BaseModel
 
+from typing import Optional
+
 class Token(BaseModel):
     access_token: str
     token_type: str
@@ -27,6 +29,16 @@ class Token(BaseModel):
 class UserCreate(BaseModel):
     email: str
     password: str
+    full_name: Optional[str] = None
+    phone_number: Optional[str] = None
+
+class UserUpdate(BaseModel):
+    full_name: Optional[str] = None
+    phone_number: Optional[str] = None
+    job_title: Optional[str] = None
+    education_level: Optional[str] = None
+    daily_learning_goal_minutes: Optional[int] = None
+    # email/password updates can be added later if needed
 
 class UserLogin(BaseModel):
     email: str
@@ -36,4 +48,10 @@ class UserResponse(BaseModel):
     id: int
     email: str
     credits: int
+    full_name: Optional[str] = None
+    phone_number: Optional[str] = None
+    avatar_url: Optional[str] = None
+    job_title: Optional[str] = None
+    education_level: Optional[str] = None
+    daily_learning_goal_minutes: int = 30
 

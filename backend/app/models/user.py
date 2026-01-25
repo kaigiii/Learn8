@@ -25,3 +25,11 @@ class UserModel(Base):
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
     credits = Column(Integer, default=50)
+
+    # Personal Profile Fields
+    full_name = Column(String, nullable=True)
+    phone_number = Column(String, nullable=True)
+    avatar_url = Column(String, nullable=True)
+    job_title = Column(String, nullable=True)     # e.g., "Full Stack Developer"
+    education_level = Column(String, nullable=True) # e.g., "Bachelor's Degree"
+    daily_learning_goal_minutes = Column(Integer, default=30)

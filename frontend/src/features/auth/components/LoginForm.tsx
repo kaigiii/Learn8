@@ -22,6 +22,7 @@ import { apiClient } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Link from 'next/link';
 
 export function LoginForm() {
     const [email, setEmail] = useState("");
@@ -37,7 +38,14 @@ export function LoginForm() {
         try {
             // Direct call to API
             const res = await apiClient.post("/auth/login", { email, password });
-            login(res.data.access_token, { email });
+            const token = res.data.access_token;
+
+            // Fetch full user profile
+            const userRes = await apiClient.get('/auth/me', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            login(token, userRes.data);
             router.push("/"); // Redirect to Dashboard
         } catch (err: any) {
             setError(err.response?.data?.detail || "Login failed");
@@ -47,7 +55,14 @@ export function LoginForm() {
     const handleDevLogin = async () => {
         try {
             const res = await apiClient.post("/auth/dev-login");
-            login(res.data.access_token, { email: "dev@learna.ai" });
+            const token = res.data.access_token;
+
+            // Fetch full user profile
+            const userRes = await apiClient.get('/auth/me', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            login(token, userRes.data);
             router.push("/");
         } catch (err: any) {
             setError("Dev login failed");
@@ -79,6 +94,9 @@ export function LoginForm() {
                         {error && <p className="text-red-500 text-sm">{error}</p>}
                         <Button type="submit" className="w-full">Login</Button>
                     </form>
+                    <div className="mt-4 text-center text-sm">
+                        Don't have an account? <Link href="/register" className="text-blue-600 hover:underline">Create Account</Link>
+                    </div>
                     <div className="mt-4 pt-4 border-t">
                         <Button variant="outline" className="w-full" onClick={handleDevLogin}>
                             ⚡ Dev Login (Auto)

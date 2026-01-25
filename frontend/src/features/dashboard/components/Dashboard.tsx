@@ -108,7 +108,7 @@ export default function Dashboard({ onLessonGenerated, currentProjectId, onResum
 
 
     return (
-        <div className="flex flex-col items-center w-full min-h-[60vh] space-y-8 p-8 pt-20 pb-40">
+        <div className="flex flex-col w-full h-full">
             {/* ... (Header) */}
             <div className="text-center space-y-4 max-w-2xl shrink-0">
                 <h1 className="text-5xl font-extrabold tracking-tight text-slate-900">
@@ -127,14 +127,14 @@ export default function Dashboard({ onLessonGenerated, currentProjectId, onResum
                 >
                     <div className="flex flex-col items-center gap-4 text-slate-500">
                         <AlertCircle className="w-12 h-12 text-blue-500 opacity-80" />
-                        <h3 className="text-lg font-semibold text-slate-700">No Project Selected</h3>
+                        <h3 className="text-lg font-semibold text-slate-700">Get Started</h3>
                         <p className="text-sm">
-                            Please create or select a project on the left sidebar to start extracting knowledge and generating learning paths.
+                            Create a new project in the sidebar to begin your learning journey.
                         </p>
                     </div>
                 </motion.div>
             ) : (
-                <div className="w-full max-w-4xl space-y-8">
+                <div className="w-full h-full flex-1 flex flex-col">
                     {/* Workspace (Handles Upload + Questionnaire) */}
                     <ProjectWorkspace
                         key={currentProjectId} // Force remount on project switch

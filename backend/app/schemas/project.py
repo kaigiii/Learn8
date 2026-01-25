@@ -31,3 +31,8 @@ class ProjectResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+
+class DraftRequest(BaseModel):
+    """Request body for saving project draft."""
+    draft: dict

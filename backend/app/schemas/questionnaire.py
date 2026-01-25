@@ -5,7 +5,7 @@ class Question(BaseModel):
     id: str
     text: str
     type: str = "choice" 
-    options: List[str] # Required now
+    options: Optional[List[str]] = None  # Made optional for flexibility
 
 class QuestionnaireResponse(BaseModel):
     question_id: str
@@ -16,4 +16,14 @@ class QuestionnaireSubmission(BaseModel):
 
 class LearnerProfile(BaseModel):
     summary: str
-    attributes: dict = {} # E.g., style: visual, level: advanced
+    attributes: dict = {}
+    learning_style: Optional[str] = None
+    experience_level: Optional[str] = None
+    goals: Optional[List[str]] = None
+
+
+class QuestionnaireSubmitRequest(BaseModel):
+    """Combined request body for questionnaire submission."""
+    submission: QuestionnaireSubmission
+    topic: str
+    questions: List[Question]

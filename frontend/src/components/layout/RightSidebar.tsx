@@ -42,11 +42,12 @@ import { projectService } from '@/services/projectService';
 interface RightSidebarProps {
     onLoadMock: (stage: LessonStage) => void;
     currentProjectName?: string;
+    onOpenProfile?: () => void;
 }
 
-export default function RightSidebar({ onLoadMock, currentProjectName }: RightSidebarProps) {
+export default function RightSidebar({ onLoadMock, currentProjectName, onOpenProfile }: RightSidebarProps) {
 
-    const { currentProject, files, setFiles } = useProjectStore();
+    const { currentProject, files, setFiles, setCurrentProject } = useProjectStore();
     const { logout, user, refreshUser } = useAuthStore();
     const router = useRouter();
 
@@ -82,8 +83,11 @@ export default function RightSidebar({ onLoadMock, currentProjectName }: RightSi
         try {
             const res = await apiClient.get(`/projects/${pId}/files`);
             setFiles(res.data);
-        } catch (e) {
+        } catch (e: any) {
             console.error("Failed to fetch files", e);
+            if (e.response && e.response.status === 404) {
+                setCurrentProject(null);
+            }
         }
     }
 
@@ -243,6 +247,20 @@ export default function RightSidebar({ onLoadMock, currentProjectName }: RightSi
                         <div className="text-xs text-slate-400 italic">Select a project to view files</div>
                     )}
                 </div>
+            </div>
+
+            {/* Profile Entry Point */}
+            <div className="p-4 border-t border-slate-200 bg-slate-50 space-y-2 mt-auto cursor-pointer hover:bg-slate-100 transition-colors relative group" onClick={onOpenProfile}>
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm shadow-md border-2 border-white">
+                        {user?.email?.charAt(0).toUpperCase() || "U"}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <h4 className="font-bold text-slate-800 text-sm truncate">{user?.email?.split('@')[0] || "Learner"}</h4>
+                        <p className="text-xs text-slate-500 truncate">Level 5 Scholar</p>
+                    </div>
+                </div>
+                {/* Arrow hint on hover? */}
             </div>
 
             {/* Admin Controls */}

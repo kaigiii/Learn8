@@ -28,6 +28,7 @@ import StageRenderer from '@/features/stage-player/components/StageRenderer';
 import Dashboard from '@/features/dashboard/components/Dashboard';
 import { SyllabusMap } from '@/features/course-map/components/SyllabusMap';
 import { NodeDrawer } from '@/features/course-map/components/NodeDrawer';
+import { ProfileView } from '@/features/profile/components/ProfileView';
 import { ChatSidebar, ChatMessage } from '@/features/chat/components/ChatSidebar';
 import Sidebar from '@/components/layout/Sidebar';
 import RightSidebar from '@/components/layout/RightSidebar';
@@ -64,6 +65,9 @@ export default function Home() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isRefining, setIsRefining] = useState(false);
+
+  // Profile
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   // Auth Guard
   useEffect(() => {
@@ -113,7 +117,7 @@ export default function Home() {
     setIsRefining(true);
 
     try {
-      const res = await apiClient.post('/refine-syllabus', {
+      const res = await apiClient.post('/courses/refine-syllabus', {
         topic: coursePath.courseTitle,
         currentSyllabus: coursePath,
         userFeedback: message,
@@ -222,26 +226,36 @@ export default function Home() {
     setActiveStages([stage]);
   };
 
+
+
+  const handleOpenProfile = () => {
+    setIsProfileOpen(true);
+    setCoursePath(null); // Clear dashboard/map view to show profile
+    setActiveStages(null);
+  };
+
+  const handleCloseProfile = () => {
+    setIsProfileOpen(false);
+  };
+
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50 font-[family-name:var(--font-geist-sans)]">
-      {/* Sidebar */}
+      {/* Sidebar - Always visible unless playing stage */}
       {!activeStages && (
         <Sidebar
           currentProjectId={currentProjectId_Local}
           onSelectProject={(id) => {
             setCurrentProjectId_Local(id);
             setShouldAutoResume(true);
-            // Reset view to Dashboard so it can auto-resume the new project
             setCoursePath(null);
             setActiveStages(null);
+            setIsProfileOpen(false); // Close profile on project switch
           }}
         />
       )}
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col relative overflow-y-auto w-full">
-        {/* ... existing main content ... */}
-
 
         {activeStages ? (
           <StageRenderer
@@ -249,6 +263,8 @@ export default function Home() {
             onExit={handleExitLesson}
             onComplete={handleLessonComplete}
           />
+        ) : isProfileOpen ? (
+          <ProfileView onClose={handleCloseProfile} />
         ) : coursePath ? (
           <div className="relative h-screen flex flex-col">
             <div className="bg-white border-b px-6 py-4 flex items-center justify-between shadow-sm z-10">
@@ -319,6 +335,7 @@ export default function Home() {
         <RightSidebar
           currentProjectName={currentProjectId_Local ? "Current Project" : "Global Scope"}
           onLoadMock={handleMockLoad}
+          onOpenProfile={handleOpenProfile}
         />
       )}
     </div>

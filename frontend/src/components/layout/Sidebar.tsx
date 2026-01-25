@@ -54,7 +54,20 @@ export default function Sidebar({ currentProjectId, onSelectProject }: SidebarPr
     const fetchProjects = async () => {
         try {
             const res = await apiClient.get('/projects');
-            setProjects(res.data);
+            const userProjects: Project[] = res.data;
+            setProjects(userProjects);
+
+            // Validate cached currentProject belongs to this user
+            const cachedProject = useProjectStore.getState().currentProject;
+            if (cachedProject) {
+                const projectStillExists = userProjects.some(p => p.id === cachedProject.id);
+                if (!projectStillExists) {
+                    // Clear stale cached project (belongs to different user or was deleted)
+                    console.log('Clearing stale cached project:', cachedProject.id);
+                    setCurrentProject(null);
+                    onSelectProject(null as any);  // Reset selection
+                }
+            }
         } catch (e) {
             console.error("Failed to fetch projects", e);
         }

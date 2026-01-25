@@ -75,20 +75,15 @@ class FileService:
                 print(f"Error deleting project folder {target_dir}: {e}")
 
     @staticmethod
-    def delete_file(user_id: int, project_folder: str, filename: str):
-        """Deletes a specific file from the project upload directory."""
-        upload_dir = FileService.get_upload_dir(user_id, project_folder)
-        file_path = os.path.join(upload_dir, filename)
+    def read_file_content(file_path: str, max_chars: int = 50000) -> str:
+        """Reads content from a file using DocumentProcessor. Truncates if too long."""
+        from app.services.document_processor import DocumentProcessor
         
-        # Security check: ensure file path is within upload_dir
-        if not os.path.abspath(file_path).startswith(os.path.abspath(upload_dir)):
-             raise HTTPException(status_code=400, detail="Invalid file path")
+        content = DocumentProcessor.read_content(file_path)
 
-        if os.path.exists(file_path):
-            try:
-                os.remove(file_path)
-                print(f"🗑️ Deleted file: {file_path}")
-            except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Error deleting file: {str(e)}")
-        else:
-             raise HTTPException(status_code=404, detail="File not found")
+        # Truncate if too long (Temporary solution until VIP logic)
+        if len(content) > max_chars:
+            print(f"⚠️ Content truncated from {len(content)} to {max_chars} chars.")
+            return content[:max_chars] + "\n...[Content Truncated]..."
+        
+        return content

@@ -34,7 +34,7 @@ export function ProjectWorkspace({ projectId, onGenerateSyllabus }: ProjectWorks
     // Upload State
     const [filesToUpload, setFilesToUpload] = useState<File[]>([]);
     const [isUploading, setIsUploading] = useState(false);
-    const { setFiles } = useProjectStore();
+    const { setFiles, setCurrentProject } = useProjectStore();
     const { user, refreshUser } = useAuthStore();
 
     // Questionnaire Data
@@ -78,8 +78,11 @@ export function ProjectWorkspace({ projectId, onGenerateSyllabus }: ProjectWorks
                 if (draft.questions && draft.questions.length > 0) {
                     setStep("answering");
                 }
-            } catch (err) {
+            } catch (err: any) {
                 console.error("Failed to load draft", err);
+                if (err.response && err.response.status === 404) {
+                    setCurrentProject(null);
+                }
             }
         };
         loadDraft();
@@ -219,7 +222,7 @@ export function ProjectWorkspace({ projectId, onGenerateSyllabus }: ProjectWorks
     };
 
     return (
-        <div className="w-full max-w-4xl mx-auto bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden min-h-[600px] flex flex-col">
+        <div className="w-full h-full flex flex-col bg-transparent">
             {/* Header */}
             <div className="p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
                 <div>
@@ -318,7 +321,7 @@ export function ProjectWorkspace({ projectId, onGenerateSyllabus }: ProjectWorks
                         initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                         className="w-full max-w-2xl flex flex-col h-full"
                     >
-                        <ScrollArea className="flex-1 h-[500px] pr-6">
+                        <ScrollArea className="flex-1 h-full pr-6">
                             <div className="space-y-8 pb-10">
                                 {questions.map((q, idx) => (
                                     <div key={q.id} className="space-y-3 bg-slate-50 p-6 rounded-lg border border-slate-100">

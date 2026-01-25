@@ -75,14 +75,20 @@ export const SyllabusMap: React.FC<SyllabusMapProps> = ({ coursePath, onNodeClic
 
             // 3. Stack Lesson Nodes
             unit.nodes.forEach((lessonNode, nodeIndex) => {
-                const nodeId = lessonNode.id;
+                // Make node ID unique by including unit index
+                const nodeId = `u${unitIndex}-${lessonNode.id}`;
                 const yPos = BASE_Y + HEADER_HEIGHT + (nodeIndex * ROW_HEIGHT);
                 const isLocked = lessonNode.status === 'locked';
                 const isCompleted = lessonNode.status === 'completed';
 
                 generatedNodes.push({
                     id: nodeId,
-                    data: { label: lessonNode.title, type: lessonNode.type, status: lessonNode.status },
+                    data: {
+                        label: lessonNode.title,
+                        type: lessonNode.type,
+                        status: lessonNode.status,
+                        originalId: lessonNode.id  // Keep original ID for API calls
+                    },
                     position: { x: xPos, y: yPos },
                     sourcePosition: 'right' as any,
                     targetPosition: 'left' as any,
@@ -124,7 +130,9 @@ export const SyllabusMap: React.FC<SyllabusMapProps> = ({ coursePath, onNodeClic
                 onNodeClick={(_, node) => {
                     // Ignore unit header clicks
                     if (!node.id.startsWith('unit-')) {
-                        onNodeClick(node.id);
+                        // Use originalId for API calls, fall back to node.id
+                        const apiNodeId = (node.data as any).originalId || node.id;
+                        onNodeClick(apiNodeId);
                     }
                 }}
                 fitView

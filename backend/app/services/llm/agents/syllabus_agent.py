@@ -76,11 +76,16 @@ class UnitNodes(BaseModel):
 class SyllabusAgent:
     
     @staticmethod
-    async def generate_blueprint(topic: str, provider, profile: str = "General Audience") -> Optional[Blueprint]:
+    async def generate_blueprint(topic: str, provider, profile: str = "General Audience", context: str = None) -> Optional[Blueprint]:
         """Step 1: Generate high-level outline."""
+        
+        user_prompt = f"Create a course blueprint for: {topic}\nTarget Audience Profile: {profile}"
+        if context:
+            user_prompt += f"\n\nReference Material (Use this to structure the course):\n{context}"
+        
         messages = [
             ("system", BLUEPRINT_SYSTEM_PROMPT),
-            ("user", f"Create a course blueprint for: {topic}\nTarget Audience Profile: {profile}")
+            ("user", user_prompt)
         ]
         try:
             return await provider.generate_structured(messages, Blueprint)
@@ -128,7 +133,8 @@ class SyllabusAgent:
         user_id: Optional[int] = None, 
         project_folder: Optional[str] = None, 
         project_id: Optional[int] = None,
-        profile_summary: str = None
+        profile_summary: str = None,
+        context: str = None # New argument
     ) -> Optional[CoursePath]:
         """Main Entry Point"""
         print(f"🚀 [SyllabusAgent] Starting generation for '{topic}'...")
@@ -136,17 +142,10 @@ class SyllabusAgent:
         
         provider = LLMFactory.create()
         
-        # Bind files if needed (Optional, usually RAG handles it, but for direct FreeGemini context)
-        if user_id and hasattr(provider, 'bind_files'):
-            files = FileService.list_files(user_id, project_folder)
-            if files:
-                full_paths = [FileService.get_upload_dir(user_id, project_folder) + "/" + f for f in files]
-                provider.bind_files(full_paths)
-
         # 1. Generate Blueprint
         # Provide a default if None
         profile_str = profile_summary if profile_summary else "General Audience"
-        blueprint = await SyllabusAgent.generate_blueprint(topic, provider, profile=profile_str)
+        blueprint = await SyllabusAgent.generate_blueprint(topic, provider, profile=profile_str, context=context)
         if not blueprint:
             return None
         
