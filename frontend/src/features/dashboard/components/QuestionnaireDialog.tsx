@@ -11,16 +11,9 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
-import { apiClient } from "@/lib/api-client";
 import { Loader2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-
-interface Question {
-    id: string;
-    text: string;
-    type: string;
-    options?: string[];
-}
+import { projectService, Question } from '@/features/dashboard/api/projectService';
 
 interface QuestionnaireDialogProps {
     isOpen: boolean;
@@ -47,12 +40,9 @@ export function QuestionnaireDialog({
         if (isOpen && projectId && topic) {
             setStep("loading");
             setLoading(true);
-            apiClient
-                .post<Question[]>(`/projects/${projectId}/questionnaire`, null, {
-                    params: { topic },
-                })
-                .then((res) => {
-                    setQuestions(res.data);
+            projectService.generateQuestionnaire(projectId, topic)
+                .then((questions) => {
+                    setQuestions(questions);
                     setStep("answering");
                 })
                 .catch((err) => {
@@ -79,13 +69,10 @@ export function QuestionnaireDialog({
                 })),
             };
 
-            const res = await apiClient.post(`/projects/${projectId}/questionnaire/submit`, {
-                submission,
-                topic,
-                questions,
-            });
+            // Use projectService
+            const res = await projectService.submitQuestionnaire(projectId, submission, topic, questions);
 
-            onComplete(res.data.summary);
+            onComplete(res.summary);
             onOpenChange(false);
         } catch (err) {
             console.error("Failed to submit questionnaire", err);

@@ -37,7 +37,8 @@ import { Trash2, BookOpen, FileText, LogOut, Plus } from 'lucide-react';
 import { useEffect } from 'react';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useRouter } from 'next/navigation';
-import { projectService } from '@/services/projectService';
+import { projectService } from '@/features/dashboard/api/projectService';
+import { authService } from '@/features/auth/api/authService';
 
 interface RightSidebarProps {
     onLoadMock: (stage: LessonStage) => void;
@@ -63,11 +64,13 @@ export default function RightSidebar({ onLoadMock, currentProjectName, onOpenPro
 
     const handleTopUp = async () => {
         try {
-            const res = await apiClient.post('/auth/credits/topup?amount=100');
-            refreshUser(); // Should update with new credits
+            // Updated to use authService
+            await authService.credits.topUp(100);
+            refreshUser();
             alert("Top-up successful! Added 100 credits.");
-        } catch (e) {
-            alert("Top-up failed");
+        } catch (e: any) {
+            const msg = e.response?.data?.detail || "Top-up failed";
+            alert(msg);
         }
     };
 

@@ -1,10 +1,28 @@
-# Learn8 🎱
+# Learn8
 
 > **從教科書到無限遊戲：將靜態知識轉化為沉浸式學習路徑的 AI 平台。**
 
 **Learn8** 是一個次世代的適性化學習系統 (Adaptive Learning System)，結合 **RAG (Retrieval-Augmented Generation)**、**Agentic Workflow** 與 **遊戲化教學法**，解決傳統線上學習缺乏互動性與個人化的痛點。
 
 透過上傳 PDF 講義或教科書，Learn8 的 AI 架構師會自動消化內容，建構出專屬於您的結構化課程大綱，並隨選生成豐富的互動式學習單元。
+
+## ⚡ 快速開始 (Quick Start)
+
+無需複雜安裝，使用 Docker 一鍵啟動：
+
+```bash
+# 1. 複製環境設定
+cp .env.example .env
+
+# 2. 編輯 .env 填入 GOOGLE_API_KEY
+# (範例: GOOGLE_API_KEY=AIzaSy...)
+
+# 3. 啟動服務
+docker-compose up --build
+```
+
+- **Frontend**: http://localhost:3000
+- **Backend**: http://localhost:8000/docs
 
 ---
 

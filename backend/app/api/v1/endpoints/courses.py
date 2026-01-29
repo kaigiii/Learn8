@@ -41,7 +41,7 @@ from app.schemas.course import CoursePath, RefineSyllabusRequest, UpdateNodeStat
 from app.services.llm.agents.syllabus_agent import SyllabusAgent
 
 
-from app.services.llm.workflows.syllabus_graph import syllabus_graph
+from app.services.workflows.syllabus_workflow import syllabus_graph
 from app.services.activity_logger import ActivityLogger
 import datetime
 
@@ -209,7 +209,7 @@ async def generate_syllabus(
     # Log completion with stats
     units_count = len(syllabus.units)
     lessons_count = sum(len(u.nodes) for u in syllabus.units)
-    unit_titles = [u.title for u in syllabus.units]
+    unit_titles = [u.unitTitle for u in syllabus.units]
     project_name = db_project.name if (project_id and db_project) else "No Project"
     ActivityLogger.log_syllabus_generate_complete(
         current_user.id, current_user.email, project_id or 0, project_name,

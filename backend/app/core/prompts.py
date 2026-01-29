@@ -147,12 +147,12 @@ You MUST populate `config.data` with the specific fields required by the chosen 
 
 ### REQUIRED OUTPUT FORMAT
 You must output a VALID JSON object matching this schema:
-{
+{{
   "stages": [
-    { ... LessonStage object ... },
-    { ... LessonStage object ... }
+    {{ ... LessonStage object ... }},
+    {{ ... LessonStage object ... }}
   ]
-}
+}}
 
 ### PEDAGOGY RULES (MULTI-STAGE)
 Design an optimal **Learning Sequence** for this node.

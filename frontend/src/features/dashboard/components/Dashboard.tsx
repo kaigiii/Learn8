@@ -1,21 +1,6 @@
 /**
  * 檔案名稱: features/dashboard/components/Dashboard.tsx
  * 功能描述: 主控台頁面 (Main Dashboard)
- * 
- * 應用程式的主要入口頁面，整合了 "檔案上傳" 與 "課程生成" 的核心流程。
- * 
- * 主要功能:
- * 1. 檔案上傳 (RAG Ingestion):
- *    - 允許使用者上傳 PDF。
- *    - 呼叫 `POST /projects/upload-pdf`。
- * 
- * 2. 課程生成 (Syllabus Generation):
- *    - 輸入 Topic (如 "Calculus")。
- *    - 呼叫 `POST /courses/generate-syllabus`。
- *    - 觸發 LLM Architect 進行生成。
- * 
- * 3. 自動恢復 (Auto Resume):
- *    - 若有 `shouldAutoResume` 屬性，自動載入使用者上次的課程。
  */
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
@@ -27,7 +12,8 @@ import { LessonStage, ComponentType, SkinType, CoursePath } from '@/types/lesson
 import { apiClient } from '@/lib/api-client';
 import { useProjectStore } from '@/stores/useProjectStore';
 import { useAuthStore } from '@/stores/useAuthStore';
-import { projectService } from '@/services/projectService';
+import { projectService } from '@/features/dashboard/api/projectService';
+import { cn } from '@/lib/utils';
 
 import { ProjectWorkspace } from './ProjectWorkspace';
 
@@ -63,28 +49,11 @@ export default function Dashboard({ onLessonGenerated, currentProjectId, onResum
         }
     }, [shouldAutoResume, currentProjectId, onResume, onAutoResumeComplete]);
 
-    // Auto-Resume Effect
-
     const handleGenerateSyllabus = async (profileSummary: string, manualTopic?: string) => {
-        // Since the workspace handles topic and profile, we just need to trigger the generation call
-        // Wait, the API needs topic. If we are coming from ProjectWorkspace, it should have the topic in draft or passed down?
-        // Ah, ProjectWorkspace calls onGenerateSyllabus(summary), but we need the topic too.
-        // Let's modify onGenerateSyllabus to optionaly take topic, or fetch it from draft? 
-        // Actually, let's fetch draft to get topic if not passed? 
-        // Better: Pass topic out from ProjectWorkspace as well.
-
-        // Let's assume ProjectWorkspace handles everything and calls us to just "fetch result" or "trigger generation"?
-        // The ProjectWorkspace calls onGenerateSyllabus(summary).
-        // Wait, `courses/generate-syllabus` needs `topic`. 
-        // Since `ProjectWorkspace` has the state `topic`, it should pass it up.
-        // I'll update ProjectWorkspace to pass { topic, summary } or similar.
-        // BUT, I can't update ProjectWorkspace right now without another tool call.
-        // Hack: I'll read the draft here to get the topic before calling generate.
-
         try {
-            // Fetch topic from draft since we don't have it in scope here easily (unless we lift state)
-            const draftRes = await apiClient.get(`/projects/${currentProjectId}/draft`);
-            const draftTopic = draftRes.data.draft?.topic;
+            // Fetch topic from draft
+            const draft = await projectService.getDraft(currentProjectId!);
+            const draftTopic = draft.topic;
 
             if (!draftTopic) {
                 setStatus("Error: Topic missing from draft.");
@@ -92,12 +61,13 @@ export default function Dashboard({ onLessonGenerated, currentProjectId, onResum
             }
 
             setStatus('Architecting your syllabus map... (this may take 10-20s)');
-            const generateUrl = `/courses/generate-syllabus?topic=${encodeURIComponent(draftTopic)}&project_id=${currentProjectId}`;
-            const res = await apiClient.post(generateUrl);
+
+            // Use service
+            const syllabus = await projectService.generateSyllabus(currentProjectId!, draftTopic);
 
             await refreshUser(); // Refresh credits (Cost: 50)
 
-            onLessonGenerated(res.data);
+            onLessonGenerated(syllabus);
 
         } catch (err: any) {
             console.error(err);
@@ -105,10 +75,8 @@ export default function Dashboard({ onLessonGenerated, currentProjectId, onResum
         }
     };
 
-
-
     return (
-        <div className="flex flex-col w-full h-full">
+        <div className={cn("flex flex-col w-full h-full", !currentProjectId && "items-center justify-center")}>
             {/* ... (Header) */}
             <div className="text-center space-y-4 max-w-2xl shrink-0">
                 <h1 className="text-5xl font-extrabold tracking-tight text-slate-900">

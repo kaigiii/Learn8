@@ -1,1 +1,36 @@
 2026-01-25 22:18:41 | INFO | REGISTER | User[5:12345@gmail.com] created new account
+2026-01-25 22:25:25 | INFO | PROJECT_CREATE | User[4:dev@learn8.ai] created Project[5:hbd]
+2026-01-25 22:27:13 | INFO | PROJECT_DELETE | User[4:dev@learn8.ai] deleted Project[5:hbd]
+2026-01-25 22:27:17 | INFO | PROJECT_CREATE | User[4:dev@learn8.ai] created Project[5:123]
+2026-01-26 18:13:03 | INFO | PROJECT_CREATE | User[1:dev@learn8.ai] created Project[1:213]
+2026-01-26 18:13:05 | INFO | PROJECT_CREATE | User[1:dev@learn8.ai] created Project[2:213]
+2026-01-26 18:13:06 | INFO | PROJECT_CREATE | User[1:dev@learn8.ai] created Project[3:213]
+2026-01-26 18:13:08 | INFO | PROJECT_CREATE | User[1:dev@learn8.ai] created Project[4:231]
+2026-01-26 18:13:09 | INFO | PROJECT_CREATE | User[1:dev@learn8.ai] created Project[5:123]
+2026-01-26 20:23:31 | WARNING | LOGIN_FAILED | Email=dev@mirothinker.ai | Reason: Invalid credentials
+2026-01-26 20:23:32 | WARNING | LOGIN_FAILED | Email= | Reason: Invalid credentials
+2026-01-26 20:30:38 | WARNING | LOGIN_FAILED | Email=dev@mirothinker.ai | Reason: Invalid credentials
+2026-01-26 20:30:39 | WARNING | LOGIN_FAILED | Email=dev@mirothinker.ai | Reason: Invalid credentials
+2026-01-26 20:35:37 | WARNING | LOGIN_FAILED | Email=dev@mirothinker.ai | Reason: Invalid credentials
+2026-01-26 20:35:40 | WARNING | LOGIN_FAILED | Email=dev@mirothinker.ai | Reason: Invalid credentials
+2026-01-26 20:35:52 | WARNING | LOGIN_FAILED | Email=dev@mirothinker.ai | Reason: Invalid credentials
+2026-01-26 20:35:53 | WARNING | LOGIN_FAILED | Email=dev@mirothinker.ai | Reason: Invalid credentials
+2026-01-26 20:35:53 | WARNING | LOGIN_FAILED | Email=dev@mirothinker.ai | Reason: Invalid credentials
+2026-01-26 20:35:53 | WARNING | LOGIN_FAILED | Email=dev@mirothinker.ai | Reason: Invalid credentials
+2026-01-26 20:35:54 | WARNING | LOGIN_FAILED | Email=dev@mirothinker.ai | Reason: Invalid credentials
+2026-01-26 20:35:54 | WARNING | LOGIN_FAILED | Email=dev@mirothinker.ai | Reason: Invalid credentials
+2026-01-26 20:35:58 | WARNING | LOGIN_FAILED | Email=dev@mirothinker.ai | Reason: Invalid credentials
+2026-01-26 20:41:14 | WARNING | LOGIN_FAILED | Email=dev@mirothinker.ai | Reason: Invalid credentials
+2026-01-26 20:41:27 | WARNING | LOGIN_FAILED | Email=dev@mirothinker.ai | Reason: Invalid credentials
+2026-01-26 20:41:27 | WARNING | LOGIN_FAILED | Email=dev@mirothinker.ai | Reason: Invalid credentials
+2026-01-26 20:41:27 | WARNING | LOGIN_FAILED | Email=dev@mirothinker.ai | Reason: Invalid credentials
+2026-01-26 20:41:27 | WARNING | LOGIN_FAILED | Email=dev@mirothinker.ai | Reason: Invalid credentials
+2026-01-26 20:41:31 | WARNING | LOGIN_FAILED | Email=dev@mirothinker.ai | Reason: Invalid credentials
+2026-01-26 20:41:31 | WARNING | LOGIN_FAILED | Email=dev@mirothinker.ai | Reason: Invalid credentials
+2026-01-26 20:41:36 | WARNING | LOGIN_FAILED | Email=dev@mirothinker.ai | Reason: Invalid credentials
+2026-01-26 20:42:04 | WARNING | LOGIN_FAILED | Email=dev@mirothinker.ai | Reason: Invalid credentials
+2026-01-26 20:43:44 | WARNING | LOGIN_FAILED | Email=dev@mirothinker.ai | Reason: Invalid credentials
+2026-01-26 20:43:54 | WARNING | LOGIN_FAILED | Email=dev@mirothinker.ai | Reason: Invalid credentials
+2026-01-26 20:43:54 | WARNING | LOGIN_FAILED | Email=dev@mirothinker.ai | Reason: Invalid credentials
+2026-01-26 20:43:54 | WARNING | LOGIN_FAILED | Email=dev@mirothinker.ai | Reason: Invalid credentials
+2026-01-26 20:44:47 | WARNING | LOGIN_FAILED | Email=dev@mirothinker.ai | Reason: Invalid credentials

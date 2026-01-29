@@ -1,5 +1,5 @@
 """
-模組名稱: app.services.syllabus_graph
+模組名稱: app.services.workflows.syllabus_workflow
 功能描述: 課程大綱修正流程圖 (LangGraph Workflow)
 
 定義了基於 LangGraph 的狀態機 (State Machine)，用於處理 "Refine Syllabus" 的多輪互動流程。

@@ -19,6 +19,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { apiClient } from "@/lib/api-client";
+import { authService } from "../api/authService";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,14 +37,12 @@ export function LoginForm() {
         setError("");
 
         try {
-            // Direct call to API
-            const res = await apiClient.post("/auth/login", { email, password });
+            // 1. Login to get token
+            const res = await authService.login({ email, password });
             const token = res.data.access_token;
 
-            // Fetch full user profile
-            const userRes = await apiClient.get('/auth/me', {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            // 2. Fetch full user profile
+            const userRes = await authService.me.get(token);
 
             login(token, userRes.data);
             router.push("/"); // Redirect to Dashboard
@@ -54,13 +53,10 @@ export function LoginForm() {
 
     const handleDevLogin = async () => {
         try {
-            const res = await apiClient.post("/auth/dev-login");
+            const res = await authService.devLogin();
             const token = res.data.access_token;
 
-            // Fetch full user profile
-            const userRes = await apiClient.get('/auth/me', {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const userRes = await authService.me.get(token);
 
             login(token, userRes.data);
             router.push("/");

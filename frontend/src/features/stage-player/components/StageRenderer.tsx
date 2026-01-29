@@ -17,7 +17,7 @@ import { LessonStage } from '@/types/lesson';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, ArrowRight, Home } from 'lucide-react';
-import { apiClient } from '@/lib/api-client';
+import { learningService } from '@/features/stage-player/api/learningService';
 import { COMPONENT_REGISTRY, FallbackComponent } from './ComponentRegistry';
 
 interface StageRendererProps {
@@ -50,15 +50,14 @@ export default function StageRenderer({ stages: initialStages, onExit, onComplet
     const handleSubmit = async (userInput: any, isCorrect: boolean) => {
         setIsSubmitting(true);
         try {
-            const response = await apiClient.post('/submit-answer', {
-                stageId: currentStage.stageId,
-                userInput: userInput,
-                isCorrect: isCorrect,
-                context_topic: currentStage.topic,
-                component: currentStage.component
-            });
+            const data = await learningService.submitAnswer(
+                currentStage.stageId,
+                userInput,
+                isCorrect,
+                currentStage.topic,
+                currentStage.component
+            );
 
-            const data = response.data;
             setMessage(data.message || (isCorrect ? "Correct!" : "Incorrect"));
 
             if (data.nextAction === 'remedial' && data.remedialStage) {

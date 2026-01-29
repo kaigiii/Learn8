@@ -12,14 +12,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { apiClient } from '@/lib/api-client';
 import { useProjectStore } from '@/stores/useProjectStore';
 import { useAuthStore } from '@/stores/useAuthStore';
-import { projectService } from '@/services/projectService';
-
-interface Question {
-    id: string;
-    text: string;
-    type: string;
-    options?: string[];
-}
+import { projectService, Question } from '@/features/dashboard/api/projectService';
 
 interface ProjectWorkspaceProps {
     projectId: number;
@@ -36,12 +29,6 @@ export function ProjectWorkspace({ projectId, onGenerateSyllabus }: ProjectWorks
     const [isUploading, setIsUploading] = useState(false);
     const { setFiles, setCurrentProject } = useProjectStore();
     const { user, refreshUser } = useAuthStore();
-
-    // Questionnaire Data
-    // ...
-
-    // Handlers
-    // ...
 
     // Questionnaire Data
     const [questions, setQuestions] = useState<Question[]>([]);
@@ -66,8 +53,8 @@ export function ProjectWorkspace({ projectId, onGenerateSyllabus }: ProjectWorks
 
         const loadDraft = async () => {
             try {
-                const res = await apiClient.get(`/projects/${projectId}/draft`);
-                const draft = res.data.draft || {};
+                // Use Service
+                const draft = await projectService.getDraft(projectId);
 
                 if (draft.topic) setTopic(draft.topic);
                 if (draft.questions) setQuestions(draft.questions);
@@ -92,9 +79,8 @@ export function ProjectWorkspace({ projectId, onGenerateSyllabus }: ProjectWorks
     const saveDraft = async () => {
         setIsSaving(true);
         try {
-            await apiClient.put(`/projects/${projectId}/draft`, {
-                draft: { topic, questions, answers, freeText }
-            });
+            // Use Service
+            await projectService.updateDraft(projectId, { topic, questions, answers, freeText });
         } catch (err) {
             console.error("Failed to save draft", err);
         } finally {
@@ -128,6 +114,7 @@ export function ProjectWorkspace({ projectId, onGenerateSyllabus }: ProjectWorks
 
         setIsUploading(true);
         try {
+            // Use Service
             await projectService.uploadFiles(projectId, filesToUpload);
 
             // Refresh file list in store
@@ -150,19 +137,16 @@ export function ProjectWorkspace({ projectId, onGenerateSyllabus }: ProjectWorks
         setStep("generating_questions");
 
         try {
-            const res = await apiClient.post<Question[]>(`/projects/${projectId}/questionnaire`, null, {
-                params: { topic },
-            });
-            setQuestions(res.data);
+            // Use Service
+            const generatedQuestions = await projectService.generateQuestionnaire(projectId, topic);
+            setQuestions(generatedQuestions);
             setStep("answering");
 
             // Refresh credits (Cost: 5)
             refreshUser();
 
             // Immediate save to persistence
-            await apiClient.put(`/projects/${projectId}/draft`, {
-                draft: { topic, questions: res.data, answers: {}, freeText: "" }
-            });
+            await projectService.updateDraft(projectId, { topic, questions: generatedQuestions, answers: {}, freeText: "" });
         } catch (err) {
             console.error(err);
             // Fallback to answering manually if generation fails
@@ -178,25 +162,16 @@ export function ProjectWorkspace({ projectId, onGenerateSyllabus }: ProjectWorks
 
         setStep("submitting");
 
-        // combine structured answers + free text
-        // We will fake a question ID for free text if needed, or just append it
-
         const submission = {
             responses: Object.entries(answers)
                 .filter(([_, ans]) => ans !== "SKIP") // Filter out skipped questions
                 .map(([qid, ans]) => ({
                     question_id: qid,
-                    answer: ans.startsWith("OTHER:") ? ans.substring(6) : ans, // Clean up "OTHER:" prefix if you want, or keep it depending on backend preference. Let's keep prefix or clean it? User might just type "foo". "OTHER:foo" distinguishes it. Let's keep it simple or just clean it for AI.
-                    // Actually clearer to just send the text. "OTHER:" prefix is internal UI state.
-                })).map(resp => ({
-                    ...resp,
-                    answer: resp.answer.startsWith("OTHER:") ? resp.answer.substring(6) : resp.answer
+                    answer: ans.startsWith("OTHER:") ? ans.substring(6) : ans,
                 })),
         };
 
         // Append free text as a special note if not empty
-        // The backend agent summarizes "submission" + "questions". 
-        // We can append a fake question for free text to make the agent see it.
         const augmentedQuestions = [...questions];
         if (freeText.trim()) {
             const freeQId = "free-text-note";
@@ -205,12 +180,9 @@ export function ProjectWorkspace({ projectId, onGenerateSyllabus }: ProjectWorks
         }
 
         try {
-            const res = await apiClient.post(`/projects/${projectId}/questionnaire/submit`, {
-                submission,
-                topic,
-                questions: augmentedQuestions,
-            });
-            onGenerateSyllabus(res.data.summary);
+            // Use Service
+            const result = await projectService.submitQuestionnaire(projectId, submission, topic, augmentedQuestions);
+            onGenerateSyllabus(result.summary);
         } catch (err) {
             console.error("Submit failed", err);
             onGenerateSyllabus("General Learner (Submit Failed)");
