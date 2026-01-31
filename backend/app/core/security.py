@@ -54,7 +54,23 @@ def create_access_token(subject: str | Any, expires_delta: timedelta = None) -> 
     return encoded_jwt
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    # bcrypt has a 72-byte input limit; ensure we verify against the same truncated input
+    def _truncate_pw(pw: str) -> str:
+        if pw is None:
+            return pw
+        b = pw.encode('utf-8')
+        if len(b) <= 72:
+            return pw
+        return b[:72].decode('utf-8', errors='ignore')
+
+    return pwd_context.verify(_truncate_pw(plain_password), hashed_password)
 
 def get_password_hash(password: str) -> str:
+    # bcrypt only accepts up to 72 bytes; truncate deterministically to avoid errors
+    if password is None:
+        raise ValueError("Password must not be None")
+    pw_bytes = password.encode('utf-8')
+    if len(pw_bytes) > 72:
+        pw_bytes = pw_bytes[:72]
+        password = pw_bytes.decode('utf-8', errors='ignore')
     return pwd_context.hash(password)
