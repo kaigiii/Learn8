@@ -30,34 +30,41 @@ router = APIRouter()
 
 @router.post("/register")
 def register(user: UserCreate, db: Session = Depends(get_db)):
-    # Password Validation
-    password = user.password
-    if len(password) < 8:
-        raise HTTPException(status_code=400, detail="Password must be at least 8 characters long")
-    if not any(c.isupper() for c in password):
-        raise HTTPException(status_code=400, detail="Password must contain at least one uppercase letter")
-    if not any(c.islower() for c in password):
-        raise HTTPException(status_code=400, detail="Password must contain at least one lowercase letter")
-    if not any(c.isdigit() for c in password):
-        raise HTTPException(status_code=400, detail="Password must contain at least one number")
+    try:
+        # Password Validation
+        password = user.password
+        if len(password) < 8:
+            raise HTTPException(status_code=400, detail="Password must be at least 8 characters long")
+        if not any(c.isupper() for c in password):
+            raise HTTPException(status_code=400, detail="Password must contain at least one uppercase letter")
+        if not any(c.islower() for c in password):
+            raise HTTPException(status_code=400, detail="Password must contain at least one lowercase letter")
+        if not any(c.isdigit() for c in password):
+            raise HTTPException(status_code=400, detail="Password must contain at least one number")
 
-    db_user = db.query(UserModel).filter(UserModel.email == user.email).first()
-    if db_user:
-        raise HTTPException(status_code=400, detail="Email already registered")
-    
-    hashed_password = get_password_hash(user.password)
-    db_user = UserModel(
-        email=user.email, 
-        hashed_password=hashed_password,
-        full_name=user.full_name,
-        phone_number=user.phone_number
-    )
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    
-    ActivityLogger.log_register(db_user.id, db_user.email)
-    return {"message": "User created successfully"}
+        db_user = db.query(UserModel).filter(UserModel.email == user.email).first()
+        if db_user:
+            raise HTTPException(status_code=400, detail="Email already registered")
+        
+        hashed_password = get_password_hash(user.password)
+        db_user = UserModel(
+            email=user.email, 
+            hashed_password=hashed_password,
+            full_name=user.full_name,
+            phone_number=user.phone_number
+        )
+        db.add(db_user)
+        db.commit()
+        db.refresh(db_user)
+        
+        ActivityLogger.log_register(db_user.id, db_user.email)
+        return {"message": "User created successfully"}
+    except HTTPException:
+        # Re-raise HTTPExceptions (validation / client errors)
+        raise
+    except Exception as e:
+        # For debugging: return error detail so frontend can show it
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/login", response_model=Token)
 def login(user: UserLogin, db: Session = Depends(get_db)):
