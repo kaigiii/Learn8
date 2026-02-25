@@ -154,17 +154,28 @@ class PatternMatcherStage(BaseLessonStage):
 
 class GenericStage(BaseLessonStage):
     # Catch-all for other components
-    component: ComponentType 
+    component: Literal[
+        ComponentType.VariableBalancer,
+        ComponentType.LogicChain,
+        ComponentType.FeynmanMirror,
+        ComponentType.Sequencer,
+        ComponentType.SpatialAnatomy,
+        ComponentType.DilemmaSolver
+    ]
     config: GenericConfig
 
 # --- The Union ---
-LessonStage = Union[TextTokenStage, TaxonomyStage, PatternMatcherStage, GenericStage] 
-# Pydantic automatically discriminates? 
-# To work effectively, we should use Field(discriminator='component') 
-# BUT simple Union often works if types are distinct. 
-# Given GenericStage catches everything, order matters!
-# Put GenericStage LAST.
+from typing import Annotated
 
+LessonStage = Annotated[
+    Union[
+        TextTokenStage, 
+        TaxonomyStage, 
+        PatternMatcherStage, 
+        GenericStage
+    ],
+    Field(discriminator='component')
+]
 class SubmissionRequest(BaseModel):
     stageId: str
     userInput: Any

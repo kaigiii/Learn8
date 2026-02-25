@@ -151,21 +151,28 @@ class SyllabusAgent:
         
         print(f"📋 [SyllabusAgent] Blueprint generated: {len(blueprint.units)} units.")
 
-        # 2. Iterate & Expand Units (Parallel or Serial? Serial is safer for rate limits, Parallel faster)
-        # Let's do Serial for safety first.
-        final_units: List[CourseUnit] = []
+        # 2. Iterate & Expand Units Concurrently
+        final_units: List[CourseUnit] = [None] * len(blueprint.units)
         
-        for i, b_unit in enumerate(blueprint.units):
-            print(f"  Doing Unit {i+1}: {b_unit.unit_title}...")
-            nodes = await SyllabusAgent.expand_unit(topic, b_unit, provider, project_id=project_id, profile=profile_str)
-            
-            # Create Final Unit
-            final_units.append(CourseUnit(
-                unitId=f"unit-{i}",
-                unitTitle=b_unit.unit_title,
-                unitDescription=b_unit.unit_goal,
-                nodes=nodes
-            ))
+        # Concurrency limit (e.g., max 3 concurrent LLM calls)
+        sem = asyncio.Semaphore(3)
+
+        async def _process_unit(i: int, b_unit: BlueprintUnit):
+            async with sem:
+                print(f"  Doing Unit {i+1}: {b_unit.unit_title}...")
+                nodes = await SyllabusAgent.expand_unit(
+                    topic, b_unit, provider, project_id=project_id, profile=profile_str
+                )
+                final_units[i] = CourseUnit(
+                    unitId=f"unit-{i}",
+                    unitTitle=b_unit.unit_title,
+                    unitDescription=b_unit.unit_goal,
+                    nodes=nodes
+                )
+
+        # Run all unit expansions concurrently
+        tasks = [_process_unit(i, u) for i, u in enumerate(blueprint.units)]
+        await asyncio.gather(*tasks)
 
         # 3. Assembly
         course_path = CoursePath(

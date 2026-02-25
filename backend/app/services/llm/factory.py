@@ -13,15 +13,10 @@ from typing import Optional
 from app.core.config import settings
 from app.services.llm.base import BaseLLMProvider
 from app.services.llm.google_adapter import GoogleLLMProvider
-from app.services.llm.mock_adapter import MockLLMProvider
 
 class LLMFactory:
     @staticmethod
     def create() -> BaseLLMProvider:
-        if settings.LLM_PROVIDER == "mock":
-            print("[LLMFactory] Using MockLLMProvider")
-            return MockLLMProvider()
-        
         # Default to Google for now as it's the main provider
         print("[LLMFactory] Using GoogleLLMProvider")
         return GoogleLLMProvider()
