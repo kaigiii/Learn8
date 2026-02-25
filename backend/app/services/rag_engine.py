@@ -37,9 +37,13 @@ from langchain_core.messages import SystemMessage, HumanMessage
 
 class RAGEngine:
     DB_DIR = "./chroma_db"
+    _vectorstore: Optional[Chroma] = None
     
-    @staticmethod
-    def get_vectorstore() -> Optional[Chroma]:
+    @classmethod
+    def get_vectorstore(cls) -> Optional[Chroma]:
+        if cls._vectorstore is not None:
+            return cls._vectorstore
+
         if not settings.GOOGLE_API_KEY:
             print("Warning: GOOGLE_API_KEY not found. RAG features will fail.")
             return None
@@ -48,7 +52,8 @@ class RAGEngine:
             model="models/gemini-embedding-001",
             google_api_key=settings.GOOGLE_API_KEY
         )
-        return Chroma(persist_directory=RAGEngine.DB_DIR, embedding_function=embedding_function)
+        cls._vectorstore = Chroma(persist_directory=cls.DB_DIR, embedding_function=embedding_function)
+        return cls._vectorstore
 
     @staticmethod
     async def ingest_pdf(file: UploadFile, project_id: int) -> int:

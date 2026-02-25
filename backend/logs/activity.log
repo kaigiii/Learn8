@@ -37,3 +37,22 @@
 2026-01-31 20:42:13 | WARNING | LOGIN_FAILED | Email=vivianbanshee@gmail.com | Reason: Invalid credentials
 2026-01-31 21:13:45 | INFO | REGISTER | User[1:vivianbanshee@randplay.com] created new account
 2026-01-31 21:13:57 | INFO | LOGIN | User[1:vivianbanshee@randplay.com] logged in successfully
+2026-02-25 13:52:50 | INFO | PROJECT_CREATE | User[1:dev@learn8.ai] created Project[1:123]
+2026-02-25 13:59:42 | INFO | PROJECT_CREATE | User[1:dev@learn8.ai] created Project[2:1233]
+2026-02-25 13:59:48 | INFO | FILE_UPLOAD | User[1:dev@learn8.ai] uploaded to Project[2:1233]: [管數ch2.pdf]
+2026-02-25 13:59:54 | INFO | QUESTIONNAIRE_GENERATE | User[1:dev@learn8.ai] started questionnaire for Project[2:1233] | Topic: 'math' | Files: [管數ch2.pdf]
+2026-02-25 14:00:11 | INFO | CREDITS_DEDUCT | User[1:dev@learn8.ai] spent 5 credits for 'questionnaire_generation' | New balance: 45
+2026-02-25 14:00:19 | INFO | CREDITS_TOPUP | User[1:dev@learn8.ai] topped up 100 credits | New balance: 145
+2026-02-25 14:00:36 | INFO | QUESTIONNAIRE_SUBMIT | User[1:dev@learn8.ai] submitted questionnaire for Project[2:1233] | Topic: 'math' | Profile Summary: 'Summary: This learner is a practical, hands-on individual who prefers to learn new mathematical concepts by immediately solving problems and working through examples. They are proactive in seeking hin...'
+2026-02-25 14:00:36 | INFO | SYLLABUS_GENERATE_START | User[1:dev@learn8.ai] started syllabus generation for Project[2:1233] | Topic: 'math'
+2026-02-25 14:00:36 | INFO |   └─ Files Context: [管數ch2.pdf]
+2026-02-25 14:00:36 | INFO |   └─ RAG Context: '
+--- Document: 管數ch2.pdf ---
+第⼀部分 - 基本矩陣概念：  1. 矩陣定義： - 矩陣是由數字組成的矩形陣列 - m × n 矩陣代表m⾏n列 - 列矩陣(row matrix)和⾏矩陣(column matrix)是特殊形式  2. 轉置矩陣(Transpose)： - 記作Aᵀ - 將原矩陣的⾏變列，列變⾏ - 性質：(Aᵀ)ᵀ = A   3. 矩陣運算基本性質： - 加法：相同⼤⼩的矩陣才能相加 - 標量乘法：數字乘以矩陣的每個元素 - 負矩陣：-A = (-1)A - 零矩陣：所有元素都是0的矩陣  4. 矩陣乘法： - ⾏×列的點積運算 - 不滿⾜交換...'
+2026-02-25 14:00:36 | INFO |   └─ Learner Profile: 'This learner is a practical, hands-on individual who prefers to learn new mathematical concepts by immediately solving problems and working through examples. They are proactive in seeking hints or sim...'
+2026-02-25 14:02:12 | INFO | SYLLABUS_GENERATE_COMPLETE | User[1:dev@learn8.ai] completed syllabus for Project[2:1233] | Topic: 'math' | Generated: 4 units, 37 lessons
+2026-02-25 14:02:12 | INFO |   └─ Unit 1: Unit 1: Matrix Fundamentals and Operations
+2026-02-25 14:02:12 | INFO |   └─ Unit 2: Unit 2: Invertible Matrices and Special Forms
+2026-02-25 14:02:12 | INFO |   └─ Unit 3: Unit 3: Solving Linear Systems with Gaussian Elimination and LU/PLU Decomposition
+2026-02-25 14:02:12 | INFO |   └─ Unit 4: Unit 4: Advanced Matrix Properties, Inverse Calculation, and System Analysis
+2026-02-25 14:02:12 | INFO | CREDITS_DEDUCT | User[1:dev@learn8.ai] spent 50 credits for 'syllabus_generation' | New balance: 95
