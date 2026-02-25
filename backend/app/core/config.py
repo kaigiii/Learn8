@@ -44,8 +44,10 @@ class Settings(BaseSettings):
     
     # AI / LLM
     GOOGLE_API_KEY: Optional[str] = None
-    LLM_PROVIDER: str = "freegemini" # google | freegemini | mock
+    LLM_PROVIDER: str = "freegemini" # google | freegemini | mock | lmstudio
     GEMINI_MODEL: str = "gemini-2.5-flash"
+    LMSTUDIO_BASE_URL: str = "http://localhost:1234/v1"
+    LMSTUDIO_MODEL: str = "mirothinker-v1.5-30b"
     
     # Application Limits & Pricing
     COST_SYLLABUS_GENERATION: int = 50

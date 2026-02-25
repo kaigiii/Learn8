@@ -93,29 +93,29 @@ class BaseStageConfig(BaseModel):
         return v or {}
 
 class TextTokenConfig(BaseStageConfig):
-    data: TextTokenData
+    data: Union[TextTokenData, dict, list, str, Any]
     @field_validator('data', mode='before')
     @classmethod
     def validate_data(cls, v: Any): return parse_data_field(v)
 
 class TaxonomyConfig(BaseStageConfig):
-    data: TaxonomyData
+    data: Union[TaxonomyData, dict, list, str, Any]
     @field_validator('data', mode='before')
     @classmethod
     def validate_data(cls, v: Any): return parse_data_field(v)
 
 class GenericConfig(BaseStageConfig):
-    data: dict = {} # Permissive for migration
+    data: Union[dict, list, str, Any] = {} # Permissive for migration
     
     @field_validator('data', mode='before')
     @classmethod
-    def validate_data(cls, v: Any) -> dict:
+    def validate_data(cls, v: Any) -> Union[dict, list, str, Any]:
         return parse_data_field(v)
 
 # --- Validation & Feedback ---
 class Validation(BaseModel):
     type: ValidationType
-    condition: Any
+    condition: Optional[Any] = None
 
 class Feedback(BaseModel):
     success: str
@@ -143,7 +143,7 @@ class PatternMatcherData(BaseModel):
     pairs: List[dict]
 
 class PatternMatcherConfig(BaseStageConfig):
-    data: PatternMatcherData
+    data: Union[PatternMatcherData, dict, list, str, Any]
     @field_validator('data', mode='before')
     @classmethod
     def validate_data(cls, v: Any): return parse_data_field(v)
