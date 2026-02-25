@@ -53,9 +53,9 @@ docker-compose up --build
 | | **Tailwind CSS & Framer Motion** | 現代化 UI 設計與流暢的轉場動畫 |
 | | **React Flow** | 課程地圖 (Syllabus Map) 視覺化引擎 |
 | | **Recharts** | 資料視覺化圖表 (用於 VariableBalancer 等) |
-| **Backend** | **FastAPI (Python 3.10+)** | 高並發、非同步的 RESTful API 服務 |
+| **Backend** | **FastAPI (Python 3.10+)** | 高並發、非同步的 RESTful API 服務 (結合 Threadpool 防止資料庫阻塞) |
 | | **SQLAlchemy & SQLite** | 關聯式資料儲存 (使用者、專案、課程結構) |
-| | **ChromaDB** | 本地向量資料庫 (Vector Database) 用於 RAG |
+| | **ChromaDB** | 本地向量資料庫 (Vector Database) 用於 RAG (採 Singleton 實作優化效能) |
 | | **LangChain & LangGraph** | LLM 編排與狀態機流程控制 |
 | | **Google Gemini API** | 核心 LLM 推論引擎 (`gemini-2.5-flash`) |
 
@@ -161,6 +161,7 @@ docker-compose up --build
 cp .env.example .env
 # [重要] 打開 .env 檔案並填入您的 GOOGLE_API_KEY
 # 範例: GOOGLE_API_KEY=AIzaSyD...
+# 您也可以在此調整核心應用的定價與限制，例如 COST_SYLLABUS_GENERATION=50
 
 # 2. 啟動服務 (同時包含前後端)
 docker-compose up --build
