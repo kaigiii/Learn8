@@ -13,3 +13,4 @@ __pycache__
 backend/learn8_db
 backend/chroma_db
 backend/uploads
+backend/logs
