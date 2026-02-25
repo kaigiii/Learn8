@@ -19,6 +19,7 @@
             1. 檢查是否已有相同主題的課程 (Cache Check)。
             2. 呼叫 `SyllabusAgent` 進行 Agentic Workflow 生成。
             3. 將生成結果存入 DB (同時建立 Course 與 Nodes 紀錄)。
+        - 架構註記: 內部資料庫操作皆封裝於 threadpool 執行，確保高並發度不阻塞事件迴圈。
 
     4. POST /refine-syllabus
         - 功能: 根據使用者回饋修正大綱。
@@ -31,6 +32,7 @@
 
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 from app.api.deps import get_db, get_current_user
@@ -39,6 +41,7 @@ from app.models.course import CourseModel, NodeModel
 from app.models.project import ProjectModel
 from app.schemas.course import CoursePath, RefineSyllabusRequest, UpdateNodeStatusRequest, LessonNode
 from app.services.llm.agents.syllabus_agent import SyllabusAgent
+from app.core.config import settings
 
 
 from app.services.workflows.syllabus_workflow import syllabus_graph
@@ -88,13 +91,16 @@ async def generate_syllabus(
     current_user: UserModel = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    query = db.query(CourseModel).filter(
-        CourseModel.user_id == current_user.id,
-        CourseModel.topic == topic
-    )
-    if project_id:
-        query = query.filter(CourseModel.project_id == project_id)
-    existing_course = query.first()
+    def _fetch_existing():
+        q = db.query(CourseModel).filter(
+            CourseModel.user_id == current_user.id,
+            CourseModel.topic == topic
+        )
+        if project_id:
+            q = q.filter(CourseModel.project_id == project_id)
+        return q.first()
+    
+    existing_course = await run_in_threadpool(_fetch_existing)
     
     if existing_course and not regenerate:
         path = CoursePath(**existing_course.syllabus_json)
@@ -103,17 +109,20 @@ async def generate_syllabus(
         return path
 
     # Credit Check
-    COST = 50
+    COST = settings.COST_SYLLABUS_GENERATION
     if current_user.credits < COST:
          raise HTTPException(status_code=402, detail="Insufficient credits")
 
     project_folder_name = None
     profile_summary = None
+    db_project = None
     if project_id:
-         db_project = db.query(ProjectModel).filter(
-             ProjectModel.id == project_id,
-             ProjectModel.user_id == current_user.id
-         ).first()
+         def _fetch_project():
+             return db.query(ProjectModel).filter(
+                 ProjectModel.id == project_id,
+                 ProjectModel.user_id == current_user.id
+             ).first()
+         db_project = await run_in_threadpool(_fetch_project)
          if db_project:
              project_folder_name = db_project.folder_name
              if db_project.profile_json:
@@ -132,7 +141,7 @@ async def generate_syllabus(
             
             fpath = FileService.get_upload_dir(current_user.id, project_folder_name) + "/" + fname
             # Read content (Safety limit defined in service)
-            content = FileService.read_file_content(fpath, max_chars=30000) 
+            content = FileService.read_file_content(fpath, max_chars=settings.MAX_COURSE_CONTEXT_BYTES) 
             if content:
                 full_text_context += f"\n--- Document: {fname} ---\n{content}\n"
     
@@ -163,48 +172,54 @@ async def generate_syllabus(
     if not syllabus:
          raise HTTPException(status_code=404, detail="Failed to generate syllabus.")
     
-    if existing_course and regenerate:
-        # Update existing
-        existing_course.title = syllabus.courseTitle
-        existing_course.syllabus_json = syllabus.model_dump()
-        existing_course.updated_at = datetime.datetime.utcnow()
+    def _save_course():
+        if existing_course and regenerate:
+            # Update existing
+            existing_course.title = syllabus.courseTitle
+            existing_course.syllabus_json = syllabus.model_dump()
+            existing_course.updated_at = datetime.datetime.utcnow()
+            
+            # Clear old nodes
+            db.query(NodeModel).filter(NodeModel.course_id == existing_course.id).delete()
+            
+            c_model = existing_course # Reuse object reference for below
+        else:
+            c_model = CourseModel(
+                user_id=current_user.id,
+                project_id=project_id,
+                topic=topic,
+                title=syllabus.courseTitle,
+                syllabus_json=syllabus.model_dump()
+            )
+            db.add(c_model)
         
-        # Clear old nodes
-        db.query(NodeModel).filter(NodeModel.course_id == existing_course.id).delete()
+        # Deduct credits
+        current_user.credits -= COST
+        db.add(current_user) # Ensure user update is tracked
         
-        new_course = existing_course # Reuse object reference for below
-    else:
-        new_course = CourseModel(
-            user_id=current_user.id,
-            project_id=project_id,
-            topic=topic,
-            title=syllabus.courseTitle,
-            syllabus_json=syllabus.model_dump()
-        )
-        db.add(new_course)
-    
-    # Deduct credits
-    current_user.credits -= COST
-    db.add(current_user) # Ensure user update is tracked
-    
-    db.commit()
-    db.refresh(new_course)
+        db.commit()
+        db.refresh(c_model)
+        return c_model
+        
+    new_course = await run_in_threadpool(_save_course)
 
     # Populate ID
     syllabus.id = new_course.id
     syllabus.topic = topic
 
-    for unit in syllabus.units:
-        for node in unit.nodes:
-            db_node = NodeModel(
-                course_id=new_course.id,
-                node_id=node.id,
-                title=node.title,
-                status=node.status,
-                data=node.model_dump(exclude={"status", "title", "id"})
-            )
-            db.add(db_node)
-    db.commit()
+    def _save_nodes():
+        for unit in syllabus.units:
+            for node in unit.nodes:
+                db_node = NodeModel(
+                    course_id=new_course.id,
+                    node_id=node.id,
+                    title=node.title,
+                    status=node.status,
+                    data=node.model_dump(exclude={"status", "title", "id"})
+                )
+                db.add(db_node)
+        db.commit()
+    await run_in_threadpool(_save_nodes)
     
     # Log completion with stats
     units_count = len(syllabus.units)
@@ -226,11 +241,14 @@ async def refine_syllabus_endpoint(
     db: Session = Depends(get_db)
 ):
     project_folder_name = None
+    db_project = None
     if request.projectId:
-         db_project = db.query(ProjectModel).filter(
-             ProjectModel.id == request.projectId,
-             ProjectModel.user_id == current_user.id
-         ).first()
+         def _fetch_refine_project():
+             return db.query(ProjectModel).filter(
+                 ProjectModel.id == request.projectId,
+                 ProjectModel.user_id == current_user.id
+             ).first()
+         db_project = await run_in_threadpool(_fetch_refine_project)
          if db_project:
              project_folder_name = db_project.folder_name
     
@@ -266,10 +284,12 @@ async def update_node_status(
     db: Session = Depends(get_db)
 ):
     print(f"DEBUG: update_node_status course_id={course_id} node_id={node_id} user={current_user.id}")
-    course_record = db.query(CourseModel).filter(
-        CourseModel.id == course_id,
-        CourseModel.user_id == current_user.id
-    ).first()
+    def _fetch_course():
+        return db.query(CourseModel).filter(
+            CourseModel.id == course_id,
+            CourseModel.user_id == current_user.id
+        ).first()
+    course_record = await run_in_threadpool(_fetch_course)
 
     if not course_record:
         raise HTTPException(status_code=404, detail=f"Course {course_id} not found")
@@ -310,17 +330,19 @@ async def update_node_status(
     course_record.syllabus_json = syllabus_data
     flag_modified(course_record, "syllabus_json")
     
-    for nid, nstatus in updates_to_sync:
-        db_node = db.query(NodeModel).filter(
-            NodeModel.course_id == course_record.id,
-            NodeModel.node_id == nid
-        ).first()
-        if db_node:
-            db_node.status = nstatus
-            db_node.updated_at = datetime.datetime.utcnow()
-    
-    db.commit()
-    db.refresh(course_record)
+    def _update_db_nodes():
+        for nid, nstatus in updates_to_sync:
+            db_node = db.query(NodeModel).filter(
+                NodeModel.course_id == course_record.id,
+                NodeModel.node_id == nid
+            ).first()
+            if db_node:
+                db_node.status = nstatus
+                db_node.updated_at = datetime.datetime.utcnow()
+        
+        db.commit()
+        db.refresh(course_record)
+    await run_in_threadpool(_update_db_nodes)
     
     path = CoursePath(**course_record.syllabus_json)
     path.id = course_record.id

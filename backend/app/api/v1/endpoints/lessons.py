@@ -10,6 +10,7 @@
         - 功能: 為特定節點生成多階段的學習內容 (Lesson Stages)。
         - 緩存機制 (Caching): 若 DB 中已有生成過的內容，會優先回傳 (避免重複扣款與等待)。
         - 輸出: 回傳 List[LessonStage]，前端依序播放。
+        - 架構註記: 內部資料庫操作皆封裝於 threadpool 執行，確保高並發度不阻塞事件迴圈。
 
     2. POST /submit-answer
         - 功能: 處理學生提交的答案。
@@ -20,6 +21,7 @@
 """
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 from app.api.deps import get_db, get_current_user
 from app.models.user import UserModel
@@ -28,6 +30,7 @@ from app.models.project import ProjectModel
 from app.schemas.course import LessonNode
 from app.schemas.lesson import LessonStage, SubmissionRequest, SubmissionResponse, ComponentType, SkinType, Validation, ValidationType, Feedback, ModuleType, TextTokenStage, TextTokenConfig, TextTokenData, PatternMatcherStage, PatternMatcherConfig, PatternMatcherData
 from app.services.llm.architect import generate_lesson_from_node
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -42,15 +45,17 @@ async def generate_lesson_from_node_endpoint(
     db: Session = Depends(get_db)
 ):
     # 1. Fetch from DB
-    query = db.query(LessonModel).filter(
-        LessonModel.node_id == node.id,
-        LessonModel.course_topic == topic,
-        LessonModel.user_id == current_user.id
-    )
-    if project_id:
-        query = query.filter(LessonModel.project_id == project_id)
+    def _fetch_cached_lesson():
+        query = db.query(LessonModel).filter(
+            LessonModel.node_id == node.id,
+            LessonModel.course_topic == topic,
+            LessonModel.user_id == current_user.id
+        )
+        if project_id:
+            query = query.filter(LessonModel.project_id == project_id)
+        return query.first()
         
-    cached_lesson = query.first()
+    cached_lesson = await run_in_threadpool(_fetch_cached_lesson)
 
     if cached_lesson:
         from pydantic import TypeAdapter
@@ -65,21 +70,21 @@ async def generate_lesson_from_node_endpoint(
     # 2. Generate
     project_folder_name = None
     profile_summary = "General Learner"
+    db_project = None
     if project_id:
-         db_project = db.query(ProjectModel).filter(
-             ProjectModel.id == project_id,
-             ProjectModel.user_id == current_user.id
-         ).first()
+         def _fetch_project_lesson():
+             return db.query(ProjectModel).filter(
+                 ProjectModel.id == project_id,
+                 ProjectModel.user_id == current_user.id
+             ).first()
+         db_project = await run_in_threadpool(_fetch_project_lesson)
          if db_project:
              project_folder_name = db_project.folder_name
              if db_project.profile_json:
                  profile_summary = db_project.profile_json.get("summary", "General Learner")
 
-             if db_project.profile_json:
-                 profile_summary = db_project.profile_json.get("summary", "General Learner")
-
     # Credit Check (Only if generating new)
-    COST = 5
+    COST = settings.COST_LESSON_GENERATION
     if current_user.credits < COST:
          raise HTTPException(status_code=402, detail=f"Insufficient credits. Need {COST}.")
 
@@ -97,19 +102,21 @@ async def generate_lesson_from_node_endpoint(
     # We serialize the list of models to a list of dicts
     stages_json = [s.model_dump() for s in stages]
     
-    new_lesson = LessonModel(
-        node_id=node.id,
-        course_topic=topic,
-        stage_json=stages_json, # Stores list now
-        user_id=current_user.id,
-        project_id=project_id
-    )
-    db.add(new_lesson)
-    
-    current_user.credits -= COST
-    db.add(current_user)
-    
-    db.commit()
+    def _save_generated_lesson():
+        new_lesson = LessonModel(
+            node_id=node.id,
+            course_topic=topic,
+            stage_json=stages_json, # Stores list now
+            user_id=current_user.id,
+            project_id=project_id
+        )
+        db.add(new_lesson)
+        
+        current_user.credits -= COST
+        db.add(current_user)
+        
+        db.commit()
+    await run_in_threadpool(_save_generated_lesson)
     
     return stages
 
@@ -122,14 +129,16 @@ async def submit_answer(
     db: Session = Depends(get_db)
 ):
     # Log the attempt for future analytics
-    attempt = LessonAttempt(
-        user_id=current_user.id,
-        stage_id=submission.stageId,
-        user_input=str(submission.userInput),
-        is_correct=str(submission.isCorrect)
-    )
-    db.add(attempt)
-    db.commit()
+    def _save_lesson_attempt():
+        attempt = LessonAttempt(
+            user_id=current_user.id,
+            stage_id=submission.stageId,
+            user_input=str(submission.userInput),
+            is_correct=str(submission.isCorrect)
+        )
+        db.add(attempt)
+        db.commit()
+    await run_in_threadpool(_save_lesson_attempt)
 
     # 0. FeynmanMirror Validation (Static)
     if submission.component == "FeynmanMirror":

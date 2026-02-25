@@ -13,6 +13,7 @@
     1. save_upload_file: 將上傳的檔案 (UploadFile) 寫入磁碟。
     2. list_files: 列出該專案下的所有檔案名稱 (過濾隱藏檔)。
     3. delete_project_folder: 遞迴刪除整個專案資料夾 (慎用)。
+    4. read_file_content: 讀取檔案內容字串，內建安全長度截斷機制。
 """
 
 import os
@@ -75,15 +76,10 @@ class FileService:
                 print(f"Error deleting project folder {target_dir}: {e}")
 
     @staticmethod
-    def read_file_content(file_path: str, max_chars: int = 50000) -> str:
+    def read_file_content(file_path: str, max_chars: int = None) -> str:
         """Reads content from a file using DocumentProcessor. Truncates if too long."""
         from app.services.document_processor import DocumentProcessor
+        from app.core.config import settings
         
-        content = DocumentProcessor.read_content(file_path)
-
-        # Truncate if too long (Temporary solution until VIP logic)
-        if len(content) > max_chars:
-            print(f"⚠️ Content truncated from {len(content)} to {max_chars} chars.")
-            return content[:max_chars] + "\n...[Content Truncated]..."
-        
-        return content
+        limit = max_chars if max_chars is not None else settings.MAX_FILE_READ_BYTES
+        return DocumentProcessor.read_content(file_path, max_chars=limit)

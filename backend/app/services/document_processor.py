@@ -5,27 +5,37 @@ from langchain_community.document_loaders import PyPDFLoader
 
 # --- Interface ---
 class FileParser(Protocol):
-    def parse(self, file_path: str) -> str:
-        """Parses the file and returns full text content."""
+    def parse(self, file_path: str, max_chars: int = None) -> str:
+        """Parses the file and returns full text content, up to max_chars."""
         ...
 
 # --- Implementations ---
 
 class PDFParser:
-    def parse(self, file_path: str) -> str:
+    def parse(self, file_path: str, max_chars: int = None) -> str:
+        from app.core.config import settings
+        limit = max_chars if max_chars is not None else settings.MAX_FILE_READ_BYTES
         try:
             loader = PyPDFLoader(file_path)
             pages = loader.load()
-            return "\n".join([p.page_content for p in pages])
+            content = "\n".join([p.page_content for p in pages])
+            if len(content) > limit:
+                return content[:limit] + "\n...[Content Truncated]..."
+            return content
         except Exception as e:
             print(f"PDF Parsing Error: {e}")
             return ""
 
 class TextParser:
-    def parse(self, file_path: str) -> str:
+    def parse(self, file_path: str, max_chars: int = None) -> str:
+        from app.core.config import settings
+        limit = max_chars if max_chars is not None else settings.MAX_FILE_READ_BYTES
         try:
             with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-                return f.read()
+                content = f.read(limit + 1)
+                if len(content) > limit:
+                    return content[:limit] + "\n...[Content Truncated]..."
+                return content
         except Exception as e:
             print(f"Text Parsing Error: {e}")
             return ""
@@ -57,7 +67,7 @@ class DocumentProcessor:
         cls._parsers[extension.lower()] = parser
 
     @classmethod
-    def read_content(cls, file_path: str) -> str:
+    def read_content(cls, file_path: str, max_chars: int = None) -> str:
         """
         Determines the correct parser based on file extension and returns content.
         Returns empty string if file type is unsupported or parsing fails.
@@ -73,4 +83,4 @@ class DocumentProcessor:
             print(f"No parser found for extension: {ext}")
             return f"[Unsupported file type: {ext}]"
 
-        return parser.parse(file_path)
+        return parser.parse(file_path, max_chars=max_chars)

@@ -12,9 +12,9 @@
 
     2. Unit Expansion (單元展開):
        - 階段目標: 針對每一個單元，逐一生成詳細的學習節點 (Nodes)。
-       - 關鍵技術: RAG Context Injection。
-         在展開每個單元時，會根據單元標題與目標 (Unit Goal) 去檢索 RAG 知識庫，
-         確保生成的內容具有該領域的專業深度，而非泛泛而談。
+       - 關鍵技術: 
+         - RAG Context Injection: 在展開每個單元時，會根據單元標題與目標 (Unit Goal) 去檢索 RAG 知識庫，確保生成的內容具有該領域的專業深度。
+         - Concurrency (並發處理): 使用 `asyncio.gather` 與 Semaphore 進行多單元同步展開，大幅縮短生成時間。
 
 主要方法:
     - run: Agent 入口點，協調上述兩個階段的流程。

@@ -47,6 +47,13 @@ class Settings(BaseSettings):
     LLM_PROVIDER: str = "freegemini" # google | freegemini | mock
     GEMINI_MODEL: str = "gemini-2.5-flash"
     
+    # Application Limits & Pricing
+    COST_SYLLABUS_GENERATION: int = 50
+    COST_LESSON_GENERATION: int = 5
+    COST_QUESTIONNAIRE_GENERATION: int = 5
+    MAX_FILE_READ_BYTES: int = 50000
+    MAX_COURSE_CONTEXT_BYTES: int = 30000
+    
     class Config:
         case_sensitive = True
         env_file = ".env"
