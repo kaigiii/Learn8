@@ -20,6 +20,8 @@ from app.schemas.questionnaire import Question, QuestionnaireSubmission, Learner
 from app.services.llm.agents.questionnaire_agent import QuestionnaireAgent
 from app.services.activity_logger import ActivityLogger
 from app.services.file_service import FileService
+from app.core.config import settings
+from fastapi.concurrency import run_in_threadpool
 
 router = APIRouter()
 
@@ -32,15 +34,17 @@ async def generate_project_questionnaire(
     db: Session = Depends(get_db)
 ):
     # Verify project ownership
-    project = db.query(ProjectModel).filter(
-        ProjectModel.id == project_id,
-        ProjectModel.user_id == current_user.id
-    ).first()
+    def _fetch_q_project():
+        return db.query(ProjectModel).filter(
+            ProjectModel.id == project_id,
+            ProjectModel.user_id == current_user.id
+        ).first()
+    project = await run_in_threadpool(_fetch_q_project)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
     # Credit Check
-    COST = 5
+    COST = settings.COST_QUESTIONNAIRE_GENERATION
     if current_user.credits < COST:
         raise HTTPException(status_code=402, detail=f"Insufficient credits. Need {COST}.")
 
@@ -70,10 +74,12 @@ async def submit_project_questionnaire(
     current_user: UserModel = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    project = db.query(ProjectModel).filter(
-        ProjectModel.id == project_id,
-        ProjectModel.user_id == current_user.id
-    ).first()
+    def _fetch_q_submit_project():
+        return db.query(ProjectModel).filter(
+            ProjectModel.id == project_id,
+            ProjectModel.user_id == current_user.id
+        ).first()
+    project = await run_in_threadpool(_fetch_q_submit_project)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
@@ -84,9 +90,11 @@ async def submit_project_questionnaire(
     )
 
     # Save to DB
-    project.profile_json = profile.model_dump()
-    flag_modified(project, "profile_json")
-    db.commit()
+    def _update_project_profile():
+        project.profile_json = profile.model_dump()
+        flag_modified(project, "profile_json")
+        db.commit()
+    await run_in_threadpool(_update_project_profile)
     
     # Enhanced Log: Include full profile details
     profile_details = (

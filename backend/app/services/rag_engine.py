@@ -6,7 +6,7 @@
 整合了 Google Gemini Embeddings 與 ChromaDB。
 
 核心類別:
-    - RAGEngine (Static Methods Only)
+    - RAGEngine (Class Methods, Singleton Vectorstore)
 
 主要流程:
     1. Ingestion (索引建立):
