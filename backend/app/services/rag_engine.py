@@ -45,7 +45,7 @@ class RAGEngine:
             return None
 
         embedding_function = GoogleGenerativeAIEmbeddings(
-            model="models/text-embedding-004",
+            model="models/gemini-embedding-001",
             google_api_key=settings.GOOGLE_API_KEY
         )
         return Chroma(persist_directory=RAGEngine.DB_DIR, embedding_function=embedding_function)
