@@ -13,10 +13,15 @@ from typing import Optional
 from app.core.config import settings
 from app.services.llm.base import BaseLLMProvider
 from app.services.llm.google_adapter import GoogleLLMProvider
+from app.services.llm.lmstudio_adapter import LMStudioProvider
 
 class LLMFactory:
     @staticmethod
     def create() -> BaseLLMProvider:
-        # Default to Google for now as it's the main provider
+        provider = settings.LLM_PROVIDER.lower()
+        if provider == "lmstudio":
+            print("[LLMFactory] Using LMStudioProvider")
+            return LMStudioProvider()
+            
         print("[LLMFactory] Using GoogleLLMProvider")
         return GoogleLLMProvider()

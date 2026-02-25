@@ -183,7 +183,9 @@ python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env      # 記得填入 GOOGLE_API_KEY
-uvicorn app.main:app --reload --port 8000
+
+# 啟動命令 (若您的環境沒有直接綁定 uvicorn 執行檔，請加上 python3 -m)
+python3.12 -m uvicorn app.main:app --reload --port 8000
 ```
 
 #### 2. 前端 (Frontend)
