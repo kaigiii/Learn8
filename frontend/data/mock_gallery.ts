@@ -2,22 +2,6 @@ import { LessonStage } from '@/types/lesson';
 
 export const MOCK_GALLERY: LessonStage[] = [
     {
-        stageId: 'gallery-1',
-        topic: 'Variable Balancer: Supply & Demand',
-        component: 'VariableBalancer',
-        skin: 'Scientific',
-        config: {
-            data: {
-                equation: "price * 50 - supply",
-                variables: ["price", "supply"],
-                xRange: [0, 100]
-            },
-            initialState: { price: 50, supply: 50 }
-        },
-        validation: { type: 'exact', condition: { price: 30 } },
-        feedback: { success: "Equilibrium reached!", error: "Not balanced yet." }
-    } as any,
-    {
         stageId: 'gallery-2',
         topic: 'Logic Chain: Photosynthesis',
         component: 'LogicChain',

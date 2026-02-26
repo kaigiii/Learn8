@@ -33,7 +33,6 @@ class ModuleType(str, Enum):
     Incentive = 'Incentive'
 
 class ComponentType(str, Enum):
-    VariableBalancer = 'VariableBalancer'
     LogicChain = 'LogicChain'
     TaxonomyMatrix = 'TaxonomyMatrix'
     TextToken = 'TextToken'
@@ -155,7 +154,6 @@ class PatternMatcherStage(BaseLessonStage):
 class GenericStage(BaseLessonStage):
     # Catch-all for other components
     component: Literal[
-        ComponentType.VariableBalancer,
         ComponentType.LogicChain,
         ComponentType.FeynmanMirror,
         ComponentType.Sequencer,
