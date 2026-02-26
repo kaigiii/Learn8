@@ -111,8 +111,7 @@ docker-compose up --build
 | **Instruction** | TextToken | 關鍵概念重組與高亮 |
 | | SpatialAnatomy | 互動式圖像解剖 |
 | | PatternMatcher | 配對概念連線 |
-| **Practice** | VariableBalancer | 調整滑桿觀察變數變化 (物理/經濟模型) |
-| | LogicChain | 排列邏輯步驟 |
+| **Instruction** | SpatialAnatomy | 互動式空間/視覺圖解解析 (如: 細胞結構) |
 | | Sequencer | 時序排列 |
 | **Assessment** | TaxonomyMatrix | 分類拖曳 |
 | | FeynmanMirror | 費曼技巧模擬，AI 助教評分 |
@@ -447,8 +446,6 @@ frontend/
 │   │               │   ├── TextToken.tsx
 │   │               │   ├── SpatialAnatomy.tsx
 │   │               │   └── PatternMatcher.tsx
-│   │               ├── practice/
-│   │               │   ├── VariableBalancer.tsx
 │   │               │   ├── LogicChain.tsx
 │   │               │   └── Sequencer.tsx
 │   │               ├── assessment/
@@ -604,7 +601,6 @@ import { DragSort } from './stages/practice/DragSort';
 
 // 在 COMPONENT_REGISTRY 中新增映射
 export const COMPONENT_REGISTRY: Record<string, React.ComponentType<any>> = {
-    'VariableBalancer': VariableBalancer,
     'LogicChain': LogicChain,
     'TaxonomyMatrix': TaxonomyMatrix,
     'TextToken': TextToken,
@@ -625,7 +621,6 @@ export const COMPONENT_REGISTRY: Record<string, React.ComponentType<any>> = {
 ```python
 # 在 ComponentType Enum 中新增
 class ComponentType(str, Enum):
-    VariableBalancer = 'VariableBalancer'
     LogicChain = 'LogicChain'
     # ... 其他組件
     DragSort = 'DragSort'  # 👈 新增
@@ -668,7 +663,6 @@ COMPONENT_LIBRARY = """
 Available Components:
 
 ## Practice Module:
-- VariableBalancer: For understanding variable relationships
 - LogicChain: For arranging logical steps
 - Sequencer: For timeline/process ordering
 - DragSort: For ordering items by importance, chronology, or priority  👈 新增

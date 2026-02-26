@@ -2,7 +2,7 @@
  * 檔案名稱: features/stage-player/components/ComponentRegistry.tsx
  * 功能描述: 組件註冊表 (Component Registry)
  * 
- * 這是 "Feature Slicing" 架構的核心部分，將後端回傳的字串 key (例如 'VariableBalancer')
+ * 這是 "Feature Slicing" 架構的核心部分，將後端回傳的字串 key (例如 'LogicChain')
  * 映射到實際的前端 React 組件。
  * 
  * 作用:
@@ -16,7 +16,6 @@
  */
 import React from 'react';
 import { LessonStage } from '@/types/lesson';
-import { VariableBalancer } from './stages/practice/VariableBalancer';
 import { LogicChain } from './stages/practice/LogicChain';
 import { TaxonomyMatrix } from './stages/assessment/TaxonomyMatrix';
 import { FeynmanMirror } from './stages/assessment/FeynmanMirror';
@@ -28,7 +27,6 @@ import { PatternMatcher } from './stages/instruction/PatternMatcher';
 import { Button } from '@/components/ui/button';
 
 export const COMPONENT_REGISTRY: Record<string, React.ComponentType<any>> = {
-    'VariableBalancer': VariableBalancer,
     'LogicChain': LogicChain,
     'TaxonomyMatrix': TaxonomyMatrix,
     'TextToken': TextToken,

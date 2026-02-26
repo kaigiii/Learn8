@@ -5,13 +5,12 @@
  * 定義了前端與後端共用的資料結構，與後端 Pydantic Models 高度對應。
  * 
  * 主要型別:
- * - ComponentType: 所有支援的遊戲化組件名稱 (如 'VariableBalancer')。
+ * - ComponentType: 所有支援的遊戲化組件名稱 (如 'LogicChain')。
  * - ModuleType: 學習模組分類 (Instruction, Practice, Assessment, Incentive)。
  * - LessonStage: 單一學習階段的完整設定結構 (包含 config, data, validation)。
  * - CoursePath & Unit & LessonNode: 課程大綱的層級結構。
  */
 export type ComponentType =
-    | 'VariableBalancer'
     | 'LogicChain'
     | 'TaxonomyMatrix'
     | 'TextToken'

@@ -116,7 +116,7 @@ export default function RightSidebar({ onLoadMock, currentProjectName, onOpenPro
         {
             title: "Practice",
             color: "text-green-500",
-            items: ['VariableBalancer', 'LogicChain', 'Sequencer']
+            items: ['LogicChain', 'Sequencer']
         },
         {
             title: "Assessment",
