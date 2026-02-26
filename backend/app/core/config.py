@@ -56,6 +56,9 @@ class Settings(BaseSettings):
     MAX_FILE_READ_BYTES: int = 50000
     MAX_COURSE_CONTEXT_BYTES: int = 30000
     
+    # Provider Toggles
+    USE_GEMINI_FILE_API: bool = True
+    
     class Config:
         case_sensitive = True
         env_file = ".env"

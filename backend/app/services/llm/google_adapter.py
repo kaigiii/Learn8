@@ -20,6 +20,7 @@ from app.services.llm.base import BaseLLMProvider
 
 class GoogleLLMProvider(BaseLLMProvider):
     def __init__(self):
+        super().__init__()
         self.llm = ChatGoogleGenerativeAI(
             model=settings.GEMINI_MODEL,
             google_api_key=settings.GOOGLE_API_KEY,
@@ -27,16 +28,34 @@ class GoogleLLMProvider(BaseLLMProvider):
         )
 
     def bind_files(self, files: List[str]) -> "BaseLLMProvider":
-        # Google API doesn't support local file binding in the same way as FreeGemini yet
-        # or it requires File API upload. For now, we ignore or warn.
-        # Check if user wants RAG or direct file upload.
-        return self
+        if not files:
+            return self
+
+        if settings.USE_GEMINI_FILE_API:
+            # (Note: Proper Native Google File API integration goes here if used in backend)
+            # For testing cross-compatibility directly with text context, set USE_GEMINI_FILE_API=False.
+            print("Warning: Native Google File API upload logic is not fully implemented in this Adapter.")
+            return self
+        else:
+            # Fallback path: Read files into self.injected_context
+            self._inject_local_files(files)
+            return self
 
     async def generate_text(self, messages: List[Any], **kwargs) -> str:
+        # Inject local file context if available (when File API disabled)
+        if self.injected_context:
+            from langchain_core.messages import SystemMessage
+            messages = [SystemMessage(content=self.injected_context)] + messages
+            
         response = await self.llm.ainvoke(messages)
         return response.content
 
     async def generate_structured(self, messages: List[Any], schema: Type[BaseModel], **kwargs) -> BaseModel:
+        # Inject local file context if available
+        if self.injected_context:
+            from langchain_core.messages import SystemMessage
+            messages = [SystemMessage(content=self.injected_context)] + messages
+            
         # Use structured output or parser
         if hasattr(self.llm, "with_structured_output"):
              structured_llm = self.llm.with_structured_output(schema)

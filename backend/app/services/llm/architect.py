@@ -111,6 +111,12 @@ from pydantic import BaseModel
 async def generate_lesson_from_node(node: LessonNode, topic: str, user_id: Optional[int] = None, project_folder: Optional[str] = None, profile: str = "General Learner") -> List[LessonStage]:
     provider = LLMFactory.create()
     
+    # 1. Retrieve RAG Context
+    from app.services.rag_engine import RAGEngine
+    context_chunks = await RAGEngine.query_context(topic)
+    rag_context = "\n\n".join(context_chunks) if context_chunks else "No specific database context found."
+    
+    # 2. Bind Local Application Files
     if user_id:
         files = FileService.list_files(user_id, project_folder)
         if files:
@@ -118,8 +124,8 @@ async def generate_lesson_from_node(node: LessonNode, topic: str, user_id: Optio
              provider.bind_files(full_paths)
 
     messages = [
-        ("system", NODE_SYSTEM_PROMPT.format(profile=profile)),
-        ("user", f"TOPIC: {topic}\\nNODE TITLE: {node.title}\\nNODE DESC: {node.description}\\nNODE TYPE: {node.type}")
+        ("system", NODE_SYSTEM_PROMPT.format(profile=profile) + f"\n\nVector Database Context:\n{rag_context}"),
+        ("user", f"TOPIC: {topic}\nNODE TITLE: {node.title}\nNODE DESC: {node.description}\nNODE TYPE: {node.type}")
     ]
     
     # Wrapper for List support
