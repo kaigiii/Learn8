@@ -56,3 +56,8 @@
 2026-02-25 14:02:12 | INFO |   └─ Unit 3: Unit 3: Solving Linear Systems with Gaussian Elimination and LU/PLU Decomposition
 2026-02-25 14:02:12 | INFO |   └─ Unit 4: Unit 4: Advanced Matrix Properties, Inverse Calculation, and System Analysis
 2026-02-25 14:02:12 | INFO | CREDITS_DEDUCT | User[1:dev@learn8.ai] spent 50 credits for 'syllabus_generation' | New balance: 95
+2026-02-26 21:11:23 | INFO | PROJECT_CREATE | User[1:dev@learn8.ai] created Project[3:1]
+2026-02-26 21:14:18 | INFO | FILE_UPLOAD | User[1:dev@learn8.ai] uploaded to Project[3:1]: [管數ch3.pdf]
+2026-02-26 21:14:22 | INFO | QUESTIONNAIRE_GENERATE | User[1:dev@learn8.ai] started questionnaire for Project[3:1] | Topic: 'math' | Files: [管數ch3.pdf]
+2026-02-26 21:14:39 | INFO | CREDITS_DEDUCT | User[1:dev@learn8.ai] spent 5 credits for 'questionnaire_generation' | New balance: 40
+2026-02-26 21:24:49 | INFO | CREDITS_TOPUP | User[1:dev@learn8.ai] topped up 100 credits | New balance: 140

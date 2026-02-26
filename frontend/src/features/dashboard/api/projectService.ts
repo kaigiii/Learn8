@@ -35,7 +35,7 @@ export const projectService = {
             const formData = new FormData();
             formData.append('file', file);
 
-            await apiClient.post(`/projects/upload-pdf?project_id=${projectId}`, formData, {
+            await apiClient.post(`/projects/upload-document?project_id=${projectId}`, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
             successCount++;

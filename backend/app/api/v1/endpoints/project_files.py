@@ -69,8 +69,8 @@ async def delete_project_file(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/upload-pdf")
-async def upload_pdf(
+@router.post("/upload-document")
+async def upload_document(
     file: UploadFile = File(...),
     project_id: int = None,
     current_user: UserModel = Depends(get_current_user),
@@ -90,10 +90,10 @@ async def upload_pdf(
         # Save file locally
         FileService.save_upload_file(file, current_user.id, project_folder_name)
 
-        # Ingest PDF into RAG
+        # Ingest Document into RAG
         from app.services.rag_engine import RAGEngine
         await file.seek(0)
-        await RAGEngine.ingest_pdf(file, project_id)
+        await RAGEngine.ingest_document(file, project_id)
         
         ActivityLogger.log_file_upload(current_user.id, current_user.email, project_id, db_project.name if db_project else "Unknown", [file.filename])
         return {"message": "File uploaded and ingested."}

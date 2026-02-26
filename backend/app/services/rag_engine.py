@@ -56,17 +56,36 @@ class RAGEngine:
         return cls._vectorstore
 
     @staticmethod
-    async def ingest_pdf(file: UploadFile, project_id: int) -> int:
+    async def ingest_document(file: UploadFile, project_id: int) -> int:
         temp_filename = f"temp_{file.filename}"
+        ext = temp_filename.split('.')[-1].lower() if '.' in file.filename else ""
         
         try:
             with open(temp_filename, "wb") as buffer:
                 shutil.copyfileobj(file.file, buffer)
                 
-            loader = PyPDFLoader(temp_filename)
-            pages = loader.load()
+            # 1. Routing by extension
+            if ext == "pdf":
+                from langchain_community.document_loaders import PyMuPDFLoader
+                loader = PyMuPDFLoader(temp_filename)
+                pages = loader.load()
+            elif ext in ["txt", "md"]:
+                from langchain_community.document_loaders import TextLoader
+                loader = TextLoader(temp_filename, encoding="utf-8")
+                pages = loader.load()
+            elif ext == "csv":
+                from langchain_community.document_loaders import CSVLoader
+                loader = CSVLoader(temp_filename, encoding="utf-8")
+                pages = loader.load()
+            elif ext in ["docx", "doc"]:
+                from langchain_community.document_loaders import Docx2txtLoader
+                loader = Docx2txtLoader(temp_filename)
+                pages = loader.load()
+            else:
+                print(f"Unsupported document extension: {ext}. Skipping RAG ingestion.")
+                return 0
             
-            # Add metadata for isolation
+            # Add metadata for isolation and tracking
             for page in pages:
                 page.metadata["project_id"] = str(project_id)
                 page.metadata["source"] = file.filename
@@ -117,7 +136,7 @@ class RAGEngine:
             return [query]
 
     @staticmethod
-    async def rerank_documents(query: str, docs: List[Document], top_k: int = 5) -> List[str]:
+    async def rerank_documents(query: str, docs: List[Document], top_k: int = 5) -> List[Document]:
         """
         Reranks documents based on relevance to the query.
         Currently a specialized prompt-based reranker or a simple placeholder.
@@ -128,7 +147,7 @@ class RAGEngine:
         # Simple Logic for now: Just return top K from vector search.
         # UPGRADE: Add a 'Cross-Encoder' call or LLM 'Filter' here.
         # e.g. ask LLM: "Which of these snippets answer '{query}' best?"
-        return [doc.page_content for doc in docs[:top_k]]
+        return docs[:top_k]
 
     @staticmethod
     async def delete_project_context(project_id: int):
@@ -185,7 +204,13 @@ class RAGEngine:
                 seen.add(d.page_content)
                 unique_docs.append(d)
         
-        # 2. Rerank
-        final_contents = await RAGEngine.rerank_documents(topic, unique_docs, top_k=k)
+        # 2. Rerank (Returns List[Document] now)
+        top_docs = await RAGEngine.rerank_documents(topic, unique_docs, top_k=k)
         
+        # 3. Format with Source Metadata Injection
+        final_contents = []
+        for doc in top_docs:
+            source_name = doc.metadata.get('source', 'Unknown Document')
+            final_contents.append(f"[Source: {source_name}]\n{doc.page_content}")
+            
         return final_contents

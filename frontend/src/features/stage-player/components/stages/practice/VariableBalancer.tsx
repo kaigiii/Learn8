@@ -148,6 +148,10 @@ export const VariableBalancer: React.FC<VariableBalancerProps> = ({ stage, onCom
 
     // Validation Check
     useEffect(() => {
+        if (!validation || !validation.condition || validation.condition.x === undefined || validation.condition.x === null) {
+            return;
+        }
+
         // Simple tolerance check
         if (Math.abs(xVal - validation.condition.x) < 0.15) {
             if (!isCorrect) {
@@ -157,7 +161,7 @@ export const VariableBalancer: React.FC<VariableBalancerProps> = ({ stage, onCom
         } else {
             setIsCorrect(false);
         }
-    }, [xVal, validation.condition]); // validation.condition.x access handled via validation.condition
+    }, [xVal, validation, isCorrect, onComplete]);
 
     return (
         <div className="w-full max-w-2xl mx-auto p-6 bg-white rounded-xl shadow-lg border border-gray-100">

@@ -19,6 +19,7 @@ from app.services.llm.base import BaseLLMProvider
 
 class LMStudioProvider(BaseLLMProvider):
     def __init__(self):
+        super().__init__()
         # Initializing an OpenAI compatible client pointing to the local LM Studio server
         self.llm = ChatOpenAI(
             base_url=settings.LMSTUDIO_BASE_URL,
@@ -29,11 +30,17 @@ class LMStudioProvider(BaseLLMProvider):
         )
 
     def bind_files(self, files: List[str]) -> "BaseLLMProvider":
-        # Local LLMs typically don't have a direct File API for attachments in this interface.
-        # This implementation expects files to be passed directly within the prompt context (e.g. RAG).
+        # Local models don't have a Cloud File API. Read locally and inject into context.
+        if files:
+            self._inject_local_files(files)
         return self
 
     async def generate_text(self, messages: List[Any], **kwargs) -> str:
+        # Inject local file context if available
+        if self.injected_context:
+            from langchain_core.messages import SystemMessage
+            messages = [SystemMessage(content=self.injected_context)] + messages
+            
         response = await self.llm.ainvoke(messages)
         return response.content
 
@@ -52,7 +59,13 @@ class LMStudioProvider(BaseLLMProvider):
         json_prompt = SystemMessage(
             content=f"You MUST output raw JSON exactly matching this schema. Do not output markdown code blocks. \n{format_instructions}"
         )
-        messages_with_instructions = messages + [json_prompt]
+        
+        # Inject local file context if available
+        if self.injected_context:
+            context_prompt = SystemMessage(content=self.injected_context)
+            messages_with_instructions = [context_prompt] + messages + [json_prompt]
+        else:
+            messages_with_instructions = messages + [json_prompt]
         
         # Force JSON response output (if model supports it, most do now)
         try:
