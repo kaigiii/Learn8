@@ -1,0 +1,6 @@
+name: Sequencer
+module: Practice
+description: If the goal is to order steps in a process or chronological events.
+schema_requirements: |
+  config.data MUST contain:
+  - nodes: A list of strings representing the steps to be ordered.

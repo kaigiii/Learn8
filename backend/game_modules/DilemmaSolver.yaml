@@ -1,0 +1,10 @@
+name: DilemmaSolver
+module: Incentive
+description: If the goal is to explore consequences of decisions in a scenario.
+schema_requirements: |
+  config.data MUST contain:
+  - scenario: The text describing the dilemma.
+  - options: A list of objects containing:
+    - id: string ID for the option.
+    - text: The choice description.
+    - consequence: What happens if chosen.

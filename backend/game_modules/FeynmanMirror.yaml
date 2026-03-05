@@ -1,0 +1,5 @@
+name: FeynmanMirror
+module: Assessment
+description: If the goal is to verify deep understanding via user explanation (Feynman Technique).
+schema_requirements: |
+  config.data requires no specific fields, just an empty object.

@@ -1,0 +1,9 @@
+name: PatternMatcher
+module: Instruction
+description: If the goal is to recognize visual/data patterns and match pairs of concepts.
+schema_requirements: |
+  config.data MUST contain:
+  - pairs: A list of objects containing:
+    - id: unique string ID for the pair.
+    - left: The left side value/concept.
+    - right: The corresponding matching value/concept on the right side.

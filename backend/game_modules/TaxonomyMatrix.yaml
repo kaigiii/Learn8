@@ -1,0 +1,10 @@
+name: TaxonomyMatrix
+module: Assessment
+description: If the goal is to categorize multiple items or concepts into distinct buckets.
+schema_requirements: |
+  config.data MUST contain:
+  - buckets: A list of strings representing category names.
+  - items: A list of objects, each containing:
+    - id: A unique string ID.
+    - content: The text content to classify.
+    - correctBucket: The string name of the correct bucket.

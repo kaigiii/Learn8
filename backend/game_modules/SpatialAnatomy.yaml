@@ -1,0 +1,9 @@
+name: SpatialAnatomy
+module: Instruction
+description: If the goal is to visualize structure/anatomy and identify spatial parts.
+schema_requirements: |
+  config.data MUST contain:
+  - model: string ID of the graphical model to load.
+  - labels: List of objects containing:
+    - id: A unique string ID mapping to the model layer/part.
+    - label: The display name of the part.

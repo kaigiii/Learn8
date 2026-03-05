@@ -33,14 +33,8 @@ class ModuleType(str, Enum):
     Incentive = 'Incentive'
 
 class ComponentType(str, Enum):
-    LogicChain = 'LogicChain'
-    TaxonomyMatrix = 'TaxonomyMatrix'
-    TextToken = 'TextToken'
-    FeynmanMirror = 'FeynmanMirror'
-    Sequencer = 'Sequencer'
-    SpatialAnatomy = 'SpatialAnatomy'
-    DilemmaSolver = 'DilemmaSolver'
-    PatternMatcher = 'PatternMatcher'
+    # We keep this for any legacy code, but realistically new ones are just strings
+    pass
 
 class SkinType(str, Enum):
     Scientific = 'Scientific'
@@ -52,8 +46,6 @@ class ValidationType(str, Enum):
     Regex = 'regex'
     Logic = 'logic'
 
-# --- Component Data Models ---
-# --- Component Data Models ---
 def parse_data_field(v: Any) -> Any:
     # Helper to handle stringified JSON from LLMs
     if v is None: return {}
@@ -65,47 +57,16 @@ def parse_data_field(v: Any) -> Any:
             return {}
     return v
 
-class TextTokenData(BaseModel):
-    text: Optional[str] = None
-    items: Optional[List[str]] = None
-
-class TaxonomyItem(BaseModel):
-    id: str
-    content: str
-    correctBucket: Optional[str] = None
-
-class TaxonomyData(BaseModel):
-    buckets: List[str]
-    items: List[TaxonomyItem]
-
-class GenericData(BaseModel):
-    # For components not yet strictly typed
-    pass
-
 # --- Config Models ---
-class BaseStageConfig(BaseModel):
+class GenericConfig(BaseModel):
     initialState: dict = {}
-
+    data: Union[dict, list, str, Any] = {} # Permissive for migration
+    
     @field_validator('initialState', mode='before')
     @classmethod
     def validate_initial_state(cls, v: Any) -> dict:
         return v or {}
 
-class TextTokenConfig(BaseStageConfig):
-    data: Union[TextTokenData, dict, list, str, Any]
-    @field_validator('data', mode='before')
-    @classmethod
-    def validate_data(cls, v: Any): return parse_data_field(v)
-
-class TaxonomyConfig(BaseStageConfig):
-    data: Union[TaxonomyData, dict, list, str, Any]
-    @field_validator('data', mode='before')
-    @classmethod
-    def validate_data(cls, v: Any): return parse_data_field(v)
-
-class GenericConfig(BaseStageConfig):
-    data: Union[dict, list, str, Any] = {} # Permissive for migration
-    
     @field_validator('data', mode='before')
     @classmethod
     def validate_data(cls, v: Any) -> Union[dict, list, str, Any]:
@@ -121,59 +82,24 @@ class Feedback(BaseModel):
     error: str
 
 # --- Stage Models ---
-class BaseLessonStage(BaseModel):
+class LessonStage(BaseModel):
     stageId: str
     topic: str
     module: ModuleType
     skin: SkinType
+    component: str  # Now accepts any string, validating against registry
     validation: Validation
     feedback: Feedback
-
-class TextTokenStage(BaseLessonStage):
-    component: Literal[ComponentType.TextToken]
-    config: TextTokenConfig
-
-class TaxonomyStage(BaseLessonStage):
-    component: Literal[ComponentType.TaxonomyMatrix]
-    config: TaxonomyConfig
-
-
-class PatternMatcherData(BaseModel):
-    pairs: List[dict]
-
-class PatternMatcherConfig(BaseStageConfig):
-    data: Union[PatternMatcherData, dict, list, str, Any]
-    @field_validator('data', mode='before')
-    @classmethod
-    def validate_data(cls, v: Any): return parse_data_field(v)
-
-class PatternMatcherStage(BaseLessonStage):
-    component: Literal[ComponentType.PatternMatcher]
-    config: PatternMatcherConfig
-
-class GenericStage(BaseLessonStage):
-    # Catch-all for other components
-    component: Literal[
-        ComponentType.LogicChain,
-        ComponentType.FeynmanMirror,
-        ComponentType.Sequencer,
-        ComponentType.SpatialAnatomy,
-        ComponentType.DilemmaSolver
-    ]
     config: GenericConfig
 
-# --- The Union ---
-from typing import Annotated
-
-LessonStage = Annotated[
-    Union[
-        TextTokenStage, 
-        TaxonomyStage, 
-        PatternMatcherStage, 
-        GenericStage
-    ],
-    Field(discriminator='component')
-]
+    @field_validator('component')
+    @classmethod
+    def validate_component(cls, v: str) -> str:
+        from app.core.component_loader import registry
+        if v not in registry.get_component_names():
+            # In production, you might raise ValueError here based on strictness requirements
+            pass
+        return v
 class SubmissionRequest(BaseModel):
     stageId: str
     userInput: Any

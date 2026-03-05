@@ -44,3 +44,4 @@ opentelemetry-sdk>=1.39.1
 opentelemetry-exporter-otlp-proto-grpc>=1.39.1
 opentelemetry-exporter-otlp-proto-http>=1.39.1
 pypdf
+PyYAML==6.0.1
