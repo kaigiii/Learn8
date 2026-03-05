@@ -28,7 +28,7 @@ from app.models.user import UserModel
 from app.models.lesson import LessonModel
 from app.models.project import ProjectModel
 from app.schemas.course import LessonNode
-from app.schemas.lesson import LessonStage, SubmissionRequest, SubmissionResponse, ComponentType, SkinType, Validation, ValidationType, Feedback, ModuleType, TextTokenStage, TextTokenConfig, TextTokenData, PatternMatcherStage, PatternMatcherConfig, PatternMatcherData
+from app.schemas.lesson import LessonStage, SubmissionRequest, SubmissionResponse, ComponentType, SkinType, Validation, ValidationType, Feedback, ModuleType, GenericConfig
 from app.services.llm.architect import generate_lesson_from_node
 from app.core.config import settings
 
@@ -163,13 +163,13 @@ async def submit_answer(
         )
     
     # 2. Remedial Generation
-    dummy_failed_stage = TextTokenStage(
+    dummy_failed_stage = LessonStage(
         stageId=submission.stageId,
         topic=submission.context_topic or "Unknown",
         module=ModuleType.Instruction, # Dummy default
-        component=ComponentType.TextToken, # Dummy
+        component="TextToken", # Dummy
         skin=SkinType.Classic,
-        config=TextTokenConfig(data=TextTokenData(items=[]), initialState={}),
+        config=GenericConfig(data={}, initialState={}),
         validation=Validation(type=ValidationType.Exact, condition={}),
         feedback=Feedback(success="", error="")
     )

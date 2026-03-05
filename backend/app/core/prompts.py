@@ -41,6 +41,11 @@
         輸出: 包含 isCorrect (布林值) 與 feedback (費曼語氣的評語)。
 """
 
+from app.core.component_loader import registry
+
+COMP_NAMES = ", ".join(registry.get_component_names())
+COMP_MENU = registry.get_prompt_menu_string()
+COMP_SCHEMA = registry.get_prompt_schema_reference_string()
 
 REFINE_SYLLABUS_PROMPT = """
 You are the "Learn8 Architect".
@@ -69,7 +74,7 @@ You are the "Course Architect" and "Game Master" for Learn8.
 Your goal is to transform static knowledge into a "Gamified Learning Path".
 
 ### 1. COMPONENT SELECTION MATRIX
-Choose the component that best fits the micro-concept: (LogicChain, TaxonomyMatrix, TextToken, Sequencer, SpatialAnatomy, DilemmaSolver, PatternMatcher)
+Choose the component that best fits the micro-concept: (VAR_COMP_NAMES)
 
 ### IMPORTANT RULE:
 The `config` object MUST ALWAYS have an `initialState` field. If no state is needed, use `initialState: {{}}`.
@@ -82,7 +87,7 @@ The `skin` field MUST be one of: "Scientific", "Classic", "Code".
 
 ### 2. OUTPUT FORMAT
 You must output a VALID JSON list of `LessonStage` objects.
-"""
+""".replace("VAR_COMP_NAMES", COMP_NAMES)
 
 SYLLABUS_SYSTEM_PROMPT = """
 You are the "Course Architect" for NeoLearn 3.0.
@@ -99,13 +104,13 @@ Your goal is to design a high-level "Learning Path" (Syllabus) for a given topic
 
 4. **CRITICAL: PLAN THE PEDAGOGY**
    For *each* node, you MUST decide:
-   - `recommended_component`: Which UI component fits best? (TextToken, PatternMatcher, SpatialAnatomy, etc.)
+   - `recommended_component`: Which UI component fits best? (VAR_COMP_NAMES)
    - `instructional_goal`: A specific instruction for the content generator (e.g., "Use a 5-step sequence to explain X", "Create a matching game for vocabulary").
 
 ### OUTPUT FORMAT
 Output a JSON object matching the `CoursePath` schema (Units -> Nodes).
 All nodes MUST have `recommended_component` and `instructional_goal` populated.
-"""
+""".replace("VAR_COMP_NAMES", COMP_NAMES)
 
 NODE_SYSTEM_PROMPT = """
 You are the "Content Creator" for NeoLearn 3.0.
@@ -124,25 +129,11 @@ First, decide which **Module** is best for this node:
 ### 2. COMPONENT SELECTION MENU
 Choose the component that best fits the specific learning goal:
 
-**A. Instruction (教學)**
-- If the goal is to **visualize structure/anatomy**: Use `SpatialAnatomy`.
-- If the goal is to **extract key definitions** from text: Use `TextToken`.
-- If the goal is to **recognize visual/data patterns**: Use `PatternMatcher`.
-
-**B. Practice (練習)**
-- If the goal is to **follow a strict logical flow**: Use `LogicChain`.
-- If the goal is to **order steps in a process**: Use `Sequencer`.
-
-**C. Assessment (測驗)**
-- If the goal is to **categorize multiple items**: Use `TaxonomyMatrix`.
-- If the goal is to **verify deep understanding via explanation**: Use `FeynmanMirror`.
-
-**D. Incentive (激勵)**
-- If the goal is to **explore consequences of decisions**: Use `DilemmaSolver`.
+VAR_COMP_MENU
 
 ### 3. COMPONENT DATA REFERENCE (CRITICAL)
 You MUST populate `config.data` with the specific fields required by the chosen component.
-(Same component reference as before...)
+VAR_COMP_SCHEMA
 
 ### REQUIRED OUTPUT FORMAT
 You must output a VALID JSON object matching this schema:
@@ -160,7 +151,7 @@ Decide how many stages are needed based on the complexity of the topic.
 - A complex skill might need 3+ stages (Instruction -> Practice -> Application -> Advanced Challenge).
 
 Ensure the sequence makes pedagogical sense. Do not just generic quiz.
-"""
+""".replace("VAR_COMP_MENU", COMP_MENU).replace("VAR_COMP_SCHEMA", COMP_SCHEMA)
 
 REMEDIAL_SYSTEM_PROMPT = """
 You are a compassionate AI Tutor. The user FAILED the previous stage.

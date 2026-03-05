@@ -100,28 +100,35 @@ docker-compose up --build
 
 ## 🛠️ 模組擴充與移除指南 (Components Guide) ⭐
 
-Learn8 的核心精神是高度模組化。您可以無痛地為系統增加新的「遊戲玩法」（組件），或拔除不適用的組件。以下是**最完整、一字不漏的擴充與移除指南**。
+Learn8 的核心精神是高度模組化。您可以無痛地為系統增加新的「遊戲玩法」（組件），或拔除不適用的組件。
+**系統後端已經全面重構為 YAML 驅動架構**，您「不需要」去修改後端的複雜 Python Pydantic 契約或手動撰寫 Prompt。
 
 ### 🟢 如何新增一個遊戲組件 (Adding a Component)
 
-假設我們要新增一個名為 `DragSort` (拖曳排序) 的練習組件。您需要同時修改前端與後端，讓 AI 大腦知道它的存在。
+假設我們要新增一個名為 `DragSort` (拖曳排序) 的練習組件。
 
-#### 【前端作業】
+#### 【後端作業: 只需要寫設定檔】
 
-**Step 1: 建立 React 實體檔案**
+**Step 1: 建立 YAML 模組定義**
+在 `backend/game_modules/` 目錄下建立 `DragSort.yaml`，告訴 AI 這款遊戲是做什麼的，以及它應該吐出什麼 JSON 資料：
+
+```yaml
+name: DragSort
+module: Practice
+description: If the goal is to order items by priority or physical weight.
+schema_requirements: |
+  config.data MUST contain:
+  - items: A list of objects containing:
+    - id: string ID
+    - content: The text to be sorted
+```
+*(伺服器重啟後，`component_loader.py` 會自動將此設定注入給 AI 架構師。)*
+
+#### 【前端作業: 實作與註冊】
+
+**Step 2: 建立 React 實體檔案**
 在 `frontend/src/features/stage-player/components/stages/practice/` 下建立 `DragSort.tsx`。
 您需要接收 `stage` 屬性 (包含 config, validation) 並在使用者完成時呼叫 `onComplete(true)`。
-
-**Step 2: 註冊 TypeScript 型別**
-打開 `frontend/src/types/lesson.ts`：
-1. 找到 `ComponentType` 聯集型別宣告。
-2. 加入您的新組件名稱：
-   ```typescript
-   export type ComponentType =
-       // ... 其他組件
-       | 'Sequencer'
-       | 'DragSort'; // 👈 新增
-   ```
 
 **Step 3: 將實體組件註冊進渲染中心**
 打開 `frontend/src/features/stage-player/components/ComponentRegistry.tsx`：
@@ -136,75 +143,22 @@ Learn8 的核心精神是高度模組化。您可以無痛地為系統增加新�
    };
    ```
 
-#### 【後端作業】
-
-**Step 4: 註冊 Pydantic Schema (嚴格驗證)**
-打開 `backend/app/schemas/lesson.py`：
-1. 找出 `ComponentType` Enum 型別類別：
-   ```python
-   class ComponentType(str, Enum):
-       # ... 其他組件
-       DragSort = 'DragSort' # 👈 新增
-   ```
-2. (選項 A：使用共用驗證) 如果您的資料結構不複雜，可以直接將其加入 `GenericStage` 類別的 `Literal` 裝飾器內：
-   ```python
-   class GenericStage(BaseLessonStage):
-       component: Literal[ ..., ComponentType.DragSort ] # 👈 加入此處
-       config: GenericConfig
-   ```
-3. (選項 B：自訂嚴格驗證) 若您的資料結構很獨特，建立專屬的 Pydantic Model，並加入 `LessonStage` 的 `Union` 列表中。
-
-**Step 5: 教導 AI 大腦如何使用它 (Prompts)**
-這是**最重要的一步**。如果沒修改 Prompt，AI 永遠不知道有這個新武器。
-打開 `backend/app/core/prompts.py`：
-
-1. 找到 `SYSTEM_PROMPT`，更新可用的組件陣列：
-   ```text
-   Choose the component that best fits the micro-concept: (..., DragSort)
-   ```
-2. 找到 `NODE_SYSTEM_PROMPT`，在「MENU」中明確定義該組件的**使用時機** (生態位)：
-   ```text
-   **B. Practice (練習)**
-   - If the goal is to **order items by priority or physical weight**: Use `DragSort`.  # 👈 新增使用時機
-   ```
-
-完成以上 5 步，重新啟動伺服器，您的 AI 架構師就具備生成這款新遊戲的能力了！
+**(選擇性) Step 4: TypeScript 型別**
+若您需要嚴格的前端型別檢查，可至 `frontend/src/types/lesson.ts` 的 `ComponentType` 補上 `'DragSort'` 字串。
 
 ---
 
 ### 🔴 如何移除一個遊戲組件 (Removing a Component)
 
-移除組件的邏輯就是**新增的完全逆向工程**。必須「斬草除根」，否則 LLM 回傳了已經刪除的組件名稱，前端就會崩潰 (出現 Fallback Component)。
+移除變得非常簡單。
 
-#### 【後端拔除點 (最優先)】
+**Step 1: 剝奪 AI 的知識庫**
+直接刪除 `backend/game_modules/TargetComponent.yaml`。
+系統重啟後，AI 就不會再產生這個組件。
 
-**Step 1: 剝奪 AI 的知識庫 (Prompts)**
-打開 `backend/app/core/prompts.py`：
-- 清除 `SYSTEM_PROMPT` 清單中的組件名稱。
-- 清除 `NODE_SYSTEM_PROMPT` 中關於該組件的 `- If the goal is to... Use [Component]` 指導語。
-*(這是防止 AI 繼續生成該組件的最根本防線)*
-
-**Step 2: 從 Schema 註銷**
-打開 `backend/app/schemas/lesson.py`：
-- 從 `ComponentType` Enum 類別中刪除。
-- 如果它被定義在 `GenericStage` 的 Literal 中，刪除它。
-- 如果它有自己獨立的 Stage 類別 (例如 `PatternMatcherStage`)，整塊程式碼刪除，並記得從底部的 `LessonStage = Union[...]` 清單中剔除該類別。
-
-#### 【前端拔除點】
-
-**Step 3: 解除型別與註冊**
-- 打開 `frontend/src/types/lesson.ts`，從 `ComponentType` 中刪除字串。
-- 打開 `frontend/src/features/stage-player/components/ComponentRegistry.tsx`，刪除 `import` 宣告，並從 `COMPONENT_REGISTRY` 字典中移除鍵值對。
-
-**Step 4: 清除實體與參考**
-- 實體刪除：直接刪除 React 檔案 (如 `rm src/features/stage-player/components/stages/practice/TargetComponent.tsx`)。
-- 檢查工具列：檢查 `frontend/src/components/layout/RightSidebar.tsx` 裏面的 Debug 清單 (categories array) 是否有殘留該名稱。
-- 檢查假資料：檢查 `frontend/data/mock_gallery.ts` 內是否有該組件的範例物件，有的話一併刪除。
-
-**Step 5: 執行關鍵字雙重確認**
-在專案根目錄執行 `grep` 或全域搜尋：
-`grep -r "TargetComponent" .`
-確保沒有任何註解、說明文件或隱藏的引用殘留在代碼庫中。這樣就完成了一次完美的「淨身出戶」。
+**Step 2: 前端解註冊**
+- 打開 `frontend/src/features/stage-player/components/ComponentRegistry.tsx`，刪除 `import` 宣告與註冊字典。
+- 實體刪除 React 檔案 (如 `TargetComponent.tsx`)。
 
 ---
 
