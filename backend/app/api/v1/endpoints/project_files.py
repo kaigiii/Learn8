@@ -93,7 +93,7 @@ async def upload_document(
         # Ingest Document into RAG
         from app.services.rag_engine import RAGEngine
         await file.seek(0)
-        await RAGEngine.ingest_document(file, project_id)
+        await RAGEngine.ingest_document(file, project_id, current_user.id, project_folder_name)
         
         ActivityLogger.log_file_upload(current_user.id, current_user.email, project_id, db_project.name if db_project else "Unknown", [file.filename])
         return {"message": "File uploaded and ingested."}

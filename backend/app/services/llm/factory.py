@@ -25,3 +25,14 @@ class LLMFactory:
             
         print("[LLMFactory] Using GoogleLLMProvider")
         return GoogleLLMProvider()
+
+    @staticmethod
+    def create_vision_provider() -> BaseLLMProvider:
+        provider = settings.VISION_LLM_PROVIDER.lower()
+        if provider == "lmstudio":
+            print("[LLMFactory] Using LMStudioProvider for Vision processing")
+            # In the future, LMStudioProvider can be customized if vision needs different handling
+            return LMStudioProvider()
+            
+        print("[LLMFactory] Using GoogleLLMProvider for Vision processing")
+        return GoogleLLMProvider()

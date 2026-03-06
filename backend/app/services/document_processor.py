@@ -1,19 +1,27 @@
-
 import os
-from typing import Protocol, Dict, Type, List
+import fitz
+import base64
+from typing import Protocol, Dict, Type, List, Optional
 from langchain_community.document_loaders import PyPDFLoader
+from langchain_core.messages import HumanMessage, SystemMessage
+
+from app.core.config import settings
+from app.services.llm.factory import LLMFactory
 
 # --- Interface ---
 class FileParser(Protocol):
     def parse(self, file_path: str, max_chars: int = None) -> str:
         """Parses the file and returns full text content, up to max_chars."""
         ...
+        
+    async def parse_async(self, file_path: str, max_chars: int = None, user_id: int = None, project_folder: str = None) -> str:
+        """Parses the file asynchronously (needed for API calls or image saving)."""
+        ...
 
 # --- Implementations ---
 
-class PDFParser:
+class BasicPDFParser:
     def parse(self, file_path: str, max_chars: int = None) -> str:
-        from app.core.config import settings
         limit = max_chars if max_chars is not None else settings.MAX_FILE_READ_BYTES
         try:
             loader = PyPDFLoader(file_path)
@@ -23,12 +31,131 @@ class PDFParser:
                 return content[:limit] + "\n...[Content Truncated]..."
             return content
         except Exception as e:
-            print(f"PDF Parsing Error: {e}")
+            print(f"BasicPDF Parsing Error: {e}")
             return ""
+
+    async def parse_async(self, file_path: str, max_chars: int = None, user_id: int = None, project_folder: str = None) -> str:
+        return self.parse(file_path, max_chars)
+
+class VisionPDFParser:
+    """Extracts images using PyMuPDF and sends each page to the Vision LLM for Markdown generation."""
+    def parse(self, file_path: str, max_chars: int = None) -> str:
+        # Fallback to Basic if called synchronously
+        return BasicPDFParser().parse(file_path, max_chars)
+
+    async def parse_async(self, file_path: str, max_chars: int = None, user_id: int = None, project_folder: str = None) -> str:
+        from app.services.file_service import FileService
+        limit = max_chars if max_chars is not None else settings.MAX_FILE_READ_BYTES
+        
+        try:
+            doc = fitz.open(file_path)
+            full_markdown = []
+            char_count = 0
+            
+            provider = LLMFactory.create_vision_provider()
+            sys_msg = SystemMessage(content="You are an expert document parser. Read the provided text and images for this page and convert it into beautiful, structured Markdown. Extract all tables as Markdown tables. If there are images, embed them in your output using the provided URL exactly as `![description](url)`. Make sure your output only contains the final Markdown content without any surrounding dialogue.")
+
+            for page_num in range(len(doc)):
+                if char_count >= limit:
+                    break
+                    
+                page = doc[page_num]
+                page_text = page.get_text()
+                image_list = page.get_images(full=True)
+                
+                content_parts = [{"type": "text", "text": f"-- Page {page_num + 1} Original Text --\n{page_text}\n"}]
+                
+                if image_list and user_id and project_folder:
+                    images_dir = os.path.join(FileService.get_upload_dir(user_id, project_folder), "images")
+                    os.makedirs(images_dir, exist_ok=True)
+                    
+                    content_parts.append({"type": "text", "text": "Please integrate these embedded images into the Markdown:\n"})
+                    
+                    for img_index, img in enumerate(image_list):
+                        xref = img[0]
+                        base_image = doc.extract_image(xref)
+                        image_bytes = base_image["image"]
+                        ext = base_image["ext"]
+                        if ext.lower() not in ["png", "jpeg", "jpg", "webp"]:
+                            ext = "png" # Fallback for base64 mime type safely
+                            
+                        img_filename = f"p{page_num+1}_img{img_index}.{ext}"
+                        img_path = os.path.join(images_dir, img_filename)
+                        with open(img_path, "wb") as f:
+                            f.write(image_bytes)
+                            
+                        img_url = f"/api/v1/projects/files/images/{user_id}/{project_folder}/{img_filename}"
+                        b64_img = base64.b64encode(image_bytes).decode('utf-8')
+                        
+                        content_parts.append({"type": "text", "text": f"Image URL: {img_url}\n"})
+                        content_parts.append({
+                            "type": "image_url",
+                            "image_url": {"url": f"data:image/{ext};base64,{b64_img}"}
+                        })
+                
+                # Send to Vision LLM
+                user_msg = HumanMessage(content=content_parts)
+                try:
+                    response_text = await provider.generate_text([sys_msg, user_msg])
+                    full_markdown.append(response_text)
+                    char_count += len(response_text)
+                except Exception as llm_e:
+                    print(f"Vision Parsing failed recursively on page {page_num}, fallback to text: {llm_e}")
+                    full_markdown.append(page_text)
+                    char_count += len(page_text)
+            
+            doc.close()
+            final_content = "\n\n".join(full_markdown)
+            if len(final_content) > limit:
+                return final_content[:limit] + "\n...[Content Truncated]..."
+            return final_content
+            
+        except Exception as e:
+            print(f"Vision Parsing Error: {e}")
+            return BasicPDFParser().parse(file_path, max_chars)
+
+
+class HybridPDFParser:
+    """Checks for images first; if none, uses BasicPDFParser. If images exist, uses VisionPDFParser."""
+    def parse(self, file_path: str, max_chars: int = None) -> str:
+        return BasicPDFParser().parse(file_path, max_chars)
+
+    async def parse_async(self, file_path: str, max_chars: int = None, user_id: int = None, project_folder: str = None) -> str:
+        try:
+            doc = fitz.open(file_path)
+            total_images = sum([len(page.get_images(full=True)) for page in doc])
+            doc.close()
+            
+            if total_images == 0:
+                print("HybridPDFParser: 0 images found. Routing to BasicPDFParser.")
+                return await BasicPDFParser().parse_async(file_path, max_chars, user_id, project_folder)
+            else:
+                print(f"HybridPDFParser: {total_images} images found. Routing to VisionPDFParser.")
+                return await VisionPDFParser().parse_async(file_path, max_chars, user_id, project_folder)
+        except Exception as e:
+            print(f"HybridPDFParser Check Error: {e}, falling back to BasicPDFParser.")
+            return await BasicPDFParser().parse_async(file_path, max_chars, user_id, project_folder)
+
+
+class PDFParserStrategyRouter:
+    """Routes to the correct parser based on settings."""
+    def _get_parser(self):
+        strategy = settings.PDF_PARSE_STRATEGY.lower()
+        if strategy == "vision":
+            return VisionPDFParser()
+        elif strategy == "hybrid":
+            return HybridPDFParser()
+        return BasicPDFParser()
+
+    def parse(self, file_path: str, max_chars: int = None) -> str:
+        return self._get_parser().parse(file_path, max_chars)
+
+    async def parse_async(self, file_path: str, max_chars: int = None, user_id: int = None, project_folder: str = None) -> str:
+        return await self._get_parser().parse_async(file_path, max_chars, user_id, project_folder)
+
 
 class TextParser:
     def parse(self, file_path: str, max_chars: int = None) -> str:
-        from app.core.config import settings
         limit = max_chars if max_chars is not None else settings.MAX_FILE_READ_BYTES
         try:
             with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
@@ -40,7 +167,8 @@ class TextParser:
             print(f"Text Parsing Error: {e}")
             return ""
 
-# Future: class DocxParser, class ImageParser (OCR), etc.
+    async def parse_async(self, file_path: str, max_chars: int = None, user_id: int = None, project_folder: str = None) -> str:
+        return self.parse(file_path, max_chars)
 
 # --- Factory / Service ---
 
@@ -50,7 +178,7 @@ class DocumentProcessor:
     Add new parsers here to support more file types.
     """
     _parsers: Dict[str, FileParser] = {
-        ".pdf": PDFParser(),
+        ".pdf": PDFParserStrategyRouter(),
         ".txt": TextParser(),
         ".md": TextParser(),
         ".csv": TextParser(),
@@ -84,3 +212,21 @@ class DocumentProcessor:
             return f"[Unsupported file type: {ext}]"
 
         return parser.parse(file_path, max_chars=max_chars)
+
+    @classmethod
+    async def async_read_content(cls, file_path: str, max_chars: int = None, user_id: int = None, project_folder: str = None) -> str:
+        """
+        Determines the correct parser and runs async extraction.
+        """
+        if not os.path.exists(file_path):
+            print(f"File not found: {file_path}")
+            return ""
+
+        ext = os.path.splitext(file_path)[1].lower()
+        parser = cls._parsers.get(ext)
+
+        if not parser:
+            print(f"No parser found for extension: {ext}")
+            return f"[Unsupported file type: {ext}]"
+
+        return await parser.parse_async(file_path, max_chars=max_chars, user_id=user_id, project_folder=project_folder)

@@ -56,46 +56,44 @@ class RAGEngine:
         return cls._vectorstore
 
     @staticmethod
-    async def ingest_document(file: UploadFile, project_id: int) -> int:
-        temp_filename = f"temp_{file.filename}"
-        ext = temp_filename.split('.')[-1].lower() if '.' in file.filename else ""
+    async def ingest_document(file: UploadFile, project_id: int, user_id: int = None, project_folder: str = None) -> int:
+        os.makedirs("temp", exist_ok=True)
+        temp_filename = os.path.join("temp", f"temp_{file.filename}")
         
         try:
             with open(temp_filename, "wb") as buffer:
                 shutil.copyfileobj(file.file, buffer)
                 
-            # 1. Routing by extension
-            if ext == "pdf":
-                from langchain_community.document_loaders import PyMuPDFLoader
-                loader = PyMuPDFLoader(temp_filename)
-                pages = loader.load()
-            elif ext in ["txt", "md"]:
-                from langchain_community.document_loaders import TextLoader
-                loader = TextLoader(temp_filename, encoding="utf-8")
-                pages = loader.load()
-            elif ext == "csv":
-                from langchain_community.document_loaders import CSVLoader
-                loader = CSVLoader(temp_filename, encoding="utf-8")
-                pages = loader.load()
-            elif ext in ["docx", "doc"]:
-                from langchain_community.document_loaders import Docx2txtLoader
-                loader = Docx2txtLoader(temp_filename)
-                pages = loader.load()
-            else:
-                print(f"Unsupported document extension: {ext}. Skipping RAG ingestion.")
+            from app.services.document_processor import DocumentProcessor
+            # Use the single unified DocumentProcessor to read all types
+            content = await DocumentProcessor.async_read_content(
+                file_path=temp_filename,
+                user_id=user_id,
+                project_folder=project_folder
+            )
+            
+            if not content:
+                print(f"Unsupported document or empty content. Skipping RAG ingestion.")
                 return 0
             
-            # Add metadata for isolation and tracking
-            for page in pages:
-                page.metadata["project_id"] = str(project_id)
-                page.metadata["source"] = file.filename
+            from langchain_core.documents import Document
+            
+            # Create a single LangChain Document holding the entire file's Markdown
+            doc = Document(
+                page_content=content,
+                metadata={
+                    "project_id": str(project_id),
+                    "source": file.filename
+                }
+            )
             
             text_splitter = RecursiveCharacterTextSplitter(
                 chunk_size=1000,
                 chunk_overlap=200,
                 add_start_index=True,
             )
-            splits = text_splitter.split_documents(pages)
+            
+            splits = text_splitter.split_documents([doc])
             
             vectorstore = RAGEngine.get_vectorstore()
             if vectorstore:
@@ -103,6 +101,11 @@ class RAGEngine:
                 return len(splits)
             else:
                 return 0
+                
+        # Ensuring finally block properly catches any exceptions that occurred inside try block.
+        except Exception as e:
+            print(f"Error during RAG ingestion: {e}")
+            return 0
             
         finally:
             if os.path.exists(temp_filename):
