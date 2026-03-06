@@ -23,8 +23,9 @@ from app.api.deps import get_db, get_current_user
 from app.models.user import UserModel
 from app.models.project import ProjectModel
 from app.schemas.project import ProjectCreate, ProjectResponse, ProjectUpdate, DraftRequest
-from app.services.file_service import FileService
+from app.services.file_service import FileService, get_file_service
 from app.services.activity_logger import ActivityLogger
+from app.services.rag_engine import RAGEngine, get_rag_engine
 
 router = APIRouter()
 
@@ -84,7 +85,9 @@ def update_project(
 async def delete_project(
     project_id: int,
     current_user: UserModel = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    file_service: FileService = Depends(get_file_service),
+    rag_engine: RAGEngine = Depends(get_rag_engine)
 ):
     db_project = db.query(ProjectModel).filter(
         ProjectModel.id == project_id,
@@ -96,11 +99,10 @@ async def delete_project(
     # Cleaning up resources
     try:
         # 1. Delete Files
-        FileService.delete_project_folder(current_user.id, db_project.folder_name)
+        file_service.delete_project_folder(current_user.id, db_project.folder_name)
 
         # 2. Delete Vector Context
-        from app.services.rag_engine import RAGEngine
-        await RAGEngine.delete_project_context(project_id)
+        await rag_engine.delete_project_context(project_id)
 
     except Exception as e:
         print(f"Error during cleanup: {e}")

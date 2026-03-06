@@ -22,18 +22,17 @@ from fastapi import UploadFile, HTTPException
 from app.models.project import ProjectModel
 from app.models.user import UserModel
 from app.core.config import settings
+from app.services.activity_logger import activity_logger
 
 class FileService:
-    @staticmethod
-    def get_upload_dir(user_id: int, project_folder: str = None) -> str:
+    def get_upload_dir(self, user_id: int, project_folder: str = None) -> str:
         base_path = os.path.join(os.getcwd(), "uploads", str(user_id))
         if project_folder:
             base_path = os.path.join(base_path, project_folder)
         return base_path
 
-    @staticmethod
-    def save_upload_file(file: UploadFile, user_id: int, project_folder: str = None) -> str:
-        upload_dir = FileService.get_upload_dir(user_id, project_folder)
+    def save_upload_file(self, file: UploadFile, user_id: int, project_folder: str = None) -> str:
+        upload_dir = self.get_upload_dir(user_id, project_folder)
         os.makedirs(upload_dir, exist_ok=True)
         
         # Simple sanitization could be added here
@@ -44,42 +43,47 @@ class FileService:
                 shutil.copyfileobj(file.file, buffer)
             return file_path
         except Exception as e:
+            activity_logger.error(f"File save failed for {file.filename}: {e}")
             raise HTTPException(status_code=500, detail=f"File save failed: {str(e)}")
 
-    @staticmethod
-    def list_files(user_id: int, project_folder: str) -> list[str]:
-        upload_dir = FileService.get_upload_dir(user_id, project_folder)
+    def list_files(self, user_id: int, project_folder: str) -> list[str]:
+        upload_dir = self.get_upload_dir(user_id, project_folder)
         if not os.path.exists(upload_dir):
             return []
         
         files = []
         for f in os.listdir(upload_dir):
             if not f.startswith("."):
-                files.append(f)
+                full_path = os.path.join(upload_dir, f)
+                if os.path.isfile(full_path):
+                    files.append(f)
         return files
 
-    @staticmethod
-    def delete_project_folder(user_id: int, project_folder: str):
+    def delete_project_folder(self, user_id: int, project_folder: str):
         """Recursively deletes the project upload directory."""
         if not project_folder:
             return
             
-        target_dir = FileService.get_upload_dir(user_id, project_folder)
+        target_dir = self.get_upload_dir(user_id, project_folder)
         
         # Safety check: ensure we are deleting inside the uploads directory
         # (Though get_upload_dir handles base path, extra caution is good)
         if os.path.exists(target_dir):
             try:
                 shutil.rmtree(target_dir)
-                print(f"🗑️ Deleted project folder: {target_dir}")
+                activity_logger.info(f"Deleted project folder: {target_dir}")
             except Exception as e:
-                print(f"Error deleting project folder {target_dir}: {e}")
+                activity_logger.error(f"Error deleting project folder {target_dir}: {e}")
 
-    @staticmethod
-    def read_file_content(file_path: str, max_chars: int = None) -> str:
+    def read_file_content(self, file_path: str, max_chars: int = None) -> str:
         """Reads content from a file using DocumentProcessor. Truncates if too long."""
         from app.services.document_processor import DocumentProcessor
         from app.core.config import settings
         
         limit = max_chars if max_chars is not None else settings.MAX_FILE_READ_BYTES
+        # Still static call to DocumentProcessor for now, will refactor DP next
         return DocumentProcessor.read_content(file_path, max_chars=limit)
+
+def get_file_service() -> FileService:
+    """FastAPI Dependency for FileService"""
+    return FileService()
