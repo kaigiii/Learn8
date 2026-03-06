@@ -16,8 +16,10 @@ from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from typing import Optional, List, Dict, Any
 
-# Configure log directory
-LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "logs")
+# Configure log directory (backend/logs)
+# __file__ is at backend/app/services/commons/activity_logger.py (4 levels deep)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+LOG_DIR = os.path.join(BASE_DIR, "logs")
 os.makedirs(LOG_DIR, exist_ok=True)
 
 # Configure logger
