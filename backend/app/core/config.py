@@ -17,7 +17,7 @@
     - ACCESS_TOKEN_EXPIRE_MINUTES (int): Access Token 的有效時間 (分鐘)
     - DATABASE_URL (str): 資料庫連線字串 (預設: SQLite)
     - GOOGLE_API_KEY (str): Google Gemini API 金鑰
-    - LLM_PROVIDER (str): LLM 供應商選擇 (google | freegemini | mock)
+    - LLM_PROVIDER (str): LLM 供應商選擇 (google | lmstudio)
     - GEMINI_MODEL (str): 使用的模型版本 (預設: "gemini-2.5-flash")
 
 內部類別:
@@ -44,10 +44,15 @@ class Settings(BaseSettings):
     
     # AI / LLM
     GOOGLE_API_KEY: Optional[str] = None
-    LLM_PROVIDER: str = "freegemini" # google | freegemini | mock | lmstudio
+    LLM_PROVIDER: str = "google" # google | lmstudio
     GEMINI_MODEL: str = "gemini-2.5-flash"
     LMSTUDIO_BASE_URL: str = "http://localhost:1234/v1"
     LMSTUDIO_MODEL: str = "mirothinker-v1.5-30b"
+    
+    # Document Processing & Vision
+    PDF_PARSE_STRATEGY: str = "hybrid" # basic | vision | hybrid
+    VISION_LLM_PROVIDER: str = "google"
+    VISION_GEMINI_MODEL: str = "gemini-2.5-flash"
     
     # Application Limits & Pricing
     COST_SYLLABUS_GENERATION: int = 50

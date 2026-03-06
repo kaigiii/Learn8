@@ -81,3 +81,10 @@
 2026-03-05 22:11:49 | INFO |   └─ Unit 7: Matrix Diagonalization and Similarity
 2026-03-05 22:11:49 | INFO |   └─ Unit 8: Advanced Eigen-analysis and Applications
 2026-03-05 22:11:49 | INFO | CREDITS_DEDUCT | User[1:dev@learn8.ai] spent 50 credits for 'syllabus_generation' | New balance: 85
+2026-03-05 23:41:23 | INFO | PROJECT_CREATE | User[1:dev@learn8.ai] created Project[4:dssad]
+2026-03-05 23:42:03 | INFO | PROJECT_CREATE | User[1:dev@learn8.ai] created Project[5:sda]
+2026-03-05 23:42:22 | INFO | FILE_UPLOAD | User[1:dev@learn8.ai] uploaded to Project[5:sda]: [資訊網路1and2.pdf]
+2026-03-05 23:46:20 | INFO | FILE_UPLOAD | User[1:dev@learn8.ai] uploaded to Project[5:sda]: [B11109006李朝偉_HW2.pdf]
+2026-03-06 10:31:46 | INFO | PROJECT_CREATE | User[1:dev@learn8.ai] created Project[6:sad]
+2026-03-06 10:32:03 | INFO | FILE_UPLOAD | User[1:dev@learn8.ai] uploaded to Project[6:sad]: [資訊網路1and2.pdf]
+2026-03-06 10:32:34 | INFO | FILE_UPLOAD | User[1:dev@learn8.ai] uploaded to Project[6:sad]: [112mid-2023-10-16-資訊網路-Chinese-1.pdf]
