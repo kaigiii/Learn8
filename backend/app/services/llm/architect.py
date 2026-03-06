@@ -28,11 +28,14 @@ from typing import List, Optional
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.messages import SystemMessage, HumanMessage
 
+from pydantic import BaseModel
 from app.schemas.course import CoursePath, RefineSyllabusRequest, LessonNode
 from app.schemas.lesson import LessonStage, SubmissionResponse
 from app.services.rag_engine import RAGEngine
 from app.services.file_service import FileService
-from app.services.llm.factory import LLMFactory
+from app.services.llm.base import BaseLLMProvider
+from app.core.exceptions import LLMGenerationError
+from app.services.activity_logger import activity_logger
 
 # --- PROMPTS ---
 
@@ -47,147 +50,147 @@ from app.core.prompts import (
 
 # --- LOGIC ---
 
-async def refine_course_syllabus(current_syllabus: CoursePath, user_feedback: str, user_id: Optional[int] = None, project_folder: Optional[str] = None) -> Optional[CoursePath]:
-    provider = LLMFactory.create()
-    
-    # Context Files
-    files = FileService.list_files(user_id, project_folder) if user_id else []
-    if files:
-        full_paths = [FileService.get_upload_dir(user_id, project_folder) + "/" + f for f in files]
-        provider.bind_files(full_paths)
+class AIArchitectService:
+    def __init__(self, provider: BaseLLMProvider, rag_engine: RAGEngine, file_service: FileService):
+        self.provider = provider
+        self.rag_engine = rag_engine
+        self.file_service = file_service
 
-    current_json = current_syllabus.model_dump_json()
-    
-    messages = [
-        ("system", REFINE_SYLLABUS_PROMPT.format(current_syllabus=current_json, user_feedback=user_feedback)),
-        ("user", "Refine the syllabus now.") # Format instructions handled by adapter if needed
-    ]
-    
-    try:
-        return await provider.generate_structured(messages, CoursePath)
-    except Exception as e:
-        print(f"Refinement Error: {e}")
-        return None
-
-async def generate_course_syllabus(topic: str, user_id: Optional[int] = None, project_folder: Optional[str] = None) -> Optional[CoursePath]:
-    # 1. RAG Retrieve
-    context_chunks = RAGEngine.query_context(topic)
-    context_str = "\\n\\n".join(context_chunks) if context_chunks else "General knowledge."
-    
-    # 2. Provider
-    provider = LLMFactory.create()
-    
-    # 3. Bind Files
-    if user_id:
-        files = FileService.list_files(user_id, project_folder)
+    async def refine_course_syllabus(self, current_syllabus: CoursePath, user_feedback: str, user_id: Optional[int] = None, project_folder: Optional[str] = None) -> Optional[CoursePath]:
+        # Context Files
+        files = self.file_service.list_files(user_id, project_folder) if user_id else []
         if files:
-            full_paths = [FileService.get_upload_dir(user_id, project_folder) + "/" + f for f in files]
-            provider.bind_files(full_paths)
+            full_paths = [self.file_service.get_upload_dir(user_id, project_folder) + "/" + f for f in files]
+            self.provider.bind_files(full_paths)
 
-    messages = [
-        ("system", SYLLABUS_SYSTEM_PROMPT),
-        ("user", f"Create a learning path for: {topic}. Context: {context_str}")
-    ]
+        current_json = current_syllabus.model_dump_json()
+        
+        messages = [
+            ("system", REFINE_SYLLABUS_PROMPT.format(current_syllabus=current_json, user_feedback=user_feedback)),
+            ("user", "Refine the syllabus now.") # Format instructions handled by adapter if needed
+        ]
     
-    try:
-        result = await provider.generate_structured(messages, CoursePath)
-        # Safeguard title
-        if result and topic.strip():
-            result.courseTitle = topic
-            
-        # Unlock the first node
-        if result and result.units and result.units[0].nodes:
-            result.units[0].nodes[0].status = "available"
-            
-        return result
-    except Exception as e:
-        print(f"Syllabus Gen Error: {e}")
-        return None
+        try:
+            return await self.provider.generate_structured(messages, CoursePath)
+        except Exception as e:
+            activity_logger.error(f"Refinement Error: {e}")
+            raise LLMGenerationError(f"Failed to refine syllabus: {e}")
 
-from pydantic import BaseModel
+    async def generate_course_syllabus(self, topic: str, user_id: Optional[int] = None, project_folder: Optional[str] = None) -> Optional[CoursePath]:
+        # 1. RAG Retrieve
+        context_chunks = await self.rag_engine.query_context(topic)
+        context_str = "\\n\\n".join(context_chunks) if context_chunks else "General knowledge."
+        
+        # 2. Bind Files
+        if user_id:
+            files = self.file_service.list_files(user_id, project_folder)
+            if files:
+                full_paths = [self.file_service.get_upload_dir(user_id, project_folder) + "/" + f for f in files]
+                self.provider.bind_files(full_paths)
 
-# ... exists ...
+        messages = [
+            ("system", SYLLABUS_SYSTEM_PROMPT),
+            ("user", f"Create a learning path for: {topic}. Context: {context_str}")
+        ]
+        
+        try:
+            result = await self.provider.generate_structured(messages, CoursePath)
+            # Safeguard title
+            if result and topic.strip():
+                result.courseTitle = topic
+                
+            # Unlock the first node
+            if result and result.units and result.units[0].nodes:
+                result.units[0].nodes[0].status = "available"
+                
+            return result
+        except Exception as e:
+            activity_logger.error(f"Syllabus Gen Error: {e}")
+            raise LLMGenerationError(f"Failed to generate course syllabus: {e}")
 
-async def generate_lesson_from_node(node: LessonNode, topic: str, user_id: Optional[int] = None, project_folder: Optional[str] = None, profile: str = "General Learner") -> List[LessonStage]:
-    provider = LLMFactory.create()
+    # ... exists ...
+
+    async def generate_lesson_from_node(self, node: LessonNode, topic: str, user_id: Optional[int] = None, project_folder: Optional[str] = None, profile: str = "General Learner") -> List[LessonStage]:
     
-    # 1. Retrieve RAG Context
-    from app.services.rag_engine import RAGEngine
-    context_chunks = await RAGEngine.query_context(topic)
-    rag_context = "\n\n".join(context_chunks) if context_chunks else "No specific database context found."
-    
-    # 2. Bind Local Application Files
-    if user_id:
-        files = FileService.list_files(user_id, project_folder)
-        if files:
-             full_paths = [FileService.get_upload_dir(user_id, project_folder) + "/" + f for f in files]
-             provider.bind_files(full_paths)
+        # 1. Retrieve RAG Context
+        context_chunks = await self.rag_engine.query_context(topic)
+        rag_context = "\n\n".join(context_chunks) if context_chunks else "No specific database context found."
+        
+        # 2. Bind Local Application Files
+        if user_id:
+            files = self.file_service.list_files(user_id, project_folder)
+            if files:
+                 full_paths = [self.file_service.get_upload_dir(user_id, project_folder) + "/" + f for f in files]
+                 self.provider.bind_files(full_paths)
 
-    messages = [
-        ("system", NODE_SYSTEM_PROMPT.format(profile=profile) + f"\n\nVector Database Context:\n{rag_context}"),
-        ("user", f"TOPIC: {topic}\nNODE TITLE: {node.title}\nNODE DESC: {node.description}\nNODE TYPE: {node.type}")
-    ]
-    
-    # Wrapper for List support
-    class StageListWrapper(BaseModel):
-        stages: List[LessonStage]
+        messages = [
+            ("system", NODE_SYSTEM_PROMPT.format(profile=profile) + f"\n\nVector Database Context:\n{rag_context}"),
+            ("user", f"TOPIC: {topic}\nNODE TITLE: {node.title}\nNODE DESC: {node.description}\nNODE TYPE: {node.type}")
+        ]
+        
+        # Wrapper for List support
+        class StageListWrapper(BaseModel):
+            stages: List[LessonStage]
 
-    try:
-        wrapper = await provider.generate_structured(messages, StageListWrapper)
-        if wrapper and wrapper.stages:
-            # Post-process IDs
-            for i, stage in enumerate(wrapper.stages):
-                 stage.stageId = f"{node.id}-s{i}"
-            return wrapper.stages
-        return []
-    except Exception as e:
-        print(f"Node Gen Error: {e}")
-        return []
-    except Exception as e:
-        print(f"Node Gen Error: {e}")
-        return None
+        try:
+            wrapper = await self.provider.generate_structured(messages, StageListWrapper)
+            if wrapper and wrapper.stages:
+                # Post-process IDs
+                for i, stage in enumerate(wrapper.stages):
+                     stage.stageId = f"{node.id}-s{i}"
+                return wrapper.stages
+            return []
+        except Exception as e:
+            activity_logger.error(f"Node Gen Error: {e}")
+            raise LLMGenerationError(f"Failed to generate lesson from node: {e}")
 
-# ...
+    # ...
 
-async def generate_remedial_stage(failed_stage: LessonStage, user_input: str, topic: str = "General") -> Optional[LessonStage]:
-    provider = LLMFactory.create()
+    async def generate_remedial_stage(self, failed_stage: LessonStage, user_input: str, topic: str = "General") -> Optional[LessonStage]:
     
-    messages = [
-        ("system", REMEDIAL_SYSTEM_PROMPT),
-        ("user", f"TOPIC: {topic}\\nFAILED STAGE: {failed_stage.model_dump_json()}\\nUSER INPUT: {user_input}")
-    ]
-    
-    class LessonStageWrapper(BaseModel):
-        stage: LessonStage
+        messages = [
+            ("system", REMEDIAL_SYSTEM_PROMPT),
+            ("user", f"TOPIC: {topic}\\nFAILED STAGE: {failed_stage.model_dump_json()}\\nUSER INPUT: {user_input}")
+        ]
+        
+        class LessonStageWrapper(BaseModel):
+            stage: LessonStage
 
-    try:
-        wrapper = await provider.generate_structured(messages, LessonStageWrapper)
-        return wrapper.stage if wrapper else None
-    except Exception as e:
-        print(f"Remedial Gen Error: {e}")
-        return None
+        try:
+            wrapper = await self.provider.generate_structured(messages, LessonStageWrapper)
+            return wrapper.stage if wrapper else None
+        except Exception as e:
+            activity_logger.error(f"Remedial Gen Error: {e}")
+            raise LLMGenerationError(f"Failed to generate remedial stage: {e}")
 
-async def grade_feynman_attempt(user_explanation: str, topic: str) -> dict:
-    context_chunks = RAGEngine.query_context(topic)
-    context_str = "\\n\\n".join(context_chunks) or "General Knowledge"
-    
-    messages = [
-        ("system", SYSTEM_PROMPT_FEYNMAN.format(topic=topic, context=context_str)),
-        ("user", f"STUDENT EXPLANATION: {user_explanation}")
-    ]
-    
-    provider = LLMFactory.create()
-    # Return dict
-    try:
-        # Check if provider has generate_structured for dict?
-        # We can define a simplified pydantic model
-        from pydantic import BaseModel
-        class FeynmanGrade(BaseModel):
-            isCorrect: bool
-            feedback: str
-            
-        result = await provider.generate_structured(messages, FeynmanGrade)
-        return result.model_dump()
-    except Exception as e:
-        print(f"Feynman Grade Error: {e}")
-        return {"isCorrect": True, "feedback": "Good effort! (System Error)"}
+    async def grade_feynman_attempt(self, user_explanation: str, topic: str) -> dict:
+        context_chunks = await self.rag_engine.query_context(topic)
+        context_str = "\\n\\n".join(context_chunks) if context_chunks else "General Knowledge"
+        
+        messages = [
+            ("system", SYSTEM_PROMPT_FEYNMAN.format(topic=topic, context=context_str)),
+            ("user", f"STUDENT EXPLANATION: {user_explanation}")
+        ]
+        
+        try:
+            class FeynmanGrade(BaseModel):
+                isCorrect: bool
+                feedback: str
+                
+            result = await self.provider.generate_structured(messages, FeynmanGrade)
+            return result.model_dump()
+        except Exception as e:
+            activity_logger.error(f"Feynman Grade Error: {e}")
+            raise LLMGenerationError(f"Failed to grade Feynman attempt: {e}")
+
+from fastapi import Depends
+from app.services.llm.factory import get_llm_provider
+from app.services.rag_engine import get_rag_engine
+from app.services.file_service import get_file_service
+
+def get_architect_service(
+    provider: BaseLLMProvider = Depends(get_llm_provider),
+    rag_engine: RAGEngine = Depends(get_rag_engine),
+    file_service: FileService = Depends(get_file_service)
+) -> AIArchitectService:
+    return AIArchitectService(provider, rag_engine, file_service)

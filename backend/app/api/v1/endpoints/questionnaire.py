@@ -17,9 +17,9 @@ from app.api.deps import get_db, get_current_user
 from app.models.user import UserModel
 from app.models.project import ProjectModel
 from app.schemas.questionnaire import Question, QuestionnaireSubmission, LearnerProfile, QuestionnaireSubmitRequest
-from app.services.llm.agents.questionnaire_agent import QuestionnaireAgent
+from app.services.llm.agents.questionnaire_agent import QuestionnaireAgent, get_questionnaire_agent
 from app.services.activity_logger import ActivityLogger
-from app.services.file_service import FileService
+from app.services.file_service import FileService, get_file_service
 from app.core.config import settings
 from fastapi.concurrency import run_in_threadpool
 
@@ -31,7 +31,9 @@ async def generate_project_questionnaire(
     project_id: int,
     topic: str,
     current_user: UserModel = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    file_service: FileService = Depends(get_file_service),
+    agent: QuestionnaireAgent = Depends(get_questionnaire_agent)
 ):
     # Verify project ownership
     def _fetch_q_project():
@@ -49,14 +51,14 @@ async def generate_project_questionnaire(
         raise HTTPException(status_code=402, detail=f"Insufficient credits. Need {COST}.")
 
     # Get files for logging context
-    files_used = FileService.list_files(current_user.id, project.folder_name)
+    files_used = file_service.list_files(current_user.id, project.folder_name)
     
     ActivityLogger.log_questionnaire_generate(
         current_user.id, current_user.email, project_id, project.name,
         topic, files_used
     )
     
-    questions = await QuestionnaireAgent.generate_questions(topic, project_id=project_id)
+    questions = await agent.generate_questions(topic, project_id=project_id)
 
     if questions:
         current_user.credits -= COST
@@ -72,7 +74,8 @@ async def submit_project_questionnaire(
     project_id: int,
     request: QuestionnaireSubmitRequest,  # Now uses body schema
     current_user: UserModel = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    agent: QuestionnaireAgent = Depends(get_questionnaire_agent)
 ):
     def _fetch_q_submit_project():
         return db.query(ProjectModel).filter(
@@ -83,7 +86,7 @@ async def submit_project_questionnaire(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    profile = await QuestionnaireAgent.summarize_responses(
+    profile = await agent.summarize_responses(
         request.topic, 
         request.submission, 
         request.questions

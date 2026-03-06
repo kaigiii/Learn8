@@ -1,5 +1,5 @@
 from typing import List
-from app.services.llm.factory import LLMFactory
+from app.services.llm.base import BaseLLMProvider
 from app.schemas.questionnaire import Question, QuestionnaireSubmission, LearnerProfile
 from app.services.rag_engine import RAGEngine
 from pydantic import BaseModel
@@ -43,12 +43,14 @@ class QuestionList(BaseModel):
     questions: List[Question]
 
 class QuestionnaireAgent:
-    @staticmethod
-    async def generate_questions(topic: str, project_id: int = None) -> List[Question]:
-        provider = LLMFactory.create()
+    def __init__(self, provider: BaseLLMProvider, rag_engine: RAGEngine):
+        self.provider = provider
+        self.rag_engine = rag_engine
+
+    async def generate_questions(self, topic: str, project_id: int = None) -> List[Question]:
         
         # Get context to make questions relevant
-        context_chunks = await RAGEngine.query_context(topic, k=2, project_id=project_id)
+        context_chunks = await self.rag_engine.query_context(topic, k=2, project_id=project_id)
         context_str = "\\n".join(context_chunks) if context_chunks else "No specific context."
 
         messages = [
@@ -57,15 +59,13 @@ class QuestionnaireAgent:
         ]
         
         try:
-            result = await provider.generate_structured(messages, QuestionList)
+            result = await self.provider.generate_structured(messages, QuestionList)
             return result.questions if result else []
         except Exception as e:
             print(f"Questionnaire Generation Error: {e}")
             return []
 
-    @staticmethod
-    async def summarize_responses(topic: str, submission: QuestionnaireSubmission, questions: List[Question]) -> LearnerProfile:
-        provider = LLMFactory.create()
+    async def summarize_responses(self, topic: str, submission: QuestionnaireSubmission, questions: List[Question]) -> LearnerProfile:
         
         # Map IDs to Text
         q_map = {q.id: q.text for q in questions}
@@ -83,8 +83,19 @@ class QuestionnaireAgent:
         ]
         
         try:
-            return await provider.generate_structured(messages, LearnerProfile)
+            return await self.provider.generate_structured(messages, LearnerProfile)
         except Exception as e:
             print(f"Profile Summarization Error: {e}")
             # Fallback
             return LearnerProfile(summary="Failed to generate profile.", attributes={})
+
+from fastapi import Depends
+from app.services.llm.factory import get_llm_provider
+from app.services.rag_engine import get_rag_engine
+
+def get_questionnaire_agent(
+    provider: BaseLLMProvider = Depends(get_llm_provider),
+    rag_engine: RAGEngine = Depends(get_rag_engine)
+) -> QuestionnaireAgent:
+    """FastAPI Dependency for QuestionnaireAgent"""
+    return QuestionnaireAgent(provider, rag_engine)

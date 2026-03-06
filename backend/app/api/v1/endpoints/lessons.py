@@ -29,7 +29,7 @@ from app.models.lesson import LessonModel
 from app.models.project import ProjectModel
 from app.schemas.course import LessonNode
 from app.schemas.lesson import LessonStage, SubmissionRequest, SubmissionResponse, ComponentType, SkinType, Validation, ValidationType, Feedback, ModuleType, GenericConfig
-from app.services.llm.architect import generate_lesson_from_node
+from app.services.llm.architect import AIArchitectService, get_architect_service
 from app.core.config import settings
 
 router = APIRouter()
@@ -42,7 +42,8 @@ async def generate_lesson_from_node_endpoint(
     topic: str, 
     project_id: int = None,
     current_user: UserModel = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    architect_service: AIArchitectService = Depends(get_architect_service)
 ):
     # 1. Fetch from DB
     def _fetch_cached_lesson():
@@ -88,7 +89,7 @@ async def generate_lesson_from_node_endpoint(
     if current_user.credits < COST:
          raise HTTPException(status_code=402, detail=f"Insufficient credits. Need {COST}.")
 
-    stages = await generate_lesson_from_node(
+    stages = await architect_service.generate_lesson_from_node(
         node, 
         topic, 
         user_id=current_user.id, 
@@ -126,7 +127,8 @@ from app.models.lesson import LessonAttempt
 async def submit_answer(
     submission: SubmissionRequest,
     current_user: UserModel = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    architect_service: AIArchitectService = Depends(get_architect_service)
 ):
     # Log the attempt for future analytics
     def _save_lesson_attempt():
@@ -142,7 +144,7 @@ async def submit_answer(
 
     # 0. FeynmanMirror Validation (Static)
     if submission.component == "FeynmanMirror":
-        grading = await grade_feynman_attempt(str(submission.userInput), submission.context_topic or "Unknown")
+        grading = await architect_service.grade_feynman_attempt(str(submission.userInput), submission.context_topic or "Unknown")
         
         if grading.get("isCorrect"):
             return SubmissionResponse(
@@ -174,7 +176,7 @@ async def submit_answer(
         feedback=Feedback(success="", error="")
     )
     
-    remedial = await generate_remedial_stage(
+    remedial = await architect_service.generate_remedial_stage(
         failed_stage=dummy_failed_stage, 
         user_input=str(submission.userInput),
         topic=submission.context_topic or "General Concept"

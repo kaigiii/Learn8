@@ -40,12 +40,13 @@ from app.models.user import UserModel
 from app.models.course import CourseModel, NodeModel
 from app.models.project import ProjectModel
 from app.schemas.course import CoursePath, RefineSyllabusRequest, UpdateNodeStatusRequest, LessonNode
-from app.services.llm.agents.syllabus_agent import SyllabusAgent
+from app.services.llm.agents.syllabus_agent import SyllabusAgent, get_syllabus_agent
 from app.core.config import settings
 
 
 from app.services.workflows.syllabus_workflow import syllabus_graph
 from app.services.activity_logger import ActivityLogger
+from app.services.llm.architect import AIArchitectService, get_architect_service
 import datetime
 
 router = APIRouter()
@@ -89,7 +90,8 @@ async def generate_syllabus(
     project_id: int = None,
     regenerate: bool = False,
     current_user: UserModel = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    agent: SyllabusAgent = Depends(get_syllabus_agent)
 ):
     def _fetch_existing():
         q = db.query(CourseModel).filter(
@@ -133,17 +135,18 @@ async def generate_syllabus(
     full_text_context = ""
     if project_id and project_folder_name:
         from app.services.file_service import FileService # Lazy import or move to top
-        files = FileService.list_files(current_user.id, project_folder_name)
+        file_service = FileService()
+        files = file_service.list_files(current_user.id, project_folder_name)
         
         for fname in files:
             # Skip hidden files
             if fname.startswith("."): continue
             
-            fpath = FileService.get_upload_dir(current_user.id, project_folder_name) + "/" + fname
+            fpath = file_service.get_upload_dir(current_user.id, project_folder_name) + "/" + fname
             # Read content (Safety limit defined in service)
-            content = FileService.read_file_content(fpath, max_chars=settings.MAX_COURSE_CONTEXT_BYTES) 
+            content = file_service.read_file_content(fpath, max_chars=settings.MAX_COURSE_CONTEXT_BYTES) 
             if content:
-                full_text_context += f"\n--- Document: {fname} ---\n{content}\n"
+                full_text_context += f"\\n--- Document: {fname} ---\\n{content}\\n"
     
     if full_text_context:
         print(f"📄 [generate_syllabus] Injected {len(full_text_context)} chars of context into Blueprint.")
@@ -161,7 +164,7 @@ async def generate_syllabus(
 
     # OLD: syllabus = await generate_course_syllabus(topic, user_id=current_user.id, project_folder=project_folder_name)
     # NEW: Agentic Workflow
-    syllabus = await SyllabusAgent.run(
+    syllabus = await agent.run(
         topic, 
         user_id=current_user.id, 
         project_folder=project_folder_name, 
@@ -238,7 +241,8 @@ async def generate_syllabus(
 async def refine_syllabus_endpoint(
     request: RefineSyllabusRequest, 
     current_user: UserModel = Depends(get_current_user), 
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    architect_service: AIArchitectService = Depends(get_architect_service)
 ):
     project_folder_name = None
     db_project = None
@@ -258,7 +262,8 @@ async def refine_syllabus_endpoint(
         "user_feedback": request.userFeedback,
         "history": request.history,
         "user_id": current_user.id,
-        "project_folder": project_folder_name
+        "project_folder": project_folder_name,
+        "architect_service": architect_service
     })
     
     if not result.get("syllabus"):

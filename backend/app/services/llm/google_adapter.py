@@ -7,7 +7,6 @@
 
 實作細節:
     - 支援 with_structured_output (若 LangChain 版本支援) 或 PydanticOutputParser。
-    - 目前暫未完整支援 bind_files (因官方 API 需要先上傳 File API)。
 """
 
 from typing import Any, List, Type
@@ -31,18 +30,12 @@ class GoogleLLMProvider(BaseLLMProvider):
         if not files:
             return self
 
-        if settings.USE_GEMINI_FILE_API:
-            # (Note: Proper Native Google File API integration goes here if used in backend)
-            # For testing cross-compatibility directly with text context, set USE_GEMINI_FILE_API=False.
-            print("Warning: Native Google File API upload logic is not fully implemented in this Adapter.")
-            return self
-        else:
-            # Fallback path: Read files into self.injected_context
-            self._inject_local_files(files)
-            return self
+        # Read files into self.injected_context
+        self._inject_local_files(files)
+        return self
 
     async def generate_text(self, messages: List[Any], **kwargs) -> str:
-        # Inject local file context if available (when File API disabled)
+        # Inject local file context if available
         if self.injected_context:
             from langchain_core.messages import SystemMessage
             messages = [SystemMessage(content=self.injected_context)] + messages

@@ -25,7 +25,7 @@ from pydantic import BaseModel, Field
 
 from app.schemas.course import CoursePath, Unit as CourseUnit, LessonNode as CourseNode
 from app.services.rag_engine import RAGEngine
-from app.services.llm.factory import LLMFactory
+from app.services.llm.base import BaseLLMProvider
 from app.services.file_service import FileService
 from langchain_core.messages import SystemMessage, HumanMessage
 
@@ -74,9 +74,11 @@ class UnitNodes(BaseModel):
 # --- AGENT ---
 
 class SyllabusAgent:
+    def __init__(self, provider: BaseLLMProvider, rag_engine: RAGEngine):
+        self.provider = provider
+        self.rag_engine = rag_engine
     
-    @staticmethod
-    async def generate_blueprint(topic: str, provider, profile: str = "General Audience", context: str = None) -> Optional[Blueprint]:
+    async def generate_blueprint(self, topic: str, profile: str = "General Audience", context: str = None) -> Optional[Blueprint]:
         """Step 1: Generate high-level outline."""
         
         user_prompt = f"Create a course blueprint for: {topic}\nTarget Audience Profile: {profile}"
@@ -88,18 +90,17 @@ class SyllabusAgent:
             ("user", user_prompt)
         ]
         try:
-            return await provider.generate_structured(messages, Blueprint)
+            return await self.provider.generate_structured(messages, Blueprint)
         except Exception as e:
             print(f"Blueprint Gen Error: {e}")
             return None
 
-    @staticmethod
-    async def expand_unit(topic: str, unit: BlueprintUnit, provider, project_id: Optional[int] = None, profile: str = "General Audience") -> List[CourseNode]:
+    async def expand_unit(self, topic: str, unit: BlueprintUnit, project_id: Optional[int] = None, profile: str = "General Audience") -> List[CourseNode]:
         """Step 2: Expand a single unit using specific RAG context."""
         
         # Specific RAG for this unit
         search_query = f"{topic} {unit.unit_title} {unit.unit_goal}"
-        context_chunks = await RAGEngine.query_context(search_query, k=3, project_id=project_id) # Async call
+        context_chunks = await self.rag_engine.query_context(search_query, k=3, project_id=project_id) # Async call
         context_str = "\\n\\n".join(context_chunks) if context_chunks else "General Knowledge"
         
         messages = [
@@ -114,7 +115,7 @@ class SyllabusAgent:
         ]
         
         try:
-            result = await provider.generate_structured(messages, UnitNodes)
+            result = await self.provider.generate_structured(messages, UnitNodes)
             
             # Post-process: Add IDs if missing (LLM might skip them)
             nodes = result.nodes if result else []
@@ -127,8 +128,8 @@ class SyllabusAgent:
             print(f"Unit Expansion Error ({unit.unit_title}): {e}")
             return []
 
-    @staticmethod
     async def run(
+        self,
         topic: str, 
         user_id: Optional[int] = None, 
         project_folder: Optional[str] = None, 
@@ -140,12 +141,10 @@ class SyllabusAgent:
         print(f"🚀 [SyllabusAgent] Starting generation for '{topic}'...")
         print(f"👤 [SyllabusAgent] Profile: {profile_summary or 'Default'}")
         
-        provider = LLMFactory.create()
-        
         # 1. Generate Blueprint
         # Provide a default if None
         profile_str = profile_summary if profile_summary else "General Audience"
-        blueprint = await SyllabusAgent.generate_blueprint(topic, provider, profile=profile_str, context=context)
+        blueprint = await self.generate_blueprint(topic, profile=profile_str, context=context)
         if not blueprint:
             return None
         
@@ -160,8 +159,8 @@ class SyllabusAgent:
         async def _process_unit(i: int, b_unit: BlueprintUnit):
             async with sem:
                 print(f"  Doing Unit {i+1}: {b_unit.unit_title}...")
-                nodes = await SyllabusAgent.expand_unit(
-                    topic, b_unit, provider, project_id=project_id, profile=profile_str
+                nodes = await self.expand_unit(
+                    topic, b_unit, project_id=project_id, profile=profile_str
                 )
                 final_units[i] = CourseUnit(
                     unitId=f"unit-{i}",
@@ -188,3 +187,14 @@ class SyllabusAgent:
             
         print(f"✅ [SyllabusAgent] Finished. Total Units: {len(final_units)}")
         return course_path
+
+from fastapi import Depends
+from app.services.llm.factory import get_llm_provider
+from app.services.rag_engine import get_rag_engine
+
+def get_syllabus_agent(
+    provider: BaseLLMProvider = Depends(get_llm_provider),
+    rag_engine: RAGEngine = Depends(get_rag_engine)
+) -> SyllabusAgent:
+    """FastAPI Dependency for SyllabusAgent"""
+    return SyllabusAgent(provider, rag_engine)

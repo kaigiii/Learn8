@@ -93,8 +93,8 @@ docker-compose up --build
 | | FeynmanMirror | 費曼技巧模擬器，由 AI 助教嚴格評分 |
 | **Incentive** | DilemmaSolver | 道德兩難或情境策略選擇 |
 
-### 3. 🧠 Smart RAG Engine (智慧檢索引擎)
-結合混合搜尋與查詢擴展，並支援 **Google Gemini File API Toggle**，可於 `.env` 中切換使用本地端記憶體注入或原生的 Gemini File Context 技術。
+### 3. 🧠 Smart Document Processing & RAG (智慧解析與檢索)
+支援多模態雙引擎解析策略 (Text & Vision Multimodal)，並結合混合搜尋與查詢擴展，確保擷取最精準的領域知識與圖表資訊，供 AI 架構師使用。
 
 ---
 
@@ -223,10 +223,10 @@ POST /projects/upload-document
      ├─► 儲存至實體沙盒 (uploads/...)
      │
      └─► RAGEngine.ingest_document()
-         ├─► 動態分析副檔名 (ext == 'pdf' -> PyMuPDFLoader; ext == 'csv' -> CSVLoader)
-         ├─► Metadata Injection (加入來源檔名標籤)
+         ├─► 動態分析副檔名與內容 (由 DocumentProcessor 智慧分配 Text/Vision Parser)
+         ├─► Metadata Injection (加入來源專案標籤與檔名)
          ├─► Chunking & Embedding 
-         └─► 存入 ChromaDB (綁定 project_id)
+         └─► 存入 ChromaDB (綁定 project_id 實現資料庫層級隔離)
 ```
 
 ### 2. 適性化與互動驗證 (Adaptive Loop)

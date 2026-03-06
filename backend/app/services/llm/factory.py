@@ -36,3 +36,12 @@ class LLMFactory:
             
         print("[LLMFactory] Using GoogleLLMProvider for Vision processing")
         return GoogleLLMProvider()
+
+# FastAPI Dependencies
+def get_llm_provider() -> BaseLLMProvider:
+    """Dependency injects the configured default LLM Provider."""
+    return LLMFactory.create()
+
+def get_vision_llm_provider() -> BaseLLMProvider:
+    """Dependency injects the configured Vision LLM Provider."""
+    return LLMFactory.create_vision_provider()

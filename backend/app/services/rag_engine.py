@@ -32,31 +32,57 @@ from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
 from app.core.config import settings
-from app.services.llm.factory import LLMFactory
+from app.services.llm.base import BaseLLMProvider
+from app.services.activity_logger import activity_logger
+from app.core.exceptions import RAGIndexingError, LLMGenerationError
 from langchain_core.messages import SystemMessage, HumanMessage
+
+class TextSplitterService:
+    """Handles splitting large documents into smaller chunks for vector indexing."""
+    def split_document(self, text: str, source: str, project_id: int) -> List[Document]:
+        doc = Document(
+            page_content=text,
+            metadata={
+                "project_id": str(project_id),
+                "source": source
+            }
+        )
+        
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1000,
+            chunk_overlap=200,
+            add_start_index=True,
+        )
+        
+        return text_splitter.split_documents([doc])
 
 class RAGEngine:
     DB_DIR = "./chroma_db"
-    _vectorstore: Optional[Chroma] = None
     
-    @classmethod
-    def get_vectorstore(cls) -> Optional[Chroma]:
-        if cls._vectorstore is not None:
-            return cls._vectorstore
-
+    def __init__(self, llm_provider: BaseLLMProvider):
+        self._llm_provider = llm_provider
+        self._text_splitter = TextSplitterService()
+        self._vectorstore = self._init_vectorstore()
+    
+    def _init_vectorstore(self) -> Optional[Chroma]:
         if not settings.GOOGLE_API_KEY:
-            print("Warning: GOOGLE_API_KEY not found. RAG features will fail.")
+            activity_logger.warning("GOOGLE_API_KEY not found. RAG features will fail.")
             return None
 
-        embedding_function = GoogleGenerativeAIEmbeddings(
-            model="models/gemini-embedding-001",
-            google_api_key=settings.GOOGLE_API_KEY
-        )
-        cls._vectorstore = Chroma(persist_directory=cls.DB_DIR, embedding_function=embedding_function)
-        return cls._vectorstore
+        try:
+            embedding_function = GoogleGenerativeAIEmbeddings(
+                model="models/gemini-embedding-001",
+                google_api_key=settings.GOOGLE_API_KEY
+            )
+            return Chroma(persist_directory=self.DB_DIR, embedding_function=embedding_function)
+        except Exception as e:
+            activity_logger.error(f"Failed to initialize Chroma vectorstore: {e}")
+            return None
 
-    @staticmethod
-    async def ingest_document(file: UploadFile, project_id: int, user_id: int = None, project_folder: str = None) -> int:
+    def get_vectorstore(self) -> Optional[Chroma]:
+        return self._vectorstore
+
+    async def ingest_document(self, file: UploadFile, project_id: int, user_id: int = None, project_folder: str = None) -> int:
         os.makedirs("temp", exist_ok=True)
         temp_filename = os.path.join("temp", f"temp_{file.filename}")
         
@@ -71,50 +97,32 @@ class RAGEngine:
                 user_id=user_id,
                 project_folder=project_folder
             )
-            
             if not content:
-                print(f"Unsupported document or empty content. Skipping RAG ingestion.")
+                activity_logger.warning(f"Unsupported document or empty content for {file.filename}. Skipping RAG ingestion.")
                 return 0
             
-            from langchain_core.documents import Document
+            splits = self._text_splitter.split_document(content, file.filename, project_id)
             
-            # Create a single LangChain Document holding the entire file's Markdown
-            doc = Document(
-                page_content=content,
-                metadata={
-                    "project_id": str(project_id),
-                    "source": file.filename
-                }
-            )
+            vectorstore = self.get_vectorstore()
             
-            text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=1000,
-                chunk_overlap=200,
-                add_start_index=True,
-            )
-            
-            splits = text_splitter.split_documents([doc])
-            
-            vectorstore = RAGEngine.get_vectorstore()
             if vectorstore:
                 vectorstore.add_documents(documents=splits)
+                activity_logger.info(f"Ingested {len(splits)} chunks for {file.filename} into RAG.")
                 return len(splits)
             else:
-                return 0
+                raise RAGIndexingError("Vectorstore is not initialized.")
                 
         # Ensuring finally block properly catches any exceptions that occurred inside try block.
         except Exception as e:
-            print(f"Error during RAG ingestion: {e}")
-            return 0
+            activity_logger.error(f"Error during RAG ingestion for {file.filename}: {e}")
+            raise RAGIndexingError(f"Failed to index document: {e}")
             
         finally:
             if os.path.exists(temp_filename):
                 os.remove(temp_filename)
 
-    @staticmethod
-    async def expand_query(query: str) -> List[str]:
+    async def expand_query(self, query: str) -> List[str]:
         """Expands a single user query into multiple search variations using LLM."""
-        provider = LLMFactory.create()
         prompt = f"""You are a helpful research assistant. 
         Generate 3 related search queries for the following topic to broaden the search scope.
         Topic: "{query}"
@@ -129,17 +137,16 @@ class RAGEngine:
         try:
              # Depending on provider type, we might need different call.
              # BaseLLMProvider.generate_text handles simple string generation.
-             response = await provider.generate_text([HumanMessage(content=prompt)])
+             response = await self._llm_provider.generate_text([HumanMessage(content=prompt)])
              lines = [line.strip().replace("1. ", "").replace("2. ", "").replace("3. ", "") 
                       for line in response.split("\n") 
                       if line.strip() and (line[0].isdigit() or len(line) > 3)]
              return [query] + lines[:3] # Original + up to 3 expansions
         except Exception as e:
-            print(f"Query Expansion Failed: {e}")
+            activity_logger.error(f"Query Expansion Failed for '{query}': {e}")
             return [query]
 
-    @staticmethod
-    async def rerank_documents(query: str, docs: List[Document], top_k: int = 5) -> List[Document]:
+    async def rerank_documents(self, query: str, docs: List[Document], top_k: int = 5) -> List[Document]:
         """
         Reranks documents based on relevance to the query.
         Currently a specialized prompt-based reranker or a simple placeholder.
@@ -152,39 +159,35 @@ class RAGEngine:
         # e.g. ask LLM: "Which of these snippets answer '{query}' best?"
         return docs[:top_k]
 
-    @staticmethod
-    async def delete_project_context(project_id: int):
+    async def delete_project_context(self, project_id: int):
         """Deletes all vector embeddings associated with a project."""
-        vectorstore = RAGEngine.get_vectorstore()
+        vectorstore = self.get_vectorstore()
         if vectorstore:
             try:
-                # ChromaDB specific: delete by where clause
-                print(f"🗑️ Deleting RAG context for project_id={project_id}")
+                activity_logger.info(f"Deleting RAG context for project_id={project_id}")
                 vectorstore.delete(where={"project_id": str(project_id)})
             except Exception as e:
-                print(f"Error deleting RAG context: {e}")
+                activity_logger.error(f"Error deleting RAG context for project {project_id}: {e}")
 
-    @staticmethod
-    async def delete_file_context(project_id: int, filename: str):
+    async def delete_file_context(self, project_id: int, filename: str):
         """Deletes vector embeddings for a specific file in a project."""
-        vectorstore = RAGEngine.get_vectorstore()
+        vectorstore = self.get_vectorstore()
         if vectorstore:
             try:
-                print(f"🗑️ Deleting RAG context for file={filename} in project_id={project_id}")
+                activity_logger.info(f"Deleting RAG context for file={filename} in project_id={project_id}")
                 # ChromaDB where clause with multiple conditions
                 vectorstore.delete(where={"$and": [{"project_id": str(project_id)}, {"source": filename}]})
             except Exception as e:
-                print(f"Error deleting file context: {e}")
+                activity_logger.error(f"Error deleting file context {filename} in project {project_id}: {e}")
 
-    @staticmethod
-    async def query_context(topic: str, k: int = 4, project_id: Optional[int] = None) -> List[str]:
-        vectorstore = RAGEngine.get_vectorstore()
+    async def query_context(self, topic: str, k: int = 4, project_id: Optional[int] = None) -> List[str]:
+        vectorstore = self.get_vectorstore()
         if not vectorstore:
             return []
             
         # 1. Expand
-        queries = await RAGEngine.expand_query(topic)
-        print(f"🔎 Expanded Queries: {queries}")
+        queries = await self.expand_query(topic)
+        activity_logger.info(f"Expanded Queries for '{topic}': {queries}")
         
         # Prepare filter (ChromaDB uses 'filter' kwarg)
         # If project_id is provided, strict filter. If None, theoretically searches everything (or nothing? safe to search existing global?)
@@ -208,7 +211,7 @@ class RAGEngine:
                 unique_docs.append(d)
         
         # 2. Rerank (Returns List[Document] now)
-        top_docs = await RAGEngine.rerank_documents(topic, unique_docs, top_k=k)
+        top_docs = await self.rerank_documents(topic, unique_docs, top_k=k)
         
         # 3. Format with Source Metadata Injection
         final_contents = []
@@ -217,3 +220,9 @@ class RAGEngine:
             final_contents.append(f"[Source: {source_name}]\n{doc.page_content}")
             
         return final_contents
+
+from fastapi import Depends
+from app.services.llm.factory import get_llm_provider
+def get_rag_engine(llm_provider: BaseLLMProvider = Depends(get_llm_provider)) -> RAGEngine:
+    """FastAPI Dependency for RAGEngine"""
+    return RAGEngine(llm_provider=llm_provider)
