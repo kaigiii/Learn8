@@ -1,5 +1,5 @@
 """
-模組名稱: app.services.file_service
+模組名稱: app.services.commons.file_service
 功能描述: 檔案管理服務 (File Management Service)
 
 負責處理本地檔案系統的操作，如上傳、列表查詢與刪除。
@@ -22,7 +22,7 @@ from fastapi import UploadFile, HTTPException
 from app.models.project import ProjectModel
 from app.models.user import UserModel
 from app.core.config import settings
-from app.services.activity_logger import activity_logger
+from app.services.commons.activity_logger import activity_logger
 
 class FileService:
     def get_upload_dir(self, user_id: int, project_folder: str = None) -> str:
@@ -77,7 +77,7 @@ class FileService:
 
     def read_file_content(self, file_path: str, max_chars: int = None) -> str:
         """Reads content from a file using DocumentProcessor. Truncates if too long."""
-        from app.services.document_processor import DocumentProcessor
+        from app.services.knowledge_base.document_processor import DocumentProcessor
         from app.core.config import settings
         
         limit = max_chars if max_chars is not None else settings.MAX_FILE_READ_BYTES

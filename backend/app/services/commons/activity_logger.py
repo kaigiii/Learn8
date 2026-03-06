@@ -1,12 +1,12 @@
 """
-Module: app.services.activity_logger
+Module: app.services.commons.activity_logger
 Description: Centralized Activity Logging Service
 
 Provides structured logging for all user activities with detailed context.
 Logs are written to both console and file with rotation.
 
 Usage:
-    from app.services.activity_logger import ActivityLogger
+    from app.services.commons.activity_logger import ActivityLogger
     ActivityLogger.log_login(user_email="john@example.com")
 """
 

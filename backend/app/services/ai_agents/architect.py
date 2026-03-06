@@ -1,5 +1,5 @@
 """
-模組名稱: app.services.llm.architect
+模組名稱: app.services.ai_agents.architect
 功能描述: AI 架構師服務 (AI Architect Service)
 
 此模組是後端業務邏輯 (Services) 與 LLM 抽象層 (Provider) 之間的橋樑。
@@ -31,11 +31,11 @@ from langchain_core.messages import SystemMessage, HumanMessage
 from pydantic import BaseModel
 from app.schemas.course import CoursePath, RefineSyllabusRequest, LessonNode
 from app.schemas.lesson import LessonStage, SubmissionResponse
-from app.services.rag_engine import RAGEngine
-from app.services.file_service import FileService
-from app.services.llm.base import BaseLLMProvider
+from app.services.knowledge_base.rag_engine import RAGEngine
+from app.services.commons.file_service import FileService
+from app.services.llm_clients.base import BaseLLMProvider
 from app.core.exceptions import LLMGenerationError
-from app.services.activity_logger import activity_logger
+from app.services.commons.activity_logger import activity_logger
 
 # --- PROMPTS ---
 
@@ -184,9 +184,9 @@ class AIArchitectService:
             raise LLMGenerationError(f"Failed to grade Feynman attempt: {e}")
 
 from fastapi import Depends
-from app.services.llm.factory import get_llm_provider
-from app.services.rag_engine import get_rag_engine
-from app.services.file_service import get_file_service
+from app.services.llm_clients.factory import get_llm_provider
+from app.services.knowledge_base.rag_engine import get_rag_engine
+from app.services.commons.file_service import get_file_service
 
 def get_architect_service(
     provider: BaseLLMProvider = Depends(get_llm_provider),

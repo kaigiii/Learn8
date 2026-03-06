@@ -23,9 +23,9 @@ from app.api.deps import get_db, get_current_user
 from app.models.user import UserModel
 from app.models.project import ProjectModel
 from app.schemas.project import ProjectCreate, ProjectResponse, ProjectUpdate, DraftRequest
-from app.services.file_service import FileService, get_file_service
-from app.services.activity_logger import ActivityLogger
-from app.services.rag_engine import RAGEngine, get_rag_engine
+from app.services.commons.file_service import FileService, get_file_service
+from app.services.commons.activity_logger import ActivityLogger
+from app.services.knowledge_base.rag_engine import RAGEngine, get_rag_engine
 
 router = APIRouter()
 

@@ -24,7 +24,7 @@ from app.api.deps import get_db, get_current_user
 from app.core.security import get_password_hash, verify_password, create_access_token
 from app.models.user import UserModel
 from app.schemas.auth import UserCreate, UserLogin, Token, UserUpdate
-from app.services.activity_logger import ActivityLogger
+from app.services.commons.activity_logger import ActivityLogger
 
 router = APIRouter()
 

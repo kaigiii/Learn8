@@ -6,8 +6,8 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.core.config import settings
-from app.services.llm.factory import LLMFactory
-from app.services.activity_logger import activity_logger
+from app.services.llm_clients.factory import LLMFactory
+from app.services.commons.activity_logger import activity_logger
 from app.core.exceptions import DocumentParseError
 
 # --- Interface ---
@@ -46,7 +46,7 @@ class VisionPDFParser:
         return BasicPDFParser().parse(file_path, max_chars)
 
     async def parse_async(self, file_path: str, max_chars: int = None, user_id: int = None, project_folder: str = None) -> str:
-        from app.services.file_service import FileService
+        from app.services.commons.file_service import FileService
         limit = max_chars if max_chars is not None else settings.MAX_FILE_READ_BYTES
         
         try:

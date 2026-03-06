@@ -1,7 +1,7 @@
 from typing import List
-from app.services.llm.base import BaseLLMProvider
+from app.services.llm_clients.base import BaseLLMProvider
 from app.schemas.questionnaire import Question, QuestionnaireSubmission, LearnerProfile
-from app.services.rag_engine import RAGEngine
+from app.services.knowledge_base.rag_engine import RAGEngine
 from pydantic import BaseModel
 
 GENERATE_QUESTIONS_PROMPT = """You are an expert educational psychologist.
@@ -90,8 +90,8 @@ class QuestionnaireAgent:
             return LearnerProfile(summary="Failed to generate profile.", attributes={})
 
 from fastapi import Depends
-from app.services.llm.factory import get_llm_provider
-from app.services.rag_engine import get_rag_engine
+from app.services.llm_clients.factory import get_llm_provider
+from app.services.knowledge_base.rag_engine import get_rag_engine
 
 def get_questionnaire_agent(
     provider: BaseLLMProvider = Depends(get_llm_provider),

@@ -1,5 +1,5 @@
 """
-模組名稱: app.services.llm.base
+模組名稱: app.services.llm_clients.base
 功能描述: LLM 供應商介面 (LLM Provider Interface)
 
 定義了所有 LLM Provider 必須實作的抽象基底類別 (ABC)。

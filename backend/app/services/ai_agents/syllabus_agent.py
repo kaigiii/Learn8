@@ -1,5 +1,5 @@
 """
-模組名稱: app.services.llm.agents.syllabus_agent
+模組名稱: app.services.ai_agents.syllabus_agent
 功能描述: 課程大綱生成代理人 (Syllabus Generation Agent)
 
 此 Agent 專責處理課程大綱的生成任務，採用 "Blueprint First" (先藍圖後細節) 的兩階段生成策略。
@@ -24,9 +24,9 @@ from typing import List, Optional, Any
 from pydantic import BaseModel, Field
 
 from app.schemas.course import CoursePath, Unit as CourseUnit, LessonNode as CourseNode
-from app.services.rag_engine import RAGEngine
-from app.services.llm.base import BaseLLMProvider
-from app.services.file_service import FileService
+from app.services.knowledge_base.rag_engine import RAGEngine
+from app.services.llm_clients.base import BaseLLMProvider
+from app.services.commons.file_service import FileService
 from langchain_core.messages import SystemMessage, HumanMessage
 
 # --- PROMPTS ---
@@ -189,8 +189,8 @@ class SyllabusAgent:
         return course_path
 
 from fastapi import Depends
-from app.services.llm.factory import get_llm_provider
-from app.services.rag_engine import get_rag_engine
+from app.services.llm_clients.factory import get_llm_provider
+from app.services.knowledge_base.rag_engine import get_rag_engine
 
 def get_syllabus_agent(
     provider: BaseLLMProvider = Depends(get_llm_provider),

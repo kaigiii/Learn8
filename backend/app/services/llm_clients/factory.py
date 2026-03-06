@@ -1,5 +1,5 @@
 """
-模組名稱: app.services.llm.factory
+模組名稱: app.services.llm_clients.factory
 功能描述: LLM 供應商工廠 (LLM Provider Factory)
 
 使用 Simple Factory 模式，根據環境變數 (LLM_PROVIDER) 動態實例化對應的 LLM Provider。
@@ -11,9 +11,9 @@
 
 from typing import Optional
 from app.core.config import settings
-from app.services.llm.base import BaseLLMProvider
-from app.services.llm.google_adapter import GoogleLLMProvider
-from app.services.llm.lmstudio_adapter import LMStudioProvider
+from app.services.llm_clients.base import BaseLLMProvider
+from app.services.llm_clients.google_adapter import GoogleLLMProvider
+from app.services.llm_clients.lmstudio_adapter import LMStudioProvider
 
 class LLMFactory:
     @staticmethod
