@@ -10,6 +10,7 @@ services:
       - ./backend/uploads:/app/uploads
       - ./backend/learn8_db:/app/learn8_db
       - ./backend/chroma_db:/app/chroma_db
+      - ./backend/logs:/app/logs
       - ./backend/.env:/app/.env
     environment:
       - PYTHONUNBUFFERED=1
