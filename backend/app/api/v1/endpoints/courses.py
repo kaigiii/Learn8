@@ -40,13 +40,13 @@ from app.models.user import UserModel
 from app.models.course import CourseModel, NodeModel
 from app.models.project import ProjectModel
 from app.schemas.course import CoursePath, RefineSyllabusRequest, UpdateNodeStatusRequest, LessonNode
-from app.services.llm.agents.syllabus_agent import SyllabusAgent, get_syllabus_agent
+from app.services.ai_agents.syllabus_agent import SyllabusAgent, get_syllabus_agent
 from app.core.config import settings
 
 
 from app.services.workflows.syllabus_workflow import syllabus_graph
-from app.services.activity_logger import ActivityLogger
-from app.services.llm.architect import AIArchitectService, get_architect_service
+from app.services.commons.activity_logger import ActivityLogger
+from app.services.ai_agents.architect import AIArchitectService, get_architect_service
 import datetime
 
 router = APIRouter()
@@ -134,7 +134,7 @@ async def generate_syllabus(
     # Prepare Context from Files (Full Text for Blueprint)
     full_text_context = ""
     if project_id and project_folder_name:
-        from app.services.file_service import FileService # Lazy import or move to top
+        from app.services.commons.file_service import FileService # Lazy import or move to top
         file_service = FileService()
         files = file_service.list_files(current_user.id, project_folder_name)
         

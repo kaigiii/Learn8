@@ -1,5 +1,5 @@
 """
-模組名稱: app.services.llm.google_adapter
+模組名稱: app.services.llm_clients.google_adapter
 功能描述: Google Gemini API 配接器 (Google Adapter)
 
 實作 BaseLLMProvider 介面，封裝 langchain-google-genai 函式庫。
@@ -15,7 +15,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from app.core.config import settings
-from app.services.llm.base import BaseLLMProvider
+from app.services.llm_clients.base import BaseLLMProvider
 
 class GoogleLLMProvider(BaseLLMProvider):
     def __init__(self):

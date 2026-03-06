@@ -18,7 +18,7 @@ from typing import TypedDict, List, Dict, Optional
 from langgraph.graph import StateGraph, END
 
 from app.schemas.course import CoursePath
-from app.services.llm.architect import AIArchitectService
+from app.services.ai_agents.architect import AIArchitectService
 
 class SyllabusState(TypedDict):
     topic: str

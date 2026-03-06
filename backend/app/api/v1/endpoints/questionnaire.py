@@ -17,9 +17,9 @@ from app.api.deps import get_db, get_current_user
 from app.models.user import UserModel
 from app.models.project import ProjectModel
 from app.schemas.questionnaire import Question, QuestionnaireSubmission, LearnerProfile, QuestionnaireSubmitRequest
-from app.services.llm.agents.questionnaire_agent import QuestionnaireAgent, get_questionnaire_agent
-from app.services.activity_logger import ActivityLogger
-from app.services.file_service import FileService, get_file_service
+from app.services.ai_agents.questionnaire_agent import QuestionnaireAgent, get_questionnaire_agent
+from app.services.commons.activity_logger import ActivityLogger
+from app.services.commons.file_service import FileService, get_file_service
 from app.core.config import settings
 from fastapi.concurrency import run_in_threadpool
 

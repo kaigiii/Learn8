@@ -1,5 +1,5 @@
 """
-模組名稱: app.services.llm.lmstudio_adapter
+模組名稱: app.services.llm_clients.lmstudio_adapter
 功能描述: LM Studio API 配接器 (LM Studio Adapter)
 
 實作 BaseLLMProvider 介面，封裝 langchain-openai 函式庫以連線至地端 LM Studio。
@@ -15,7 +15,7 @@ from pydantic import BaseModel
 from langchain_openai import ChatOpenAI
 from langchain_core.output_parsers import PydanticOutputParser
 from app.core.config import settings
-from app.services.llm.base import BaseLLMProvider
+from app.services.llm_clients.base import BaseLLMProvider
 
 class LMStudioProvider(BaseLLMProvider):
     def __init__(self):

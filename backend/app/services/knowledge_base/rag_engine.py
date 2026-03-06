@@ -1,5 +1,5 @@
 """
-模組名稱: app.services.rag_engine
+模組名稱: app.services.knowledge_base.rag_engine
 功能描述: RAG 知識檢索引擎 (Retrieval-Augmented Generation Engine)
 
 負責將使用者的 PDF 文件轉換為向量索引 (Vector Index)，並提供語意搜尋功能。
@@ -32,8 +32,8 @@ from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
 from app.core.config import settings
-from app.services.llm.base import BaseLLMProvider
-from app.services.activity_logger import activity_logger
+from app.services.llm_clients.base import BaseLLMProvider
+from app.services.commons.activity_logger import activity_logger
 from app.core.exceptions import RAGIndexingError, LLMGenerationError
 from langchain_core.messages import SystemMessage, HumanMessage
 
@@ -90,7 +90,7 @@ class RAGEngine:
             with open(temp_filename, "wb") as buffer:
                 shutil.copyfileobj(file.file, buffer)
                 
-            from app.services.document_processor import DocumentProcessor
+            from app.services.knowledge_base.document_processor import DocumentProcessor
             # Use the single unified DocumentProcessor to read all types
             content = await DocumentProcessor.async_read_content(
                 file_path=temp_filename,
@@ -222,7 +222,7 @@ class RAGEngine:
         return final_contents
 
 from fastapi import Depends
-from app.services.llm.factory import get_llm_provider
+from app.services.llm_clients.factory import get_llm_provider
 def get_rag_engine(llm_provider: BaseLLMProvider = Depends(get_llm_provider)) -> RAGEngine:
     """FastAPI Dependency for RAGEngine"""
     return RAGEngine(llm_provider=llm_provider)

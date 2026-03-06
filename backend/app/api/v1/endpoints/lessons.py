@@ -29,7 +29,7 @@ from app.models.lesson import LessonModel
 from app.models.project import ProjectModel
 from app.schemas.course import LessonNode
 from app.schemas.lesson import LessonStage, SubmissionRequest, SubmissionResponse, ComponentType, SkinType, Validation, ValidationType, Feedback, ModuleType, GenericConfig
-from app.services.llm.architect import AIArchitectService, get_architect_service
+from app.services.ai_agents.architect import AIArchitectService, get_architect_service
 from app.core.config import settings
 
 router = APIRouter()
