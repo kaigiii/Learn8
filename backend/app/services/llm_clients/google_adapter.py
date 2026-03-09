@@ -23,7 +23,7 @@ class GoogleLLMProvider(BaseLLMProvider):
         self.llm = ChatGoogleGenerativeAI(
             model=settings.GEMINI_MODEL,
             google_api_key=settings.GOOGLE_API_KEY,
-            temperature=0.7
+            temperature=settings.LLM_TEMPERATURE
         )
 
     def bind_files(self, files: List[str]) -> "BaseLLMProvider":

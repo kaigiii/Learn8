@@ -49,8 +49,8 @@ class TextSplitterService:
         )
         
         text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000,
-            chunk_overlap=200,
+            chunk_size=settings.RAG_CHUNK_SIZE,
+            chunk_overlap=settings.RAG_CHUNK_OVERLAP,
             add_start_index=True,
         )
         
@@ -180,19 +180,24 @@ class RAGEngine:
             except Exception as e:
                 activity_logger.error(f"Error deleting file context {filename} in project {project_id}: {e}")
 
-    async def query_context(self, topic: str, k: int = 4, project_id: Optional[int] = None) -> List[str]:
+    async def query_context(self, topic: str, k: Optional[int] = None, project_id: Optional[int] = None) -> List[str]:
         vectorstore = self.get_vectorstore()
         if not vectorstore:
             return []
             
-        # 1. Expand
-        queries = await self.expand_query(topic)
-        activity_logger.info(f"Expanded Queries for '{topic}': {queries}")
+        k_val = k if k is not None else settings.RAG_TOP_K
+            
+        # 1. Expand (if enabled)
+        if settings.RAG_ENABLE_QUERY_EXPANSION:
+            queries = await self.expand_query(topic)
+            activity_logger.info(f"Expanded Queries for '{topic}': {queries}")
+        else:
+            queries = [topic]
         
         # Prepare filter (ChromaDB uses 'filter' kwarg)
         # If project_id is provided, strict filter. If None, theoretically searches everything (or nothing? safe to search existing global?)
         # For security, ideally we force project_id, but for backward compat we might leave it optional or assume "public"
-        search_kwargs = {"k": 2}
+        search_kwargs = {"k": settings.RAG_SEARCH_K}
         if project_id:
             search_kwargs["filter"] = {"project_id": str(project_id)}
         
@@ -211,7 +216,7 @@ class RAGEngine:
                 unique_docs.append(d)
         
         # 2. Rerank (Returns List[Document] now)
-        top_docs = await self.rerank_documents(topic, unique_docs, top_k=k)
+        top_docs = await self.rerank_documents(topic, unique_docs, top_k=k_val)
         
         # 3. Format with Source Metadata Injection
         final_contents = []
