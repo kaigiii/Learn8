@@ -16,6 +16,8 @@ from langchain_openai import ChatOpenAI
 from langchain_core.output_parsers import PydanticOutputParser
 from app.core.config import settings
 from app.services.llm_clients.base import BaseLLMProvider
+from app.services.commons.activity_logger import ActivityLogger
+import time
 
 class LMStudioProvider(BaseLLMProvider):
     def __init__(self):
@@ -41,7 +43,19 @@ class LMStudioProvider(BaseLLMProvider):
             from langchain_core.messages import SystemMessage
             messages = [SystemMessage(content=self.injected_context)] + messages
             
+        # Logging Extraction
+        def _get_text(m): return m[1] if isinstance(m, tuple) else getattr(m, "content", "")
+        def _get_type(m): return m[0] if isinstance(m, tuple) else getattr(m, "type", "")
+        
+        sys_prompt = next((_get_text(m) for m in messages if _get_type(m) == "system"), "")
+        user_prompt = next((_get_text(m) for m in messages if _get_type(m) == "user"), "")
+        ActivityLogger.log_llm_request("lmstudio", settings.LMSTUDIO_MODEL, sys_prompt, user_prompt, self.injected_context)
+            
+        start_time = time.time()
         response = await self.llm.ainvoke(messages)
+        latency = (time.time() - start_time) * 1000
+        ActivityLogger.log_llm_response("lmstudio", settings.LMSTUDIO_MODEL, response.content, latency)
+        
         return response.content
 
     async def generate_structured(self, messages: List[Any], schema: Type[BaseModel], **kwargs) -> BaseModel:
@@ -66,7 +80,16 @@ class LMStudioProvider(BaseLLMProvider):
             messages_with_instructions = [context_prompt] + messages + [json_prompt]
         else:
             messages_with_instructions = messages + [json_prompt]
+            
+        # Logging Extraction
+        def _get_text(m): return m[1] if isinstance(m, tuple) else getattr(m, "content", "")
+        def _get_type(m): return m[0] if isinstance(m, tuple) else getattr(m, "type", "")
         
+        sys_prompt = next((_get_text(m) for m in messages if _get_type(m) == "system"), "")
+        user_prompt = next((_get_text(m) for m in messages if _get_type(m) == "user"), "")
+        ActivityLogger.log_llm_request("lmstudio", settings.LMSTUDIO_MODEL, sys_prompt, user_prompt, self.injected_context)
+        
+        start_time = time.time()
         # Force JSON response output (if model supports it, most do now)
         try:
             llm_json_mode = self.llm.bind(response_format={"type": "json_object"})
@@ -74,6 +97,9 @@ class LMStudioProvider(BaseLLMProvider):
         except Exception:
             # Fallback if bind fails
             response = await self.llm.ainvoke(messages_with_instructions)
+            
+        latency = (time.time() - start_time) * 1000
+        ActivityLogger.log_llm_response("lmstudio", settings.LMSTUDIO_MODEL, response.content, latency)
             
         import re
         import json
