@@ -16,6 +16,8 @@ from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from app.core.config import settings
 from app.services.llm_clients.base import BaseLLMProvider
+from app.services.commons.activity_logger import ActivityLogger
+import time
 
 class GoogleLLMProvider(BaseLLMProvider):
     def __init__(self):
@@ -40,7 +42,20 @@ class GoogleLLMProvider(BaseLLMProvider):
             from langchain_core.messages import SystemMessage
             messages = [SystemMessage(content=self.injected_context)] + messages
             
+        # Logging Extraction
+        def _get_text(m): return m[1] if isinstance(m, tuple) else getattr(m, "content", "")
+        def _get_type(m): return m[0] if isinstance(m, tuple) else getattr(m, "type", "")
+        
+        sys_prompt = next((_get_text(m) for m in messages if _get_type(m) == "system"), "")
+        user_prompt = next((_get_text(m) for m in messages if _get_type(m) == "user"), "")
+        ActivityLogger.log_llm_request("google", settings.GEMINI_MODEL, sys_prompt, user_prompt, self.injected_context)
+            
+        start_time = time.time()
         response = await self.llm.ainvoke(messages)
+        latency = (time.time() - start_time) * 1000
+        
+        ActivityLogger.log_llm_response("google", settings.GEMINI_MODEL, response.content, latency)
+        
         return response.content
 
     async def generate_structured(self, messages: List[Any], schema: Type[BaseModel], **kwargs) -> BaseModel:
@@ -49,10 +64,22 @@ class GoogleLLMProvider(BaseLLMProvider):
             from langchain_core.messages import SystemMessage
             messages = [SystemMessage(content=self.injected_context)] + messages
             
+        # Logging Extraction
+        def _get_text(m): return m[1] if isinstance(m, tuple) else getattr(m, "content", "")
+        def _get_type(m): return m[0] if isinstance(m, tuple) else getattr(m, "type", "")
+        
+        sys_prompt = next((_get_text(m) for m in messages if _get_type(m) == "system"), "")
+        user_prompt = next((_get_text(m) for m in messages if _get_type(m) == "user"), "")
+        ActivityLogger.log_llm_request("google", settings.GEMINI_MODEL, sys_prompt, user_prompt, self.injected_context)
+            
         # Use structured output or parser
+        start_time = time.time()
         if hasattr(self.llm, "with_structured_output"):
              structured_llm = self.llm.with_structured_output(schema)
-             return await structured_llm.ainvoke(messages)
+             response = await structured_llm.ainvoke(messages)
+             latency = (time.time() - start_time) * 1000
+             ActivityLogger.log_llm_response("google", settings.GEMINI_MODEL, response.model_dump_json(), latency)
+             return response
         
         # Fallback to parser
         parser = PydanticOutputParser(pydantic_object=schema)

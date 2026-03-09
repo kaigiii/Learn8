@@ -234,3 +234,22 @@ class ActivityLogger:
         activity_logger.info(
             f"CREDITS_DEDUCT | {ActivityLogger._format_user(user_id, user_email)} spent {amount} credits for '{reason}' | New balance: {new_balance}"
         )
+
+    # ==================== LLM ====================
+
+    @staticmethod
+    def log_llm_request(provider: str, model: str, system_prompt: str, user_prompt: str, files_context: Optional[str] = None):
+        activity_logger.info(f"LLM_REQUEST | Provider: {provider} | Model: {model}")
+        if files_context:
+            activity_logger.info(f"  └─ [Injected Files Context]\n{files_context}")
+        if system_prompt:
+            activity_logger.info(f"  └─ [System Prompt]\n{system_prompt}")
+        if user_prompt:
+            activity_logger.info(f"  └─ [User Prompt]\n{user_prompt}")
+
+    @staticmethod
+    def log_llm_response(provider: str, model: str, response: str, latency_ms: float):
+        activity_logger.info(
+            f"LLM_RESPONSE | Provider: {provider} | Model: {model} | Latency: {latency_ms:.0f}ms\n"
+            f"  └─ [Raw Output]\n{response}"
+        )
