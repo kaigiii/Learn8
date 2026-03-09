@@ -25,8 +25,8 @@ class LMStudioProvider(BaseLLMProvider):
             base_url=settings.LMSTUDIO_BASE_URL,
             api_key="lm-studio", # API key is required by the library but ignored by LM Studio
             model=settings.LMSTUDIO_MODEL,
-            temperature=0.7,
-            max_tokens=16384
+            temperature=settings.LLM_TEMPERATURE,
+            max_tokens=settings.LMSTUDIO_MAX_TOKENS
         )
 
     def bind_files(self, files: List[str]) -> "BaseLLMProvider":

@@ -153,8 +153,9 @@ class SyllabusAgent:
         # 2. Iterate & Expand Units Concurrently
         final_units: List[CourseUnit] = [None] * len(blueprint.units)
         
-        # Concurrency limit (e.g., max 3 concurrent LLM calls)
-        sem = asyncio.Semaphore(3)
+        from app.core.config import settings
+        # Concurrency limit
+        sem = asyncio.Semaphore(settings.SYLLABUS_CONCURRENCY_LIMIT)
 
         async def _process_unit(i: int, b_unit: BlueprintUnit):
             async with sem:

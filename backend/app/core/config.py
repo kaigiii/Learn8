@@ -48,6 +48,18 @@ class Settings(BaseSettings):
     GEMINI_MODEL: str = "gemini-2.5-flash"
     LMSTUDIO_BASE_URL: str = "http://localhost:1234/v1"
     LMSTUDIO_MODEL: str = "mirothinker-v1.5-30b"
+    LLM_TEMPERATURE: float = 0.7
+    LMSTUDIO_MAX_TOKENS: int = 16384
+    
+    # RAG Settings
+    RAG_ENABLE_QUERY_EXPANSION: bool = False
+    RAG_TOP_K: int = 4
+    RAG_SEARCH_K: int = 2
+    RAG_CHUNK_SIZE: int = 1000
+    RAG_CHUNK_OVERLAP: int = 200
+    
+    # Workflow Settings
+    SYLLABUS_CONCURRENCY_LIMIT: int = 3
     
     # Document Processing & Vision
     PDF_PARSE_STRATEGY: str = "hybrid" # basic | vision | hybrid
