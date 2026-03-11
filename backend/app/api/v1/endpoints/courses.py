@@ -31,16 +31,20 @@
 """
 
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
+from fastapi.responses import JSONResponse
+
 from app.api.deps import get_db, get_current_user
 from app.models.user import UserModel
 from app.models.course import CourseModel, NodeModel
 from app.models.project import ProjectModel
+from app.models.job import JobModel
 from app.schemas.course import CoursePath, RefineSyllabusRequest, UpdateNodeStatusRequest, LessonNode
 from app.services.ai_agents.syllabus_agent import SyllabusAgent, get_syllabus_agent
+from app.services.workers.generation_worker import run_syllabus_generation_job
 from app.core.config import settings
 
 
@@ -84,14 +88,14 @@ def get_course_detail(course_id: int, current_user: UserModel = Depends(get_curr
     path.topic = course.topic # Populate topic
     return path
 
-@router.post("/generate-syllabus", response_model=CoursePath)
+@router.post("/generate-syllabus")
 async def generate_syllabus(
     topic: str,
+    background_tasks: BackgroundTasks,
     project_id: int = None,
     regenerate: bool = False,
     current_user: UserModel = Depends(get_current_user),
-    db: Session = Depends(get_db),
-    agent: SyllabusAgent = Depends(get_syllabus_agent)
+    db: Session = Depends(get_db)
 ):
     def _fetch_existing():
         q = db.query(CourseModel).filter(
@@ -108,7 +112,7 @@ async def generate_syllabus(
         path = CoursePath(**existing_course.syllabus_json)
         path.id = existing_course.id
         path.topic = existing_course.topic
-        return path
+        return path # It's okay to return early if we have a cache
 
     # Credit Check
     COST = settings.COST_SYLLABUS_GENERATION
@@ -128,114 +132,55 @@ async def generate_syllabus(
          if db_project:
              project_folder_name = db_project.folder_name
              if db_project.profile_json:
-                 # Extract summary from profile JSON
                  profile_summary = db_project.profile_json.get("summary", "General Audience")
 
-    # Prepare Context from Files (Full Text for Blueprint)
+    # Prepare Context from Files
     full_text_context = ""
+    files = []
     if project_id and project_folder_name:
-        from app.services.commons.file_service import FileService # Lazy import or move to top
+        from app.services.commons.file_service import FileService 
         file_service = FileService()
         files = file_service.list_files(current_user.id, project_folder_name)
         
         for fname in files:
-            # Skip hidden files
             if fname.startswith("."): continue
-            
             fpath = file_service.get_upload_dir(current_user.id, project_folder_name) + "/" + fname
-            # Read content (Safety limit defined in service)
             content = file_service.read_file_content(fpath, max_chars=settings.MAX_COURSE_CONTEXT_BYTES) 
             if content:
                 full_text_context += f"\\n--- Document: {fname} ---\\n{content}\\n"
     
-    if full_text_context:
-        print(f"📄 [generate_syllabus] Injected {len(full_text_context)} chars of context into Blueprint.")
-
-    # Log syllabus generation start
-    project_name = db_project.name if (project_id and db_project) else "No Project"
-    ActivityLogger.log_syllabus_generate_start(
-        current_user.id, current_user.email, project_id or 0, project_name,
-        topic,
-        user_prompt=None,  # No explicit prompt in this flow
-        rag_context_preview=full_text_context[:500] if full_text_context else None,
-        questionnaire_profile=profile_summary,
-        files_context=files if project_id and project_folder_name else None
-    )
-
-    # OLD: syllabus = await generate_course_syllabus(topic, user_id=current_user.id, project_folder=project_folder_name)
-    # NEW: Agentic Workflow
-    syllabus = await agent.run(
-        topic, 
-        user_id=current_user.id, 
-        project_folder=project_folder_name, 
+    # 建立 PENDING 狀態的 Job
+    new_job = JobModel(
+        user_id=current_user.id,
         project_id=project_id,
+        job_type="SYLLABUS_GEN",
+        status="PENDING",
+        message="正在排隊準備生成大綱..."
+    )
+    db.add(new_job)
+    db.commit()
+    db.refresh(new_job)
+
+    # 發送到背景執行
+    background_tasks.add_task(
+        run_syllabus_generation_job,
+        job_id=new_job.id,
+        user_id=current_user.id,
+        project_id=project_id,
+        topic=topic,
+        project_folder_name=project_folder_name,
         profile_summary=profile_summary,
-        context=full_text_context
+        full_text_context=full_text_context,
+        files_used=files,
+        regenerate=regenerate,
+        existing_course_id=existing_course.id if existing_course else None
     )
-    if not syllabus:
-         raise HTTPException(status_code=404, detail="Failed to generate syllabus.")
-    
-    def _save_course():
-        if existing_course and regenerate:
-            # Update existing
-            existing_course.title = syllabus.courseTitle
-            existing_course.syllabus_json = syllabus.model_dump()
-            existing_course.updated_at = datetime.datetime.utcnow()
-            
-            # Clear old nodes
-            db.query(NodeModel).filter(NodeModel.course_id == existing_course.id).delete()
-            
-            c_model = existing_course # Reuse object reference for below
-        else:
-            c_model = CourseModel(
-                user_id=current_user.id,
-                project_id=project_id,
-                topic=topic,
-                title=syllabus.courseTitle,
-                syllabus_json=syllabus.model_dump()
-            )
-            db.add(c_model)
-        
-        # Deduct credits
-        current_user.credits -= COST
-        db.add(current_user) # Ensure user update is tracked
-        
-        db.commit()
-        db.refresh(c_model)
-        return c_model
-        
-    new_course = await run_in_threadpool(_save_course)
 
-    # Populate ID
-    syllabus.id = new_course.id
-    syllabus.topic = topic
-
-    def _save_nodes():
-        for unit in syllabus.units:
-            for node in unit.nodes:
-                db_node = NodeModel(
-                    course_id=new_course.id,
-                    node_id=node.id,
-                    title=node.title,
-                    status=node.status,
-                    data=node.model_dump(exclude={"status", "title", "id"})
-                )
-                db.add(db_node)
-        db.commit()
-    await run_in_threadpool(_save_nodes)
-    
-    # Log completion with stats
-    units_count = len(syllabus.units)
-    lessons_count = sum(len(u.nodes) for u in syllabus.units)
-    unit_titles = [u.unitTitle for u in syllabus.units]
-    project_name = db_project.name if (project_id and db_project) else "No Project"
-    ActivityLogger.log_syllabus_generate_complete(
-        current_user.id, current_user.email, project_id or 0, project_name,
-        topic, units_count, lessons_count, unit_titles
+    # 0.1秒立刻回傳 202 Accepted 號碼牌給前端
+    return JSONResponse(
+        status_code=202,
+        content={"job_id": new_job.id, "status": "PENDING"}
     )
-    ActivityLogger.log_credits_deduct(current_user.id, current_user.email, COST, "syllabus_generation", current_user.credits)
-
-    return syllabus
 
 @router.post("/refine-syllabus", response_model=CoursePath)
 async def refine_syllabus_endpoint(

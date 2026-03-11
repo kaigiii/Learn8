@@ -20,7 +20,7 @@
             - FeynmanMirror 組件 -> 使用 AI 評分 (Grade) -> 回傳詳細評語。
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 from app.api.deps import get_db, get_current_user
@@ -36,14 +36,14 @@ router = APIRouter()
 
 from typing import List
 
-@router.post("/generate-lesson-from-node", response_model=List[LessonStage])
+@router.post("/generate-lesson-from-node")
 async def generate_lesson_from_node_endpoint(
     node: LessonNode, 
     topic: str, 
+    background_tasks: BackgroundTasks,
     project_id: int = None,
     current_user: UserModel = Depends(get_current_user),
-    db: Session = Depends(get_db),
-    architect_service: AIArchitectService = Depends(get_architect_service)
+    db: Session = Depends(get_db)
 ):
     # 1. Fetch from DB
     def _fetch_cached_lesson():
@@ -63,15 +63,22 @@ async def generate_lesson_from_node_endpoint(
         # Check if legacy data (dict) or new data (list)
         data = cached_lesson.stage_json
         if isinstance(data, list):
-             return TypeAdapter(List[LessonStage]).validate_python(data)
+             stages = TypeAdapter(List[LessonStage]).validate_python(data)
         elif isinstance(data, dict):
              # Establish backward compatibility: wrap single stage in list
-             return [TypeAdapter(LessonStage).validate_python(data)]
+             stages = [TypeAdapter(LessonStage).validate_python(data)]
+             
+        # Return mocked COMPLETED structure so frontend can handle it without SSE seamlessly
+        return {"status": "COMPLETED", "result_data": {"stages": [s.model_dump() for s in stages]}}
 
-    # 2. Generate
+    # Credit Check
+    COST = settings.COST_LESSON_GENERATION
+    if current_user.credits < COST:
+         raise HTTPException(status_code=402, detail=f"Insufficient credits. Need {COST}.")
+
+    # 2. Start Background Job
     project_folder_name = None
     profile_summary = "General Learner"
-    db_project = None
     if project_id:
          def _fetch_project_lesson():
              return db.query(ProjectModel).filter(
@@ -84,42 +91,35 @@ async def generate_lesson_from_node_endpoint(
              if db_project.profile_json:
                  profile_summary = db_project.profile_json.get("summary", "General Learner")
 
-    # Credit Check (Only if generating new)
-    COST = settings.COST_LESSON_GENERATION
-    if current_user.credits < COST:
-         raise HTTPException(status_code=402, detail=f"Insufficient credits. Need {COST}.")
-
-    stages = await architect_service.generate_lesson_from_node(
-        node, 
-        topic, 
-        user_id=current_user.id, 
-        project_folder=project_folder_name,
-        profile=profile_summary
+    import uuid
+    from app.models.job import JobModel
+    job_id = str(uuid.uuid4())
+    
+    new_job = JobModel(
+        id=job_id,
+        user_id=current_user.id,
+        project_id=project_id,
+        job_type="LESSON_GEN",
+        status="PENDING",
+        progress=0,
+        message="Waiting for resources..."
     )
-    if not stages:
-         raise HTTPException(status_code=404, detail="Failed to generate lesson content.")
+    db.add(new_job)
+    db.commit()
+
+    from app.services.workers.generation_worker import run_lesson_generation_job
+    background_tasks.add_task(
+        run_lesson_generation_job,
+        job_id,
+        current_user.id,
+        project_id,
+        topic,
+        node.model_dump(),
+        project_folder_name,
+        profile_summary
+    )
     
-    # 3. Save
-    # We serialize the list of models to a list of dicts
-    stages_json = [s.model_dump() for s in stages]
-    
-    def _save_generated_lesson():
-        new_lesson = LessonModel(
-            node_id=node.id,
-            course_topic=topic,
-            stage_json=stages_json, # Stores list now
-            user_id=current_user.id,
-            project_id=project_id
-        )
-        db.add(new_lesson)
-        
-        current_user.credits -= COST
-        db.add(current_user)
-        
-        db.commit()
-    await run_in_threadpool(_save_generated_lesson)
-    
-    return stages
+    return {"job_id": job_id, "status": "PENDING"}
 
 from app.models.lesson import LessonAttempt
 

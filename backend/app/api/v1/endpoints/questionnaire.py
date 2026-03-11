@@ -22,18 +22,22 @@ from app.services.commons.activity_logger import ActivityLogger
 from app.services.commons.file_service import FileService, get_file_service
 from app.core.config import settings
 from fastapi.concurrency import run_in_threadpool
+from fastapi import BackgroundTasks
+from fastapi.responses import JSONResponse
+from app.models.job import JobModel
+from app.services.workers.generation_worker import run_questionnaire_generation_job
 
 router = APIRouter()
 
 
-@router.post("/{project_id}/questionnaire", response_model=List[Question])
+@router.post("/{project_id}/questionnaire")
 async def generate_project_questionnaire(
     project_id: int,
     topic: str,
+    background_tasks: BackgroundTasks,
     current_user: UserModel = Depends(get_current_user),
     db: Session = Depends(get_db),
-    file_service: FileService = Depends(get_file_service),
-    agent: QuestionnaireAgent = Depends(get_questionnaire_agent)
+    file_service: FileService = Depends(get_file_service)
 ):
     # Verify project ownership
     def _fetch_q_project():
@@ -53,20 +57,31 @@ async def generate_project_questionnaire(
     # Get files for logging context
     files_used = file_service.list_files(current_user.id, project.folder_name)
     
-    ActivityLogger.log_questionnaire_generate(
-        current_user.id, current_user.email, project_id, project.name,
-        topic, files_used
+    # 建立 PENDING 狀態的 Job
+    new_job = JobModel(
+        user_id=current_user.id,
+        project_id=project_id,
+        job_type="QUESTIONNAIRE_GEN",
+        status="PENDING",
+        message="準備生成問卷中..."
     )
+    db.add(new_job)
+    db.commit()
+    db.refresh(new_job)
     
-    questions = await agent.generate_questions(topic, project_id=project_id)
+    background_tasks.add_task(
+        run_questionnaire_generation_job,
+        job_id=new_job.id,
+        user_id=current_user.id,
+        project_id=project_id,
+        topic=topic,
+        files_used=files_used
+    )
 
-    if questions:
-        current_user.credits -= COST
-        db.add(current_user)
-        db.commit()
-        ActivityLogger.log_credits_deduct(current_user.id, current_user.email, COST, "questionnaire_generation", current_user.credits)
-
-    return questions
+    return JSONResponse(
+        status_code=202,
+        content={"job_id": new_job.id, "status": "PENDING"}
+    )
 
 
 @router.post("/{project_id}/questionnaire/submit", response_model=LearnerProfile)

@@ -22,6 +22,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useProjectStore } from '@/stores/useProjectStore';
+import { useJobStore } from '@/stores/useJobStore';
 import { apiClient } from '@/lib/api-client';
 
 import StageRenderer from '@/features/stage-player/components/StageRenderer';
@@ -37,11 +38,13 @@ import { LessonStage, CoursePath, LessonNode } from '@/types/lesson';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, LogOut, RefreshCw } from 'lucide-react';
 import { RegenerateDialog } from '@/components/ui/RegenerateDialog';
+import { ProgressOverlay } from '@/components/ui/ProgressOverlay';
 
 export default function Home() {
   const router = useRouter();
-  const { token } = useAuthStore();
-  const { currentProject, setCurrentProject } = useProjectStore(); // Use global project store if possible, local state in original
+  const { token, refreshUser } = useAuthStore();
+  const { currentProject, setCurrentProject } = useProjectStore();
+  const { activeJobId, setActiveJob, updateJobProgress, clearJob, jobStatus } = useJobStore();
 
   // Local state for specific page logic
   const [coursePath, setCoursePath] = useState<CoursePath | null>(null);
@@ -85,6 +88,66 @@ export default function Home() {
       setCurrentProjectId_Local(null);
     }
   }, [currentProject]);
+
+  // Page Reload Auto-Recovery for Active Jobs
+  useEffect(() => {
+    if (!token) return;
+
+    const checkActiveJobs = async () => {
+      try {
+        const res = await apiClient.get('/jobs/active');
+        if (res.data.job_id) {
+          const jobId = res.data.job_id;
+          setActiveJob(jobId);
+
+          // Reconnect EventSource
+          const eventSource = new EventSource(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/jobs/${jobId}/stream`);
+
+          let isClosedIntentionally = false;
+
+          eventSource.onmessage = async (event) => {
+            const data = JSON.parse(event.data);
+            updateJobProgress(data.status.toLowerCase(), data.progress, data.message);
+
+            if (data.status === 'COMPLETED') {
+              isClosedIntentionally = true;
+              eventSource.close();
+              await refreshUser();
+
+              let rd = data.result_data;
+              if (typeof rd === 'string') {
+                try { rd = JSON.parse(rd); } catch (e) { }
+              }
+
+              if (rd?.course_id) {
+                const detailRes = await apiClient.get(`/courses/${rd.course_id}`);
+                setCoursePath(detailRes.data);
+              } else if (rd?.stages) {
+                setActiveStages(rd.stages);
+              }
+              setTimeout(() => clearJob(), 2000);
+            } else if (data.status === 'FAILED' || data.status === 'CANCELLED') {
+              isClosedIntentionally = true;
+              eventSource.close();
+            }
+          };
+
+          eventSource.onerror = () => {
+            if (isClosedIntentionally) return;
+            eventSource.close();
+          };
+        }
+      } catch (err) {
+        console.error("Failed to recover active job", err);
+      }
+    };
+
+    // Only run this if we are not currently tracking a job in Zustand
+    // Use this to pick up unfinished jobs after F5
+    if (jobStatus === 'idle') {
+      checkActiveJobs();
+    }
+  }, [token, jobStatus]);
 
   if (!token) return null; // Prevent flash
 
@@ -140,22 +203,66 @@ export default function Home() {
     if (!targetNode || !coursePath) return;
 
     setIsGeneratingNode(true);
+    setIsDrawerOpen(false);
+
     try {
       const res = await apiClient.post(`/lessons/generate-lesson-from-node?topic=${encodeURIComponent(coursePath.courseTitle)}${currentProjectId_Local ? `&project_id=${currentProjectId_Local}` : ''}`,
         targetNode
       );
 
       const data = res.data;
-      if (Array.isArray(data)) {
-        setActiveStages(data);
-      } else {
-        setActiveStages([data]);
-      }
 
-      setIsDrawerOpen(false);
+      if (data.status === 'COMPLETED' && data.result_data?.stages) {
+        // Server had this cached and returned it immediately
+        setActiveStages(data.result_data.stages);
+        setIsGeneratingNode(false);
+      } else if (data.job_id) {
+        // SSE Generation Flow
+        const jobId = data.job_id;
+        setActiveJob(jobId);
+        setIsGeneratingNode(false); // The JobOverlay takes over
+
+        const eventSource = new EventSource(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/jobs/${jobId}/stream`);
+        let isClosedIntentionally = false;
+
+        eventSource.onmessage = async (event) => {
+          const streamData = JSON.parse(event.data);
+          updateJobProgress(streamData.status.toLowerCase(), streamData.progress, streamData.message);
+
+          if (streamData.status === 'COMPLETED') {
+            isClosedIntentionally = true;
+            eventSource.close();
+            await refreshUser();
+
+            let rd = streamData.result_data;
+            if (typeof rd === 'string') {
+              try { rd = JSON.parse(rd); } catch (e) { }
+            }
+
+            if (rd?.stages) {
+              setActiveStages(rd.stages);
+            }
+            setTimeout(() => clearJob(), 2000);
+          } else if (streamData.status === 'FAILED' || streamData.status === 'CANCELLED') {
+            isClosedIntentionally = true;
+            eventSource.close();
+            alert("Generation Failed: " + streamData.message);
+          }
+        };
+
+        eventSource.onerror = () => {
+          if (isClosedIntentionally) return;
+          eventSource.close();
+          alert("Connection lost during generation.");
+          clearJob();
+        };
+      } else if (Array.isArray(data)) {
+        // Fallback legacy support
+        setActiveStages(data);
+        setIsGeneratingNode(false);
+      }
     } catch (e: any) {
       alert("Error generating lesson: " + (e.response?.data?.detail || e.message));
-    } finally {
       setIsGeneratingNode(false);
     }
   };
@@ -240,6 +347,7 @@ export default function Home() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50 font-[family-name:var(--font-geist-sans)]">
+      <ProgressOverlay />
       {/* Sidebar - Always visible unless playing stage */}
       {!activeStages && (
         <Sidebar

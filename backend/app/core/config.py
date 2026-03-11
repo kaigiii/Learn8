@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 3000
     
     # Database
-    DATABASE_URL: str = "sqlite:///./learn8_db/learn8.db"
+    DATABASE_URL: str # Required to be set in .env
     
     # AI / LLM
     GOOGLE_API_KEY: Optional[str] = None
