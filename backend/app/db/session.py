@@ -7,7 +7,6 @@
 
 主要物件:
     - engine: SQLAlchemy 連線引擎，負責底層的連線池管理。
-      - connect_args={"check_same_thread": False}: 這是針對 SQLite 的特殊設定，允許跨執行緒存取。
 
     - SessionLocal: sessionmaker 產生的工廠函式。
       - autocommit=False: 關閉自動提交，確保交易 (Transaction) 安全。
@@ -21,17 +20,6 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.core.config import settings
 
-engine = create_engine(
-    settings.DATABASE_URL, connect_args={"check_same_thread": False}
-)
-
-# [ADD] Ensure database directory exists for SQLite
-if settings.DATABASE_URL.startswith("sqlite:///"):
-    import os
-    db_path = settings.DATABASE_URL.replace("sqlite:///", "")
-    # Remove file name to get directory
-    db_dir = os.path.dirname(os.path.abspath(db_path))
-    if db_dir and not os.path.exists(db_dir):
-        os.makedirs(db_dir)
+engine = create_engine(settings.DATABASE_URL)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

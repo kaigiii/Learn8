@@ -20,7 +20,7 @@
     - run: Agent 入口點，協調上述兩個階段的流程。
 """
 import asyncio
-from typing import List, Optional, Any
+from typing import List, Optional, Any, Callable
 from pydantic import BaseModel, Field
 
 from app.schemas.course import CoursePath, Unit as CourseUnit, LessonNode as CourseNode
@@ -135,20 +135,26 @@ class SyllabusAgent:
         project_folder: Optional[str] = None, 
         project_id: Optional[int] = None,
         profile_summary: str = None,
-        context: str = None # New argument
+        context: str = None,
+        progress_callback: Optional[Callable[[Optional[int], str], None]] = None
     ) -> Optional[CoursePath]:
         """Main Entry Point"""
         print(f"🚀 [SyllabusAgent] Starting generation for '{topic}'...")
         print(f"👤 [SyllabusAgent] Profile: {profile_summary or 'Default'}")
         
         # 1. Generate Blueprint
-        # Provide a default if None
+        if progress_callback:
+            progress_callback(10, "🧠 AI 正在閱讀文獻與設計總體架構...")
+            
         profile_str = profile_summary if profile_summary else "General Audience"
         blueprint = await self.generate_blueprint(topic, profile=profile_str, context=context)
         if not blueprint:
             return None
         
         print(f"📋 [SyllabusAgent] Blueprint generated: {len(blueprint.units)} units.")
+        
+        if progress_callback:
+            progress_callback(20, f"✅ 架構設計完畢，共規劃 {len(blueprint.units)} 個單元。準備處理細節...")
 
         # 2. Iterate & Expand Units Concurrently
         final_units: List[CourseUnit] = [None] * len(blueprint.units)
@@ -157,12 +163,26 @@ class SyllabusAgent:
         # Concurrency limit
         sem = asyncio.Semaphore(settings.SYLLABUS_CONCURRENCY_LIMIT)
 
+        total_units = len(blueprint.units)
+        completed_units = 0
+
         async def _process_unit(i: int, b_unit: BlueprintUnit):
+            nonlocal completed_units
             async with sem:
+                if progress_callback:
+                    progress_callback(None, f"⏳ 正在規劃單元 {i+1}/{total_units} 的學習路徑: {b_unit.unit_title}...")
+                    
                 print(f"  Doing Unit {i+1}: {b_unit.unit_title}...")
                 nodes = await self.expand_unit(
                     topic, b_unit, project_id=project_id, profile=profile_str
                 )
+                
+                completed_units += 1
+                if progress_callback:
+                    # Scale progress from 20% to 80%
+                    curr_prog = int(20 + (completed_units / total_units) * 60)
+                    progress_callback(curr_prog, f"✅ 完稿單元 {i+1}/{total_units}: {b_unit.unit_title}")
+                    
                 final_units[i] = CourseUnit(
                     unitId=f"unit-{i}",
                     unitTitle=b_unit.unit_title,

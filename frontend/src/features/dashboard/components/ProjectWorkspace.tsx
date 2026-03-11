@@ -12,6 +12,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { apiClient } from '@/lib/api-client';
 import { useProjectStore } from '@/stores/useProjectStore';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { useJobStore } from '@/stores/useJobStore';
 import { projectService, Question } from '@/features/dashboard/api/projectService';
 
 interface ProjectWorkspaceProps {
@@ -29,6 +30,7 @@ export function ProjectWorkspace({ projectId, onGenerateSyllabus }: ProjectWorks
     const [isUploading, setIsUploading] = useState(false);
     const { setFiles, setCurrentProject } = useProjectStore();
     const { user, refreshUser } = useAuthStore();
+    const { setActiveJob, updateJobProgress, clearJob } = useJobStore();
 
     // Questionnaire Data
     const [questions, setQuestions] = useState<Question[]>([]);
@@ -137,16 +139,53 @@ export function ProjectWorkspace({ projectId, onGenerateSyllabus }: ProjectWorks
         setStep("generating_questions");
 
         try {
-            // Use Service
-            const generatedQuestions = await projectService.generateQuestionnaire(projectId, topic);
-            setQuestions(generatedQuestions);
-            setStep("answering");
+            // Use Service to get Ticket
+            const res = await projectService.generateQuestionnaire(projectId, topic);
+            const jobId = res.job_id;
 
-            // Refresh credits (Cost: 5)
-            refreshUser();
+            setActiveJob(jobId);
 
-            // Immediate save to persistence
-            await projectService.updateDraft(projectId, { topic, questions: generatedQuestions, answers: {}, freeText: "" });
+            const eventSource = new EventSource(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/jobs/${jobId}/stream`);
+
+            let isClosedIntentionally = false;
+
+            eventSource.onmessage = async (event) => {
+                const data = JSON.parse(event.data);
+                updateJobProgress(data.status.toLowerCase(), data.progress, data.message);
+
+                if (data.status === 'COMPLETED') {
+                    isClosedIntentionally = true;
+                    eventSource.close();
+
+                    let rd = data.result_data;
+                    if (typeof rd === 'string') {
+                        try { rd = JSON.parse(rd); } catch (e) { }
+                    }
+                    const generatedQuestions = rd?.questions || [];
+
+                    setQuestions(generatedQuestions);
+                    setStep("answering");
+
+                    await refreshUser(); // Refresh credits (Cost: 5)
+                    await projectService.updateDraft(projectId, { topic, questions: generatedQuestions, answers: {}, freeText: "" });
+
+                    setTimeout(() => clearJob(), 2000); // Clear overlay smoothly
+                } else if (data.status === 'FAILED' || data.status === 'CANCELLED') {
+                    isClosedIntentionally = true;
+                    eventSource.close();
+                    setStep("answering"); // Fallback
+                    console.error("Job Failed: ", data.message);
+                }
+            };
+
+            eventSource.onerror = () => {
+                // Ignore if we already closed it successfully
+                if (isClosedIntentionally) return;
+
+                eventSource.close();
+                updateJobProgress('failed', 0, 'Connection lost to the server.');
+                setStep("answering");
+            }
         } catch (err) {
             console.error(err);
             // Fallback to answering manually if generation fails

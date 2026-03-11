@@ -60,10 +60,10 @@ export const projectService = {
 
     // --- Questionnaire ---
     generateQuestionnaire: async (projectId: number | string, topic: string) => {
-        const res = await apiClient.post<Question[]>(`/projects/${projectId}/questionnaire`, null, {
+        const res = await apiClient.post(`/projects/${projectId}/questionnaire`, null, {
             params: { topic },
         });
-        return res.data;
+        return res.data; // Now returns { job_id, status }
     },
 
     submitQuestionnaire: async (
@@ -81,10 +81,9 @@ export const projectService = {
     },
 
     // --- Course Generation ---
-    generateSyllabus: async (projectId: number | string, topic: string) => {
-        // GET or POST? Dashboard.tsx used POST /courses/generate-syllabus
-        const generateUrl = `/courses/generate-syllabus?topic=${encodeURIComponent(topic)}&project_id=${projectId}`;
+    generateSyllabus: async (projectId: number | string, topic: string, regenerate: boolean = false) => {
+        const generateUrl = `/courses/generate-syllabus?topic=${encodeURIComponent(topic)}&project_id=${projectId}&regenerate=${regenerate}`;
         const res = await apiClient.post(generateUrl);
-        return res.data;
+        return res.data; // Now returns { job_id, status }
     }
 };

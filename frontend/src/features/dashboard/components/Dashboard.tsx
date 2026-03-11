@@ -12,6 +12,7 @@ import { LessonStage, ComponentType, SkinType, CoursePath } from '@/types/lesson
 import { apiClient } from '@/lib/api-client';
 import { useProjectStore } from '@/stores/useProjectStore';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { useJobStore } from '@/stores/useJobStore';
 import { projectService } from '@/features/dashboard/api/projectService';
 import { cn } from '@/lib/utils';
 
@@ -33,6 +34,8 @@ export default function Dashboard({ onLessonGenerated, currentProjectId, onResum
     const { setFiles } = useProjectStore();
     const { refreshUser } = useAuthStore();
 
+    const { setActiveJob, updateJobProgress, clearJob } = useJobStore();
+
     // Auto-Resume Effect
     React.useEffect(() => {
         // Scroll top on project change
@@ -53,7 +56,7 @@ export default function Dashboard({ onLessonGenerated, currentProjectId, onResum
         try {
             // Fetch topic from draft
             const draft = await projectService.getDraft(currentProjectId!);
-            const draftTopic = draft.topic;
+            const draftTopic = manualTopic || draft.topic;
 
             if (!draftTopic) {
                 setStatus("Error: Topic missing from draft.");
@@ -62,12 +65,50 @@ export default function Dashboard({ onLessonGenerated, currentProjectId, onResum
 
             setStatus('Architecting your syllabus map... (this may take 10-20s)');
 
-            // Use service
-            const syllabus = await projectService.generateSyllabus(currentProjectId!, draftTopic);
+            // Use service to get Job ID
+            const res = await projectService.generateSyllabus(currentProjectId!, draftTopic);
+            const jobId = res.job_id;
 
-            await refreshUser(); // Refresh credits (Cost: 50)
+            setActiveJob(jobId);
 
-            onLessonGenerated(syllabus);
+            // Connect to SSE
+            const eventSource = new EventSource(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/jobs/${jobId}/stream`);
+
+            let isClosedIntentionally = false;
+
+            eventSource.onmessage = async (event) => {
+                const data = JSON.parse(event.data);
+                updateJobProgress(data.status.toLowerCase(), data.progress, data.message);
+
+                if (data.status === 'COMPLETED') {
+                    isClosedIntentionally = true;
+                    eventSource.close();
+                    await refreshUser(); // Refresh credits
+
+                    let rd = data.result_data;
+                    if (typeof rd === 'string') {
+                        try { rd = JSON.parse(rd); } catch (e) { }
+                    }
+
+                    // fetch the newly generated course based on result_data ID
+                    const newCourseId = rd?.course_id;
+                    if (newCourseId) {
+                        const detailRes = await apiClient.get(`/courses/${newCourseId}`);
+                        onLessonGenerated(detailRes.data);
+                    }
+                    setTimeout(() => clearJob(), 2000); // Clear overlay smoothly
+                } else if (data.status === 'FAILED' || data.status === 'CANCELLED') {
+                    isClosedIntentionally = true;
+                    eventSource.close();
+                    setStatus('Generation Error: ' + data.message);
+                }
+            };
+
+            eventSource.onerror = () => {
+                if (isClosedIntentionally) return;
+                eventSource.close();
+                updateJobProgress('failed', 0, 'Connection lost to the server.');
+            }
 
         } catch (err: any) {
             console.error(err);
