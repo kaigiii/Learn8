@@ -329,10 +329,6 @@ export default function Home() {
     }
   };
 
-  const handleMockLoad = (stage: LessonStage) => {
-    setActiveStages([stage]);
-  };
-
 
 
   const handleOpenProfile = () => {
@@ -442,7 +438,6 @@ export default function Home() {
       {!activeStages && (
         <RightSidebar
           currentProjectName={currentProjectId_Local ? "Current Project" : "Global Scope"}
-          onLoadMock={handleMockLoad}
           onOpenProfile={handleOpenProfile}
         />
       )}

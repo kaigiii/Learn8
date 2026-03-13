@@ -19,7 +19,7 @@ export const learningService = {
         contextTopic: string,
         component: string
     ): Promise<SubmitResponse> => {
-        const response = await apiClient.post('/submit-answer', {
+        const response = await apiClient.post('/lessons/submit-answer', {
             stageId,
             userInput,
             isCorrect,

@@ -1,0 +1,6 @@
+from app.db.base import Base
+from app.models.user import UserModel
+from app.models.project import ProjectModel
+from app.models.course import CourseModel, NodeModel
+from app.models.lesson import LessonModel
+from app.models.job import JobModel

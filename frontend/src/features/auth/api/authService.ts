@@ -48,16 +48,10 @@ export const authService = {
     },
 
     // Credits / Billing
+    // TODO: 後端尚未實作 credits top-up 端點，待實作後再啟用
     credits: {
-        topUp: async (amount: number) => {
-            // Currently using a mock endpoint or reuse a generic patch if specific endpoint doesn't exist
-            // Assuming backend has: PATCH /auth/me/credits or similar.
-            // Based on user code, we might need to create this endpoint or mock it.
-            // For now, I'll assume we send a request to update user, or a specific credits endpoint.
-            // If strictly following existing logic, ProfileView was likely mocking it or using a not-impl endpoint.
-            // I will use a hypothetical endpoint for now, or just update the user if that allows credit modification (unlikely).
-            // Let's assume there is a specific action for this.
-            return apiClient.post(`/auth/credits/topup?amount=${amount}`);
+        topUp: async (_amount: number) => {
+            throw new Error("Credits top-up 功能尚未實作。");
         }
     }
 };

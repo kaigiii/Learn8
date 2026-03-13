@@ -1,35 +1,16 @@
 /**
  * 檔案名稱: frontend/src/components/layout/RightSidebar.tsx
  * 功能描述: 右側工具列 (Right Sidebar / Tools Panel)
- * 
- * 此組件位於應用程式右側，提供輔助工具與資源管理功能。
- * 
+ *
  * 主要區塊:
- *     1. 專案資訊 Header:
- *         - 顯示目前專案名稱。
- * 
- *     2. 學習組件庫 (Component Lab):
- *         - 分類顯示所有可用的 AI 學習模組 (Instruction, Practice, Assessment, Incentive)。
- *         - 點擊按鈕可載入 Mock Data 進行測試 (開發用途)。
- * 
- *     3. 檔案管理 (Project Files):
- *         - 顯示目前專案已上傳的 PDF 檔案。
- *         - 提供上傳按鈕 (多檔案支援) 與刪除功能。
- * 
- *     4. 系統管理 (Admin Controls):
- *         - Logout: 登出功能。
- *         - Reset Database (Danger): 開發者專用，重置整個資料庫。
- *         - Clear Uploads (Danger): 刪除所有上傳檔案。
- * 
- * 狀態管理:
- *     - 使用 `useProjectStore` 同步全域專案狀態與檔案列表。
- *     - `handleSidebarUpload`: 使用 `projectService` 處理檔案上傳邏輯。
+ *     1. 專案資訊 Header — 顯示目前專案名稱與點數餘額。
+ *     2. 學習組件庫 (Component Lab) — 分類顯示所有可用的 AI 學習模組。
+ *     3. 檔案管理 (Project Files) — 已上傳檔案清單、上傳與刪除。
+ *     4. 系統管理 (Admin Controls) — 登出、重置資料庫、清除上傳檔案。
  */
 import React from 'react';
-import { Play, Database, Box } from 'lucide-react';
+import { Database, Box } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { MOCK_STAGES } from '@/lib/mock-data';
-import { ComponentType, LessonStage } from '@/types/lesson';
 import { apiClient } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
 import { useProjectStore } from '@/stores/useProjectStore';
@@ -38,15 +19,13 @@ import { useEffect } from 'react';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useRouter } from 'next/navigation';
 import { projectService } from '@/features/dashboard/api/projectService';
-import { authService } from '@/features/auth/api/authService';
 
 interface RightSidebarProps {
-    onLoadMock: (stage: LessonStage) => void;
     currentProjectName?: string;
     onOpenProfile?: () => void;
 }
 
-export default function RightSidebar({ onLoadMock, currentProjectName, onOpenProfile }: RightSidebarProps) {
+export default function RightSidebar({ currentProjectName, onOpenProfile }: RightSidebarProps) {
 
     const { currentProject, files, setFiles, setCurrentProject } = useProjectStore();
     const { logout, user, refreshUser } = useAuthStore();
@@ -62,17 +41,7 @@ export default function RightSidebar({ onLoadMock, currentProjectName, onOpenPro
         refreshUser();
     }, []);
 
-    const handleTopUp = async () => {
-        try {
-            // Updated to use authService
-            await authService.credits.topUp(100);
-            refreshUser();
-            alert("Top-up successful! Added 100 credits.");
-        } catch (e: any) {
-            const msg = e.response?.data?.detail || "Top-up failed";
-            alert(msg);
-        }
-    };
+    // TODO: Credits top-up 功能待後端實作
 
     useEffect(() => {
         if (currentProject) {
@@ -162,11 +131,10 @@ export default function RightSidebar({ onLoadMock, currentProjectName, onOpenPro
                     {currentProjectName || "Dev Tools"}
                 </h2>
                 <div className="flex justify-between items-center mt-2">
-                    <p className="text-xs text-slate-400">Component Lab & Syllabus</p>
+                    <p className="text-xs text-slate-400">Component Lab & Files</p>
 
                     <div className="flex items-center gap-1 bg-white border border-slate-200 rounded px-2 py-0.5 shadow-sm">
                         <span className="text-xs font-bold text-blue-600">💎 {user?.credits ?? 0}</span>
-                        <button onClick={handleTopUp} className="text-green-500 hover:text-green-700 font-bold ml-1 text-xs" title="Add 100 Credits">+</button>
                     </div>
                 </div>
             </div>
@@ -181,19 +149,12 @@ export default function RightSidebar({ onLoadMock, currentProjectName, onOpenPro
                             </h3>
                             <div className="grid grid-cols-1 gap-2">
                                 {cat.items.map(comp => (
-                                    <Button
+                                    <div
                                         key={comp}
-                                        variant="outline"
-                                        size="sm"
-                                        className="justify-between group hover:border-slate-400 transition-all font-normal text-slate-600"
-                                        onClick={() => {
-                                            const mock = MOCK_STAGES[comp];
-                                            if (mock) onLoadMock({ ...mock, topic: `${comp} Demo` });
-                                        }}
+                                        className="text-xs px-2 py-1.5 bg-slate-50 border border-slate-200 rounded text-slate-600"
                                     >
                                         {comp}
-                                        <Play className="w-3 h-3 opacity-0 group-hover:opacity-50 text-blue-500" />
-                                    </Button>
+                                    </div>
                                 ))}
                             </div>
                         </div>

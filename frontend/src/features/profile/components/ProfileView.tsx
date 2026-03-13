@@ -27,12 +27,12 @@ export function ProfileView({ onClose }: ProfileViewProps) {
         education_level: '',
     });
 
-    // Mock Stats
+    // TODO: 串接後端 API 取得真實學習統計數據
     const stats = [
-        { label: "Courses Completed", value: "12", icon: BookOpen, color: "text-blue-500", bg: "bg-blue-50" },
-        { label: "Study Hours", value: "48h", icon: Clock, color: "text-green-500", bg: "bg-green-50" },
-        { label: "Achievements", value: "5", icon: Award, color: "text-orange-500", bg: "bg-orange-50" },
-        { label: "Avg. Score", value: "92%", icon: Star, color: "text-purple-500", bg: "bg-purple-50" },
+        { label: "Courses Completed", value: "—", icon: BookOpen, color: "text-blue-500", bg: "bg-blue-50" },
+        { label: "Study Hours", value: "—", icon: Clock, color: "text-green-500", bg: "bg-green-50" },
+        { label: "Achievements", value: "—", icon: Award, color: "text-orange-500", bg: "bg-orange-50" },
+        { label: "Avg. Score", value: "—", icon: Star, color: "text-purple-500", bg: "bg-purple-50" },
     ];
 
     const handlePurchase = async (amount: number) => {
