@@ -1,8 +1,11 @@
+import logging
 from typing import List
-from app.services.llm_clients.base import BaseLLMProvider
-from app.schemas.questionnaire import Question, QuestionnaireSubmission, LearnerProfile
+from app.services.llm_clients.base_provider import BaseLLMProvider
+from app.schemas.questionnaire_schema import Question, QuestionnaireSubmission, LearnerProfile
 from app.services.knowledge_base.rag_engine import RAGEngine
 from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
 
 GENERATE_QUESTIONS_PROMPT = """You are an expert educational psychologist.
 Your task is to create a short, adaptive questionnaire (3-5 questions) for a student about to learn: "{topic}".
@@ -39,63 +42,78 @@ Output a JSON object with:
 - attributes: dict (Key-value pairs of the identified traits)
 """
 
+
 class QuestionList(BaseModel):
     questions: List[Question]
+
 
 class QuestionnaireAgent:
     def __init__(self, provider: BaseLLMProvider, rag_engine: RAGEngine):
         self.provider = provider
         self.rag_engine = rag_engine
 
-    async def generate_questions(self, topic: str, project_id: int = None) -> List[Question]:
-        
-        # Get context to make questions relevant
-        context_chunks = await self.rag_engine.query_context(topic, k=2, project_id=project_id)
-        context_str = "\\n".join(context_chunks) if context_chunks else "No specific context."
+    async def generate_questions(
+        self, topic: str, project_id: int = None
+    ) -> List[Question]:
+
+        # 取得上下文以確保問題的關聯性
+        context_chunks = await self.rag_engine.query_context(
+            topic, k=2, project_id=project_id
+        )
+        context_str = (
+            "\\n".join(context_chunks) if context_chunks else "No specific context."
+        )
 
         messages = [
-            ("system", GENERATE_QUESTIONS_PROMPT.format(topic=topic, context=context_str)),
-            ("user", "Generate the questionnaire.")
+            (
+                "system",
+                GENERATE_QUESTIONS_PROMPT.format(topic=topic, context=context_str),
+            ),
+            ("user", "Generate the questionnaire."),
         ]
-        
+
         try:
             result = await self.provider.generate_structured(messages, QuestionList)
             return result.questions if result else []
         except Exception as e:
-            print(f"Questionnaire Generation Error: {e}")
+            logger.error(f"Questionnaire Generation Error: {e}")
             return []
 
-    async def summarize_responses(self, topic: str, submission: QuestionnaireSubmission, questions: List[Question]) -> LearnerProfile:
-        
-        # Map IDs to Text
+    async def summarize_responses(
+        self, topic: str, submission: QuestionnaireSubmission, questions: List[Question]
+    ) -> LearnerProfile:
+
+        # 將問題 ID 映射回完整文字
         q_map = {q.id: q.text for q in questions}
-        
+
         qa_pairs = []
         for resp in submission.responses:
             q_text = q_map.get(resp.question_id, "Unknown Question")
             qa_pairs.append(f"Q: {q_text}\nA: {resp.answer}")
-            
+
         qa_str = "\n\n".join(qa_pairs)
-        
+
         messages = [
             ("system", SUMMARIZE_PROFILE_PROMPT.format(topic=topic, qa_pairs=qa_str)),
-            ("user", "Generate the learner profile.")
+            ("user", "Generate the learner profile."),
         ]
-        
+
         try:
             return await self.provider.generate_structured(messages, LearnerProfile)
         except Exception as e:
-            print(f"Profile Summarization Error: {e}")
-            # Fallback
+            logger.error(f"Profile Summarization Error: {e}")
+            # 失敗時的回退機制
             return LearnerProfile(summary="Failed to generate profile.", attributes={})
+
 
 from fastapi import Depends
 from app.services.llm_clients.factory import get_llm_provider
 from app.services.knowledge_base.rag_engine import get_rag_engine
 
+
 def get_questionnaire_agent(
     provider: BaseLLMProvider = Depends(get_llm_provider),
-    rag_engine: RAGEngine = Depends(get_rag_engine)
+    rag_engine: RAGEngine = Depends(get_rag_engine),
 ) -> QuestionnaireAgent:
     """FastAPI Dependency for QuestionnaireAgent"""
     return QuestionnaireAgent(provider, rag_engine)

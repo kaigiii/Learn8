@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, ArrowRight, Home } from 'lucide-react';
 import { learningService } from '@/features/stage-player/api/learningService';
 import { COMPONENT_REGISTRY, FallbackComponent } from './ComponentRegistry';
+import { StageErrorBoundary } from './StageErrorBoundary';
 
 interface StageRendererProps {
     stages: LessonStage[];
@@ -80,7 +81,15 @@ export default function StageRenderer({ stages: initialStages, onExit, onComplet
             return <FallbackComponent stage={currentStage} onSkip={() => handleSubmit("skipped", true)} />;
         }
 
-        return <Component stage={currentStage} onSubmit={handleSubmit} />;
+        return (
+            <StageErrorBoundary
+                key={currentStage.stageId}
+                stageName={currentStage.component}
+                onSkip={() => handleSubmit("skipped", true)}
+            >
+                <Component stage={currentStage} onSubmit={handleSubmit} />
+            </StageErrorBoundary>
+        );
     };
 
     return (
