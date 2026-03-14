@@ -56,7 +56,8 @@ export default function StageRenderer({ stages: initialStages, onExit, onComplet
                 userInput,
                 isCorrect,
                 currentStage.topic,
-                currentStage.component
+                currentStage.component,
+                isCorrect ? undefined : currentStage
             );
 
             setMessage(data.message || (isCorrect ? "Correct!" : "Incorrect"));

@@ -48,10 +48,11 @@ export const authService = {
     },
 
     // Credits / Billing
-    // TODO: 後端尚未實作 credits top-up 端點，待實作後再啟用
     credits: {
-        topUp: async (_amount: number) => {
-            throw new Error("Credits top-up 功能尚未實作。");
-        }
+        topUp: async (amount: number) => {
+            return apiClient.post('/auth/credits/topup', null, {
+                params: { amount },
+            });
+        },
     }
 };

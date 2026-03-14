@@ -14,10 +14,8 @@ from app.services.commons.activity_logger import activity_logger
 
 # --- PROMPTS ---
 
-from app.core.prompts import (
+from app.services.ai_agents.course_architect_prompts import (
     REFINE_SYLLABUS_PROMPT,
-    SYSTEM_PROMPT,
-    SYLLABUS_SYSTEM_PROMPT,
     NODE_SYSTEM_PROMPT,
     REMEDIAL_SYSTEM_PROMPT,
     SYSTEM_PROMPT_FEYNMAN,
@@ -74,50 +72,6 @@ class AIArchitectService:
             activity_logger.error(f"Refinement Error: {e}")
             raise LLMGenerationError(f"Failed to refine syllabus: {e}")
 
-    async def generate_course_syllabus(
-        self,
-        topic: str,
-        user_id: Optional[int] = None,
-        project_folder: Optional[str] = None,
-    ) -> Optional[CoursePath]:
-        # 1. RAG Retrieve
-        context_chunks = await self.rag_engine.query_context(topic)
-        context_str = (
-            "\\n\\n".join(context_chunks) if context_chunks else "General knowledge."
-        )
-
-        # 2. 綁定相關檔案
-        if user_id:
-            files = self.file_service.list_files(user_id, project_folder)
-            if files:
-                full_paths = [
-                    self.file_service.get_upload_dir(user_id, project_folder) + "/" + f
-                    for f in files
-                ]
-                self.provider.bind_files(full_paths)
-
-        messages = [
-            ("system", SYLLABUS_SYSTEM_PROMPT),
-            ("user", f"Create a learning path for: {topic}. Context: {context_str}"),
-        ]
-
-        try:
-            result = await self.provider.generate_structured(messages, CoursePath)
-            # 確保標題存在
-            if result and topic.strip():
-                result.courseTitle = topic
-
-            # 解鎖第一個學習節點
-            if result and result.units and result.units[0].nodes:
-                result.units[0].nodes[0].status = "available"
-
-            return result
-        except Exception as e:
-            activity_logger.error(f"Syllabus Gen Error: {e}")
-            raise LLMGenerationError(f"Failed to generate course syllabus: {e}")
-
-    # ... exists ...
-
     async def generate_lesson_from_node(
         self,
         node: LessonNode,
@@ -153,7 +107,7 @@ class AIArchitectService:
             ),
             (
                 "user",
-                f"TOPIC: {topic}\nNODE TITLE: {node.title}\nNODE DESC: {node.description}\nNODE TYPE: {node.type}",
+                f"TOPIC: {topic}\nNODE TITLE: {node.title}\nNODE DESC: {node.description}",
             ),
         ]
 

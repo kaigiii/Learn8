@@ -17,14 +17,16 @@ export const learningService = {
         userInput: any,
         isCorrect: boolean,
         contextTopic: string,
-        component: string
+        component: string,
+        failedStage?: LessonStage
     ): Promise<SubmitResponse> => {
         const response = await apiClient.post('/lessons/submit-answer', {
             stageId,
             userInput,
             isCorrect,
             context_topic: contextTopic,
-            component
+            component,
+            failedStage,
         });
         return response.data;
     }

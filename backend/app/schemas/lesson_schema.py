@@ -44,8 +44,10 @@ def parse_data_field(v: Any) -> Any:
 
 # --- 設定模型 (Config Models) ---
 class GenericConfig(BaseModel):
-    initialState: dict = {}
-    data: Union[dict, list, str, Any] = {}  # 為了遷移期間的相容性而放寬型別
+    initialState: dict = Field(default_factory=dict)
+    data: Union[dict, list, str, Any] = Field(
+        default_factory=dict
+    )  # 為了遷移期間的相容性而放寬型別
 
     @field_validator("initialState", mode="before")
     @classmethod
@@ -86,8 +88,7 @@ class LessonStage(BaseModel):
         from app.core.component_loader import registry
 
         if v not in registry.get_component_names():
-            # 在正式環境中，可依嚴格度要求在此處拋出 ValueError
-            pass
+            raise ValueError(f"Unsupported component: {v}")
         return v
 
 
@@ -97,6 +98,7 @@ class SubmissionRequest(BaseModel):
     isCorrect: bool
     context_topic: Optional[str] = None
     component: Optional[str] = None
+    failedStage: Optional[LessonStage] = None
 
 
 class SubmissionResponse(BaseModel):

@@ -53,6 +53,7 @@ export default function Home() {
   // Drawer
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedNode, setSelectedNode] = useState<LessonNode | null>(null);
+  const [profileInitialView, setProfileInitialView] = useState<'view' | 'top_up'>('view');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isGeneratingNode, setIsGeneratingNode] = useState(false);
 
@@ -135,6 +136,7 @@ export default function Home() {
           eventSource.onerror = () => {
             if (isClosedIntentionally) return;
             eventSource.close();
+            clearJob();
           };
         }
       } catch (err) {
@@ -331,14 +333,16 @@ export default function Home() {
 
 
 
-  const handleOpenProfile = () => {
+  const handleOpenProfile = (initialViewMode: 'view' | 'top_up' = 'view') => {
     setIsProfileOpen(true);
+    setProfileInitialView(initialViewMode);
     setCoursePath(null); // Clear dashboard/map view to show profile
     setActiveStages(null);
   };
 
   const handleCloseProfile = () => {
     setIsProfileOpen(false);
+    setProfileInitialView('view');
   };
 
   return (
@@ -368,7 +372,7 @@ export default function Home() {
             onComplete={handleLessonComplete}
           />
         ) : isProfileOpen ? (
-          <ProfileView onClose={handleCloseProfile} />
+          <ProfileView onClose={handleCloseProfile} initialViewMode={profileInitialView} />
         ) : coursePath ? (
           <div className="relative h-screen flex flex-col">
             <div className="bg-white border-b px-6 py-4 flex items-center justify-between shadow-sm z-10">

@@ -1,6 +1,5 @@
 from app.core.component_loader import registry
 
-COMP_NAMES = ", ".join(registry.get_component_names())
 COMP_MENU = registry.get_prompt_menu_string()
 COMP_SCHEMA = registry.get_prompt_schema_reference_string()
 
@@ -15,7 +14,7 @@ USER FEEDBACK:
 {user_feedback}
 
 INSTRUCTIONS:
-1. Analyze the feedback. 
+1. Analyze the feedback.
    - If they want more depth, break nodes into sub-nodes.
    - If they want it simpler, merge or remove nodes.
    - If they want a specific topic added, insert a Unit or Node.
@@ -26,52 +25,9 @@ OUTPUT:
 Strict JSON matching `CoursePath` schema.
 """
 
-SYSTEM_PROMPT = """
-You are the "Course Architect" and "Game Master" for Learn8.
-Your goal is to transform static knowledge into a "Gamified Learning Path".
-
-### 1. COMPONENT SELECTION MATRIX
-Choose the component that best fits the micro-concept: (VAR_COMP_NAMES)
-
-### IMPORTANT RULE:
-The `config` object MUST ALWAYS have an `initialState` field. If no state is needed, use `initialState: {{}}`.
-
-### 3. VALIDATION RULES
-The `validation.type` field MUST be one of: "exact", "regex", "logic".
-
-### 4. SKIN RULES
-The `skin` field MUST be one of: "Scientific", "Classic", "Code".
-
-### 2. OUTPUT FORMAT
-You must output a VALID JSON list of `LessonStage` objects.
-""".replace("VAR_COMP_NAMES", COMP_NAMES)
-
-SYLLABUS_SYSTEM_PROMPT = """
-You are the "Course Architect" for NeoLearn 3.0.
-Your goal is to design a high-level "Learning Path" (Syllabus) for a given topic.
-
-### STRUCTURE RULES
-1. Divide the topic into logical **Units**.
-   - Each Unit MUST have a brief `unitDescription`.
-2. Inside each Unit, create a sequence of **Lesson Nodes**.
-3. **Nodes** can be `concept`, `exercise`, or `quiz`.
-   - **CRITICAL**: Each node MUST have:
-     - `id`: Unique identifier (e.g., "n1", "u1-n1").
-     - `description`: A brief summary of what this node covers.
-
-4. **CRITICAL: PLAN THE PEDAGOGY**
-   For *each* node, you MUST decide:
-   - `recommended_component`: Which UI component fits best? (VAR_COMP_NAMES)
-   - `instructional_goal`: A specific instruction for the content generator (e.g., "Use a 5-step sequence to explain X", "Create a matching game for vocabulary").
-
-### OUTPUT FORMAT
-Output a JSON object matching the `CoursePath` schema (Units -> Nodes).
-All nodes MUST have `recommended_component` and `instructional_goal` populated.
-""".replace("VAR_COMP_NAMES", COMP_NAMES)
-
 NODE_SYSTEM_PROMPT = """
 You are the "Content Creator" for NeoLearn 3.0.
-Your goal is to generate a single, high-quality LessonStage for a specific node in the syllabus.
+Your goal is to generate one or more high-quality LessonStage objects for a specific node in the syllabus.
 
 Learner Profile:
 {profile}
@@ -118,11 +74,14 @@ Your goal is to generate a REMEDIAL LessonStage.
 Since the user failed, switch to **Instruction** or simplified **Practice**.
 
 ### REQUIRED OUTPUT FORMAT
-Output a JSON object matching the `LessonStage` schema (Remedial).
+Output a JSON object in this exact shape:
+{
+  "stage": { ... LessonStage object ... }
+}
 """
 
 SYSTEM_PROMPT_FEYNMAN = """
-You are Richard Feynman. 
+You are Richard Feynman.
 A student is explaining the concept: "{topic}".
 
 JUDGE their explanation based on:

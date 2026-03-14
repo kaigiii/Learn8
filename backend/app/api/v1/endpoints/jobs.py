@@ -1,9 +1,11 @@
 import json
 import asyncio
 import asyncpg
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from app.core.config import settings
 from app.api.dependencies import get_db, get_current_user
 from app.models.job import JobModel
@@ -12,6 +14,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+STALE_JOB_TIMEOUT = timedelta(minutes=10)
 
 
 @router.get("/{job_id}/stream")
@@ -93,13 +96,31 @@ async def stream_job_status(job_id: str):
                 if data.get("job_id") != job_id:
                     continue
 
-                # 轉發剛收到的事件給前端
-                logger.info(
-                    f"[SSE SEND] {job_id[:8]} - status: {data.get('status')}, prog: {data.get('progress')}"
+                row = await conn.fetchrow(
+                    "SELECT status, progress, message, result_data FROM generation_jobs WHERE id = $1",
+                    job_id,
                 )
-                yield f"data: {payload_str}\n\n"
+                if not row:
+                    continue
 
-                if data.get("status") in ["COMPLETED", "FAILED", "CANCELLED"]:
+                event_data = dict(row)
+                event_data["job_id"] = job_id
+                if "result_data" in event_data and isinstance(
+                    event_data["result_data"], str
+                ):
+                    try:
+                        event_data["result_data"] = json.loads(
+                            event_data["result_data"]
+                        )
+                    except Exception:
+                        pass
+
+                logger.info(
+                    f"[SSE SEND] {job_id[:8]} - status: {event_data.get('status')}, prog: {event_data.get('progress')}"
+                )
+                yield f"data: {json.dumps(event_data)}\n\n"
+
+                if event_data.get("status") in ["COMPLETED", "FAILED", "CANCELLED"]:
                     logger.info(
                         f"[SSE CLOSE] Stream for {job_id[:8]} terminating normally due to final status."
                     )
@@ -124,6 +145,23 @@ async def stream_job_status(job_id: str):
 async def check_active_jobs(
     current_user=Depends(get_current_user), db: Session = Depends(get_db)
 ):
+    cutoff = datetime.now(timezone.utc) - STALE_JOB_TIMEOUT
+
+    stale_jobs = (
+        db.query(JobModel)
+        .filter(
+            JobModel.user_id == current_user.id,
+            JobModel.status.in_(["PENDING", "PROCESSING"]),
+            func.coalesce(JobModel.updated_at, JobModel.created_at) < cutoff,
+        )
+        .all()
+    )
+    for job in stale_jobs:
+        job.status = "FAILED"
+        job.message = "Job expired after backend restart or timeout."
+    if stale_jobs:
+        db.commit()
+
     # 尋找最新一筆處理中 (PROCESSING) 或等待中 (PENDING) 的任務
     active_job = (
         db.query(JobModel)

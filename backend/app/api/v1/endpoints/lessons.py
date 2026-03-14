@@ -181,19 +181,15 @@ async def submit_answer(
         )
 
     # 2. Remedial Generation
-    dummy_failed_stage = LessonStage(
-        stageId=submission.stageId,
-        topic=submission.context_topic or "Unknown",
-        module=ModuleType.Instruction,  # Dummy default
-        component="TextToken",  # Dummy
-        skin=SkinType.Classic,
-        config=GenericConfig(data={}, initialState={}),
-        validation=Validation(type=ValidationType.Exact, condition={}),
-        feedback=Feedback(success="", error=""),
-    )
+    failed_stage = submission.failedStage
+    if not failed_stage:
+        raise HTTPException(
+            status_code=400,
+            detail="failedStage is required to generate a remedial lesson.",
+        )
 
     remedial = await architect_service.generate_remedial_stage(
-        failed_stage=dummy_failed_stage,
+        failed_stage=failed_stage,
         user_input=str(submission.userInput),
         topic=submission.context_topic or "General Concept",
     )
