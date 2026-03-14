@@ -48,12 +48,6 @@ export const NodeDrawer: React.FC<NodeDrawerProps> = ({ node, isOpen, onClose, o
                         <div className="flex justify-between items-start mb-6">
                             <div>
                                 <h2 className="text-2xl font-bold text-slate-800">{node.title}</h2>
-                                <span className={`inline-block px-2 py-1 rounded text-xs font-semibold mt-2 ${node.type === 'concept' ? 'bg-blue-100 text-blue-700' :
-                                    node.type === 'exercise' ? 'bg-green-100 text-green-700' :
-                                        'bg-amber-100 text-amber-700'
-                                    }`}>
-                                    {node.type.toUpperCase()}
-                                </span>
                             </div>
                             <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full hover:bg-slate-100">
                                 <X className="w-5 h-5 text-slate-500" />

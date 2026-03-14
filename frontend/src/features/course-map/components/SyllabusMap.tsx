@@ -85,7 +85,6 @@ export const SyllabusMap: React.FC<SyllabusMapProps> = ({ coursePath, onNodeClic
                     id: nodeId,
                     data: {
                         label: lessonNode.title,
-                        type: lessonNode.type,
                         status: lessonNode.status,
                         originalId: lessonNode.id  // Keep original ID for API calls
                     },

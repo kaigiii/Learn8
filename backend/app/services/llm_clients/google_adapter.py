@@ -107,5 +107,23 @@ class GoogleLLMProvider(BaseLLMProvider):
 
         # 若模型不支援 with_structured_output，退回使用 PydanticOutputParser
         parser = PydanticOutputParser(pydantic_object=schema)
-        # TODO: 處理 fallback 格式指令的注入
-        pass
+        format_instructions = parser.get_format_instructions()
+
+        from langchain_core.messages import SystemMessage, AIMessage
+
+        fallback_messages = messages + [
+            SystemMessage(
+                content=(
+                    "You MUST output raw JSON exactly matching this schema. "
+                    "Do not output markdown code blocks.\n"
+                    f"{format_instructions}"
+                )
+            )
+        ]
+
+        response = await self.llm.ainvoke(fallback_messages)
+        latency = (time.time() - start_time) * 1000
+        ActivityLogger.log_llm_response(
+            "google", settings.GEMINI_MODEL, response.content, latency
+        )
+        return parser.invoke(AIMessage(content=response.content))

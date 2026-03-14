@@ -24,6 +24,7 @@ async def run_lesson_generation_job(
     在背景獨立執行單元課程生成的 Worker。
     """
     db = SessionLocal()
+    job = None
     try:
         job = db.query(JobModel).filter(JobModel.id == job_id).first()
         if not job or job.status == "CANCELLED":
@@ -93,9 +94,11 @@ async def run_lesson_generation_job(
 
     except Exception as e:
         logger.error(f"Lesson generation job failed: {e}")
-        _notify_job_update(
-            db, job, str(job.progress), f"生成失敗: {str(e)}", status="FAILED"
-        )
+        db.rollback()
+        if job is not None:
+            _notify_job_update(
+                db, job, job.progress or 0, f"生成失敗: {str(e)}", status="FAILED"
+            )
 
     finally:
         db.close()

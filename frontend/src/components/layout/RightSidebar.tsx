@@ -22,7 +22,7 @@ import { projectService } from '@/features/dashboard/api/projectService';
 
 interface RightSidebarProps {
     currentProjectName?: string;
-    onOpenProfile?: () => void;
+    onOpenProfile?: (initialViewMode?: 'view' | 'top_up') => void;
 }
 
 export default function RightSidebar({ currentProjectName, onOpenProfile }: RightSidebarProps) {
@@ -40,8 +40,6 @@ export default function RightSidebar({ currentProjectName, onOpenProfile }: Righ
     useEffect(() => {
         refreshUser();
     }, []);
-
-    // TODO: Credits top-up 功能待後端實作
 
     useEffect(() => {
         if (currentProject) {
@@ -133,9 +131,14 @@ export default function RightSidebar({ currentProjectName, onOpenProfile }: Righ
                 <div className="flex justify-between items-center mt-2">
                     <p className="text-xs text-slate-400">Component Lab & Files</p>
 
-                    <div className="flex items-center gap-1 bg-white border border-slate-200 rounded px-2 py-0.5 shadow-sm">
+                    <button
+                        type="button"
+                        onClick={() => onOpenProfile?.('top_up')}
+                        className="flex items-center gap-1 bg-white border border-slate-200 rounded px-2 py-0.5 shadow-sm hover:border-blue-300 hover:bg-blue-50 transition-colors"
+                    >
                         <span className="text-xs font-bold text-blue-600">💎 {user?.credits ?? 0}</span>
-                    </div>
+                        <Plus className="w-3 h-3 text-blue-500" />
+                    </button>
                 </div>
             </div>
 

@@ -46,19 +46,19 @@ export interface LessonStage {
     };
 }
 
-export type LessonNodeType = 'concept' | 'exercise' | 'quiz';
+export type LessonNodeStatus = 'locked' | 'available' | 'completed';
 
 export interface LessonNode {
     id: string;
     title: string;
     description: string;
-    type: LessonNodeType;
-    status: 'locked' | 'available' | 'completed';
+    status: LessonNodeStatus;
 }
 
 export interface Unit {
     unitId: string;
     unitTitle: string;
+    unitDescription?: string;
     nodes: LessonNode[];
 }
 

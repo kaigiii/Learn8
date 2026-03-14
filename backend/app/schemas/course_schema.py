@@ -1,23 +1,19 @@
 from enum import Enum
 from typing import List, Dict, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
-class LessonNodeType(str, Enum):
-    Concept = "concept"
-    Exercise = "exercise"
-    Quiz = "quiz"
+class LessonNodeStatus(str, Enum):
+    locked = "locked"
+    available = "available"
+    completed = "completed"
 
 
 class LessonNode(BaseModel):
     id: str
     title: str
     description: str
-    type: LessonNodeType
-    status: str = "locked"
-    # 詳細規劃欄位
-    recommended_component: Optional[str] = None  # 例如 "TextToken"
-    instructional_goal: Optional[str] = None  # 例如 "Explain the definition of Matrix"
+    status: LessonNodeStatus = LessonNodeStatus.locked
 
 
 class Unit(BaseModel):
@@ -39,9 +35,9 @@ class RefineSyllabusRequest(BaseModel):
     topic: str
     currentSyllabus: CoursePath
     userFeedback: str
-    history: List[Dict[str, str]] = []
+    history: List[Dict[str, str]] = Field(default_factory=list)
     projectId: Optional[int] = None
 
 
 class UpdateNodeStatusRequest(BaseModel):
-    status: str
+    status: LessonNodeStatus

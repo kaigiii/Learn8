@@ -9,13 +9,14 @@ import { authService } from '@/features/auth/api/authService';
 
 interface ProfileViewProps {
     onClose: () => void;
+    initialViewMode?: ViewMode;
 }
 
 type ViewMode = 'view' | 'edit' | 'delete_confirm' | 'top_up';
 
-export function ProfileView({ onClose }: ProfileViewProps) {
+export function ProfileView({ onClose, initialViewMode = 'view' }: ProfileViewProps) {
     const { user, logout, refreshUser } = useAuthStore();
-    const [viewMode, setViewMode] = useState<ViewMode>('view');
+    const [viewMode, setViewMode] = useState<ViewMode>(initialViewMode);
     const [deleteConfirmation, setDeleteConfirmation] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
 
@@ -38,18 +39,13 @@ export function ProfileView({ onClose }: ProfileViewProps) {
     const handlePurchase = async (amount: number) => {
         setIsProcessing(true);
         try {
-            // Mock API call to top up credits
-            await authService.credits.topUp(amount);
+            const res = await authService.credits.topUp(amount);
             await refreshUser();
-
-            // Wait a bit to show state
-            setTimeout(() => {
-                setIsProcessing(false);
-                setViewMode('view');
-                alert(`Top-up successful! Added ${amount} credits.`); // Simple feedback for now
-            }, 500);
-        } catch (e) {
-            alert("Top-up failed");
+            setIsProcessing(false);
+            setViewMode('view');
+            alert(`Top-up successful! Added ${amount} credits. New balance: ${res.data.credits}.`);
+        } catch (e: any) {
+            alert("Top-up failed: " + (e.response?.data?.detail || e.message));
             setIsProcessing(false);
         }
     };
