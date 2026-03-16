@@ -1,0 +1,10 @@
+name: MultipleChoice
+module: Assessment
+description: If the goal is to let the learner choose the best answer from four options.
+schema_requirements: |
+  config.data MUST contain:
+  - question: A single question string.
+  - options: A list of exactly 4 options. Each option may be a string or an object with:
+    - id: A unique string ID.
+    - text: The option text shown to the learner.
+  - correctOptionId: The ID of the correct option.

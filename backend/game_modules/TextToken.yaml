@@ -1,7 +1,0 @@
-name: TextToken
-module: Instruction
-description: If the goal is to extract key definitions or highlight concepts from a block of text.
-schema_requirements: |
-  config.data MUST contain:
-  - text: The main paragraph text.
-  - items: A list of string tokens representing the key highlighted concepts inside the text.

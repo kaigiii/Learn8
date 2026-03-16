@@ -1,0 +1,6 @@
+name: Ordering
+module: Practice
+description: If the goal is to order steps, phases, or events into the correct sequence.
+schema_requirements: |
+  config.data MUST contain:
+  - steps: A list of strings or objects representing the correct order.

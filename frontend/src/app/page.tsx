@@ -277,7 +277,7 @@ export default function Home() {
     setIsInRemedialFlow(false);
   };
 
-  const handlePlayComponentDemo = (component: 'TextToken' | 'Sequencer' | 'TaxonomyMatrix' | 'FeynmanMirror') => {
+  const handlePlayComponentDemo = (component: 'MultipleChoice' | 'Ordering' | 'MatchingPairs' | 'FeynmanMirror') => {
     setSelectedNodeId(null);
     setSelectedNode(null);
     setIsDrawerOpen(false);
