@@ -5,20 +5,16 @@
  * 定義了前端與後端共用的資料結構，與後端 Pydantic Models 高度對應。
  * 
  * 主要型別:
- * - ComponentType: 所有支援的遊戲化組件名稱 (如 'LogicChain')。
+ * - ComponentType: 所有支援的遊戲化組件名稱 (如 'TextToken')。
  * - ModuleType: 學習模組分類 (Instruction, Practice, Assessment, Incentive)。
  * - LessonStage: 單一學習階段的完整設定結構 (包含 config, data, validation)。
  * - CoursePath & Unit & LessonNode: 課程大綱的層級結構。
  */
 export type ComponentType =
-    | 'LogicChain'
     | 'TaxonomyMatrix'
     | 'TextToken'
     | 'FeynmanMirror'
-    | 'Sequencer'
-    | 'SpatialAnatomy'
-    | 'DilemmaSolver'
-    | 'PatternMatcher';
+    | 'Sequencer';
 
 export type SkinType = 'Scientific' | 'Classic' | 'Code';
 
@@ -44,6 +40,11 @@ export interface LessonStage {
         success: string;
         error: string;
     };
+}
+
+export interface FailedStageRecord {
+    failedStage: LessonStage;
+    userInput: any;
 }
 
 export type LessonNodeStatus = 'locked' | 'available' | 'completed';

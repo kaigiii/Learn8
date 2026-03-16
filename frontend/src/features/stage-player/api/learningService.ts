@@ -3,11 +3,11 @@
  * 功能描述: 學習與互動服務
  */
 import { apiClient } from '@/lib/api-client';
-import { LessonStage } from '@/types/lesson';
+import { FailedStageRecord, LessonStage } from '@/types/lesson';
 
 export interface SubmitResponse {
     message: string;
-    nextAction: 'continue' | 'remedial' | 'complete';
+    nextAction: 'proceed' | 'review_later' | 'complete';
     remedialStage?: LessonStage;
 }
 
@@ -27,6 +27,16 @@ export const learningService = {
             context_topic: contextTopic,
             component,
             failedStage,
+        });
+        return response.data;
+    },
+    generateRemedialStages: async (
+        topic: string,
+        failedStages: FailedStageRecord[]
+    ): Promise<LessonStage[]> => {
+        const response = await apiClient.post('/lessons/generate-remedial-stages', {
+            topic,
+            failedStages,
         });
         return response.data;
     }

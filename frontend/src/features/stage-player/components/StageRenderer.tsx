@@ -8,12 +8,12 @@
  * 主要職責:
  * 1. 狀態管理: 當前播放到第幾個 Stage (`currentIndex`)。
  * 2. 提交答案: 處理 `onSubmit` 回調，將使用者答案發送回後端 `/submit-answer`。
- * 3. 補救教學 (Remedial): 若後端回傳 `nextAction: 'remedial'`，動態插入新的 Stage 到播放清單中。
+ * 3. 補救教學 (Remedial): 若答錯則先記錄失敗的 Stage，待整個 Lesson 完成後再批次生成補救內容。
  * 4. UI 呈現: 進度條、轉場動畫 (Framer Motion)、回饋訊息顯示。
  */
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LessonStage } from '@/types/lesson';
+import { FailedStageRecord, LessonStage } from '@/types/lesson';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, ArrowRight, Home } from 'lucide-react';
@@ -24,14 +24,21 @@ import { StageErrorBoundary } from './StageErrorBoundary';
 interface StageRendererProps {
     stages: LessonStage[];
     onExit: () => void;
-    onComplete?: () => void;
+    onComplete?: (failedStages: FailedStageRecord[]) => void;
+    allowDeferredRemedial?: boolean;
 }
 
-export default function StageRenderer({ stages: initialStages, onExit, onComplete }: StageRendererProps) {
-    const [stages, setStages] = useState<LessonStage[]>(initialStages);
+export default function StageRenderer({
+    stages: initialStages,
+    onExit,
+    onComplete,
+    allowDeferredRemedial = true,
+}: StageRendererProps) {
+    const [stages] = useState<LessonStage[]>(initialStages);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [message, setMessage] = useState<string | null>(null);
+    const [failedStages, setFailedStages] = useState<FailedStageRecord[]>([]);
 
     const currentStage = stages[currentIndex];
     if (!currentStage) return null;
@@ -43,7 +50,7 @@ export default function StageRenderer({ stages: initialStages, onExit, onComplet
         if (currentIndex < stages.length - 1) {
             setCurrentIndex(currentIndex + 1);
         } else {
-            if (onComplete) onComplete();
+            if (onComplete) onComplete(failedStages);
             else onExit();
         }
     };
@@ -62,10 +69,17 @@ export default function StageRenderer({ stages: initialStages, onExit, onComplet
 
             setMessage(data.message || (isCorrect ? "Correct!" : "Incorrect"));
 
-            if (data.nextAction === 'remedial' && data.remedialStage) {
-                const newStages = [...stages];
-                newStages.splice(currentIndex + 1, 0, data.remedialStage);
-                setStages(newStages);
+            if (
+                allowDeferredRemedial &&
+                !isCorrect &&
+                data.nextAction === 'review_later'
+            ) {
+                setFailedStages((prev) => {
+                    if (prev.some((record) => record.failedStage.stageId === currentStage.stageId)) {
+                        return prev;
+                    }
+                    return [...prev, { failedStage: currentStage, userInput }];
+                });
             }
         } catch (e) {
             console.error("Submission error", e);

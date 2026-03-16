@@ -16,6 +16,7 @@ from app.schemas.lesson_schema import (
     LessonStage,
     SubmissionRequest,
     SubmissionResponse,
+    RemedialGenerationRequest,
     ComponentType,
     SkinType,
     Validation,
@@ -141,7 +142,7 @@ async def submit_answer(
 ):
     """
     接收並處理學生提交的測驗或互動答案。
-    根據答案正確與否決定繼續前進 (proceed) 或是生成補救教學 (remedial)。
+    根據答案正確與否決定繼續前進，或將該失敗階段標記為課後補救教學候選。
     若為 FeynmanMirror 組件，會呼叫 AI 進行額外的審查與評分。
     """
     # Log the attempt for future analytics
@@ -170,8 +171,11 @@ async def submit_answer(
             )
         else:
             return SubmissionResponse(
-                nextAction="remedial",
-                message=grading.get("feedback", "Not quite. Try simpler terms."),
+                nextAction="review_later",
+                message=grading.get(
+                    "feedback",
+                    "Not quite. We'll prepare a targeted review after this lesson.",
+                ),
             )
 
     # 1. Client-side validated (default)
@@ -180,28 +184,23 @@ async def submit_answer(
             nextAction="proceed", message="Great job! Moving to next stage."
         )
 
-    # 2. Remedial Generation
-    failed_stage = submission.failedStage
-    if not failed_stage:
-        raise HTTPException(
-            status_code=400,
-            detail="failedStage is required to generate a remedial lesson.",
-        )
-
-    remedial = await architect_service.generate_remedial_stage(
-        failed_stage=failed_stage,
-        user_input=str(submission.userInput),
-        topic=submission.context_topic or "General Concept",
+    return SubmissionResponse(
+        nextAction="review_later",
+        message="Incorrect. We'll queue a targeted review for after this lesson.",
     )
 
-    if remedial:
-        return SubmissionResponse(
-            nextAction="remedial",
-            remedialStage=remedial,
-            message="Let's review this concept with a simpler example.",
-        )
-    else:
-        return SubmissionResponse(
-            nextAction="proceed",  # Or retry
-            message="Incorrect. Try again or move on.",
-        )
+
+@router.post("/generate-remedial-stages", response_model=List[LessonStage])
+async def generate_remedial_stages_endpoint(
+    request: RemedialGenerationRequest,
+    current_user: UserModel = Depends(get_current_user),
+    architect_service: AIArchitectService = Depends(get_architect_service),
+):
+    if not request.failedStages:
+        return []
+
+    remedial_stages = await architect_service.generate_remedial_stages(
+        request.failedStages,
+        topic=request.topic or "General Concept",
+    )
+    return remedial_stages

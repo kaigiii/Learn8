@@ -5,7 +5,7 @@ from langchain_core.messages import SystemMessage, HumanMessage
 
 from pydantic import BaseModel
 from app.schemas.course_schema import CoursePath, RefineSyllabusRequest, LessonNode
-from app.schemas.lesson_schema import LessonStage, SubmissionResponse
+from app.schemas.lesson_schema import LessonStage, SubmissionResponse, FailedStageRecord
 from app.services.knowledge_base.rag_engine import RAGEngine
 from app.services.commons.file_service import FileService
 from app.services.llm_clients.base_provider import BaseLLMProvider
@@ -154,6 +154,23 @@ class AIArchitectService:
         except Exception as e:
             activity_logger.error(f"Remedial Gen Error: {e}")
             raise LLMGenerationError(f"Failed to generate remedial stage: {e}")
+
+    async def generate_remedial_stages(
+        self, failed_records: List[FailedStageRecord], topic: str = "General"
+    ) -> List[LessonStage]:
+        remedial_stages: List[LessonStage] = []
+
+        for index, record in enumerate(failed_records):
+            stage = await self.generate_remedial_stage(
+                failed_stage=record.failedStage,
+                user_input=str(record.userInput),
+                topic=topic or record.failedStage.topic,
+            )
+            if stage:
+                stage.stageId = f"{record.failedStage.stageId}-remedial-{index}"
+                remedial_stages.append(stage)
+
+        return remedial_stages
 
     async def grade_feynman_attempt(self, user_explanation: str, topic: str) -> dict:
         context_chunks = await self.rag_engine.query_context(topic)
