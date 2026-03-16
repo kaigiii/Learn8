@@ -1,6 +1,0 @@
-name: LogicChain
-module: Practice
-description: If the goal is to follow a strict logical flow or cause-and-effect relationship.
-schema_requirements: |
-  config.data MUST contain:
-  - nodes: A list of strings representing the steps in the correct order.

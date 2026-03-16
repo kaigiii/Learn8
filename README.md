@@ -130,13 +130,9 @@ NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
 目前前端已註冊的互動組件：
 
 - `TextToken`
-- `SpatialAnatomy`
-- `PatternMatcher`
-- `LogicChain`
 - `Sequencer`
 - `TaxonomyMatrix`
 - `FeynmanMirror`
-- `DilemmaSolver`
 
 後端對應的 YAML 定義位於：
 

@@ -78,22 +78,17 @@ export default function RightSidebar({ currentProjectName, onOpenProfile }: Righ
         {
             title: "Instruction",
             color: "text-blue-500",
-            items: ['TextToken', 'SpatialAnatomy', 'PatternMatcher']
+            items: ['TextToken']
         },
         {
             title: "Practice",
             color: "text-green-500",
-            items: ['LogicChain', 'Sequencer']
+            items: ['Sequencer']
         },
         {
             title: "Assessment",
             color: "text-orange-500",
             items: ['TaxonomyMatrix', 'FeynmanMirror']
-        },
-        {
-            title: "Incentive",
-            color: "text-purple-500",
-            items: ['DilemmaSolver']
         }
     ];
 
@@ -249,16 +244,16 @@ export default function RightSidebar({ currentProjectName, onOpenProfile }: Righ
                     size="sm"
                     className="w-full justify-start bg-red-600 hover:bg-red-700 text-white"
                     onClick={async () => {
-                        if (confirm("DANGER: This will delete ALL users, projects, and data. Are you sure?")) {
+                        if (confirm("DANGER: This will delete all users, projects, uploaded files, and the vector database, then rebuild the system. Are you sure?")) {
                             try {
                                 await apiClient.post('/system/reset-db');
-                                alert("Database reset complete. Please reload.");
+                                alert("System reset complete. Please log in again.");
                                 window.location.reload();
                             } catch (e: any) { alert("Failed to reset DB: " + e.message); }
                         }
                     }}
                 >
-                    ⚠️ Reset Database
+                    ⚠️ Factory Reset
                 </Button>
                 <Button
                     variant="outline"

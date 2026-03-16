@@ -11,19 +11,34 @@ import os
 router = APIRouter()
 
 
+def _reset_directory(path: str) -> None:
+    if os.path.exists(path):
+        shutil.rmtree(path)
+    os.makedirs(path, exist_ok=True)
+
+
 @router.post("/reset-db")
 def reset_database(
     current_user: UserModel = Depends(get_current_user), db: Session = Depends(get_db)
 ):
-    # 危險操作：刪除所有資料表並重新建立 (等同於系統重設)
+    # 危險操作：刪除所有資料表、上傳檔案與向量資料庫後重新建立
     try:
-        # 1. 刪除所有資料表
+        uploads_dir = os.path.join(os.getcwd(), "uploads")
+        vector_db_dir = os.path.join(os.getcwd(), "chroma_db")
+
+        # 1. 刪除使用者上傳檔案與向量資料庫
+        _reset_directory(uploads_dir)
+        _reset_directory(vector_db_dir)
+
+        # 2. 刪除所有資料表
         Base.metadata.drop_all(bind=engine)
 
-        # 2. 重新建立所有資料表
+        # 3. 重新建立所有資料表
         Base.metadata.create_all(bind=engine)
 
-        return {"message": "Database has been reset successfully."}
+        return {
+            "message": "System reset complete. Database, uploads, and vector store were rebuilt."
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

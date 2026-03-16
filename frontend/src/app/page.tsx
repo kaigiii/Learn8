@@ -34,7 +34,7 @@ import { ChatSidebar, ChatMessage } from '@/features/chat/components/ChatSidebar
 import Sidebar from '@/components/layout/Sidebar';
 import RightSidebar from '@/components/layout/RightSidebar';
 
-import { LessonStage, CoursePath, LessonNode } from '@/types/lesson';
+import { LessonStage, CoursePath, LessonNode, FailedStageRecord } from '@/types/lesson';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, LogOut, RefreshCw } from 'lucide-react';
 import { RegenerateDialog } from '@/components/ui/RegenerateDialog';
@@ -49,6 +49,7 @@ export default function Home() {
   // Local state for specific page logic
   const [coursePath, setCoursePath] = useState<CoursePath | null>(null);
   const [activeStages, setActiveStages] = useState<LessonStage[] | null>(null);
+  const [isInRemedialFlow, setIsInRemedialFlow] = useState(false);
 
   // Drawer
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -206,6 +207,7 @@ export default function Home() {
 
     setIsGeneratingNode(true);
     setIsDrawerOpen(false);
+    setIsInRemedialFlow(false);
 
     try {
       const res = await apiClient.post(`/lessons/generate-lesson-from-node?topic=${encodeURIComponent(coursePath.courseTitle)}${currentProjectId_Local ? `&project_id=${currentProjectId_Local}` : ''}`,
@@ -271,15 +273,29 @@ export default function Home() {
 
   const handleExitLesson = () => {
     setActiveStages(null);
+    setIsInRemedialFlow(false);
   };
 
-  const handleLessonComplete = async () => {
+  const handleLessonComplete = async (failedStages: FailedStageRecord[] = []) => {
     if (!selectedNodeId || !coursePath) {
       handleExitLesson();
       return;
     }
 
     try {
+      if (!isInRemedialFlow && failedStages.length > 0) {
+        const remedialStages = await apiClient.post('/lessons/generate-remedial-stages', {
+          topic: coursePath.courseTitle,
+          failedStages,
+        });
+
+        if (Array.isArray(remedialStages.data) && remedialStages.data.length > 0) {
+          setActiveStages(remedialStages.data);
+          setIsInRemedialFlow(true);
+          return;
+        }
+      }
+
       const res = await apiClient.patch(`/courses/${coursePath.id}/node/${selectedNodeId}/status`, {
         status: 'completed'
       });
@@ -370,6 +386,7 @@ export default function Home() {
             stages={activeStages}
             onExit={handleExitLesson}
             onComplete={handleLessonComplete}
+            allowDeferredRemedial={!isInRemedialFlow}
           />
         ) : isProfileOpen ? (
           <ProfileView onClose={handleCloseProfile} initialViewMode={profileInitialView} />

@@ -101,6 +101,16 @@ class SubmissionRequest(BaseModel):
     failedStage: Optional[LessonStage] = None
 
 
+class FailedStageRecord(BaseModel):
+    failedStage: LessonStage
+    userInput: Any
+
+
+class RemedialGenerationRequest(BaseModel):
+    topic: str
+    failedStages: List[FailedStageRecord] = Field(default_factory=list)
+
+
 class SubmissionResponse(BaseModel):
     nextAction: str
     remedialStage: Optional[LessonStage] = None
