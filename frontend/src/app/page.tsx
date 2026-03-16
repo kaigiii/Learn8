@@ -33,18 +33,19 @@ import { ProfileView } from '@/features/profile/components/ProfileView';
 import { ChatSidebar, ChatMessage } from '@/features/chat/components/ChatSidebar';
 import Sidebar from '@/components/layout/Sidebar';
 import RightSidebar from '@/components/layout/RightSidebar';
+import { getComponentLabStages } from '@/lib/component-lab';
 
 import { LessonStage, CoursePath, LessonNode, FailedStageRecord } from '@/types/lesson';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, LogOut, RefreshCw } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { RegenerateDialog } from '@/components/ui/RegenerateDialog';
 import { ProgressOverlay } from '@/components/ui/ProgressOverlay';
 
 export default function Home() {
   const router = useRouter();
   const { token, refreshUser } = useAuthStore();
-  const { currentProject, setCurrentProject } = useProjectStore();
-  const { activeJobId, setActiveJob, updateJobProgress, clearJob, jobStatus } = useJobStore();
+  const { currentProject } = useProjectStore();
+  const { setActiveJob, updateJobProgress, clearJob, jobStatus } = useJobStore();
 
   // Local state for specific page logic
   const [coursePath, setCoursePath] = useState<CoursePath | null>(null);
@@ -118,7 +119,7 @@ export default function Home() {
 
               let rd = data.result_data;
               if (typeof rd === 'string') {
-                try { rd = JSON.parse(rd); } catch (e) { }
+                try { rd = JSON.parse(rd); } catch { }
               }
 
               if (rd?.course_id) {
@@ -240,7 +241,7 @@ export default function Home() {
 
             let rd = streamData.result_data;
             if (typeof rd === 'string') {
-              try { rd = JSON.parse(rd); } catch (e) { }
+              try { rd = JSON.parse(rd); } catch { }
             }
 
             if (rd?.stages) {
@@ -276,6 +277,16 @@ export default function Home() {
     setIsInRemedialFlow(false);
   };
 
+  const handlePlayComponentDemo = (component: 'TextToken' | 'Sequencer' | 'TaxonomyMatrix' | 'FeynmanMirror') => {
+    setSelectedNodeId(null);
+    setSelectedNode(null);
+    setIsDrawerOpen(false);
+    setIsProfileOpen(false);
+    setCoursePath(null);
+    setIsInRemedialFlow(false);
+    setActiveStages(getComponentLabStages(component));
+  };
+
   const handleLessonComplete = async (failedStages: FailedStageRecord[] = []) => {
     if (!selectedNodeId || !coursePath) {
       handleExitLesson();
@@ -305,12 +316,6 @@ export default function Home() {
     } finally {
       handleExitLesson();
     }
-  };
-
-  const handleBackToDashboard = () => {
-    setCoursePath(null);
-    setActiveStages(null);
-    setSelectedNode(null);
   };
 
   const handleRegenerate = async (newTopic: string) => {
@@ -460,6 +465,7 @@ export default function Home() {
         <RightSidebar
           currentProjectName={currentProjectId_Local ? "Current Project" : "Global Scope"}
           onOpenProfile={handleOpenProfile}
+          onPlayComponentDemo={handlePlayComponentDemo}
         />
       )}
     </div>

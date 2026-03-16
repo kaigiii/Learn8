@@ -1,4 +1,4 @@
-from typing import Any, Optional, List, Union, Literal
+from typing import Any, Optional, List, Union
 from pydantic import BaseModel, Field, field_validator
 from enum import Enum
 
@@ -9,11 +9,6 @@ class ModuleType(str, Enum):
     Practice = "Practice"
     Assessment = "Assessment"
     Incentive = "Incentive"
-
-
-class ComponentType(str, Enum):
-    # 保留給舊有程式碼相容用途，新組件名稱已改為純字串
-    pass
 
 
 class SkinType(str, Enum):

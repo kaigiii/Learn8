@@ -9,7 +9,7 @@
  * 2. 使用者拖曳排序至正確的時間軸或順序。
  */
 import React, { useState, useEffect } from 'react';
-import { Reorder, useDragControls } from 'framer-motion';
+import { Reorder } from 'framer-motion';
 import { LessonStage } from '@/types/lesson';
 import { Button } from '@/components/ui/button';
 import { GripVertical } from 'lucide-react';
