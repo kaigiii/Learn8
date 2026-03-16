@@ -1,0 +1,9 @@
+name: MatchingPairs
+module: Practice
+description: If the goal is to match related concepts, terms, examples, or cause-effect pairs.
+schema_requirements: |
+  config.data MUST contain:
+  - pairs: A list of objects, each containing:
+    - id: A unique string ID.
+    - left: The left-side prompt text.
+    - right: The matching right-side answer text.

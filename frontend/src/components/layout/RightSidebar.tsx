@@ -76,21 +76,24 @@ export default function RightSidebar({ currentProjectName, onOpenProfile, onPlay
         }
     };
 
-    const categories: { title: string; color: string; items: ComponentType[] }[] = [
+    const categories: { title: string; color: string; items: { component: ComponentType; label: string }[] }[] = [
         {
-            title: "Instruction",
+            title: "Selection",
             color: "text-blue-500",
-            items: ['TextToken']
+            items: [{ component: 'MultipleChoice', label: 'Multiple Choice' }]
         },
         {
             title: "Practice",
             color: "text-green-500",
-            items: ['Sequencer']
+            items: [
+                { component: 'Ordering', label: 'Ordering' },
+                { component: 'MatchingPairs', label: 'Matching Pairs' }
+            ]
         },
         {
             title: "Assessment",
             color: "text-orange-500",
-            items: ['TaxonomyMatrix', 'FeynmanMirror']
+            items: [{ component: 'FeynmanMirror', label: 'Feynman Teaching' }]
         }
     ];
 
@@ -148,14 +151,14 @@ export default function RightSidebar({ currentProjectName, onOpenProfile, onPlay
                                 {cat.title}
                             </h3>
                             <div className="grid grid-cols-1 gap-2">
-                                {cat.items.map(comp => (
+                                {cat.items.map(({ component, label }) => (
                                     <button
                                         type="button"
-                                        key={comp}
+                                        key={component}
                                         className="w-full text-left text-xs px-2 py-1.5 bg-slate-50 border border-slate-200 rounded text-slate-600 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-colors"
-                                        onClick={() => onPlayComponentDemo?.(comp)}
+                                        onClick={() => onPlayComponentDemo?.(component)}
                                     >
-                                        {comp}
+                                        {label}
                                     </button>
                                 ))}
                             </div>
