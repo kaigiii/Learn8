@@ -17,13 +17,6 @@ from app.schemas.lesson_schema import (
     SubmissionRequest,
     SubmissionResponse,
     RemedialGenerationRequest,
-    ComponentType,
-    SkinType,
-    Validation,
-    ValidationType,
-    Feedback,
-    ModuleType,
-    GenericConfig,
 )
 from app.services.ai_agents.course_architect import AIArchitectService, get_architect_service
 from app.core.config import settings

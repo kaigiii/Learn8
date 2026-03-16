@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
 import { SyllabusMap } from '@/features/course-map/components/SyllabusMap';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

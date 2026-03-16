@@ -19,13 +19,15 @@ import { useEffect } from 'react';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useRouter } from 'next/navigation';
 import { projectService } from '@/features/dashboard/api/projectService';
+import { ComponentType } from '@/types/lesson';
 
 interface RightSidebarProps {
     currentProjectName?: string;
     onOpenProfile?: (initialViewMode?: 'view' | 'top_up') => void;
+    onPlayComponentDemo?: (component: ComponentType) => void;
 }
 
-export default function RightSidebar({ currentProjectName, onOpenProfile }: RightSidebarProps) {
+export default function RightSidebar({ currentProjectName, onOpenProfile, onPlayComponentDemo }: RightSidebarProps) {
 
     const { currentProject, files, setFiles, setCurrentProject } = useProjectStore();
     const { logout, user, refreshUser } = useAuthStore();
@@ -74,7 +76,7 @@ export default function RightSidebar({ currentProjectName, onOpenProfile }: Righ
         }
     };
 
-    const categories = [
+    const categories: { title: string; color: string; items: ComponentType[] }[] = [
         {
             title: "Instruction",
             color: "text-blue-500",
@@ -147,12 +149,14 @@ export default function RightSidebar({ currentProjectName, onOpenProfile }: Righ
                             </h3>
                             <div className="grid grid-cols-1 gap-2">
                                 {cat.items.map(comp => (
-                                    <div
+                                    <button
+                                        type="button"
                                         key={comp}
-                                        className="text-xs px-2 py-1.5 bg-slate-50 border border-slate-200 rounded text-slate-600"
+                                        className="w-full text-left text-xs px-2 py-1.5 bg-slate-50 border border-slate-200 rounded text-slate-600 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-colors"
+                                        onClick={() => onPlayComponentDemo?.(comp)}
                                     >
                                         {comp}
-                                    </div>
+                                    </button>
                                 ))}
                             </div>
                         </div>

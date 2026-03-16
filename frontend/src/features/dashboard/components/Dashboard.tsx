@@ -4,13 +4,9 @@
  */
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { useRouter } from 'next/navigation';
-import { Upload, BookOpen, Sparkles, AlertCircle, Trash2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { LessonStage, ComponentType, SkinType, CoursePath } from '@/types/lesson';
+import { AlertCircle } from 'lucide-react';
+import { CoursePath } from '@/types/lesson';
 import { apiClient } from '@/lib/api-client';
-import { useProjectStore } from '@/stores/useProjectStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useJobStore } from '@/stores/useJobStore';
 import { projectService } from '@/features/dashboard/api/projectService';
@@ -27,11 +23,7 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ onLessonGenerated, currentProjectId, onResume, shouldAutoResume, onAutoResumeComplete }: DashboardProps) {
-    const router = useRouter();
     const [status, setStatus] = useState<string>('');
-
-    // Global Store
-    const { setFiles } = useProjectStore();
     const { refreshUser } = useAuthStore();
 
     const { setActiveJob, updateJobProgress, clearJob } = useJobStore();
@@ -87,7 +79,7 @@ export default function Dashboard({ onLessonGenerated, currentProjectId, onResum
 
                     let rd = data.result_data;
                     if (typeof rd === 'string') {
-                        try { rd = JSON.parse(rd); } catch (e) { }
+                        try { rd = JSON.parse(rd); } catch { }
                     }
 
                     // fetch the newly generated course based on result_data ID
