@@ -1,36 +1,80 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Learn8 Frontend
 
-## Getting Started
+前端是 Learn8 的使用者介面，負責 project workspace、syllabus map、stage player、SSE job 進度呈現與 component lab demo。
 
-First, run the development server:
+## Stack
+
+- Next.js 16
+- React 19
+- TypeScript
+- Zustand
+- Tailwind CSS
+- Framer Motion
+- React Flow
+
+## Development
 
 ```bash
+cd frontend
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+預設開在：
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```text
+http://localhost:3000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+預設 API base URL：
 
-## Learn More
+```text
+http://localhost:8000/api/v1
+```
 
-To learn more about Next.js, take a look at the following resources:
+可透過環境變數覆蓋：
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Main Areas
 
-## Deploy on Vercel
+- `src/app/page.tsx`: 主工作區與 lesson / remedial SSE 流程
+- `src/app/map/page.tsx`: syllabus map 視圖
+- `src/features/dashboard/`: project workspace 與 dashboard 元件
+- `src/features/course-map/`: node map / drawer
+- `src/features/stage-player/`: stage renderer、learning service、interactive components
+- `src/components/layout/RightSidebar.tsx`: component lab 入口
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Registered Stage Components
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `MultipleChoice`
+- `Ordering`
+- `MatchingPairs`
+- `FeynmanMirror`
+
+註冊入口：
+
+```text
+src/features/stage-player/components/ComponentRegistry.tsx
+```
+
+## SSE and Long Jobs
+
+前端會對以下流程訂閱 job stream：
+
+- questionnaire generation
+- syllabus generation
+- lesson generation
+- remedial generation
+
+主要入口：
+
+- `src/lib/jobStream.ts`
+- `src/features/stage-player/api/learningService.ts`
+
+## Notes
+
+- `Component Lab` 會用內建 demo stage 直接試玩 component，不依賴真實 project
+- 舊 component 名稱若從後端回來，前端會顯示 unsupported fallback，而不是嘗試渲染

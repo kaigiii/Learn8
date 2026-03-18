@@ -131,46 +131,38 @@ class AIArchitectService:
 
     # ...
 
-    async def generate_remedial_stage(
-        self, failed_stage: LessonStage, user_input: str, topic: str = "General"
-    ) -> Optional[LessonStage]:
+    async def generate_remedial_stages(
+        self, failed_records: List[FailedStageRecord], topic: str = "General"
+    ) -> List[LessonStage]:
+        if not failed_records:
+            return []
 
         messages = [
             ("system", REMEDIAL_SYSTEM_PROMPT),
             (
                 "user",
-                f"TOPIC: {topic}\\nFAILED STAGE: {failed_stage.model_dump_json()}\\nUSER INPUT: {user_input}",
+                "TOPIC: "
+                + (topic or "General")
+                + "\nFAILED RECORDS: "
+                + json.dumps([record.model_dump() for record in failed_records], ensure_ascii=False),
             ),
         ]
 
-        class LessonStageWrapper(BaseModel):
-            stage: LessonStage
+        class RemedialStageListWrapper(BaseModel):
+            stages: List[LessonStage]
 
         try:
             wrapper = await self.provider.generate_structured(
-                messages, LessonStageWrapper
+                messages, RemedialStageListWrapper
             )
-            return wrapper.stage if wrapper else None
+            if wrapper and wrapper.stages:
+                for index, stage in enumerate(wrapper.stages):
+                    stage.stageId = f"{failed_records[0].failedStage.stageId}-remedial-{index}"
+                return wrapper.stages
+            return []
         except Exception as e:
             activity_logger.error(f"Remedial Gen Error: {e}")
-            raise LLMGenerationError(f"Failed to generate remedial stage: {e}")
-
-    async def generate_remedial_stages(
-        self, failed_records: List[FailedStageRecord], topic: str = "General"
-    ) -> List[LessonStage]:
-        remedial_stages: List[LessonStage] = []
-
-        for index, record in enumerate(failed_records):
-            stage = await self.generate_remedial_stage(
-                failed_stage=record.failedStage,
-                user_input=str(record.userInput),
-                topic=topic or record.failedStage.topic,
-            )
-            if stage:
-                stage.stageId = f"{record.failedStage.stageId}-remedial-{index}"
-                remedial_stages.append(stage)
-
-        return remedial_stages
+            raise LLMGenerationError(f"Failed to generate remedial stages: {e}")
 
     async def grade_feynman_attempt(self, user_explanation: str, topic: str) -> dict:
         context_chunks = await self.rag_engine.query_context(topic)

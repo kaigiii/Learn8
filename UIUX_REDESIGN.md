@@ -1,4 +1,9 @@
 # Learn8: Gamified Learning Platform - Frontend Blueprint
+> Warning:
+> This file is a historical prototype blueprint, not the source of truth for the current product.
+> It still references deprecated stage concepts and mock-only flows.
+> For the current implementation, use `README.md` and `BACKEND_DOCS.md`.
+
 > **[Agent Directive]**
 > You are an expert Frontend AI Architect. Your task is to execute a complete Consumer-Facing UI/UX build for a brand new application named "Learn8" based *strictly* on this manual. 
 > 

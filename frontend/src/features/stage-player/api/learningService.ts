@@ -14,7 +14,7 @@ export interface SubmitResponse {
 export const learningService = {
     submitAnswer: async (
         stageId: string,
-        userInput: any,
+        userInput: unknown,
         isCorrect: boolean,
         contextTopic: string,
         component: string,
@@ -36,6 +36,20 @@ export const learningService = {
     ): Promise<LessonStage[]> => {
         const response = await apiClient.post('/lessons/generate-remedial-stages', {
             topic,
+            failedStages,
+        });
+        return response.data;
+    },
+    generateRemedialStagesAsync: async (
+        topic: string,
+        failedStages: FailedStageRecord[],
+        nodeId: string,
+        projectId?: number | null,
+    ): Promise<{ job_id: string; status: 'PENDING' }> => {
+        const response = await apiClient.post('/lessons/generate-remedial-stages-async', {
+            topic,
+            nodeId,
+            projectId,
             failedStages,
         });
         return response.data;

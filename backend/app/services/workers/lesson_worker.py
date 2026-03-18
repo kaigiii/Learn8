@@ -102,3 +102,102 @@ async def run_lesson_generation_job(
 
     finally:
         db.close()
+
+
+async def run_remedial_generation_job(
+    job_id: str,
+    user_id: int,
+    topic: str,
+    node_id: str | None,
+    project_id: int | None,
+    failed_stages: list[dict],
+):
+    """
+    在背景獨立執行補救課程生成的 Worker。
+    """
+    db = SessionLocal()
+    job = None
+    try:
+        job = db.query(JobModel).filter(JobModel.id == job_id).first()
+        if not job or job.status == "CANCELLED":
+            return
+
+        _notify_job_update(db, job, 10, "Analyzing failed stages...", status="PROCESSING")
+
+        provider = LLMFactory.create()
+        rag_engine = RAGEngine(provider)
+        from app.services.commons.file_service import FileService
+        from app.services.ai_agents.course_architect import AIArchitectService
+        from app.schemas.lesson_schema import FailedStageRecord
+
+        file_service = FileService()
+        architect_service = AIArchitectService(provider, rag_engine, file_service)
+
+        _notify_job_update(db, job, 35, "Generating targeted remedial lesson...")
+
+        failed_records = [FailedStageRecord(**record) for record in failed_stages]
+        remedial_stages = await architect_service.generate_remedial_stages(
+            failed_records,
+            topic=topic or "General Concept",
+        )
+
+        if not remedial_stages:
+            raise Exception("No remedial stages were generated.")
+
+        stages_json = []
+        for stage in remedial_stages:
+            stage_payload = stage.model_dump()
+            initial_state = (
+                stage_payload.get("config", {}).get("initialState", {}) or {}
+            )
+            stage_payload["config"]["initialState"] = {
+                **initial_state,
+                "isRemedial": True,
+            }
+            stages_json.append(stage_payload)
+
+        from app.models.lesson import LessonRemedialModel
+
+        remedial_record = (
+            db.query(LessonRemedialModel)
+            .filter(
+                LessonRemedialModel.user_id == user_id,
+                LessonRemedialModel.node_id == node_id,
+                LessonRemedialModel.course_topic == topic,
+                LessonRemedialModel.project_id == project_id,
+            )
+            .first()
+        )
+        if remedial_record:
+            remedial_record.stage_json = stages_json
+            db.add(remedial_record)
+        else:
+            remedial_record = LessonRemedialModel(
+                user_id=user_id,
+                project_id=project_id,
+                node_id=node_id,
+                course_topic=topic,
+                stage_json=stages_json,
+            )
+            db.add(remedial_record)
+        db.commit()
+
+        _notify_job_update(
+            db,
+            job,
+            100,
+            "Remedial lesson is ready.",
+            status="COMPLETED",
+            result_data={"stages": stages_json},
+        )
+
+    except Exception as e:
+        logger.error(f"Remedial generation job failed: {e}")
+        db.rollback()
+        if job is not None:
+            _notify_job_update(
+                db, job, job.progress or 0, f"Remedial generation failed: {str(e)}", status="FAILED"
+            )
+
+    finally:
+        db.close()
