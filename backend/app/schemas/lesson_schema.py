@@ -103,6 +103,8 @@ class FailedStageRecord(BaseModel):
 
 class RemedialGenerationRequest(BaseModel):
     topic: str
+    nodeId: Optional[str] = None
+    projectId: Optional[int] = None
     failedStages: List[FailedStageRecord] = Field(default_factory=list)
 
 

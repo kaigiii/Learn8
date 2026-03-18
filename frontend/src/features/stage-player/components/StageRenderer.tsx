@@ -11,7 +11,7 @@
  * 3. 補救教學 (Remedial): 若答錯則先記錄失敗的 Stage，待整個 Lesson 完成後再批次生成補救內容。
  * 4. UI 呈現: 進度條、轉場動畫 (Framer Motion)、回饋訊息顯示。
  */
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FailedStageRecord, LessonStage } from '@/types/lesson';
 import { Progress } from '@/components/ui/progress';
@@ -26,24 +26,30 @@ interface StageRendererProps {
     onExit: () => void;
     onComplete?: (failedStages: FailedStageRecord[]) => void;
     allowDeferredRemedial?: boolean;
+    initialIndex?: number;
 }
 
 export default function StageRenderer({
-    stages: initialStages,
+    stages,
     onExit,
     onComplete,
     allowDeferredRemedial = true,
+    initialIndex = 0,
 }: StageRendererProps) {
-    const [stages] = useState<LessonStage[]>(initialStages);
-    const [currentIndex, setCurrentIndex] = useState(0);
+    const [currentIndex, setCurrentIndex] = useState(initialIndex);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [message, setMessage] = useState<string | null>(null);
     const [failedStages, setFailedStages] = useState<FailedStageRecord[]>([]);
+
+    useEffect(() => {
+        setCurrentIndex(initialIndex);
+    }, [initialIndex]);
 
     const currentStage = stages[currentIndex];
     if (!currentStage) return null;
 
     const progress = ((currentIndex + 1) / stages.length) * 100;
+    const isRemedialStage = Boolean((currentStage.config?.initialState as Record<string, unknown> | undefined)?.isRemedial);
 
     const handleNext = () => {
         setMessage(null);
@@ -55,7 +61,7 @@ export default function StageRenderer({
         }
     };
 
-    const handleSubmit = async (userInput: any, isCorrect: boolean) => {
+    const handleSubmit = async (userInput: unknown, isCorrect: boolean) => {
         setIsSubmitting(true);
         try {
             const data = await learningService.submitAnswer(
@@ -113,9 +119,16 @@ export default function StageRenderer({
                 <Button variant="ghost" size="icon" onClick={onExit}>
                     <Home className="w-5 h-5 text-slate-500" />
                 </Button>
-                <span className="font-semibold text-slate-700">
-                    Stage {currentIndex + 1} of {stages.length}
-                </span>
+                <div className="flex flex-col items-center">
+                    <span className="font-semibold text-slate-700">
+                        Stage {currentIndex + 1} of {stages.length}
+                    </span>
+                    {isRemedialStage && (
+                        <span className="text-xs font-medium uppercase tracking-[0.2em] text-orange-500">
+                            Remedial Stage
+                        </span>
+                    )}
+                </div>
                 <div className="w-10" />
             </div>
 

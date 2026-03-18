@@ -34,6 +34,7 @@ import { ChatSidebar, ChatMessage } from '@/features/chat/components/ChatSidebar
 import Sidebar from '@/components/layout/Sidebar';
 import RightSidebar from '@/components/layout/RightSidebar';
 import { getComponentLabStages } from '@/lib/component-lab';
+import { learningService } from '@/features/stage-player/api/learningService';
 
 import { LessonStage, CoursePath, LessonNode, FailedStageRecord } from '@/types/lesson';
 import { Button } from '@/components/ui/button';
@@ -51,6 +52,7 @@ export default function Home() {
   const [coursePath, setCoursePath] = useState<CoursePath | null>(null);
   const [activeStages, setActiveStages] = useState<LessonStage[] | null>(null);
   const [isInRemedialFlow, setIsInRemedialFlow] = useState(false);
+  const [stageInitialIndex, setStageInitialIndex] = useState(0);
 
   // Drawer
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -220,6 +222,7 @@ export default function Home() {
       if (data.status === 'COMPLETED' && data.result_data?.stages) {
         // Server had this cached and returned it immediately
         setActiveStages(data.result_data.stages);
+        setStageInitialIndex(0);
         setIsGeneratingNode(false);
       } else if (data.job_id) {
         // SSE Generation Flow
@@ -246,6 +249,7 @@ export default function Home() {
 
             if (rd?.stages) {
               setActiveStages(rd.stages);
+              setStageInitialIndex(0);
             }
             setTimeout(() => clearJob(), 2000);
           } else if (streamData.status === 'FAILED' || streamData.status === 'CANCELLED') {
@@ -275,6 +279,7 @@ export default function Home() {
   const handleExitLesson = () => {
     setActiveStages(null);
     setIsInRemedialFlow(false);
+    setStageInitialIndex(0);
   };
 
   const handlePlayComponentDemo = (component: 'MultipleChoice' | 'Ordering' | 'MatchingPairs' | 'FeynmanMirror') => {
@@ -295,14 +300,68 @@ export default function Home() {
 
     try {
       if (!isInRemedialFlow && failedStages.length > 0) {
-        const remedialStages = await apiClient.post('/lessons/generate-remedial-stages', {
-          topic: coursePath.courseTitle,
+        const res = await learningService.generateRemedialStagesAsync(
+          coursePath.courseTitle,
           failedStages,
-        });
+          selectedNodeId,
+          currentProjectId_Local,
+        );
 
-        if (Array.isArray(remedialStages.data) && remedialStages.data.length > 0) {
-          setActiveStages(remedialStages.data);
-          setIsInRemedialFlow(true);
+        if (res.job_id) {
+          const jobId = res.job_id;
+          setActiveJob(jobId);
+
+          const eventSource = new EventSource(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/jobs/${jobId}/stream`);
+          let isClosedIntentionally = false;
+
+          eventSource.onmessage = (event) => {
+            const streamData = JSON.parse(event.data);
+            updateJobProgress(streamData.status.toLowerCase(), streamData.progress, streamData.message);
+
+            if (streamData.status === 'COMPLETED') {
+              isClosedIntentionally = true;
+              eventSource.close();
+
+              let rd = streamData.result_data;
+              if (typeof rd === 'string') {
+                try { rd = JSON.parse(rd); } catch { }
+              }
+
+              if (Array.isArray(rd?.stages) && rd.stages.length > 0) {
+                const existingStages = activeStages || [];
+                const remedialStages = rd.stages.map((stage: LessonStage) => ({
+                  ...stage,
+                  config: {
+                    ...stage.config,
+                    initialState: {
+                      ...(stage.config?.initialState || {}),
+                      isRemedial: true,
+                    },
+                  },
+                }));
+                setActiveStages([...existingStages, ...remedialStages]);
+                setStageInitialIndex(existingStages.length);
+                setIsInRemedialFlow(true);
+              } else {
+                handleExitLesson();
+              }
+              setTimeout(() => clearJob(), 2000);
+            } else if (streamData.status === 'FAILED' || streamData.status === 'CANCELLED') {
+              isClosedIntentionally = true;
+              eventSource.close();
+              alert("Remedial generation failed: " + streamData.message);
+              clearJob();
+              handleExitLesson();
+            }
+          };
+
+          eventSource.onerror = () => {
+            if (isClosedIntentionally) return;
+            eventSource.close();
+            alert("Connection lost during remedial generation.");
+            clearJob();
+            handleExitLesson();
+          };
           return;
         }
       }
@@ -389,6 +448,7 @@ export default function Home() {
         {activeStages ? (
           <StageRenderer
             stages={activeStages}
+            initialIndex={stageInitialIndex}
             onExit={handleExitLesson}
             onComplete={handleLessonComplete}
             allowDeferredRemedial={!isInRemedialFlow}

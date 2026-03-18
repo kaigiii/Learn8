@@ -49,7 +49,7 @@
 
 ### 2.2 長任務 Flow
 
-適用於 questionnaire / syllabus / lesson generation：
+適用於 questionnaire / syllabus / lesson / remedial generation：
 
 1. API endpoint 建立 `generation_jobs` 紀錄
 2. 回傳 `job_id`
@@ -115,12 +115,12 @@ API 層，負責：
 - `config.py`: 環境變數與全域設定
 - `security.py`: JWT、password hash / verify
 - `exceptions.py`: 自訂例外
-- `prompts.py`: 課程、補救、Feynman 等 prompt
 - `component_loader.py`: 讀取 `backend/game_modules/*.yaml`
 
 補充：
 
-- `component_loader.py` 不是死檔案，會被 `core/prompts.py` 與 `schemas/lesson_schema.py` 間接使用
+- AI prompt 目前主要位於 `services/ai_agents/course_architect_prompts.py`
+- `component_loader.py` 不是死檔案，會被 `course_architect_prompts.py` 與 `schemas/lesson_schema.py` 間接使用
 - 它的用途是把前後端互動組件的能力與 schema 要求注入 LLM prompt / schema validation 流程
 
 ### `backend/app/db/`
@@ -221,16 +221,19 @@ Pydantic schemas，供 API request/response 與 LLM structured output 使用。
 - `status`
 - `data`
 
-### `LessonModel` / `LessonAttempt`
+### `LessonModel` / `LessonAttempt` / `LessonRemedialModel`
 
 用途：
 
 - 保存 node 對應的 stage list
 - 保存使用者作答紀錄
+- 保存補救教學 stage list
 
 注意：
 
 - `LessonAttempt.is_correct` 目前是 `String`，不是 `Boolean`
+- `LessonRemedialModel` 不覆蓋原始 `LessonModel`
+- 重新讀取同一個 node 時，`lessons.py` 會把主 lesson 與最新 remedial stages 合併回傳
 
 ### `JobModel`
 
@@ -334,12 +337,16 @@ node 完成時會做自動解鎖：
 
 - 依 node 生成 lesson stages
 - 接收答案提交
-- 判斷 `proceed` 或 `remedial`
+- 判斷 `proceed` 或 `review_later`
+- 觸發 remedial generation job
 
 特別邏輯：
 
 - 如果 DB 中已存在該 node / topic / user / project 的 lesson，會直接回傳 cached stages
+- 若存在對應的 `lesson_remedials`，會在回傳前附加到主 lesson stages 後方
+- 如果 cached lesson 含不合法或已淘汰 component，會忽略 cache 並重新生成
 - `FeynmanMirror` 會走 AI grading，而不是只用前端判斷
+- remedial generation 同時提供同步版與 SSE async 版，目前前端主流程使用 async 版
 
 ### `jobs.py`
 
@@ -388,12 +395,13 @@ node 完成時會做自動解鎖：
 
 - refine syllabus
 - generate lesson from node
-- generate remedial stage
+- generate remedial stage pack
 - grade Feynman attempts
 
 注意：
 
 - `generate_course_syllabus()` 目前存在，但 syllabus 主流程實際上是由 `SyllabusAgent` 負責，不是這個方法
+- remedial generation 已改成「整包 failed records 一次送給 AI」，不是逐題呼叫
 
 ### `services/ai_agents/questionnaire_agent.py`
 
@@ -475,6 +483,128 @@ node 完成時會做自動解鎖：
 說明：
 
 - `job_notifier.py` 是三種 worker 共用的狀態更新樞紐
+
+## 6.1 AI 調用程序與 I/O
+
+### Questionnaire Generation
+
+入口：
+
+- `POST /api/v1/projects/{project_id}/questionnaire`
+- worker: `services/workers/questionnaire_worker.py`
+- agent: `services/ai_agents/questionnaire_agent.py`
+
+帶入資訊：
+
+- `topic`
+- `project_id`
+- project scope 下的檔案與 RAG context
+
+輸出：
+
+- `questions: Question[]`
+- 以 `QUESTIONNAIRE_GEN` job 的 `result_data.questions` 回傳
+
+後續提交：
+
+- `POST /api/v1/projects/{project_id}/questionnaire/submit`
+- 帶入 `topic`、`submission`、`questions`
+- 輸出 `LearnerProfile`
+- 寫回 `projects.profile_json`
+
+### Syllabus Generation
+
+入口：
+
+- `POST /api/v1/syllabus/generate-syllabus`
+- worker: `services/workers/syllabus_worker.py`
+- agent: `services/ai_agents/syllabus_agent.py`
+
+帶入資訊：
+
+- `topic`
+- `project_id`
+- `profile_summary`
+- project file full-text context
+- RAG context
+
+輸出：
+
+- `CoursePath`
+- 完成後寫入 `courses.syllabus_json`
+- node 狀態拆寫進 `nodes`
+- job `result_data` 目前回 `course_id` 與 `topic`
+
+### Lesson Generation
+
+入口：
+
+- `POST /api/v1/lessons/generate-lesson-from-node`
+- worker: `services/workers/lesson_worker.py`
+- agent: `services/ai_agents/course_architect.py`
+
+帶入資訊：
+
+- `topic`
+- `LessonNode`
+- learner profile summary
+- project file binding
+- RAG context
+- component prompt menu / schema reference
+
+輸出：
+
+- `LessonStage[]`
+- 成功後寫入 `lessons.stage_json`
+- job `result_data.stages`
+
+注意：
+
+- 若 cache 合法，endpoint 會直接回傳 `COMPLETED` 結構，不重跑 AI
+- 若 cache 含舊 component，例如 `TextToken`，會略過 cache 改走重新生成
+
+### Remedial Generation
+
+入口：
+
+- `POST /api/v1/lessons/generate-remedial-stages-async`
+- worker: `services/workers/lesson_worker.py`
+- agent: `services/ai_agents/course_architect.py`
+
+帶入資訊：
+
+- `topic`
+- `nodeId`
+- `projectId`
+- `failedStages[]`
+- 每筆 failed record 內含原始 `LessonStage`、`userInput`、`isCorrect`
+
+輸出：
+
+- AI 一次輸出一整包 remedial `LessonStage[]`
+- 關卡數不固定，由模型自行決定
+- worker 會將 `isRemedial=True` 寫入 `config.initialState`
+- 持久化到 `lesson_remedials.stage_json`
+- job `result_data.stages`
+
+### Feynman Grading
+
+入口：
+
+- `POST /api/v1/lessons/submit-answer`
+- agent: `services/ai_agents/course_architect.py`
+
+帶入資訊：
+
+- `submission.userInput`
+- `submission.context_topic`
+- RAG context
+
+輸出：
+
+- `SubmissionResponse`
+- 其中 `message` 來自 AI 評語
+- `nextAction` 為 `proceed` 或 `review_later`
 
 ### `services/workflows/syllabus_workflow.py`
 

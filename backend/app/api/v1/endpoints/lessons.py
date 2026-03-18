@@ -1,5 +1,6 @@
 from typing import List
 import uuid
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from fastapi.concurrency import run_in_threadpool
@@ -8,7 +9,7 @@ from pydantic import TypeAdapter
 
 from app.api.dependencies import get_db, get_current_user
 from app.models.user import UserModel
-from app.models.lesson import LessonModel, LessonAttempt
+from app.models.lesson import LessonModel, LessonAttempt, LessonRemedialModel
 from app.models.project import ProjectModel
 from app.models.job import JobModel
 from app.schemas.course_schema import LessonNode
@@ -20,9 +21,13 @@ from app.schemas.lesson_schema import (
 )
 from app.services.ai_agents.course_architect import AIArchitectService, get_architect_service
 from app.core.config import settings
-from app.services.workers.lesson_worker import run_lesson_generation_job
+from app.services.workers.lesson_worker import (
+    run_lesson_generation_job,
+    run_remedial_generation_job,
+)
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 @router.post("/generate-lesson-from-node")
@@ -50,23 +55,52 @@ async def generate_lesson_from_node_endpoint(
             query = query.filter(LessonModel.project_id == project_id)
         return query.first()
 
+    def _fetch_cached_remedial():
+        query = db.query(LessonRemedialModel).filter(
+            LessonRemedialModel.node_id == node.id,
+            LessonRemedialModel.course_topic == topic,
+            LessonRemedialModel.user_id == current_user.id,
+        )
+        if project_id:
+            query = query.filter(LessonRemedialModel.project_id == project_id)
+        return query.order_by(LessonRemedialModel.updated_at.desc()).first()
+
     cached_lesson = await run_in_threadpool(_fetch_cached_lesson)
+    cached_remedial = await run_in_threadpool(_fetch_cached_remedial)
 
     if cached_lesson:
+        try:
+            # Check if legacy data (dict) or new data (list)
+            data = cached_lesson.stage_json
+            if isinstance(data, list):
+                stages = TypeAdapter(List[LessonStage]).validate_python(data)
+            elif isinstance(data, dict):
+                # Establish backward compatibility: wrap single stage in list
+                stages = [TypeAdapter(LessonStage).validate_python(data)]
+            else:
+                stages = []
 
-        # Check if legacy data (dict) or new data (list)
-        data = cached_lesson.stage_json
-        if isinstance(data, list):
-            stages = TypeAdapter(List[LessonStage]).validate_python(data)
-        elif isinstance(data, dict):
-            # Establish backward compatibility: wrap single stage in list
-            stages = [TypeAdapter(LessonStage).validate_python(data)]
+            if cached_remedial and isinstance(cached_remedial.stage_json, list):
+                remedial_stages = TypeAdapter(List[LessonStage]).validate_python(
+                    cached_remedial.stage_json
+                )
+                stages.extend(remedial_stages)
 
-        # Return mocked COMPLETED structure so frontend can handle it without SSE seamlessly
-        return {
-            "status": "COMPLETED",
-            "result_data": {"stages": [s.model_dump() for s in stages]},
-        }
+            if stages:
+                # Return mocked COMPLETED structure so frontend can handle it without SSE seamlessly
+                return {
+                    "status": "COMPLETED",
+                    "result_data": {"stages": [s.model_dump() for s in stages]},
+                }
+        except Exception as exc:
+            logger.warning(
+                "Ignoring cached lesson with unsupported or invalid stages. "
+                "lesson_id=%s node_id=%s topic=%s error=%s",
+                cached_lesson.id,
+                node.id,
+                topic,
+                exc,
+            )
 
     # Credit Check
     COST = settings.COST_LESSON_GENERATION
@@ -197,3 +231,39 @@ async def generate_remedial_stages_endpoint(
         topic=request.topic or "General Concept",
     )
     return remedial_stages
+
+
+@router.post("/generate-remedial-stages-async")
+async def generate_remedial_stages_async_endpoint(
+    request: RemedialGenerationRequest,
+    background_tasks: BackgroundTasks,
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not request.failedStages:
+        return {"status": "COMPLETED", "result_data": {"stages": []}}
+
+    job_id = str(uuid.uuid4())
+    new_job = JobModel(
+        id=job_id,
+        user_id=current_user.id,
+        project_id=None,
+        job_type="REMEDIAL_GEN",
+        status="PENDING",
+        progress=0,
+        message="Waiting for remedial generation...",
+    )
+    db.add(new_job)
+    db.commit()
+
+    background_tasks.add_task(
+        run_remedial_generation_job,
+        job_id,
+        current_user.id,
+        request.topic,
+        request.nodeId,
+        request.projectId,
+        [record.model_dump() for record in request.failedStages],
+    )
+
+    return {"job_id": job_id, "status": "PENDING"}
