@@ -1,0 +1,14 @@
+{
+  "name": "lingualearn-duo-server",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "socket.io": "^4.7.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
