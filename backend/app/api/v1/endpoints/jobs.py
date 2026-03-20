@@ -2,13 +2,14 @@ import json
 import asyncio
 import asyncpg
 from datetime import datetime, timedelta, timezone
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.core.config import settings
 from app.api.dependencies import get_db, get_current_user
 from app.models.job import JobModel
+from app.services.workers.job_notifier import _notify_job_update
 import logging
 
 logger = logging.getLogger(__name__)
@@ -180,3 +181,39 @@ async def check_active_jobs(
             "job_type": active_job.job_type,
         }
     return {"job_id": None}
+
+
+@router.post("/{job_id}/cancel")
+async def cancel_job(
+    job_id: str,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    job = (
+        db.query(JobModel)
+        .filter(JobModel.id == job_id, JobModel.user_id == current_user.id)
+        .first()
+    )
+
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found.")
+
+    if job.status in ["COMPLETED", "FAILED", "CANCELLED"]:
+        return {
+            "job_id": job.id,
+            "status": job.status,
+            "message": job.message,
+        }
+
+    _notify_job_update(
+        db,
+        job,
+        job.progress or 0,
+        "Generation cancelled by user.",
+        status="CANCELLED",
+    )
+    return {
+        "job_id": job.id,
+        "status": job.status,
+        "message": job.message,
+    }

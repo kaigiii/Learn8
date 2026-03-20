@@ -13,6 +13,11 @@ from app.services.workers.job_notifier import _notify_job_update
 logger = logging.getLogger(__name__)
 
 
+def _is_cancelled(db, job_id: str) -> bool:
+    job = db.query(JobModel).filter(JobModel.id == job_id).first()
+    return job is None or job.status == "CANCELLED"
+
+
 async def run_questionnaire_generation_job(
     job_id: str, user_id: int, project_id: int, topic: str, files_used: list
 ):
@@ -48,6 +53,9 @@ async def run_questionnaire_generation_job(
         _notify_job_update(db, job, 40, "🤔 AI 正在思考最適合您的探索問題...")
 
         questions = await agent.generate_questions(topic, project_id=project_id)
+
+        if _is_cancelled(db, job_id):
+            return
 
         if not questions:
             raise Exception("未能成功生成問卷內容。")

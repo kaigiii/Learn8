@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useEffect, useLayoutEffect, useState, useCallback } from "react";
+import React, { useRef, useEffect, useLayoutEffect, useState, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -8,8 +8,8 @@ import DeepGlassCard from "@/components/ui/DeepGlassCard";
 import GameButton from "@/components/ui/GameButton";
 import TopProgressBar from "@/components/ui/TopProgressBar";
 import TopStatsBar from "@/components/shared/TopStatsBar";
-import { ApiError, apiFetch } from "@/lib/api";
-import type { CourseListItem, CoursePath, Project, UserProfile } from "@/lib/types";
+import { ApiError, apiFetch, buildSseUrl } from "@/lib/api";
+import type { CourseListItem, CoursePath, DraftData, Project, UserProfile } from "@/lib/types";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useProjectStore } from "@/stores/useProjectStore";
 import useUserStore from "@/stores/useUserStore";
@@ -26,6 +26,29 @@ const STORE_COURSE_STYLE: Record<string, { bg: string; icon: React.ReactNode }> 
   "ds-u1": { bg: "from-cyan-200 to-cyan-100", icon: <DSIcon /> },
 };
 
+type LibraryItem =
+  | {
+      kind: "course";
+      key: string;
+      project: Project;
+      course: CourseListItem;
+      href: string;
+      title: string;
+      subtitle: string;
+      statusLabel: string;
+      indexSeed: number;
+    }
+  | {
+      kind: "draft";
+      key: string;
+      project: Project;
+      href: string;
+      title: string;
+      subtitle: string;
+      statusLabel: string;
+      indexSeed: number;
+    };
+
 /* ═══════════════════ Page ═══════════════════ */
 
 export default function HomePage() {
@@ -39,11 +62,44 @@ export default function HomePage() {
   const name = useUserStore((s) => s.name);
   const [projects, setProjects] = useState<Project[]>([]);
   const [courses, setCourses] = useState<CourseListItem[]>([]);
+  const [draftsByProject, setDraftsByProject] = useState<Record<number, DraftData>>({});
+  const [projectFiles, setProjectFiles] = useState<string[]>([]);
   const [topic, setTopic] = useState("");
   const [activeCoursePath, setActiveCoursePath] = useState<CoursePath | null>(null);
   const [error, setError] = useState("");
   const [isForging, setIsForging] = useState(false);
   const [isSubmittingTopic, setIsSubmittingTopic] = useState(false);
+  const [removingFile, setRemovingFile] = useState<string | null>(null);
+  const [fileActionMessage, setFileActionMessage] = useState("");
+  const [projectModal, setProjectModal] = useState<
+    | { type: "rename"; project: Project; draftName: string; submitting: boolean }
+    | { type: "delete"; project: Project; submitting: boolean }
+    | null
+  >(null);
+  const [activeJob, setActiveJob] = useState<{
+    jobId: string;
+    jobType: string;
+    resumeHref: string;
+    title: string;
+    description: string;
+    progress?: number;
+    message?: string;
+  } | null>(null);
+
+  const createProject = useCallback(
+    async (name: string) => {
+      const project = await apiFetch<Project>("/projects", {
+        method: "POST",
+        body: JSON.stringify({
+          name,
+        }),
+      });
+      setProjects((prev) => [project, ...prev.filter((item) => item.id !== project.id)]);
+      setCurrentProject(project);
+      return project;
+    },
+    [setCurrentProject]
+  );
 
   useEffect(() => {
     if (!token) {
@@ -52,17 +108,63 @@ export default function HomePage() {
   }, [router, token]);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const raw = window.sessionStorage.getItem("learn8_recent_course_navigation");
+    if (!raw) return;
+
+    try {
+      const parsed = JSON.parse(raw) as {
+        courseId?: number;
+        timestamp?: number;
+      };
+      const courseId = parsed.courseId;
+      const timestamp = parsed.timestamp ?? 0;
+
+      if (
+        courseId &&
+        Number.isFinite(courseId) &&
+        Date.now() - timestamp < 15000
+      ) {
+        window.sessionStorage.removeItem("learn8_recent_course_navigation");
+        router.replace(`/courses/${courseId}`);
+        return;
+      }
+    } catch {
+      // Ignore malformed persisted navigation intent.
+    }
+
+    window.sessionStorage.removeItem("learn8_recent_course_navigation");
+  }, [router]);
+
+  useEffect(() => {
     if (!token) return;
 
     const load = async () => {
       try {
-        const [profile, projectData] = await Promise.all([
+        const [profile, projectData, courseData] = await Promise.all([
           apiFetch<UserProfile>("/auth/me"),
           apiFetch<Project[]>("/projects"),
+          apiFetch<CourseListItem[]>("/courses"),
         ]);
+        const draftEntries = await Promise.all(
+          projectData.map(async (project) => {
+            try {
+              const response = await apiFetch<{ draft?: DraftData }>(
+                `/projects/${project.id}/draft`
+              );
+              return [project.id, response.draft || {}] as const;
+            } catch {
+              return [project.id, {}] as const;
+            }
+          })
+        );
+
         updateUser(profile);
         syncFromProfile(profile);
         setProjects(projectData);
+        setCourses(courseData);
+        setDraftsByProject(Object.fromEntries(draftEntries));
         if (!currentProject && projectData[0]) {
           setCurrentProject(projectData[0]);
         }
@@ -78,45 +180,157 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!currentProject) {
-      setCourses([]);
       setTopic("");
+      setProjectFiles([]);
       return;
     }
+    setTopic(draftsByProject[currentProject.id]?.topic || "");
+  }, [currentProject, draftsByProject]);
 
-    const loadCourses = async () => {
-      try {
-        const data = await apiFetch<CourseListItem[]>(
-          `/courses?project_id=${currentProject.id}`
-        );
-        setCourses(data);
-      } catch (err) {
-        setError(
-          err instanceof ApiError ? err.detail : "Failed to load courses."
-        );
-      }
-    };
-
-    void loadCourses();
-  }, [currentProject]);
+  const loadProjectFiles = useCallback(async (projectId: number) => {
+    try {
+      const files = await apiFetch<string[]>(`/projects/${projectId}/files`);
+      setProjectFiles(files);
+    } catch {
+      setProjectFiles([]);
+    }
+  }, []);
 
   useEffect(() => {
     if (!currentProject) return;
+    void loadProjectFiles(currentProject.id);
+  }, [currentProject, loadProjectFiles]);
 
-    const loadDraft = async () => {
+  useEffect(() => {
+    if (!token) return;
+
+    const buildResumeState = async () => {
       try {
-        const data = await apiFetch<{ draft?: { topic?: string } }>(
-          `/projects/${currentProject.id}/draft`
-        );
-        setTopic(data.draft?.topic || "");
+        const active = await apiFetch<{
+          job_id: string | null;
+          job_type?: string;
+          status?: string;
+        }>("/jobs/active");
+
+        if (!active.job_id || !active.job_type) {
+          setActiveJob(null);
+          return;
+        }
+
+        if (typeof window === "undefined") {
+          setActiveJob(null);
+          return;
+        }
+
+        if (active.job_type === "LESSON_GEN") {
+          const raw = window.sessionStorage.getItem("learn8_pending_lesson");
+          if (raw) {
+            const pending = JSON.parse(raw) as { courseId?: number; nodeId?: string };
+            if (pending.courseId && pending.nodeId) {
+              setActiveJob({
+                jobId: active.job_id,
+                jobType: active.job_type,
+                resumeHref: `/courses/${pending.courseId}/nodes/${pending.nodeId}`,
+                title: "Lesson still forging",
+                description: "We found an unfinished lesson generation. Resume and keep waiting from the node page.",
+                progress: 0,
+                message: "Reconnecting to lesson generation...",
+              });
+              return;
+            }
+          }
+        }
+
+        if (active.job_type === "QUESTIONNAIRE_GEN" || active.job_type === "SYLLABUS_GEN") {
+          const raw = window.sessionStorage.getItem("learn8_pending_questionnaire");
+          const pending = raw ? (JSON.parse(raw) as { topic?: string }) : null;
+          setActiveJob({
+            jobId: active.job_id,
+            jobType: active.job_type,
+            resumeHref: "/questionnaire",
+            title:
+              active.job_type === "QUESTIONNAIRE_GEN"
+                ? "Questionnaire still generating"
+                : "Syllabus still forging",
+            description:
+              active.job_type === "QUESTIONNAIRE_GEN"
+                ? `Resume the tailoring flow${pending?.topic ? ` for ${pending.topic}` : ""}.`
+                : `Resume the syllabus forge${pending?.topic ? ` for ${pending.topic}` : ""}.`,
+            progress: 0,
+            message:
+              active.job_type === "QUESTIONNAIRE_GEN"
+                ? "Reconnecting to questionnaire generation..."
+                : "Reconnecting to syllabus generation...",
+          });
+          return;
+        }
+
+        setActiveJob({
+          jobId: active.job_id,
+          jobType: active.job_type,
+          resumeHref: "/home",
+          title: "Unfinished generation found",
+          description: "We found an active background generation task. Reopen the flow to continue.",
+          progress: 0,
+          message: "Reconnecting to background generation...",
+        });
       } catch {
-        // Ignore missing/empty draft
+        setActiveJob(null);
       }
     };
 
-    void loadDraft();
-  }, [currentProject]);
+    void buildResumeState();
+  }, [token]);
 
-  const activeCourse = courses[0] || null;
+  useEffect(() => {
+    if (!activeJob?.jobId) return;
+
+    const eventSource = new EventSource(buildSseUrl(activeJob.jobId));
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data) as {
+          status?: string;
+          progress?: number;
+          message?: string;
+        };
+
+        setActiveJob((prev) => {
+          if (!prev || prev.jobId !== activeJob.jobId) return prev;
+          return {
+            ...prev,
+            progress: data.progress ?? prev.progress ?? 0,
+            message: data.message || prev.message,
+          };
+        });
+
+        if (
+          data.status === "COMPLETED" ||
+          data.status === "FAILED" ||
+          data.status === "CANCELLED"
+        ) {
+          eventSource.close();
+        }
+      } catch {
+        // ignore malformed SSE payloads
+      }
+    };
+
+    eventSource.onerror = () => {
+      eventSource.close();
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, [activeJob?.jobId]);
+
+  const activeCourse = useMemo(
+    () =>
+      currentProject
+        ? courses.find((course) => course.project_id === currentProject.id) || null
+        : null,
+    [courses, currentProject]
+  );
   const activeCourseId = activeCourse ? String(activeCourse.id) : null;
   const resumeTitle = activeCourse?.title ?? "Course";
 
@@ -147,11 +361,68 @@ export default function HomePage() {
       ? Math.round((completedNodeCount / resumeNodeCount) * 100)
       : 0;
   const hasResumeCourse = !!activeCourse;
+  const libraryItems = useMemo<LibraryItem[]>(() => {
+    const projectById = new Map(projects.map((project) => [project.id, project]));
+    const items: LibraryItem[] = [];
+
+    courses.forEach((course, index) => {
+      const project =
+        (course.project_id ? projectById.get(course.project_id) : null) ?? null;
+      if (!project) return;
+      items.push({
+        kind: "course",
+        key: `course-${course.id}`,
+        project,
+        course,
+        href: `/courses/${course.id}`,
+        title: course.title,
+        subtitle: project.name,
+        statusLabel: "Course Ready",
+        indexSeed: index,
+      });
+    });
+
+    projects.forEach((project, index) => {
+      const hasCourse = courses.some((course) => course.project_id === project.id);
+      if (hasCourse) return;
+
+      const draft = draftsByProject[project.id];
+      if (!draft?.topic) return;
+
+      const hasQuestions = (draft.questions?.length || 0) > 0;
+      const hasAnswers = Object.keys(draft.answers || {}).length > 0;
+      items.push({
+        kind: "draft",
+        key: `draft-${project.id}`,
+        project,
+        href: `/questionnaire?projectId=${project.id}`,
+        title: draft.topic,
+        subtitle: project.name,
+        statusLabel: hasQuestions
+          ? hasAnswers
+            ? "Questionnaire In Progress"
+            : "Questionnaire Ready"
+          : "Draft Journey",
+        indexSeed: courses.length + index,
+      });
+    });
+
+    return items.sort((a, b) => {
+      if (a.kind !== b.kind) {
+        return a.kind === "draft" ? -1 : 1;
+      }
+      return b.project.id - a.project.id;
+    });
+  }, [courses, draftsByProject, projects]);
+
+  const resolveProjectForNewJourney = useCallback(
+    async (name: string) => createProject(name),
+    [createProject]
+  );
 
   /* ── Forge drop zone ── */
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   // Prevent browser from opening files dropped anywhere on the page
   useEffect(() => {
@@ -166,21 +437,11 @@ export default function HomePage() {
 
   const handleFileAccepted = useCallback(
     async (file: File) => {
-      setSelectedFile(file);
+      const inferredName = file.name.replace(/\.[^.]+$/, "") || "Imported Project";
       setError("");
       setIsForging(true);
       try {
-        let project = currentProject;
-        if (!project) {
-          project = await apiFetch<Project>("/projects", {
-            method: "POST",
-            body: JSON.stringify({
-              name: file.name.replace(/\.[^.]+$/, "") || "Imported Project",
-            }),
-          });
-          setProjects((prev) => [project!, ...prev]);
-          setCurrentProject(project);
-        }
+        const project = await resolveProjectForNewJourney(inferredName);
 
         const formData = new FormData();
         formData.append("file", file);
@@ -188,14 +449,43 @@ export default function HomePage() {
           method: "POST",
           body: formData,
         });
-        setTopic((prev) => prev || file.name.replace(/\.[^.]+$/, "") || project.name);
+        await loadProjectFiles(project.id);
+        setFileActionMessage(`Added ${file.name}`);
+        setTopic(inferredName || project.name);
         setIsForging(false);
       } catch (err) {
         setError(err instanceof ApiError ? err.detail : "Forge setup failed.");
         setIsForging(false);
       }
     },
-    [currentProject, router, setCurrentProject]
+    [loadProjectFiles, resolveProjectForNewJourney]
+  );
+
+  const handleRemoveProjectFile = useCallback(
+    async (filename: string) => {
+      if (!currentProject) return;
+
+      setRemovingFile(filename);
+      setError("");
+      setFileActionMessage("");
+      try {
+        await apiFetch(
+          `/projects/${currentProject.id}/files/${encodeURIComponent(filename)}`,
+          {
+            method: "DELETE",
+          }
+        );
+        await loadProjectFiles(currentProject.id);
+        setFileActionMessage(`Removed ${filename}`);
+      } catch (err) {
+        setError(
+          err instanceof ApiError ? err.detail : "Failed to remove project file."
+        );
+      } finally {
+        setRemovingFile(null);
+      }
+    },
+    [currentProject, loadProjectFiles]
   );
 
   const onDrop = useCallback(
@@ -223,7 +513,7 @@ export default function HomePage() {
     if (scrollRef.current) scrollRef.current.scrollLeft = 0;
   });
   // 2) Post-paint fallback (covers persist-rehydration & late renders)
-  const courseCount = courses.length;
+  const courseCount = libraryItems.length;
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollLeft = 0;
   }, [courseCount]);
@@ -235,6 +525,87 @@ export default function HomePage() {
     });
   };
 
+  const handleRenameProject = useCallback(async () => {
+    if (!projectModal || projectModal.type !== "rename") return;
+
+    const nextName = projectModal.draftName.trim();
+    if (!nextName || nextName === projectModal.project.name) {
+      setProjectModal(null);
+      return;
+    }
+
+    setProjectModal((prev) =>
+      prev && prev.type === "rename" ? { ...prev, submitting: true } : prev
+    );
+    setError("");
+
+    try {
+      const updated = await apiFetch<Project>(`/projects/${projectModal.project.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ name: nextName }),
+      });
+
+      setProjects((prev) =>
+        prev.map((project) =>
+          project.id === updated.id ? { ...project, name: updated.name } : project
+        )
+      );
+
+      if (currentProject?.id === updated.id) {
+        setCurrentProject(updated);
+      }
+
+      setProjectModal(null);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.detail : "Failed to rename project.");
+      setProjectModal((prev) =>
+        prev && prev.type === "rename" ? { ...prev, submitting: false } : prev
+      );
+    }
+  }, [currentProject?.id, projectModal, setCurrentProject]);
+
+  const handleDeleteProject = useCallback(async () => {
+    if (!projectModal || projectModal.type !== "delete") return;
+
+    setProjectModal((prev) =>
+      prev && prev.type === "delete" ? { ...prev, submitting: true } : prev
+    );
+    setError("");
+
+    try {
+      await apiFetch(`/projects/${projectModal.project.id}`, {
+        method: "DELETE",
+      });
+
+      const remainingProjects = projects.filter(
+        (project) => project.id !== projectModal.project.id
+      );
+      setProjects(remainingProjects);
+
+      if (currentProject?.id === projectModal.project.id) {
+        setCurrentProject(remainingProjects[0] ?? null);
+        setTopic("");
+        setActiveCoursePath(null);
+      }
+
+      setCourses((prev) =>
+        prev.filter((course) => course.project_id !== projectModal.project.id)
+      );
+      setDraftsByProject((prev) => {
+        const next = { ...prev };
+        delete next[projectModal.project.id];
+        return next;
+      });
+
+      setProjectModal(null);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.detail : "Failed to delete project.");
+      setProjectModal((prev) =>
+        prev && prev.type === "delete" ? { ...prev, submitting: false } : prev
+      );
+    }
+  }, [currentProject?.id, projectModal, projects, setCurrentProject]);
+
   const handleTopicSubmit = useCallback(async () => {
     const trimmedTopic = topic.trim();
     if (!trimmedTopic) return;
@@ -242,17 +613,7 @@ export default function HomePage() {
     setError("");
     setIsSubmittingTopic(true);
     try {
-      let project = currentProject;
-      if (!project) {
-        project = await apiFetch<Project>("/projects", {
-          method: "POST",
-          body: JSON.stringify({
-            name: trimmedTopic,
-          }),
-        });
-        setProjects((prev) => [project!, ...prev]);
-        setCurrentProject(project);
-      }
+      const project = await resolveProjectForNewJourney(trimmedTopic);
 
       await apiFetch(`/projects/${project.id}/draft`, {
         method: "PUT",
@@ -265,6 +626,15 @@ export default function HomePage() {
           },
         }),
       });
+      setDraftsByProject((prev) => ({
+        ...prev,
+        [project.id]: {
+          topic: trimmedTopic,
+          questions: [],
+          answers: {},
+          freeText: "",
+        },
+      }));
 
       if (typeof window !== "undefined") {
         window.sessionStorage.setItem(
@@ -284,7 +654,25 @@ export default function HomePage() {
     } finally {
       setIsSubmittingTopic(false);
     }
-  }, [currentProject, router, setCurrentProject, topic]);
+  }, [resolveProjectForNewJourney, router, topic]);
+
+  const handleCancelActiveJob = useCallback(async () => {
+    if (!activeJob?.jobId) return;
+
+    try {
+      await apiFetch(`/jobs/${activeJob.jobId}/cancel`, {
+        method: "POST",
+      });
+    } catch {
+      // Ignore cancel failure and still clear stale local state.
+    } finally {
+      if (typeof window !== "undefined") {
+        window.sessionStorage.removeItem("learn8_pending_questionnaire");
+        window.sessionStorage.removeItem("learn8_pending_lesson");
+      }
+      setActiveJob(null);
+    }
+  }, [activeJob?.jobId]);
 
   return (
     <div className="relative overflow-hidden" style={{ zoom: 1.05 }}>
@@ -295,6 +683,54 @@ export default function HomePage() {
 
       {/* ══════════════ Content ══════════════ */}
       <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-8 py-8 space-y-8">
+        {activeJob && (
+          <div className="rounded-[28px] border border-white/60 bg-white/70 px-5 py-4 shadow-[0_12px_30px_rgba(122,199,196,0.10)] backdrop-blur-xl">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-brand-teal mb-1">
+                  Resume Generation
+                </p>
+                <h2 className="font-heading text-xl font-extrabold text-brand-gray-700">
+                  {activeJob.title}
+                </h2>
+                <p className="mt-1 text-sm text-brand-gray-500">
+                  {activeJob.description}
+                </p>
+                <div className="mt-4 max-w-md">
+                  <div className="h-2 overflow-hidden rounded-full bg-white/70">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-brand-teal to-[#5fb3af] transition-all duration-500"
+                      style={{
+                        width: `${Math.max(0, Math.min(activeJob.progress ?? 0, 100))}%`,
+                      }}
+                    />
+                  </div>
+                  <div className="mt-2 flex items-center justify-between gap-4 text-xs">
+                    <span className="truncate text-brand-gray-500">
+                      {activeJob.message || "Waiting for server updates..."}
+                    </span>
+                    <span className="shrink-0 font-semibold uppercase tracking-[0.18em] text-brand-teal/80">
+                      {Math.round(Math.max(0, Math.min(activeJob.progress ?? 0, 100)))}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex shrink-0 gap-3">
+                <button
+                  type="button"
+                  onClick={() => void handleCancelActiveJob()}
+                  className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-600 transition hover:bg-rose-100"
+                >
+                  Cancel
+                </button>
+                <Link href={activeJob.resumeHref}>
+                  <GameButton className="min-w-[220px]">Resume</GameButton>
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ── Top row: Continue Journey + Forge ── */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           {/* Continue Journey */}
@@ -363,56 +799,82 @@ export default function HomePage() {
                 onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); }}
                 onDrop={onDrop}
                 className={`relative flex-1 min-h-[200px] rounded-2xl border-2 border-dashed backdrop-blur-sm flex flex-col items-center justify-center gap-4 cursor-pointer transition-all duration-200 ${
-                  selectedFile
-                    ? "border-brand-teal bg-brand-teal/10"
-                    : isDragging
+                  isDragging
                     ? "border-brand-teal/80 bg-white/60 shadow-lg shadow-brand-teal/10"
                     : "border-brand-teal/40 bg-white/40 hover:border-brand-teal/70 hover:bg-white/50"
                 }`}
               >
                 <AnimatePresence mode="wait">
-                  {selectedFile ? (
-                    <motion.div
-                      key="accepted"
-                      initial={{ scale: 0.8, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      className="flex flex-col items-center gap-3"
-                    >
-                      <motion.div
-                        animate={{ rotate: 360 }}
-                        transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
-                      >
-                        <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
-                          <circle cx="20" cy="20" r="18" stroke="#7AC7C4" strokeWidth="3" strokeDasharray="80 30" />
-                        </svg>
-                      </motion.div>
-                      <p className="text-sm font-semibold text-brand-teal">{selectedFile.name}</p>
-                      <p className="text-xs text-brand-gray-400">
-                        {isForging ? "Uploading…" : "Uploaded"}
-                      </p>
-                    </motion.div>
-                  ) : (
-                    <motion.div
-                      key="idle"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="flex flex-col items-center gap-4"
-                    >
-                      <motion.div animate={isDragging ? { scale: 1.15, y: -4 } : { scale: 1, y: 0 }}>
-                        <PortalIcon />
-                      </motion.div>
+                  <motion.div
+                    key={isForging ? "uploading" : "idle"}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="flex flex-col items-center gap-4"
+                  >
+                    {isForging ? (
+                      <>
+                        <motion.div
+                          animate={{ rotate: 360 }}
+                          transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
+                        >
+                          <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+                            <circle cx="20" cy="20" r="18" stroke="#7AC7C4" strokeWidth="3" strokeDasharray="80 30" />
+                          </svg>
+                        </motion.div>
+                        <p className="text-sm font-semibold text-brand-teal">Uploading your PDF…</p>
+                      </>
+                    ) : (
+                      <>
+                        <motion.div animate={isDragging ? { scale: 1.15, y: -4 } : { scale: 1, y: 0 }}>
+                          <PortalIcon />
+                        </motion.div>
                       <p className="text-sm md:text-base text-brand-gray-500 text-center max-w-xs px-4">
-                        {isDragging
-                          ? "Release to upload your PDF"
-                          : "Drop a PDF here or click this card, then define your topic below."}
-                      </p>
-                    </motion.div>
-                  )}
+                          {isDragging
+                            ? "Release to upload your PDF"
+                            : "Drop a PDF here or click this card to start a brand-new journey, then define your topic below."}
+                        </p>
+                      </>
+                    )}
+                  </motion.div>
                 </AnimatePresence>
               </motion.div>
 
               <div className="mt-4 rounded-2xl bg-white/55 backdrop-blur-sm border border-white/60 p-4 space-y-3">
+                <div className="rounded-2xl border border-white/70 bg-white/70 px-4 py-3">
+                  <p className="mb-3 text-sm font-semibold text-brand-gray-700">Files</p>
+
+                  {fileActionMessage && (
+                    <p className="mb-3 text-xs font-semibold text-brand-teal">
+                      {fileActionMessage}
+                    </p>
+                  )}
+
+                  {projectFiles.length > 0 ? (
+                    <div className="space-y-2">
+                      {projectFiles.map((file) => (
+                        <div
+                          key={file}
+                          className="flex items-center justify-between gap-3 rounded-xl border border-brand-gray-200 bg-white/80 px-3 py-2 text-sm text-brand-gray-600"
+                        >
+                          <span className="truncate">{file}</span>
+                          <button
+                            type="button"
+                            onClick={() => void handleRemoveProjectFile(file)}
+                            disabled={removingFile === file}
+                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-brand-gray-500 transition hover:bg-rose-50 hover:text-rose-500 disabled:opacity-50"
+                            aria-label={`Remove ${file}`}
+                          >
+                            {removingFile === file ? "…" : "×"}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-brand-gray-400">No files yet.</p>
+                  )}
+                </div>
+
                 <div className="flex flex-col gap-4 md:flex-row md:items-start">
                   <div className="min-w-0 flex-1">
                     <input
@@ -498,26 +960,99 @@ export default function HomePage() {
             className="flex gap-4 overflow-x-auto pt-4 pb-4 scrollbar-hide snap-x"
             style={{ scrollbarWidth: "none" }}
           >
-            {/* Real courses from backend */}
-            {courses.map((c, index) => {
-              const style = Object.values(STORE_COURSE_STYLE)[index % Object.values(STORE_COURSE_STYLE).length] ?? { bg: "from-teal-100 to-teal-50", icon: <GenericIcon /> };
+            {libraryItems.map((item) => {
+              const style =
+                Object.values(STORE_COURSE_STYLE)[
+                  item.indexSeed % Object.values(STORE_COURSE_STYLE).length
+                ] ?? { bg: "from-teal-100 to-teal-50", icon: <GenericIcon /> };
               return (
               <motion.div
-                key={c.id}
+                key={item.key}
                 whileHover={{ y: -4 }}
-                className="shrink-0 w-40 md:w-48 snap-start"
+                className="relative shrink-0 w-40 md:w-48 snap-start"
               >
-                <Link href={`/courses/${c.id}`}>
-                  <div className={`h-36 md:h-44 rounded-2xl bg-gradient-to-br ${style.bg} flex items-center justify-center shadow-md hover:shadow-lg transition-all`}>
+                <div className="absolute right-2 top-2 z-20 flex gap-2">
+                  <button
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      setProjectModal({
+                        type: "rename",
+                        project: item.project,
+                        draftName: item.project.name,
+                        submitting: false,
+                      });
+                    }}
+                    className="flex h-9 w-9 items-center justify-center rounded-full border border-white/70 bg-white/85 text-brand-gray-600 shadow-md backdrop-blur hover:bg-white"
+                    aria-label="Rename project"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 20h9" />
+                      <path d="M16.5 3.5a2.1 2.1 0 113 3L7 19l-4 1 1-4z" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      setProjectModal({
+                        type: "delete",
+                        project: item.project,
+                        submitting: false,
+                      });
+                    }}
+                    className="flex h-9 w-9 items-center justify-center rounded-full border border-white/70 bg-white/85 text-rose-500 shadow-md backdrop-blur hover:bg-white"
+                    aria-label="Delete project"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 6h18" />
+                      <path d="M8 6V4h8v2" />
+                      <path d="M19 6l-1 14H6L5 6" />
+                      <path d="M10 11v6" />
+                      <path d="M14 11v6" />
+                    </svg>
+                  </button>
+                </div>
+
+                <Link href={item.href}>
+                  <div
+                    className={`h-36 md:h-44 rounded-2xl bg-gradient-to-br ${style.bg} flex items-center justify-center shadow-md hover:shadow-lg transition-all ${
+                      item.kind === "draft" ? "ring-2 ring-white/70 ring-offset-2 ring-offset-transparent" : ""
+                    }`}
+                  >
                     {style.icon}
                   </div>
-                  <p className="mt-2 text-sm font-semibold text-brand-gray-600 text-center truncate">
-                    {c.title}
-                  </p>
+                  <div className="mt-2 space-y-1 text-center">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-brand-teal/80">
+                      {item.statusLabel}
+                    </p>
+                    <p className="text-sm font-semibold text-brand-gray-600 truncate">
+                      {item.title}
+                    </p>
+                    <p className="text-xs text-brand-gray-400 truncate">
+                      {item.subtitle}
+                    </p>
+                  </div>
+                  {item.kind === "draft" && (
+                    <p className="mt-2 text-center text-xs font-semibold text-brand-teal">
+                      Resume Questionnaire
+                    </p>
+                  )}
+                  {item.kind === "course" && (
+                    <p className="mt-2 text-center text-xs font-semibold text-brand-gray-500">
+                      Open Course
+                    </p>
+                  )}
                 </Link>
               </motion.div>
               );
             })}
+
+            {libraryItems.length === 0 && (
+              <div className="rounded-2xl border border-white/60 bg-white/60 px-5 py-8 text-sm text-brand-gray-500">
+                No journeys yet. Start by dropping a PDF or entering a topic.
+              </div>
+            )}
           </div>
         </section>
       </div>
@@ -533,6 +1068,113 @@ export default function HomePage() {
         <span className="mx-2 text-brand-gray-300">|</span>
         <a href="#" className="hover:text-brand-gray-600 transition">Terms</a>
       </footer>
+
+      <AnimatePresence>
+        {projectModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[120] flex items-center justify-center bg-brand-gray-700/30 px-4 backdrop-blur-sm"
+            onClick={() => {
+              if (!projectModal.submitting) {
+                setProjectModal(null);
+              }
+            }}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 14, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.98 }}
+              transition={{ duration: 0.18 }}
+              className="w-full max-w-md rounded-[28px] border border-white/70 bg-white/92 p-6 shadow-[0_24px_60px_rgba(31,41,55,0.22)]"
+              onClick={(event) => event.stopPropagation()}
+            >
+              {projectModal.type === "rename" ? (
+                <>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-brand-teal mb-2">
+                    Rename Project
+                  </p>
+                  <h2 className="font-heading text-2xl font-extrabold text-brand-gray-700">
+                    Update project name
+                  </h2>
+                  <p className="mt-2 text-sm leading-relaxed text-brand-gray-500">
+                    This changes the label used across your current learning journey.
+                  </p>
+
+                  <input
+                    autoFocus
+                    value={projectModal.draftName}
+                    onChange={(event) =>
+                      setProjectModal((prev) =>
+                        prev && prev.type === "rename"
+                          ? { ...prev, draftName: event.target.value }
+                          : prev
+                      )
+                    }
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && !projectModal.submitting) {
+                        void handleRenameProject();
+                      }
+                    }}
+                    className="mt-5 w-full rounded-2xl border border-brand-gray-200 bg-white px-4 py-3 text-sm text-brand-gray-700 outline-none focus:border-brand-teal"
+                  />
+
+                  <div className="mt-5 flex justify-end gap-3">
+                    <button
+                      onClick={() => setProjectModal(null)}
+                      disabled={projectModal.submitting}
+                      className="rounded-xl border border-brand-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-brand-gray-600 hover:bg-slate-50 disabled:opacity-60"
+                    >
+                      Cancel
+                    </button>
+                    <GameButton
+                      onClick={() => void handleRenameProject()}
+                      disabled={projectModal.submitting || !projectModal.draftName.trim()}
+                      className="min-w-[130px]"
+                    >
+                      {projectModal.submitting ? "Saving..." : "Save"}
+                    </GameButton>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-rose-500 mb-2">
+                    Delete Project
+                  </p>
+                  <h2 className="font-heading text-2xl font-extrabold text-brand-gray-700">
+                    Delete "{projectModal.project.name}"?
+                  </h2>
+                  <p className="mt-2 text-sm leading-relaxed text-brand-gray-500">
+                    This removes the project, uploaded files, generated context, and associated course history for that journey.
+                  </p>
+
+                  <div className="mt-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-600">
+                    This action cannot be undone.
+                  </div>
+
+                  <div className="mt-5 flex justify-end gap-3">
+                    <button
+                      onClick={() => setProjectModal(null)}
+                      disabled={projectModal.submitting}
+                      className="rounded-xl border border-brand-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-brand-gray-600 hover:bg-slate-50 disabled:opacity-60"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => void handleDeleteProject()}
+                      disabled={projectModal.submitting}
+                      className="rounded-xl bg-rose-500 px-4 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-rose-600 disabled:opacity-60"
+                    >
+                      {projectModal.submitting ? "Deleting..." : "Delete"}
+                    </button>
+                  </div>
+                </>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -11,6 +11,11 @@ from app.services.workers.job_notifier import _notify_job_update
 logger = logging.getLogger(__name__)
 
 
+def _is_cancelled(db, job_id: str) -> bool:
+    job = db.query(JobModel).filter(JobModel.id == job_id).first()
+    return job is None or job.status == "CANCELLED"
+
+
 async def run_lesson_generation_job(
     job_id: str,
     user_id: int,
@@ -56,6 +61,9 @@ async def run_lesson_generation_job(
             project_folder=project_folder_name,
             profile=profile_summary,
         )
+
+        if _is_cancelled(db, job_id):
+            return
 
         if not stages:
             raise Exception("未能成功生成課程內容。")
@@ -140,6 +148,9 @@ async def run_remedial_generation_job(
             failed_records,
             topic=topic or "General Concept",
         )
+
+        if _is_cancelled(db, job_id):
+            return
 
         if not remedial_stages:
             raise Exception("No remedial stages were generated.")

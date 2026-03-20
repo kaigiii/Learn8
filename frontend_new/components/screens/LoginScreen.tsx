@@ -66,6 +66,31 @@ export default function LoginScreen() {
     }
   };
 
+  const handleDevLogin = async () => {
+    setError("");
+    setIsSubmitting(true);
+
+    try {
+      const tokenRes = await apiFetch<AuthTokenResponse>("/auth/dev-login", {
+        method: "POST",
+      });
+
+      setSession(tokenRes.access_token, null);
+      const profile = await apiFetch<UserProfile>("/auth/me");
+      setSession(tokenRes.access_token, profile);
+      syncFromProfile(profile);
+
+      router.replace("/home");
+    } catch (err) {
+      clearSession();
+      setError(
+        err instanceof ApiError ? err.detail : "Unable to connect to the server."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="relative flex min-h-screen flex-col bg-gradient-to-br from-[#edf7fb] via-[#c9e6f2] to-[#a3d5e8] overflow-hidden">
       <ParticleField />
@@ -232,6 +257,15 @@ export default function LoginScreen() {
                 : activeTab === "signup"
                 ? "Create Account"
                 : "Sign In"}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleDevLogin}
+              disabled={isSubmitting}
+              className="w-full rounded-xl border border-brand-teal/30 bg-brand-teal/5 px-6 py-3 font-heading font-bold uppercase tracking-wide text-brand-teal shadow-sm transition hover:bg-brand-teal/10 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Dev Login
             </button>
           </form>
 

@@ -12,7 +12,6 @@ import useArenaStore from "@/stores/useArenaStore";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useProjectStore } from "@/stores/useProjectStore";
 import useUserStore from "@/stores/useUserStore";
-import useCourseStore from "@/stores/useCourseStore";
 import TaxonomyMatrix from "@/components/arena/TaxonomyMatrix";
 import SpatialAnatomy from "@/components/arena/SpatialAnatomy";
 import LogicChain from "@/components/arena/LogicChain";
@@ -106,11 +105,17 @@ function getCorrectOptionId(stage: LessonStage) {
 
 /* ═══════════════════ Page ═══════════════════ */
 
-export default function ArenaClient() {
+export default function ArenaClient({
+  courseId: explicitCourseId,
+  nodeId: explicitNodeId,
+}: {
+  courseId?: string;
+  nodeId?: string;
+} = {}) {
   const router = useRouter();
   const params = useParams();
-  const nodeId = params.nodeId as string;
-  const routeCourseId = params.courseId as string | undefined;
+  const nodeId = explicitNodeId ?? (params.nodeId as string);
+  const routeCourseId = explicitCourseId ?? (params.courseId as string | undefined);
   const [backendCourseId, setBackendCourseId] = useState<number | null>(null);
   const isBackendLesson = backendCourseId !== null;
   const token = useAuthStore((s) => s.token);
@@ -138,26 +143,13 @@ export default function ArenaClient() {
   const spendGems = useUserStore((s) => s.spendGems);
   const setLastActiveNode = useUserStore((s) => s.setLastActiveNode);
 
-  // Course store – load node data for dynamic stages
-  const loadMockCourses = useCourseStore((s) => s.loadMockCourses);
-  const getNode = useCourseStore((s) => s.getNode);
-  const addRemedyNode = useCourseStore((s) => s.addRemedyNode);
-  const remedyNodes = useCourseStore((s) => s.remedyNodes);
-
-  useEffect(() => {
-    if (!isBackendLesson) {
-      loadMockCourses();
-    }
-  }, [isBackendLesson, loadMockCourses]);
-
-  const nodeData = getNode(nodeId);
-  const dynamicStages = nodeData?.stages ?? [];
-  const hasDynamic = dynamicStages.length > 0;
-
   const [backendCourse, setBackendCourse] = useState<CoursePath | null>(null);
   const [backendStages, setBackendStages] = useState<LessonStage[]>([]);
   const [backendLoading, setBackendLoading] = useState(false);
   const [backendError, setBackendError] = useState("");
+  const [backendJobProgress, setBackendJobProgress] = useState(0);
+  const [backendJobMessage, setBackendJobMessage] = useState("Preparing lesson generation...");
+  const [backendJobId, setBackendJobId] = useState<string | null>(null);
 
   const backendNode = useMemo(() => {
     if (!backendCourse) return null;
@@ -168,36 +160,7 @@ export default function ArenaClient() {
     return null;
   }, [backendCourse, nodeId]);
 
-  // Determine course id from node data
-  const courseId = useMemo(() => {
-    const courses = useCourseStore.getState().courses;
-    for (const c of Object.values(courses)) {
-      if (c.nodes.some((n: { id: string }) => n.id === nodeId)) return c.unitId;
-    }
-    return "med-u1";
-  }, [nodeId]);
-
   const [stageIdx, setStageIdx] = useState(0);
-
-  // Current dynamic stage (if any)
-  const currentDynStage = hasDynamic ? dynamicStages[stageIdx] : null;
-  const isDynamicTaxonomy = currentDynStage?.component === "TaxonomyMatrix";
-  const isDynamicMatcher = currentDynStage?.component === "PatternMatcher";
-  const isDynamicAnatomy = currentDynStage?.component === "SpatialAnatomy";
-  const isDynamicChain = currentDynStage?.component === "LogicChain";
-  const isDynamicMCQ = currentDynStage?.component === "MultipleChoice";
-  const isDynamicFeynman = currentDynStage?.component === "FeynmanPrompt";
-  const isDynamicCustom = isDynamicTaxonomy || isDynamicAnatomy || isDynamicChain || isDynamicMCQ || isDynamicFeynman;
-
-  // For PatternMatcher: convert stage data to match-pair format
-  const dynamicMatchStage = useMemo(() => {
-    if (!isDynamicMatcher || !currentDynStage) return null;
-    const pairs = (currentDynStage.config.data as Record<string, unknown[]>).pairs as { id: string; left: string; right: string }[];
-    return {
-      question: `${currentDynStage.topic}: ${nodeData?.description ?? "Match each pair"}`,
-      pairs: pairs.map((p) => ({ left: p.left, right: p.right })),
-    };
-  }, [isDynamicMatcher, currentDynStage, nodeData]);
   const [selectedLeft, setSelectedLeft] = useState<string | null>(null);
   const [selectedRight, setSelectedRight] = useState<string | null>(null);
   const [matched, setMatched] = useState<string[]>([]);
@@ -207,9 +170,8 @@ export default function ArenaClient() {
   const [showConfetti, setShowConfetti] = useState(false);
   const [hintUsed, setHintUsed] = useState(false);
   const [hintPair, setHintPair] = useState<string | null>(null);
-  const [showRemedyPopup, setShowRemedyPopup] = useState(false);
 
-  const backendStage = isBackendLesson ? backendStages[stageIdx] : null;
+  const backendStage = backendStages[stageIdx] ?? null;
   const backendMatchStage = useMemo(() => {
     if (backendStage?.component !== "MatchingPairs") return null;
     const data = backendStage.config.data as { question?: string; pairs?: { left: string; right: string }[] };
@@ -218,28 +180,16 @@ export default function ArenaClient() {
       pairs: (data.pairs || []).map((pair) => ({ left: pair.left, right: pair.right })),
     };
   }, [backendStage]);
-  const stage =
-    (isBackendLesson ? backendMatchStage : null) ||
-    dynamicMatchStage ||
-    STAGES[stageIdx % STAGES.length];
-  const totalStages = isBackendLesson
-    ? Math.max(backendStages.length, 1)
-    : hasDynamic
-      ? dynamicStages.length
-      : STAGES.length;
+  const stage = backendMatchStage || STAGES[stageIdx % STAGES.length];
+  const totalStages = Math.max(backendStages.length, 1);
   const progress = (stageIdx / totalStages) * 100;
+  const nodeDescription = backendNode?.description ?? "";
 
   useEffect(() => {
-    if (isBackendLesson) {
-      if (backendStages.length === 0) return;
-      startSession({ nodeId, courseId: String(backendCourseId), totalStages });
-      setLastActiveNode(nodeId);
-      return;
-    }
-
-    startSession({ nodeId, courseId, totalStages });
+    if (backendStages.length === 0) return;
+    startSession({ nodeId, courseId: String(backendCourseId), totalStages });
     setLastActiveNode(nodeId);
-  }, [backendCourseId, backendStages.length, courseId, isBackendLesson, nodeId, setLastActiveNode, startSession, totalStages]);
+  }, [backendCourseId, backendStages.length, nodeId, setLastActiveNode, startSession, totalStages]);
 
   useEffect(() => {
     if (!isBackendLesson) return;
@@ -287,19 +237,26 @@ export default function ArenaClient() {
       setHintUsed(false);
       setHintPair(null);
       setBackendLoading(false);
+      setBackendJobProgress(100);
+      setBackendJobMessage("Lesson ready.");
       clearPendingLesson();
     };
 
     const connectLessonJob = (jobId: string) => {
+      setBackendJobId(jobId);
       eventSource = new EventSource(buildSseUrl(jobId));
       eventSource.onmessage = (event) => {
         const data = JSON.parse(event.data) as JobStreamEvent;
+        setBackendJobProgress(data.progress ?? 0);
+        setBackendJobMessage(data.message || "Forging lesson stages...");
         if (data.status === "COMPLETED") {
+          setBackendJobId(null);
           eventSource?.close();
           const result = (data.result_data || {}) as { stages?: LessonStage[] };
           applyStages(result.stages || []);
         }
         if (data.status === "FAILED" || data.status === "CANCELLED") {
+          setBackendJobId(null);
           eventSource?.close();
           clearPendingLesson();
           setBackendLoading(false);
@@ -307,6 +264,7 @@ export default function ArenaClient() {
         }
       };
       eventSource.onerror = () => {
+        setBackendJobId(null);
         eventSource?.close();
         clearPendingLesson();
         setBackendLoading(false);
@@ -317,6 +275,8 @@ export default function ArenaClient() {
     const generateLesson = async () => {
       setBackendLoading(true);
       setBackendError("");
+      setBackendJobProgress(0);
+      setBackendJobMessage("Preparing lesson generation...");
       try {
         if (typeof window !== "undefined") {
           const rawPending = window.sessionStorage.getItem(storageKey);
@@ -364,6 +324,7 @@ export default function ArenaClient() {
         );
 
         if (response.status === "COMPLETED") {
+          setBackendJobId(null);
           applyStages(response.result_data?.stages || []);
           return;
         }
@@ -379,6 +340,7 @@ export default function ArenaClient() {
         }
         connectLessonJob(String(response.job_id));
       } catch (err) {
+        setBackendJobId(null);
         clearPendingLesson();
         setBackendLoading(false);
         setBackendError(
@@ -393,6 +355,29 @@ export default function ArenaClient() {
     };
   }, [backendCourse, backendCourseId, backendNode, currentProject, isBackendLesson, nodeId]);
 
+  const handleCancelGeneration = async () => {
+    if (!backendJobId) {
+      router.push(`/courses/${backendCourseId}`);
+      return;
+    }
+
+    try {
+      await apiFetch(`/jobs/${backendJobId}/cancel`, {
+        method: "POST",
+      });
+    } catch {
+      // Ignore cancel failure and still unwind local UI state.
+    } finally {
+      if (typeof window !== "undefined") {
+        window.sessionStorage.removeItem("learn8_pending_lesson");
+      }
+      setBackendJobId(null);
+      setBackendLoading(false);
+      setBackendError("");
+      router.push(`/courses/${backendCourseId}`);
+    }
+  };
+
   // Shuffle only on client to avoid hydration mismatch
   const [shuffledRight, setShuffledRight] = useState<string[]>(
     () => stage.pairs.map((p) => p.right) // initial: original order (matches SSR)
@@ -401,10 +386,10 @@ export default function ArenaClient() {
 
   useEffect(() => {
     setMounted(true);
-    if ((isBackendLesson && backendStage?.component === "MatchingPairs") || !isDynamicCustom) {
+    if (backendStage?.component === "MatchingPairs") {
       setShuffledRight(shuffle(stage.pairs.map((p) => p.right)));
     }
-  }, [backendStage?.component, isBackendLesson, isDynamicCustom, stage.pairs, stageIdx]);
+  }, [backendStage?.component, stage.pairs, stageIdx]);
 
   const allMatched = matched.length === stage.pairs.length;
 
@@ -463,7 +448,7 @@ export default function ArenaClient() {
 
   /* Check answer (called when CHECK button tapped) */
   const handleCheck = useCallback(() => {
-    if (isBackendLesson && backendStage?.component === "MatchingPairs") {
+    if (backendStage?.component === "MatchingPairs") {
       if (allMatched) {
         void submitBackendStage(backendStage, matchedPairs, true);
       }
@@ -495,11 +480,11 @@ export default function ArenaClient() {
         setSelectedRight(null);
       }, 800);
     }
-  }, [allMatched, arenaMarkIncorrect, arenaTriggerShake, backendStage, isBackendLesson, matchedPairs, selectedLeft, selectedRight, stage.pairs, submitBackendStage]);
+  }, [allMatched, arenaMarkIncorrect, arenaTriggerShake, backendStage, matchedPairs, selectedLeft, selectedRight, stage.pairs, submitBackendStage]);
 
   /* Stage complete → feedback (only for match stages) */
   React.useEffect(() => {
-    if (!isDynamicCustom && allMatched && !feedback) {
+    if (allMatched && !feedback) {
       const timer = setTimeout(() => {
         setFeedback("correct");
         setShowConfetti(true);
@@ -508,28 +493,10 @@ export default function ArenaClient() {
       }, 400);
       return () => clearTimeout(timer);
     }
-  }, [allMatched, feedback, arenaMarkCorrect, arenaTriggerConfetti, isDynamicCustom]);
+  }, [allMatched, feedback, arenaMarkCorrect, arenaTriggerConfetti]);
 
   /* Continue to next stage or result */
   const handleContinue = useCallback(() => {
-    if (isBackendLesson) {
-      if (stageIdx < totalStages - 1) {
-        setStageIdx((i) => i + 1);
-        setMatched([]);
-        setMatchedPairs({});
-        setSelectedLeft(null);
-        setSelectedRight(null);
-        setWrongPair(null);
-        setFeedback(null);
-        setShowConfetti(false);
-        setHintUsed(false);
-        setHintPair(null);
-      } else {
-        router.push(`/courses/${backendCourseId}/nodes/${nodeId}/result`);
-      }
-      return;
-    }
-
     if (stageIdx < totalStages - 1) {
       setStageIdx((i) => i + 1);
       setMatched([]);
@@ -542,21 +509,9 @@ export default function ArenaClient() {
       setHintUsed(false);
       setHintPair(null);
     } else {
-      // End of unit – check accuracy for remedy
-      const { correctCount, incorrectCount } = useArenaStore.getState();
-      const total = correctCount + incorrectCount;
-      const accuracy = total > 0 ? (correctCount / total) * 100 : 100;
-      if (accuracy < 60 && nodeData) {
-        const alreadyHasRemedy = remedyNodes.some((r) => r.sourceNodeId === nodeId);
-        if (!alreadyHasRemedy) {
-          addRemedyNode(courseId, nodeId, nodeData.title);
-          setShowRemedyPopup(true);
-          return; // popup onDismiss will navigate
-        }
-      }
-      router.push(`/play/${nodeId}/result`);
+      router.push(`/courses/${backendCourseId}/nodes/${nodeId}/result`);
     }
-  }, [addRemedyNode, backendCourseId, courseId, isBackendLesson, nodeData, nodeId, remedyNodes, router, stageIdx, totalStages]);
+  }, [backendCourseId, nodeId, router, stageIdx, totalStages]);
 
   /* Hint */
   const handleHint = useCallback(() => {
@@ -700,17 +655,26 @@ Intercalateddiscs(閏盤)：這是心肌細胞特有的連接結構。它含有�
     })();
   }, [isRecording]);
 
+  if (!isBackendLesson) {
+    return (
+      <div className="relative min-h-screen bg-gradient-to-br from-[#edf7fb] via-[#c9e6f2] to-[#a3d5e8]">
+        <TopProgressBar progress={0} />
+        <div className="mx-auto flex min-h-[calc(100vh-12px)] max-w-3xl items-center justify-center px-6">
+          <div className="rounded-3xl border border-amber-200 bg-white/80 px-6 py-5 text-sm text-brand-gray-700 shadow-lg backdrop-blur">
+            Invalid lesson route.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative min-h-screen max-h-screen overflow-hidden bg-gradient-to-br from-[#edf7fb] via-[#c9e6f2] to-[#a3d5e8] flex flex-col">
       {/* ─── Top Nav ─── */}
       <div className="flex items-center gap-3 px-8 pt-4 pb-1">
         <button
           onClick={() =>
-            router.push(
-              isBackendLesson
-                ? `/courses/${backendCourseId}`
-                : `/map/${courseId}`
-            )
+            router.push(`/courses/${backendCourseId}`)
           }
           className="h-9 w-9 rounded-full bg-white/60 backdrop-blur flex items-center justify-center hover:bg-white/80 transition"
         >
@@ -727,14 +691,33 @@ Intercalateddiscs(閏盤)：這是心肌細胞特有的連接結構。它含有�
       <div className="flex-1 flex gap-8 px-8 pb-4 w-full min-h-0">
         {/* ── Left: Question + Match Grid ── */}
         <div className="flex-1 flex flex-col min-w-0 min-h-0">
-          {isBackendLesson ? (
-            backendLoading ? (
+          {backendLoading ? (
               <div className="flex flex-1 items-center justify-center">
-                <div className="rounded-3xl bg-white/70 px-8 py-6 text-center shadow-lg">
+                <div className="w-full max-w-lg rounded-3xl bg-white/70 px-8 py-6 text-center shadow-lg">
                   <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-brand-teal/20 border-t-brand-teal" />
                   <p className="font-heading text-lg font-bold text-brand-gray-700">
                     Forging lesson stages...
                   </p>
+                  <p className="mt-2 text-sm text-brand-gray-500">
+                    {backendJobMessage}
+                  </p>
+                  <div className="mx-auto mt-5 h-2 w-full max-w-sm overflow-hidden rounded-full bg-white/60">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-brand-teal to-[#5fb3af] transition-all duration-500"
+                      style={{ width: `${Math.max(0, Math.min(backendJobProgress, 100))}%` }}
+                    />
+                  </div>
+                  <p className="mt-3 text-xs font-semibold uppercase tracking-[0.2em] text-brand-teal/80">
+                    {Math.round(Math.max(0, Math.min(backendJobProgress, 100)))}% complete
+                  </p>
+                  <div className="mt-5">
+                    <GameButton
+                      variant="secondary"
+                      onClick={() => void handleCancelGeneration()}
+                    >
+                      Cancel Generation
+                    </GameButton>
+                  </div>
                 </div>
               </div>
             ) : backendError ? (
@@ -752,7 +735,7 @@ Intercalateddiscs(閏盤)：這是心肌細胞特有的連接結構。它含有�
                   stageIndex={stageIdx}
                   totalStages={totalStages}
                   topic={backendStage.topic}
-                  description={backendNode?.description ?? ""}
+                  description={nodeDescription}
                   question={String((backendStage.config.data as { question?: string }).question || backendStage.topic)}
                   options={normalizeChoiceOptions(backendStage)}
                   correctId={getCorrectOptionId(backendStage)}
@@ -875,217 +858,7 @@ Intercalateddiscs(閏盤)：這是心肌細胞特有的連接結構。它含有�
                   </div>
                 </>
               )
-            ) : null
-          ) : isDynamicAnatomy && currentDynStage ? (
-            <SpatialAnatomy
-              key={`anat-${stageIdx}`}
-              stageIndex={stageIdx}
-              totalStages={totalStages}
-              topic={currentDynStage.topic}
-              description={nodeData?.description ?? ""}
-              model={(currentDynStage.config.data as Record<string, unknown>).model as string}
-              labels={(currentDynStage.config.data as Record<string, unknown>).labels as { id: string; label: string }[]}
-              targetId={(currentDynStage.validation.condition as Record<string, string>).target}
-              feedbackMsg={currentDynStage.feedback}
-              onComplete={() => {
-                setFeedback("correct");
-                setShowConfetti(true);
-                arenaMarkCorrect();
-                arenaTriggerConfetti();
-              }}
-              onError={() => {
-                arenaMarkIncorrect();
-                arenaTriggerShake();
-              }}
-              onHintUse={() => {
-                const canAfford = spendGems(10);
-                if (canAfford) arenaUseHint();
-                return canAfford;
-              }}
-            />
-          ) : isDynamicChain && currentDynStage ? (
-            <LogicChain
-              key={`chain-${stageIdx}`}
-              stageIndex={stageIdx}
-              totalStages={totalStages}
-              topic={currentDynStage.topic}
-              description={nodeData?.description ?? ""}
-              nodes={(currentDynStage.config.data as Record<string, unknown>).nodes as string[]}
-              feedbackMsg={currentDynStage.feedback}
-              onComplete={() => {
-                setFeedback("correct");
-                setShowConfetti(true);
-                arenaMarkCorrect();
-                arenaTriggerConfetti();
-              }}
-              onError={() => {
-                arenaMarkIncorrect();
-                arenaTriggerShake();
-              }}
-              onWrongAdvance={() => handleContinue()}
-              onHintUse={() => {
-                const canAfford = spendGems(10);
-                if (canAfford) arenaUseHint();
-                return canAfford;
-              }}
-            />
-          ) : isDynamicMCQ && currentDynStage ? (
-            <MultipleChoice
-              key={`mcq-${stageIdx}`}
-              stageIndex={stageIdx}
-              totalStages={totalStages}
-              topic={currentDynStage.topic}
-              description={nodeData?.description ?? ""}
-              question={(currentDynStage.config.data as Record<string, unknown>).question as string}
-              options={(currentDynStage.config.data as Record<string, unknown>).options as { id: string; text: string }[]}
-              correctId={(currentDynStage.config.data as Record<string, unknown>).correctId as string}
-              feedbackMsg={currentDynStage.feedback}
-              onComplete={() => {
-                setFeedback("correct");
-                setShowConfetti(true);
-                arenaMarkCorrect();
-                arenaTriggerConfetti();
-              }}
-              onError={() => {
-                arenaMarkIncorrect();
-                arenaTriggerShake();
-              }}
-              onWrongAdvance={() => handleContinue()}
-              onHintUse={() => {
-                const canAfford = spendGems(10);
-                if (canAfford) arenaUseHint();
-                return canAfford;
-              }}
-            />
-          ) : isDynamicFeynman && currentDynStage ? (
-            <FeynmanPrompt
-              key={`feynman-${stageIdx}`}
-              stageIndex={stageIdx}
-              totalStages={totalStages}
-              topic={currentDynStage.topic}
-              description={nodeData?.description ?? ""}
-              prompt={(currentDynStage.config.data as Record<string, unknown>).prompt as string}
-              sampleAnswer={(currentDynStage.config.data as Record<string, unknown>).sampleAnswer as string}
-              fixedFeedback={(currentDynStage.config.data as Record<string, unknown>).fixedFeedback as string}
-              feedbackMsg={currentDynStage.feedback}
-              onComplete={() => {
-                setFeedback("correct");
-                setShowConfetti(true);
-                arenaMarkCorrect();
-                arenaTriggerConfetti();
-              }}
-              onError={() => {
-                arenaMarkIncorrect();
-                arenaTriggerShake();
-              }}
-              onHintUse={() => {
-                const canAfford = spendGems(10);
-                if (canAfford) arenaUseHint();
-                return canAfford;
-              }}
-            />
-          ) : isDynamicTaxonomy && currentDynStage ? (
-            <TaxonomyMatrix
-              key={`tax-${stageIdx}`}
-              stageIndex={stageIdx}
-              totalStages={totalStages}
-              topic={currentDynStage.topic}
-              description={nodeData?.description ?? ""}
-              buckets={(currentDynStage.config.data as Record<string, unknown>).buckets as string[]}
-              items={(currentDynStage.config.data as Record<string, unknown>).items as { id: string; content: string }[]}
-              correctAssignments={((currentDynStage.config.data as Record<string, unknown>).correctAssignments as Record<string, string>) || {}}
-              feedbackMsg={currentDynStage.feedback}
-              onComplete={() => {
-                setFeedback("correct");
-                setShowConfetti(true);
-                arenaMarkCorrect();
-                arenaTriggerConfetti();
-              }}
-              onError={() => {
-                arenaMarkIncorrect();
-                arenaTriggerShake();
-              }}
-              onWrongAdvance={() => handleContinue()}
-              onHintUse={() => {
-                const canAfford = spendGems(10);
-                if (canAfford) arenaUseHint();
-                return canAfford;
-              }}
-            />
-          ) : (
-          <>
-          {/* ── Scrollable content area ── */}
-          <div className="flex-1 overflow-y-auto min-h-0 pr-1 arena-scroll">
-          {/* Question card */}
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mt-4 mb-6 flex items-center gap-4"
-          >
-            {/* Stage indicator */}
-            <div className="flex-shrink-0 w-11 h-11 rounded-2xl bg-gradient-to-br from-brand-teal to-[#5fb3af] flex items-center justify-center shadow-md shadow-teal-300/30">
-              <span className="font-heading font-extrabold text-white text-base">
-                {stageIdx + 1}
-              </span>
-            </div>
-            <div>
-              <p className="text-[11px] font-bold text-brand-teal uppercase tracking-wider mb-0.5">
-                Stage {stageIdx + 1} of {totalStages}
-              </p>
-              <h2 className="font-heading font-bold text-xl text-brand-gray-700 leading-snug">
-                {stage.question}
-              </h2>
-            </div>
-          </motion.div>
-
-          {/* Match Grid */}
-          <div className="flex">
-            <MatchGrid
-              pairs={stage.pairs}
-              shuffledRight={shuffledRight}
-              matched={matched}
-              selectedLeft={selectedLeft}
-              selectedRight={selectedRight}
-              wrongPair={wrongPair}
-              hintPair={hintPair}
-              onPickLeft={pickLeft}
-              onPickRight={pickRight}
-            />
-          </div>
-
-          </div>{/* end scrollable area */}
-
-          {/* ─── Bottom Bar ─── */}
-          <div className="relative pt-4 pb-6 flex items-end justify-between flex-shrink-0">
-            {/* Mascot + hint */}
-            <div className="flex items-end gap-2">
-              <OwlMascot />
-              <button
-                onClick={handleHint}
-                disabled={hintUsed || allMatched}
-                className={`mb-1 flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-full border transition ${
-                  hintUsed
-                    ? "bg-brand-gray-100 text-brand-gray-400 border-brand-gray-200 cursor-not-allowed"
-                    : "bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100"
-                }`}
-              >
-                💡 Hint
-                <span className="text-[10px] opacity-60">(10 💎)</span>
-              </button>
-            </div>
-
-            {/* CHECK button */}
-            <GameButton
-              variant="primary"
-              onClick={handleCheck}
-              disabled={!selectedLeft || !selectedRight || allMatched}
-              className="min-w-[140px]"
-            >
-              CHECK
-            </GameButton>
-          </div>
-          </>
-          )}
+            ) : null}
         </div>
 
         {/* ── Right: AI Chat Assistant ── */}
@@ -1235,18 +1008,6 @@ Intercalateddiscs(閏盤)：這是心肌細胞特有的連接結構。它含有�
             type={feedback}
             onContinue={handleContinue}
             showConfetti={showConfetti}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* ─── Remedy Popup (shown when accuracy < 60% at end) ─── */}
-      <AnimatePresence>
-        {showRemedyPopup && (
-          <RemedyPopup
-            onDismiss={() => {
-              setShowRemedyPopup(false);
-              router.push(`/play/${nodeId}/result`);
-            }}
           />
         )}
       </AnimatePresence>
