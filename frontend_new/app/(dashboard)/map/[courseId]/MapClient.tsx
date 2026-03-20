@@ -8,8 +8,6 @@ import TopStatsBar from "@/components/shared/TopStatsBar";
 import { ApiError, apiFetch } from "@/lib/api";
 import type { CoursePath } from "@/lib/types";
 import { useAuthStore } from "@/stores/useAuthStore";
-import useCourseStore from "@/stores/useCourseStore";
-import type { RemedyNode } from "@/stores/useCourseStore";
 import useUserStore from "@/stores/useUserStore";
 
 /* ═══════════════════ Fallback mock nodes (for demo courseIds with no mock data) ═══════════════════ */
@@ -186,32 +184,32 @@ const FALLBACK_NODES: { id: string; title: string; status: "completed" | "availa
 
 /* ═══════════════════ Page ═══════════════════ */
 
-export default function MapClient() {
+export default function MapClient({ courseId: explicitCourseId }: { courseId?: string } = {}) {
   const router = useRouter();
   const params = useParams();
-  const courseId = params.courseId as string;
+  const courseId =
+    (typeof explicitCourseId === "string" && explicitCourseId) ||
+    (typeof params.courseId === "string" ? params.courseId : "");
   const token = useAuthStore((s) => s.token);
+  const hasResolvedCourseId = courseId.length > 0;
   const isBackendCourse = /^\d+$/.test(courseId);
 
-  const loadMockCourses = useCourseStore((s) => s.loadMockCourses);
-  const getCourse = useCourseStore((s) => s.getCourse);
-  const getNodesForCourse = useCourseStore((s) => s.getNodesForCourse);
-  const getRemedyNodesForCourse = useCourseStore((s) => s.getRemedyNodesForCourse);
   const setLastActiveCourse = useUserStore((s) => s.setLastActiveCourse);
 
-  const [loaded, setLoaded] = useState(false);
   const [backendCourse, setBackendCourse] = useState<CoursePath | null>(null);
   const [backendError, setBackendError] = useState("");
 
   useEffect(() => {
+    if (!hasResolvedCourseId) return;
     if (!isBackendCourse) {
-      loadMockCourses();
-      setLoaded(true);
+      console.warn("[MapClient] Invalid courseId, staying on page", {
+        explicitCourseId: explicitCourseId ?? null,
+        paramsCourseId: (params.courseId as string | undefined) ?? null,
+        resolvedCourseId: courseId,
+      });
+      setBackendError("Invalid course route.");
+      return;
     }
-  }, [isBackendCourse, loadMockCourses]);
-
-  useEffect(() => {
-    if (!isBackendCourse) return;
     if (!token) {
       router.replace("/auth/login");
       return;
@@ -219,10 +217,18 @@ export default function MapClient() {
 
     const load = async () => {
       try {
+        console.info("[MapClient] Loading backend course", {
+          courseId,
+          explicitCourseId: explicitCourseId ?? null,
+        });
         const data = await apiFetch<CoursePath>(`/courses/${courseId}`);
         setBackendCourse(data);
-        setLoaded(true);
       } catch (err) {
+        console.error("[MapClient] Failed to load backend course", {
+          courseId,
+          explicitCourseId: explicitCourseId ?? null,
+          error: err instanceof ApiError ? err.detail : String(err),
+        });
         setBackendError(
           err instanceof ApiError ? err.detail : "Failed to load course map."
         );
@@ -230,7 +236,7 @@ export default function MapClient() {
     };
 
     void load();
-  }, [courseId, isBackendCourse, router, token]);
+  }, [courseId, explicitCourseId, hasResolvedCourseId, isBackendCourse, params, router, token]);
 
   /* Lock body scroll while map page is mounted (zoom 1.05 causes overflow) */
   useEffect(() => {
@@ -247,8 +253,11 @@ export default function MapClient() {
     if (courseId) setLastActiveCourse(courseId);
   }, [courseId, setLastActiveCourse]);
 
-  const course = getCourse(courseId);
-  const storeNodes = getNodesForCourse(courseId);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!isBackendCourse) return;
+    window.sessionStorage.removeItem("learn8_recent_course_navigation");
+  }, [isBackendCourse]);
 
   // Build MapNode array – use store data if available, otherwise fallback
   // Dynamic positions: zigzag pattern, each node spaced vertically
@@ -266,27 +275,17 @@ export default function MapClient() {
       }));
     };
 
-    if (backendCourse) {
-      return buildPositions(
-        backendCourse.units.flatMap((unit) =>
-          unit.nodes.map((node) => ({
-            id: node.id,
-            title: node.title,
-            status: node.status,
-          }))
-        )
-      );
-    }
-
-    if (storeNodes.length > 0) {
-      return buildPositions(storeNodes);
-    }
-    if (!loaded) return [];
-    // Use per-course fallback nodes if available
-    const libMeta = LIBRARY_COURSE_META[courseId];
-    if (libMeta) return buildPositions(libMeta.nodes);
-    return buildPositions(FALLBACK_NODES);
-  }, [storeNodes, loaded, courseId]);
+    if (!backendCourse) return [];
+    return buildPositions(
+      backendCourse.units.flatMap((unit) =>
+        unit.nodes.map((node) => ({
+          id: node.id,
+          title: node.title,
+          status: node.status,
+        }))
+      )
+    );
+  }, [backendCourse]);
 
   // Total height for scrollable map
   const mapHeight = Math.max(560, NODES.length * 120 + 120);
@@ -371,8 +370,12 @@ export default function MapClient() {
     }
   }, []);
 
-  const pageTitle = backendCourse?.courseTitle ?? course?.unitTitle ?? LIBRARY_COURSE_META[courseId]?.title ?? "Course Map";
-  const remedyNodes = getRemedyNodesForCourse(courseId);
+  const pageTitle = backendCourse?.courseTitle ?? "Course Map";
+
+  if (!isBackendCourse) {
+    return null;
+  }
+
   return (
     <div className="relative overflow-hidden bg-gradient-to-br from-[#edf7fb] via-[#c9e6f2] to-[#a3d5e8]" style={{ zoom: 1.05, height: "calc(100vh / 1.05)" }}>
       <TopStatsBar backHref="/home" pageTitle={pageTitle} />
@@ -437,9 +440,8 @@ export default function MapClient() {
 
             {/* Nodes */}
             {NODES.map((node, i) => {
-              const remedy = remedyNodes.find((r) => r.sourceNodeId === node.id);
               return (
-                <MapNodeCircle key={node.id} node={node} index={i} remedyNode={remedy} courseId={courseId} />
+                <MapNodeCircle key={node.id} node={node} index={i} courseId={courseId} />
               );
             })}
           </div>
@@ -742,12 +744,10 @@ Intercalateddiscs(閏盤)：這是心肌細胞特有的連接結構。它含有�
 function MapNodeCircle({
   node,
   index,
-  remedyNode,
   courseId,
 }: {
   node: MapNode;
   index: number;
-  remedyNode?: RemedyNode;
   courseId: string;
 }) {
   const isClickable =
@@ -947,132 +947,8 @@ function MapNodeCircle({
         transform: "translate(-50%, -50%)",
       }}
     >
-      {/* ── Remedy circle node on the LEFT ── */}
-      <AnimatePresence>
-        {remedyNode && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.5, x: 30 }}
-            animate={{ opacity: 1, scale: 1, x: 0 }}
-            exit={{ opacity: 0, scale: 0.5, x: 30 }}
-            transition={{ type: "spring", damping: 16, stiffness: 180 }}
-            className="absolute z-20"
-            style={{ right: "calc(100% + 60px)", top: "50%", transform: "translateY(-50%)" }}
-          >
-            {/* Dashed curve connecting to main node */}
-            <svg
-              className="absolute pointer-events-none"
-              style={{ left: "calc(100% + 4px)", top: "50%", transform: "translateY(-50%)" }}
-              width="56" height="20" viewBox="0 0 56 20" fill="none"
-            >
-              <path
-                d="M0 10 Q28 0 56 10"
-                stroke="#f59e0b"
-                strokeWidth="2"
-                strokeDasharray="4 3"
-                opacity="0.7"
-                fill="none"
-              />
-            </svg>
-
-            {remedyNode.status === "available" ? (
-              <Link
-                href={
-                  /^\d+$/.test(courseId)
-                    ? `/courses/${courseId}/nodes/${remedyNode.sourceNodeId}`
-                    : `/play/${remedyNode.sourceNodeId}`
-                }
-              >
-                <motion.div
-                  className="flex flex-col items-center gap-2 cursor-pointer"
-                  whileHover={{ scale: 1.12 }}
-                  whileTap={{ scale: 0.92 }}
-                >
-                  {/* Outer glow */}
-                  <motion.div
-                    className="absolute w-[80px] h-[80px] rounded-full"
-                    style={{ background: "radial-gradient(circle, rgba(245,158,11,0.25) 0%, transparent 70%)" }}
-                    animate={{ scale: [1, 1.35, 1], opacity: [0.4, 0.7, 0.4] }}
-                    transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
-                  />
-                  {/* Petal ring */}
-                  <motion.div
-                    className="absolute w-[70px] h-[70px]"
-                    animate={{ rotate: [0, 360] }}
-                    transition={{ repeat: Infinity, duration: 18, ease: "linear" }}
-                  >
-                    <svg viewBox="0 0 70 70" className="w-full h-full" fill="none">
-                      {Array.from({ length: 10 }).map((_, i) => {
-                        const angle = (i * 36 * Math.PI) / 180;
-                        const cx = 35 + 29 * Math.cos(angle);
-                        const cy = 35 + 29 * Math.sin(angle);
-                        return <circle key={i} cx={cx} cy={cy} r="7" fill="none" stroke="#f59e0b" strokeWidth="1" opacity="0.3" />;
-                      })}
-                    </svg>
-                  </motion.div>
-                  {/* Main circle */}
-                  <div className="relative z-10 h-[58px] w-[58px] rounded-full flex items-center justify-center shadow-lg shadow-amber-400/30">
-                    <div className="absolute inset-0 rounded-full bg-gradient-to-br from-amber-300 via-orange-400 to-amber-500" />
-                    <div className="absolute inset-[3px] rounded-full border-2 border-amber-200/50" />
-                    <div className="absolute inset-0 rounded-full overflow-hidden">
-                      <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-[70%] h-[40%] rounded-[50%]" style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.35) 0%, transparent 100%)" }} />
-                    </div>
-                    <div className="relative z-10">
-                      <motion.div animate={{ scale: [1, 1.12, 1] }} transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}>
-                        <svg viewBox="0 0 24 24" className="h-6 w-6 text-white drop-shadow-sm" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                          <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z" />
-                          <path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z" />
-                        </svg>
-                      </motion.div>
-                    </div>
-                  </div>
-                  <span className="text-[10px] font-heading font-bold text-amber-700 text-center max-w-[90px] leading-tight drop-shadow-sm whitespace-nowrap">補強練習</span>
-                </motion.div>
-              </Link>
-            ) : (
-              <div className="flex flex-col items-center gap-2">
-                {/* Completed ring – amber style */}
-                <motion.div
-                  className="absolute w-[70px] h-[70px]"
-                  animate={{ rotate: [0, -360] }}
-                  transition={{ repeat: Infinity, duration: 25, ease: "linear" }}
-                >
-                  <svg viewBox="0 0 70 70" className="w-full h-full" fill="none">
-                    {Array.from({ length: 10 }).map((_, i) => {
-                      const angle = (i * 36 * Math.PI) / 180;
-                      const cx = 35 + 29 * Math.cos(angle);
-                      const cy = 35 + 29 * Math.sin(angle);
-                      return <circle key={i} cx={cx} cy={cy} r="7" fill="none" stroke="#f59e0b" strokeWidth="1" opacity="0.35" />;
-                    })}
-                  </svg>
-                </motion.div>
-                {/* Main circle – completed amber */}
-                <div className="relative z-10 h-[58px] w-[58px] rounded-full flex items-center justify-center shadow-lg shadow-amber-400/30">
-                  <div className="absolute inset-0 rounded-full bg-gradient-to-br from-amber-300 via-orange-400 to-amber-500" />
-                  <div className="absolute inset-[3px] rounded-full border-2 border-amber-200/50" />
-                  <div className="absolute inset-0 rounded-full overflow-hidden">
-                    <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-[70%] h-[40%] rounded-[50%]" style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.35) 0%, transparent 100%)" }} />
-                  </div>
-                  <div className="relative z-10">
-                    <svg viewBox="0 0 24 24" className="h-7 w-7 text-white drop-shadow-sm" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M20 6L9 17l-5-5" />
-                    </svg>
-                  </div>
-                </div>
-                <span className="text-[10px] font-heading font-bold text-amber-700 text-center max-w-[90px] leading-tight drop-shadow-sm whitespace-nowrap">補強完成</span>
-              </div>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {isClickable ? (
-        <Link
-          href={
-            /^\d+$/.test(courseId)
-              ? `/courses/${courseId}/nodes/${node.id}`
-              : `/play/${node.id}`
-          }
-        >
+        <Link href={`/courses/${courseId}/nodes/${node.id}`}>
           {content}
         </Link>
       ) : (

@@ -29,16 +29,26 @@ async def generate_syllabus(
     db: Session = Depends(get_db),
 ):
     def _fetch_existing():
-        q = db.query(CourseModel).filter(
-            CourseModel.user_id == current_user.id, CourseModel.topic == topic
-        )
+        query = db.query(CourseModel).filter(CourseModel.user_id == current_user.id)
         if project_id:
-            q = q.filter(CourseModel.project_id == project_id)
-        return q.first()
+            # Product rule: one project owns exactly one course journey.
+            return (
+                query.filter(CourseModel.project_id == project_id)
+                .order_by(CourseModel.updated_at.desc())
+                .first()
+            )
+
+        return (
+            query.filter(CourseModel.topic == topic)
+            .order_by(CourseModel.updated_at.desc())
+            .first()
+        )
 
     existing_course = await run_in_threadpool(_fetch_existing)
 
-    if existing_course and not regenerate:
+    should_return_cached = existing_course is not None and not regenerate
+
+    if should_return_cached:
         path = CoursePath(**existing_course.syllabus_json)
         path.id = existing_course.id
         path.topic = existing_course.topic

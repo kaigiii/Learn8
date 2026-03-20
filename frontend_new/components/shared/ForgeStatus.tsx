@@ -16,21 +16,38 @@ const STEP_DURATION = 2000;
 export default function ForgeStatus({
   error,
   subtitle,
+  title,
+  statusMessage,
+  progress,
 }: {
   error?: string;
   subtitle?: string;
+  title?: string;
+  statusMessage?: string;
+  progress?: number;
 }) {
   const [stepIdx, setStepIdx] = useState(0);
   const [charIdx, setCharIdx] = useState(0);
+  const hasLiveStatus = typeof progress === "number" || !!statusMessage;
+  const safeProgress =
+    typeof progress === "number" ? Math.max(0, Math.min(progress, 100)) : null;
+  const displayedTitle = error
+    ? "Generation interrupted"
+    : title || "Forging your learning universe...";
+  const displayedMessage = error
+    ? error
+    : statusMessage || subtitle || "Forging your personalised learning universe...";
 
   useEffect(() => {
+    if (hasLiveStatus) return;
     if (charIdx < STEPS[stepIdx].length) {
       const t = setTimeout(() => setCharIdx((c) => c + 1), 38);
       return () => clearTimeout(t);
     }
-  }, [charIdx, stepIdx]);
+  }, [charIdx, hasLiveStatus, stepIdx]);
 
   useEffect(() => {
+    if (hasLiveStatus) return;
     if (error || stepIdx >= STEPS.length) return;
     const t = setTimeout(() => {
       if (stepIdx < STEPS.length - 1) {
@@ -39,9 +56,19 @@ export default function ForgeStatus({
       }
     }, STEP_DURATION);
     return () => clearTimeout(t);
-  }, [error, stepIdx]);
+  }, [error, hasLiveStatus, stepIdx]);
 
-  const progress = ((stepIdx + 1) / STEPS.length) * 100;
+  const fallbackProgress = ((stepIdx + 1) / STEPS.length) * 100;
+  const displayedProgress = safeProgress ?? fallbackProgress;
+  const activeStepCount = Math.max(
+    1,
+    Math.min(
+      STEPS.length,
+      safeProgress !== null
+        ? Math.ceil((safeProgress / 100) * STEPS.length)
+        : stepIdx + 1
+    )
+  );
 
   return (
     <div className="relative flex min-h-[420px] flex-col items-center justify-center overflow-hidden rounded-[28px] bg-gradient-to-br from-[#edf7fb] via-[#c9e6f2] to-[#a3d5e8] px-6 py-10">
@@ -76,17 +103,23 @@ export default function ForgeStatus({
 
         <div className="h-10 flex items-center">
           <motion.p
-            key={stepIdx}
+            key={hasLiveStatus ? displayedTitle : stepIdx}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             className="font-heading text-center text-xl font-bold tracking-wide text-brand-gray-700 md:text-2xl"
           >
-            {STEPS[stepIdx].slice(0, charIdx)}
-            <motion.span
-              animate={{ opacity: [1, 0] }}
-              transition={{ repeat: Infinity, duration: 0.6 }}
-              className="ml-0.5 inline-block h-5 w-0.5 align-middle bg-brand-teal"
-            />
+            {hasLiveStatus ? (
+              displayedTitle
+            ) : (
+              <>
+                {STEPS[stepIdx].slice(0, charIdx)}
+                <motion.span
+                  animate={{ opacity: [1, 0] }}
+                  transition={{ repeat: Infinity, duration: 0.6 }}
+                  className="ml-0.5 inline-block h-5 w-0.5 align-middle bg-brand-teal"
+                />
+              </>
+            )}
           </motion.p>
         </div>
 
@@ -95,7 +128,7 @@ export default function ForgeStatus({
             <motion.div
               key={i}
               className={`h-2.5 rounded-full transition-all duration-500 ${
-                i <= stepIdx ? "w-8 bg-brand-teal" : "w-2.5 bg-brand-gray-200"
+                i < activeStepCount ? "w-8 bg-brand-teal" : "w-2.5 bg-brand-gray-200"
               }`}
               layout
             />
@@ -103,16 +136,22 @@ export default function ForgeStatus({
         </div>
 
         <p className="text-center text-sm text-brand-gray-500">
-          {error || subtitle || "Forging your personalised learning universe..."}
+          {displayedMessage}
         </p>
 
         <div className="h-2 w-64 overflow-hidden rounded-full bg-white/50">
           <motion.div
             className="h-full rounded-full bg-gradient-to-r from-brand-teal to-[#5fb3af]"
-            animate={{ width: `${progress}%` }}
+            animate={{ width: `${displayedProgress}%` }}
             transition={{ duration: 0.4 }}
           />
         </div>
+
+        {safeProgress !== null && !error && (
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-brand-teal/80">
+            {Math.round(safeProgress)}% complete
+          </p>
+        )}
       </div>
     </div>
   );

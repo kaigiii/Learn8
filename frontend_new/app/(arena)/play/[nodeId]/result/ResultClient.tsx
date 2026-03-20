@@ -7,7 +7,6 @@ import GameButton from "@/components/ui/GameButton";
 import { apiFetch } from "@/lib/api";
 import useArenaStore, { getAccuracy, getElapsedTime, getXpGained } from "@/stores/useArenaStore";
 import useUserStore from "@/stores/useUserStore";
-import useCourseStore from "@/stores/useCourseStore";
 
 /* ═══════════════════ Rolling Counter Hook ═══════════════════ */
 
@@ -33,11 +32,17 @@ function useRollingNumber(target: number, duration = 1200, delay = 800) {
 
 /* ═══════════════════ Page ═══════════════════ */
 
-export default function ResultClient() {
+export default function ResultClient({
+  courseId: explicitCourseId,
+  nodeId: explicitNodeId,
+}: {
+  courseId?: string;
+  nodeId?: string;
+} = {}) {
   const router = useRouter();
   const params = useParams();
-  const nodeId = params.nodeId as string;
-  const routeCourseId = params.courseId as string | undefined;
+  const nodeId = explicitNodeId ?? (params.nodeId as string);
+  const routeCourseId = explicitCourseId ?? (params.courseId as string | undefined);
   const [backendCourseId, setBackendCourseId] = useState<string | null>(null);
   const isBackendCourse = !!backendCourseId && /^\d+$/.test(backendCourseId);
 
@@ -58,9 +63,6 @@ export default function ResultClient() {
   // Stores
   const arenaState = useArenaStore();
   const addXp = useUserStore((s) => s.addXp);
-  const completeNode = useCourseStore((s) => s.completeNode);
-  const completeRemedyNode = useCourseStore((s) => s.completeRemedyNode);
-  const remedyNodes = useCourseStore((s) => s.remedyNodes);
   const endSession = useArenaStore((s) => s.endSession);
 
   // Derived values from arena
@@ -81,19 +83,10 @@ export default function ResultClient() {
 
       endSession();
       addXp(actualXp);
-      if (nodeId && !isBackendCourse) completeNode(nodeId);
-
-      // If this node has a remedy and accuracy is 100%, mark remedy as completed
-      if (nodeId && actualAccuracy === 100 && !isBackendCourse) {
-        const remedy = remedyNodes.find(
-          (r) => r.sourceNodeId === nodeId && r.status === "available"
-        );
-        if (remedy) completeRemedyNode(remedy.id);
-      }
 
       setRewarded(true);
     }
-  }, [rewarded, endSession, addXp, actualXp, actualAccuracy, nodeId, completeNode, completeRemedyNode, remedyNodes, isBackendCourse]);
+  }, [rewarded, endSession, addXp, actualXp]);
 
   useEffect(() => {
     if (!rewarded || !isBackendCourse || !backendCourseId || !nodeId) return;
@@ -109,9 +102,7 @@ export default function ResultClient() {
   const currentLevel = useUserStore((s) => s.level);
   const currentXpToNext = useUserStore((s) => s.xpToNextLevel);
 
-  const courseId = isBackendCourse
-    ? backendCourseId!
-    : arenaState.courseId ?? "med-u1";
+  const courseId = backendCourseId!;
 
   // Bar state — starts at 0; will be set to correct start position when animation begins
   const [showLevelUp, setShowLevelUp] = useState(false);
@@ -121,6 +112,18 @@ export default function ResultClient() {
 
   const accuracy = useRollingNumber(actualAccuracy, 1000, 1200);
   const xpGained = useRollingNumber(actualXp, 1000, 1200);
+
+  if (!isBackendCourse) {
+    return (
+      <div className="relative min-h-screen bg-gradient-to-b from-[#1a1a2e] via-[#16213e] to-[#0f0f23]">
+        <div className="mx-auto flex min-h-screen max-w-3xl items-center justify-center px-6">
+          <div className="rounded-3xl border border-amber-200 bg-white/10 px-6 py-5 text-sm text-white shadow-lg backdrop-blur">
+            Invalid result route.
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Multi-phase XP bar animation — fires AFTER reward so store is up-to-date.
   const animStarted = useRef(false);
@@ -326,9 +329,7 @@ export default function ResultClient() {
         >
           <button
             onClick={() =>
-              router.push(
-                isBackendCourse ? `/courses/${courseId}` : `/map/${courseId}`
-              )
+              router.push(`/courses/${courseId}`)
             }
             className="relative w-full py-4 rounded-2xl font-heading font-extrabold text-lg text-white 
               bg-gradient-to-r from-brand-green to-emerald-500 

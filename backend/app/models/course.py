@@ -1,4 +1,12 @@
-from sqlalchemy import Column, Integer, String, JSON, DateTime, ForeignKey
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    JSON,
+    DateTime,
+    ForeignKey,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import relationship
 from app.db.base import Base
 import datetime
@@ -6,6 +14,9 @@ import datetime
 
 class CourseModel(Base):
     __tablename__ = "courses"
+    __table_args__ = (
+        UniqueConstraint("project_id", name="uq_courses_project_id"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))

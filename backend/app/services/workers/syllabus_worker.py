@@ -15,6 +15,11 @@ from app.services.workers.job_notifier import _notify_job_update
 logger = logging.getLogger(__name__)
 
 
+def _is_cancelled(db, job_id: str) -> bool:
+    job = db.query(JobModel).filter(JobModel.id == job_id).first()
+    return job is None or job.status == "CANCELLED"
+
+
 async def run_syllabus_generation_job(
     job_id: str,
     user_id: int,
@@ -84,19 +89,27 @@ async def run_syllabus_generation_job(
             progress_callback=cb,
         )
 
+        if _is_cancelled(db, job_id):
+            return
+
         if not syllabus:
             raise Exception("LLM 未能成功產出大綱。")
 
         _notify_job_update(db, job, 85, "✅ 內容準備完成，正在儲存到資料庫...")
 
         # 儲存到 CourseDB
-        if existing_course_id and regenerate:
+        should_update_existing = existing_course_id is not None and project_id is not None
+
+        if should_update_existing or (existing_course_id and regenerate):
             c_model = (
                 db.query(CourseModel)
                 .filter(CourseModel.id == existing_course_id)
                 .first()
             )
+            if not c_model:
+                raise Exception(f"Existing course {existing_course_id} not found.")
             c_model.title = syllabus.courseTitle
+            c_model.topic = topic
             c_model.syllabus_json = syllabus.model_dump()
             c_model.updated_at = datetime.datetime.utcnow()
             db.query(NodeModel).filter(NodeModel.course_id == c_model.id).delete()

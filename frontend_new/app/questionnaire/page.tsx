@@ -9,6 +9,7 @@ import DeepGlassCard from "@/components/ui/DeepGlassCard";
 import GameButton from "@/components/ui/GameButton";
 import { ApiError, apiFetch, buildSseUrl } from "@/lib/api";
 import type {
+  CourseListItem,
   CoursePath,
   DraftData,
   JobStreamEvent,
@@ -18,9 +19,22 @@ import type {
 
 type Step = "loading" | "answering" | "forging";
 
+function rememberCourseNavigation(courseId: number) {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.setItem(
+    "learn8_recent_course_navigation",
+    JSON.stringify({
+      courseId,
+      timestamp: Date.now(),
+    })
+  );
+}
+
 export default function QuestionnairePage() {
   const router = useRouter();
   const startedRef = useRef(false);
+  const activeJobIdRef = useRef<string | null>(null);
+  const hasNavigatedAwayRef = useRef(false);
   const [step, setStep] = useState<Step>("loading");
   const [projectId, setProjectId] = useState<number | null>(null);
   const [topic, setTopic] = useState("");
@@ -28,14 +42,32 @@ export default function QuestionnairePage() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [freeText, setFreeText] = useState("");
   const [error, setError] = useState("");
+  const [jobProgress, setJobProgress] = useState(0);
+  const [jobMessage, setJobMessage] = useState("");
+  const [jobType, setJobType] = useState<"QUESTIONNAIRE_GEN" | "SYLLABUS_GEN" | null>(
+    null
+  );
 
   const connectQuestionnaireJob = useCallback(
     (jobId: string, pendingProjectId: number, pendingTopic: string) => {
+      activeJobIdRef.current = jobId;
+      setStep("loading");
+      setJobType("QUESTIONNAIRE_GEN");
+      setJobProgress(0);
+      setJobMessage("Preparing your personalised questionnaire...");
       const eventSource = new EventSource(buildSseUrl(jobId));
       eventSource.onmessage = async (event) => {
         const data = JSON.parse(event.data) as JobStreamEvent;
+        setJobType("QUESTIONNAIRE_GEN");
+        setJobProgress(data.progress ?? 0);
+        setJobMessage(data.message || "Generating your personalised questionnaire...");
 
         if (data.status === "COMPLETED") {
+          if (hasNavigatedAwayRef.current) {
+            eventSource.close();
+            return;
+          }
+          activeJobIdRef.current = null;
           eventSource.close();
           const result =
             typeof data.result_data === "string"
@@ -60,6 +92,11 @@ export default function QuestionnairePage() {
         }
 
         if (data.status === "FAILED" || data.status === "CANCELLED") {
+          if (hasNavigatedAwayRef.current) {
+            eventSource.close();
+            return;
+          }
+          activeJobIdRef.current = null;
           eventSource.close();
           if (typeof window !== "undefined") {
             window.sessionStorage.removeItem("learn8_pending_questionnaire");
@@ -69,6 +106,11 @@ export default function QuestionnairePage() {
       };
 
       eventSource.onerror = () => {
+        if (hasNavigatedAwayRef.current) {
+          eventSource.close();
+          return;
+        }
+        activeJobIdRef.current = null;
         eventSource.close();
         if (typeof window !== "undefined") {
           window.sessionStorage.removeItem("learn8_pending_questionnaire");
@@ -80,26 +122,80 @@ export default function QuestionnairePage() {
   );
 
   const connectSyllabusJob = useCallback(
-    (jobId: string) => {
+    (jobId: string, pendingProjectId: number) => {
       setStep("forging");
+      activeJobIdRef.current = jobId;
+      setJobType("SYLLABUS_GEN");
+      setJobProgress(0);
+      setJobMessage("Preparing your syllabus forge...");
       const eventSource = new EventSource(buildSseUrl(jobId));
-      eventSource.onmessage = (event) => {
+      eventSource.onmessage = async (event) => {
         const data = JSON.parse(event.data) as JobStreamEvent;
+        setJobType("SYLLABUS_GEN");
+        setJobProgress(data.progress ?? 0);
+        setJobMessage(data.message || "Forging your personalised syllabus...");
 
         if (data.status === "COMPLETED") {
+          if (hasNavigatedAwayRef.current) {
+            eventSource.close();
+            return;
+          }
+          activeJobIdRef.current = null;
           eventSource.close();
           const result =
             typeof data.result_data === "string"
               ? (JSON.parse(data.result_data) as { course_id?: number })
               : ((data.result_data || {}) as { course_id?: number });
+          let resolvedCourseId = result.course_id;
+
+          console.info("[Questionnaire] SYLLABUS_GEN completed", {
+            jobId,
+            pendingProjectId,
+            rawResult: data.result_data,
+            parsedCourseId: result.course_id ?? null,
+          });
+
+          if (!resolvedCourseId) {
+            const projectCourses = await apiFetch<CourseListItem[]>(
+              `/courses?project_id=${pendingProjectId}`
+            );
+            const fallbackCourse = projectCourses[0];
+            resolvedCourseId = fallbackCourse?.id;
+
+            console.info("[Questionnaire] Fallback project course lookup", {
+              pendingProjectId,
+              projectCourses,
+              fallbackCourseId: resolvedCourseId ?? null,
+            });
+          }
 
           if (typeof window !== "undefined") {
             window.sessionStorage.removeItem("learn8_pending_questionnaire");
           }
-          router.push(`/courses/${result.course_id}`);
+          if (!resolvedCourseId) {
+            console.warn("[Questionnaire] Unable to resolve course after syllabus completion", {
+              pendingProjectId,
+              rawResult: data.result_data,
+            });
+            setStep("answering");
+            setError("Syllabus finished, but the course could not be located.");
+            return;
+          }
+          console.info("[Questionnaire] Navigating to generated course", {
+            pendingProjectId,
+            resolvedCourseId,
+          });
+          hasNavigatedAwayRef.current = true;
+          rememberCourseNavigation(resolvedCourseId);
+          router.push(`/courses/${resolvedCourseId}`);
         }
 
         if (data.status === "FAILED" || data.status === "CANCELLED") {
+          if (hasNavigatedAwayRef.current) {
+            eventSource.close();
+            return;
+          }
+          activeJobIdRef.current = null;
           eventSource.close();
           if (typeof window !== "undefined") {
             window.sessionStorage.removeItem("learn8_pending_questionnaire");
@@ -110,6 +206,11 @@ export default function QuestionnairePage() {
       };
 
       eventSource.onerror = () => {
+        if (hasNavigatedAwayRef.current) {
+          eventSource.close();
+          return;
+        }
+        activeJobIdRef.current = null;
         eventSource.close();
         if (typeof window !== "undefined") {
           window.sessionStorage.removeItem("learn8_pending_questionnaire");
@@ -126,23 +227,38 @@ export default function QuestionnairePage() {
     startedRef.current = true;
 
     const raw = window.sessionStorage.getItem("learn8_pending_questionnaire");
-    if (!raw) {
-      router.replace("/home");
-      return;
-    }
-
-    const pending = JSON.parse(raw) as { projectId: number; topic: string };
-    setProjectId(pending.projectId);
-    setTopic(pending.topic);
+    const projectIdFromQuery = new URLSearchParams(window.location.search).get(
+      "projectId"
+    );
 
     const start = async () => {
       try {
+        let pendingProjectId: number | null = null;
+        let pendingTopic = "";
+
+        if (raw) {
+          const pending = JSON.parse(raw) as { projectId: number; topic: string };
+          pendingProjectId = pending.projectId;
+          pendingTopic = pending.topic;
+        } else if (projectIdFromQuery) {
+          pendingProjectId = Number(projectIdFromQuery);
+        }
+
+        if (!pendingProjectId || Number.isNaN(pendingProjectId)) {
+          setStep("answering");
+          setError("Missing journey context. Start a new journey from Home.");
+          return;
+        }
+
+        setProjectId(pendingProjectId);
+
         const draftResponse = await apiFetch<{ draft?: DraftData }>(
-          `/projects/${pending.projectId}/draft`
+          `/projects/${pendingProjectId}/draft`
         );
         const draft = draftResponse.draft;
 
         if (draft?.topic) {
+          pendingTopic = draft.topic;
           setTopic(draft.topic);
         }
         if (draft?.answers) {
@@ -159,16 +275,18 @@ export default function QuestionnairePage() {
         }>("/jobs/active");
 
         if (activeJob.job_id && activeJob.job_type === "QUESTIONNAIRE_GEN") {
+          setJobType("QUESTIONNAIRE_GEN");
           connectQuestionnaireJob(
             activeJob.job_id,
-            pending.projectId,
-            pending.topic
+            pendingProjectId,
+            pendingTopic
           );
           return;
         }
 
         if (activeJob.job_id && activeJob.job_type === "SYLLABUS_GEN") {
-          connectSyllabusJob(activeJob.job_id);
+          setJobType("SYLLABUS_GEN");
+          connectSyllabusJob(activeJob.job_id, pendingProjectId);
           return;
         }
 
@@ -178,13 +296,19 @@ export default function QuestionnairePage() {
           return;
         }
 
+        if (!pendingTopic) {
+          setStep("answering");
+          setError("This journey does not have a topic yet. Return to Home to start a new one.");
+          return;
+        }
+
         const ticket = await apiFetch<{ job_id: string; status: "PENDING" }>(
-          `/projects/${pending.projectId}/questionnaire?topic=${encodeURIComponent(
-            pending.topic
+          `/projects/${pendingProjectId}/questionnaire?topic=${encodeURIComponent(
+            pendingTopic
           )}`,
           { method: "POST" }
         );
-        connectQuestionnaireJob(ticket.job_id, pending.projectId, pending.topic);
+        connectQuestionnaireJob(ticket.job_id, pendingProjectId, pendingTopic);
       } catch (err) {
         setError(
           err instanceof ApiError
@@ -212,6 +336,9 @@ export default function QuestionnairePage() {
 
     setStep("forging");
     setError("");
+    setJobType("SYLLABUS_GEN");
+    setJobProgress(0);
+    setJobMessage("Packaging your answers into a learner profile...");
 
     const submission = {
       responses: Object.entries(answers).map(([question_id, answer]) => ({
@@ -271,6 +398,8 @@ export default function QuestionnairePage() {
         if (typeof window !== "undefined") {
           window.sessionStorage.removeItem("learn8_pending_questionnaire");
         }
+        hasNavigatedAwayRef.current = true;
+        rememberCourseNavigation(syllabusResult.id);
         router.push(`/courses/${syllabusResult.id}`);
         return;
       }
@@ -279,12 +408,36 @@ export default function QuestionnairePage() {
         throw new Error("Syllabus response did not include a job id.");
       }
 
-      connectSyllabusJob(syllabusResult.job_id);
+      connectSyllabusJob(syllabusResult.job_id, projectId);
     } catch (err) {
       setStep("answering");
       setError(
         err instanceof ApiError ? err.detail : "Failed to submit questionnaire."
       );
+    }
+  };
+
+  const handleCancelGeneration = async () => {
+    const jobId = activeJobIdRef.current;
+    if (!jobId) {
+      router.push("/home");
+      return;
+    }
+
+    try {
+      await apiFetch(`/jobs/${jobId}/cancel`, {
+        method: "POST",
+      });
+    } catch {
+      // Ignore cancel failure and still unwind local UI state.
+    } finally {
+      activeJobIdRef.current = null;
+      if (typeof window !== "undefined") {
+        window.sessionStorage.removeItem("learn8_pending_questionnaire");
+      }
+      setStep("answering");
+      setError("");
+      router.push("/home");
     }
   };
 
@@ -313,22 +466,41 @@ export default function QuestionnairePage() {
           </div>
 
           {step === "loading" && (
-            <div className="flex min-h-[360px] flex-col items-center justify-center gap-5 rounded-[28px] border border-white/60 bg-white/45">
-              <div className="h-12 w-12 animate-spin rounded-full border-4 border-brand-teal/20 border-t-brand-teal" />
-              <p className="font-heading text-lg font-bold text-brand-gray-700">
-                Generating your personalized questionnaire...
-              </p>
-              <p className="max-w-md text-center text-sm text-brand-gray-500">
-                We are analyzing your topic and preparing a short set of questions to shape the course path.
-              </p>
+            <div className="space-y-4">
+              <ForgeStatus
+                title="Generating your personalised questionnaire..."
+                subtitle="We are analysing your topic and preparing a short set of questions to shape the course path."
+                statusMessage={jobMessage}
+                progress={jobProgress}
+                error={error}
+              />
+              <div className="flex justify-center">
+                <GameButton variant="secondary" onClick={() => void handleCancelGeneration()}>
+                  Cancel Generation
+                </GameButton>
+              </div>
             </div>
           )}
 
           {step === "forging" && (
-            <ForgeStatus
-              error={error}
-              subtitle="Questionnaire received. Forging your personalised syllabus..."
-            />
+            <div className="space-y-4">
+              <ForgeStatus
+                error={error}
+                title={
+                  jobType === "QUESTIONNAIRE_GEN"
+                    ? "Generating your personalised questionnaire..."
+                    : "Forging your personalised syllabus..."
+                }
+                subtitle="Questionnaire received. Forging your personalised syllabus..."
+                statusMessage={jobMessage}
+                progress={jobProgress}
+              />
+              <div className="flex justify-center">
+                <GameButton variant="secondary" onClick={() => void handleCancelGeneration()}>
+                  Cancel Generation
+                </GameButton>
+              </div>
+            </div>
           )}
 
           {step === "answering" && questions.length > 0 && (

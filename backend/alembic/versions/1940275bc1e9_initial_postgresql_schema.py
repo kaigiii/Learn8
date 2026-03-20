@@ -73,7 +73,8 @@ def upgrade() -> None:
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['project_id'], ['projects.id'], ),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
-    sa.PrimaryKeyConstraint('id')
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('project_id', name='uq_courses_project_id')
     )
     op.create_index(op.f('ix_courses_id'), 'courses', ['id'], unique=False)
     op.create_index(op.f('ix_courses_topic'), 'courses', ['topic'], unique=False)
