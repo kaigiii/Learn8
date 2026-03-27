@@ -99,6 +99,7 @@ async def delete_project(
     except Exception as e:
         print(f"清理專案資源 {project_id} 時發生錯誤: {e}")
 
+    # 3. 由 ORM relationship + DB cascade 接手清理專案關聯資料
     project_name = db_project.name
     db.delete(db_project)
     db.commit()

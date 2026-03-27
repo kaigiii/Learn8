@@ -164,14 +164,28 @@ class AIArchitectService:
             activity_logger.error(f"Remedial Gen Error: {e}")
             raise LLMGenerationError(f"Failed to generate remedial stages: {e}")
 
-    async def grade_feynman_attempt(self, user_explanation: str, topic: str) -> dict:
+    async def grade_feynman_attempt(
+        self,
+        user_explanation: str,
+        topic: str,
+        prompt: str = "",
+        sample_answer: str = "",
+    ) -> dict:
         context_chunks = await self.rag_engine.query_context(topic)
         context_str = (
             "\\n\\n".join(context_chunks) if context_chunks else "General Knowledge"
         )
 
         messages = [
-            ("system", SYSTEM_PROMPT_FEYNMAN.format(topic=topic, context=context_str)),
+            (
+                "system",
+                SYSTEM_PROMPT_FEYNMAN.format(
+                    topic=topic,
+                    prompt=prompt or topic,
+                    sample_answer=sample_answer or "No reference answer provided.",
+                    context=context_str,
+                ),
+            ),
             ("user", f"STUDENT EXPLANATION: {user_explanation}"),
         ]
 

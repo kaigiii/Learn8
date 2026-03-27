@@ -119,6 +119,7 @@ async def run_remedial_generation_job(
     node_id: str | None,
     project_id: int | None,
     failed_stages: list[dict],
+    session_id: int | None = None,
 ):
     """
     在背景獨立執行補救課程生成的 Worker。
@@ -167,7 +168,11 @@ async def run_remedial_generation_job(
             }
             stages_json.append(stage_payload)
 
-        from app.models.lesson import LessonRemedialModel
+        from app.models.lesson import (
+            LessonFailedStageModel,
+            LessonRemedialModel,
+            LessonSessionModel,
+        )
 
         remedial_record = (
             db.query(LessonRemedialModel)
@@ -181,16 +186,42 @@ async def run_remedial_generation_job(
         )
         if remedial_record:
             remedial_record.stage_json = stages_json
+            remedial_record.lesson_session_id = session_id
             db.add(remedial_record)
         else:
             remedial_record = LessonRemedialModel(
                 user_id=user_id,
                 project_id=project_id,
+                lesson_session_id=session_id,
                 node_id=node_id,
                 course_topic=topic,
                 stage_json=stages_json,
             )
             db.add(remedial_record)
+
+        if session_id:
+            session = (
+                db.query(LessonSessionModel)
+                .filter(LessonSessionModel.id == session_id)
+                .first()
+            )
+            if session:
+                session.remedial_stages_json = stages_json
+                session.status = "playing_remedial"
+                session.active_phase = "remedial"
+                db.add(session)
+
+            failed_records = (
+                db.query(LessonFailedStageModel)
+                .filter(
+                    LessonFailedStageModel.lesson_session_id == session_id,
+                    LessonFailedStageModel.status == "pending",
+                )
+                .all()
+            )
+            for record in failed_records:
+                record.status = "remedial_generated"
+                db.add(record)
         db.commit()
 
         _notify_job_update(
@@ -199,7 +230,7 @@ async def run_remedial_generation_job(
             100,
             "Remedial lesson is ready.",
             status="COMPLETED",
-            result_data={"stages": stages_json},
+            result_data={"stages": stages_json, "session_id": session_id},
         )
 
     except Exception as e:

@@ -1,4 +1,5 @@
 from sqlalchemy import Column, String, Integer, ForeignKey, JSON, DateTime
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import uuid
 
@@ -17,8 +18,8 @@ class JobModel(Base):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
 
     # 關聯
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=True)
 
     # 任務類型 (SYLLABUS_GEN, QUESTIONNAIRE_GEN, etc.)
     job_type = Column(String(50), nullable=False)
@@ -37,3 +38,6 @@ class JobModel(Base):
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    user = relationship("UserModel", back_populates="generation_jobs")
+    project = relationship("ProjectModel", back_populates="generation_jobs")

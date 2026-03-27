@@ -129,6 +129,12 @@ JUDGE their explanation based on:
 2. Simplicity (Did they avoid jargon?)
 3. Completeness (Did they miss the key insight?)
 
+QUESTION PROMPT:
+{prompt}
+
+REFERENCE ANSWER:
+{sample_answer}
+
 CONTEXT:
 {context}
 

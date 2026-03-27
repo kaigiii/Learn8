@@ -1,0 +1,128 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { apiFetch } from "@/lib/apiClient";
+import {
+  buildActiveJobResumeState,
+  type ActiveJobResumeState,
+} from "@/lib/jobs/recovery";
+import { watchJobStream } from "@/lib/jobs/stream";
+import type { ActiveJobResponse } from "@/lib/apiTypes";
+
+export function useActiveJobResume(token: string | null) {
+  const [activeJob, setActiveJob] = useState<ActiveJobResumeState | null>(null);
+
+  useEffect(() => {
+    if (!token) return;
+
+    const buildResumeState = async () => {
+      try {
+        const active = await apiFetch<ActiveJobResponse>("/jobs/active");
+        setActiveJob(buildActiveJobResumeState(active));
+      } catch {
+        setActiveJob(null);
+      }
+    };
+
+    void buildResumeState();
+  }, [token]);
+
+  useEffect(() => {
+    if (!activeJob?.jobId) return;
+
+    const eventSource = watchJobStream(activeJob.jobId, {
+      onUpdate: (data) => {
+        setActiveJob((prev) => {
+          if (!prev || prev.jobId !== activeJob.jobId) return prev;
+          return {
+            ...prev,
+            progress: data.progress ?? prev.progress ?? 0,
+            message: data.message || prev.message,
+          };
+        });
+      },
+      onCompleted: () => {
+        setActiveJob(null);
+      },
+      onFailed: (data) => {
+        setActiveJob((prev) =>
+          prev && prev.jobId === activeJob.jobId
+            ? {
+                ...prev,
+                status: "STALE",
+                message: data.message || prev.message,
+                retryable: true,
+              }
+            : prev
+        );
+      },
+      onStale: (data) => {
+        setActiveJob((prev) =>
+          prev && prev.jobId === activeJob.jobId
+            ? {
+                ...prev,
+                status: "STALE",
+                message: data.message || prev.message,
+                retryable: true,
+              }
+            : prev
+        );
+      },
+      onCancelled: () => {
+        setActiveJob(null);
+      },
+      onError: () => {
+        // Keep the banner so the user can reopen or retry once the backend is back.
+      },
+    });
+
+    return () => {
+      eventSource.close();
+    };
+  }, [activeJob?.jobId]);
+
+  const cancelActiveJob = useCallback(async () => {
+    if (!activeJob?.jobId) return;
+
+    try {
+      await apiFetch(`/jobs/${activeJob.jobId}/cancel`, {
+        method: "POST",
+      });
+    } catch {
+      // Ignore cancel failure and still clear stale local state.
+    } finally {
+      if (typeof window !== "undefined") {
+        window.sessionStorage.removeItem("learn8_pending_questionnaire");
+        window.sessionStorage.removeItem("learn8_pending_lesson");
+      }
+      setActiveJob(null);
+    }
+  }, [activeJob?.jobId]);
+
+  const retryActiveJob = useCallback(async () => {
+    if (!activeJob?.jobId) return;
+
+    const retried = await apiFetch<ActiveJobResponse>(`/jobs/${activeJob.jobId}/retry`, {
+      method: "POST",
+    });
+
+    setActiveJob((prev) =>
+      prev
+        ? {
+            ...prev,
+            jobId: retried.job_id || prev.jobId,
+            status: retried.status,
+            message: retried.message || prev.message,
+            retryable: retried.retryable,
+          }
+        : prev
+    );
+  }, [activeJob?.jobId]);
+
+  return {
+    activeJob,
+    setActiveJob,
+    cancelActiveJob,
+    retryActiveJob,
+  };
+}

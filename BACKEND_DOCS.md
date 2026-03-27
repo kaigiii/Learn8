@@ -1,69 +1,83 @@
 # Learn8 Backend Docs
 
-這份文件以目前 `backend/app/` 的實際程式碼為準，整理後端架構、主流程、核心檔案與維護注意事項。
+這份文件以目前 `backend/app/`、`backend/game_modules/`、以及已經接上的新版前端資料流為準，整理後端架構、實際主流程、核心資料模型、長任務機制與維護注意事項。
 
-舊版文件的主要問題是：
+## 1. 後端定位
 
-- 以「逐檔 docstring 彙編」為主，不利於理解真實執行路徑
-- 混入已過時命名，例如 `schemas/auth.py`，但現況為 `auth_schema.py`
-- 把主流程模組、輔助模組、維護用端點放在同一層級描述
-- 有些描述和現行程式碼不一致，例如資料庫假設、課綱生成流程與 prompt 來源
-
-本文件改成「架構優先、流程優先、現況優先」。
-
-## 1. 後端總覽
-
-後端技術棧：
-
-- Web framework: FastAPI
-- ORM: SQLAlchemy
-- Schema validation: Pydantic
-- LLM provider abstraction: Google Gemini / LMStudio
-- RAG: Chroma + Google embeddings
-- Workflow: LangGraph
-- 非同步長任務回報: BackgroundTasks + PostgreSQL `LISTEN/NOTIFY` + SSE
-
-後端主要負責：
+Learn8 後端目前負責：
 
 - 使用者認證與個人資料
-- 專案建立、刪除、草稿保存
-- 文件上傳、解析、向量化
-- 問卷生成與 learner profile 摘要
-- syllabus 生成、修正、持久化
-- lesson stage 生成、補救教學、答題評估
-- job 狀態追蹤與即時推播
+- project CRUD、draft、project file 管理
+- 文件解析、切 chunk、寫入 Chroma
+- questionnaire generation / submission
+- learner profile summary
+- syllabus generation / refine
+- lesson generation
+- lesson session / attempt / failed stage persistence
+- remedial generation
+- Feynman grading
+- job 狀態追蹤、SSE stream、active job resume / retry
 
-## 2. 目前實際的主流程
+## 2. 技術棧
 
-### 2.1 Project Workspace Flow
+- FastAPI
+- SQLAlchemy 2
+- Alembic
+- PostgreSQL
+- Pydantic 2
+- ChromaDB
+- LangChain / LangGraph
+- Google Gemini / LMStudio abstraction
+- PostgreSQL `LISTEN/NOTIFY` + SSE
+
+## 3. 目前真實主流程
+
+### 3.1 Project Workspace Flow
 
 1. 使用者建立 project
 2. 上傳文件到 `uploads/<user_id>/<project_folder>/`
-3. 文件經 `DocumentProcessor` 解析後寫入 Chroma
-4. 生成 questionnaire
-5. 提交 questionnaire 生成 learner profile，寫入 `projects.profile_json`
-6. 以 topic + profile + project context 生成 syllabus
-7. syllabus 寫入 `courses`，node 狀態同步寫入 `nodes`
-8. 使用者點選 node 後生成 lesson stages
-9. 使用者作答，必要時產生 remedial stage
+3. `DocumentProcessor` 解析文件
+4. `RAGEngine` 切 chunk 並寫入 Chroma
+5. 建立 questionnaire generation job
+6. 提交 questionnaire，整理 learner profile，寫回 `projects.profile_json`
+7. 建立 syllabus generation job
+8. 產出 `CoursePath`，寫入 `courses.syllabus_json`
+9. 扁平化 node 狀態同步寫入 `nodes`
+10. 使用者點選 node，建立 / 恢復 lesson session
+11. lesson 完成後，若有 failed stages，進入 remedial generation
 
-### 2.2 長任務 Flow
+### 3.2 Lesson / Remedial Flow
+
+目前 lesson 不再只是「生成 stages 然後前端自己玩完」；它已經是 session-driven flow。
+
+大致流程：
+
+1. lesson generation 產出 primary `LessonStage[]`
+2. 建立 `lesson_sessions`
+3. 前端提交每一題答案到 `/lessons/submit-answer`
+4. 後端標準化 `userInput` 並計算 `result`
+5. `incorrect` 會寫入 `lesson_failed_stages`
+6. `skipped` 會被記錄，但不進 failed stage queue
+7. primary 結束後，若 session 有 pending failed records，建立 `REMEDIAL_GEN`
+8. remedial stages 寫入 `lesson_remedials`
+9. session 切換到 remedial phase
+10. remedial 完成後，session 才標記 `completed`
+11. node status 與解鎖由後端在 session 完成點處理
+
+### 3.3 Background Job Flow
 
 適用於 questionnaire / syllabus / lesson / remedial generation：
 
-1. API endpoint 建立 `generation_jobs` 紀錄
+1. API endpoint 建立 `generation_jobs`
 2. 回傳 `job_id`
 3. 背景 worker 執行 LLM / RAG 工作
-4. worker 呼叫 `job_notifier._notify_job_update()`
+4. worker 透過 `job_notifier` 更新 job 狀態
 5. PostgreSQL `pg_notify('job_channel', ...)`
-6. `/jobs/{job_id}/stream` 透過 SSE 把進度推給前端
+6. `/jobs/{job_id}/stream` 以 SSE 推送狀態
+7. `/jobs/active` 提供前端 resume / reconcile
+8. stale job 可透過 retry endpoint 重新排程
 
-注意：
-
-- 這套即時回報依賴 PostgreSQL `LISTEN/NOTIFY`
-- 若使用 SQLite，SSE 這條路徑不會正常運作
-
-## 3. 目錄結構與定位
+## 4. 目錄結構
 
 ### `backend/app/main.py`
 
@@ -73,79 +87,83 @@
 
 - 建立 FastAPI app
 - 設定 CORS
-- 載入 `api_router`
+- 掛載 `api_router`
 - 啟動時執行 `Base.metadata.create_all(bind=engine)`
 
 注意：
 
-- `create_all()` 偏開發期便利用法，正式環境應以 Alembic migration 為主
+- `create_all()` 目前仍偏開發模式便利用法
+- 正式環境資料表演進應以 Alembic migration 為主
 
 ### `backend/app/api/`
 
 API 層，負責：
 
-- 路由定義
+- route 定義
 - 權限驗證
-- 請求參數解析
-- 呼叫 service / worker
+- request parsing
+- 呼叫 services / workers
 
 重要檔案：
 
-- `dependencies.py`: `get_db()`、`get_current_user()`
-- `v1/api.py`: 組合所有 domain routers
+- `dependencies.py`
+- `v1/api.py`
 
 ### `backend/app/api/v1/endpoints/`
 
 目前實際有用的 endpoint 模組：
 
-- `auth.py`: 註冊、登入、dev login、`/me`、點數 topup
-- `projects.py`: project CRUD、draft 儲存/讀取
-- `project_files.py`: 上傳、列出、刪除專案文件
-- `questionnaire.py`: 問卷生成與提交
-- `courses.py`: 查課程、查課程細節、更新 node 狀態
-- `syllabus.py`: 生成 syllabus、refine syllabus
-- `lessons.py`: 生成 lesson、提交答案、補救教學 / Feynman grading
-- `jobs.py`: SSE job stream、active job recovery
-- `system.py`: 危險維護端點，例如 reset DB、clear files
+- `auth.py`
+- `projects.py`
+- `project_files.py`
+- `questionnaire.py`
+- `courses.py`
+- `syllabus.py`
+- `lessons.py`
+- `jobs.py`
+- `system.py`
 
 ### `backend/app/core/`
 
-核心設定與跨模組共用能力。
+核心設定與跨模組共用能力：
 
-- `config.py`: 環境變數與全域設定
-- `security.py`: JWT、password hash / verify
-- `exceptions.py`: 自訂例外
-- `component_loader.py`: 讀取 `backend/game_modules/*.yaml`
+- `config.py`
+- `security.py`
+- `exceptions.py`
+- `component_loader.py`
 
-補充：
+其中 `component_loader.py` 會讀取：
 
-- AI prompt 目前主要位於 `services/ai_agents/course_architect_prompts.py`
-- `component_loader.py` 不是死檔案，會被 `course_architect_prompts.py` 與 `schemas/lesson_schema.py` 間接使用
-- 它的用途是把前後端互動組件的能力與 schema 要求注入 LLM prompt / schema validation 流程
+```text
+backend/game_modules/*.yaml
+```
+
+用途：
+
+- 給 `lesson_schema.py` 做 component validation
+- 給 AI prompt layer 注入可用題型資訊
 
 ### `backend/app/db/`
 
-資料庫基礎層。
+資料庫基礎層：
 
-- `base.py`: SQLAlchemy Base
-- `session.py`: `engine` 與 `SessionLocal`
-- `registry.py`: 匯入所有 model，讓 `create_all()` 能建立資料表
+- `base.py`
+- `registry.py`
+- `session.py`
 
 ### `backend/app/models/`
 
-ORM models，對應資料表。
+ORM models：
 
-- `user.py`: 使用者與 credits、profile 欄位
-- `project.py`: 專案、檔案實體路徑、profile、draft
-- `course.py`: syllabus 與扁平化 node 狀態
-- `lesson.py`: 生成後的 lesson stages 與 lesson attempts
-- `job.py`: 背景任務狀態追蹤
+- `user.py`
+- `project.py`
+- `course.py`
+- `lesson.py`
+- `job.py`
 
 ### `backend/app/schemas/`
 
-Pydantic schemas，供 API request/response 與 LLM structured output 使用。
-
-現況檔名如下：
+Pydantic schemas：
 
 - `auth_schema.py`
 - `project_schema.py`
@@ -153,25 +171,18 @@ Pydantic schemas，供 API request/response 與 LLM structured output 使用。
 - `course_schema.py`
 - `lesson_schema.py`
 
-注意：
-
-- 舊文件中的 `schemas/auth.py`、`schemas/course.py` 等名稱已不準確
-- `lesson_schema.py` 不只給 API 用，也承接 LLM 回傳 lesson stage 的驗證
-
 ### `backend/app/services/`
 
-商業邏輯與基礎設施層。
+商業邏輯與基礎設施層：
 
-子目錄定位：
+- `ai_agents/`
+- `knowledge_base/`
+- `llm_clients/`
+- `workers/`
+- `workflows/`
+- `commons/`
 
-- `ai_agents/`: syllabus / lesson / questionnaire 相關 AI orchestration
-- `knowledge_base/`: 文件解析與 RAG
-- `llm_clients/`: LLM provider abstraction
-- `workers/`: 長任務背景執行
-- `workflows/`: LangGraph workflow
-- `commons/`: file service、activity logger
-
-## 4. 核心資料模型
+## 5. 核心資料模型
 
 ### `UserModel`
 
@@ -179,7 +190,7 @@ Pydantic schemas，供 API request/response 與 LLM structured output 使用。
 
 - 認證主體
 - 儲存 credits
-- 儲存基本個人資料欄位
+- 儲存基本個人資料
 
 重要欄位：
 
@@ -210,7 +221,7 @@ Pydantic schemas，供 API request/response 與 LLM structured output 使用。
 用途：
 
 - `CourseModel` 保存完整 syllabus JSON
-- `NodeModel` 保存扁平化 node 狀態，方便快速更新與查詢
+- `NodeModel` 保存扁平化 node 狀態
 
 重要欄位：
 
@@ -221,26 +232,59 @@ Pydantic schemas，供 API request/response 與 LLM structured output 使用。
 - `status`
 - `data`
 
-### `LessonModel` / `LessonAttempt` / `LessonRemedialModel`
+### `LessonModel`
 
 用途：
 
-- 保存 node 對應的 stage list
-- 保存使用者作答紀錄
-- 保存補救教學 stage list
+- 保存 node 對應的 primary lesson stage list
+
+### `LessonSessionModel`
+
+用途：
+
+- 管理一次 lesson / remedial playthrough 的流程狀態
+
+目前承載：
+
+- primary stages
+- remedial stages
+- active phase
+- session status
+
+### `LessonAttempt`
+
+用途：
+
+- 保存每一題提交紀錄
 
 注意：
 
-- `LessonAttempt.is_correct` 目前是 `String`，不是 `Boolean`
-- `LessonRemedialModel` 不覆蓋原始 `LessonModel`
-- 重新讀取同一個 node 時，`lessons.py` 會把主 lesson 與最新 remedial stages 合併回傳
+- 目前前端 / API contract 的主要結果語意是 `result`
+- 不應再把它理解為單純 `is_correct: bool`
+
+### `LessonFailedStageModel`
+
+用途：
+
+- 保存待補救的 failed stage queue
+
+注意：
+
+- `incorrect` 會進 queue
+- `skipped` 不進 queue
+
+### `LessonRemedialModel`
+
+用途：
+
+- 保存 AI 生成出的 remedial stage pack
 
 ### `JobModel`
 
 用途：
 
 - 保存背景任務狀態
-- 作為 SSE 狀態來源
+- 作為 SSE / active job recovery 的來源
 
 重要欄位：
 
@@ -250,27 +294,23 @@ Pydantic schemas，供 API request/response 與 LLM structured output 使用。
 - `message`
 - `result_data`
 
-## 5. API 模組說明
+## 6. API 模組說明
 
 ### `auth.py`
 
 處理：
 
 - register / login / dev-login
-- 讀取與更新 `/me`
-- 刪除帳號
+- `/me`
+- delete account
 - credits topup
-
-注意：
-
-- `dev-login` 會自動建立 `dev@learn8.ai`
 
 ### `projects.py`
 
 處理：
 
 - project 建立、列出、更新、刪除
-- draft 保存與載入
+- draft 讀寫
 
 刪除 project 時也會：
 
@@ -297,26 +337,20 @@ Pydantic schemas，供 API request/response 與 LLM structured output 使用。
 - `POST /projects/{id}/questionnaire`: 建立背景 job，生成題目
 - `POST /projects/{id}/questionnaire/submit`: 將答案摘要成 learner profile
 
-其中 learner profile 會寫回 `ProjectModel.profile_json`
-
 ### `syllabus.py`
 
 主職責：
 
-- syllabus 生成
+- syllabus generation
 - syllabus refine
 
 生成路徑：
 
-1. 檢查是否已有相同 topic 的課程可直接回傳
+1. 檢查是否已有相近課程可直接回傳
 2. 檢查點數
-3. 收集 project 檔案全文摘要
-4. 建立 `SYLLABUS_GEN` job
+3. 收集 project context
+4. 建立 `SYLLABUS_GEN`
 5. 背景 worker 執行 `SyllabusAgent`
-
-refine 路徑：
-
-- 透過 `services/workflows/syllabus_workflow.py` 的 LangGraph 執行單步 refine
 
 ### `courses.py`
 
@@ -336,29 +370,37 @@ node 完成時會做自動解鎖：
 主職責：
 
 - 依 node 生成 lesson stages
+- 建立 / 恢復 lesson session
 - 接收答案提交
-- 判斷 `proceed` 或 `review_later`
-- 觸發 remedial generation job
+- 記錄 attempts
+- 記錄 failed stages
+- 觸發 remedial generation
 
 特別邏輯：
 
-- 如果 DB 中已存在該 node / topic / user / project 的 lesson，會直接回傳 cached stages
-- 若存在對應的 `lesson_remedials`，會在回傳前附加到主 lesson stages 後方
-- 如果 cached lesson 含不合法或已淘汰 component，會忽略 cache 並重新生成
-- `FeynmanMirror` 會走 AI grading，而不是只用前端判斷
-- remedial generation 同時提供同步版與 SSE async 版，目前前端主流程使用 async 版
+- 若 DB 中存在合法 cache，可直接回傳 cached stages
+- 若 cache 含不合法或已淘汰 component，會忽略 cache 重新生成
+- `FeynmanMirror` 由後端 AI grading
+- `SubmissionResponse` 的主結果欄位為 `result`
+- `result` 目前包含：
+  - `correct`
+  - `incorrect`
+  - `skipped`
+- `skipped` 不進 failed stage queue
 
 ### `jobs.py`
 
 主職責：
 
 - 以 SSE 推送 job 狀態
-- 在前端重整後恢復 active job
+- 提供 active job recovery
+- 提供 stale / retryable job handling
 
-技術依賴：
+目前重要能力：
 
-- `asyncpg`
-- PostgreSQL `LISTEN/NOTIFY`
+- `/jobs/{job_id}/stream`
+- `/jobs/active`
+- `/jobs/{job_id}/retry`
 
 ### `system.py`
 
@@ -368,14 +410,13 @@ node 完成時會做自動解鎖：
 
 風險：
 
-- 提供 reset database 與 clear files 這類高風險操作
-- 文件應明確標註為管理用途，不應視為一般產品 API
+- 含 reset database、clear files 這類高風險操作
 
-## 6. AI / RAG / Workflow 層
+## 7. AI / RAG / Workflow 層
 
 ### `services/ai_agents/syllabus_agent.py`
 
-目前 syllabus 生成的主路徑。
+目前 syllabus generation 主路徑。
 
 流程：
 
@@ -384,37 +425,32 @@ node 完成時會做自動解鎖：
 3. 組出 `CoursePath`
 4. 將第一個 node 設為 `available`
 
-特性：
-
-- unit expansion 具並發控制
-- prompt 定義直接在這個檔案內
-
 ### `services/ai_agents/course_architect.py`
 
 處理：
 
 - refine syllabus
 - generate lesson from node
-- generate remedial stage pack
+- generate remedial pack
 - grade Feynman attempts
 
-注意：
+補充：
 
-- `generate_course_syllabus()` 目前存在，但 syllabus 主流程實際上是由 `SyllabusAgent` 負責，不是這個方法
-- remedial generation 已改成「整包 failed records 一次送給 AI」，不是逐題呼叫
+- remedial generation 目前是整包 failed records 一次送 AI
+- 不是逐題逐次呼叫
 
 ### `services/ai_agents/questionnaire_agent.py`
 
 處理：
 
-- 生成多選問卷
-- 將問卷回答摘要成 learner profile
+- 生成問卷
+- 將答案摘要成 learner profile
 
 ### `services/knowledge_base/document_processor.py`
 
 文件讀取入口。
 
-會依副檔名路由到不同 parser，目前已註冊：
+目前已註冊：
 
 - `.pdf`
 - `.txt`
@@ -425,20 +461,6 @@ node 完成時會做自動解鎖：
 - `.js`
 - `.tsx`
 
-### `services/knowledge_base/parsers/`
-
-用途：
-
-- PDF 與文字檔解析
-
-重點檔案：
-
-- `pdf_router.py`: 根據設定選擇 basic / vision / hybrid
-- `pdf_basic.py`
-- `pdf_vision.py`
-- `pdf_hybrid.py`
-- `text.py`
-
 ### `services/knowledge_base/rag_engine.py`
 
 用途：
@@ -446,13 +468,7 @@ node 完成時會做自動解鎖：
 - 文件切 chunk
 - 寫入 Chroma
 - 相似度檢索
-- project/file 範圍刪除
-
-重要行為：
-
-- metadata 含 `project_id` 與 `source`
-- 查詢結果會注入 `[Source: xxx]`
-- query expansion 目前是可選功能，不是預設開啟
+- project / file scope 刪除
 
 ### `services/llm_clients/`
 
@@ -462,10 +478,10 @@ node 完成時會做自動解鎖：
 
 重要檔案：
 
-- `base_provider.py`: provider interface 與共用 context injection
-- `factory.py`: 依設定建立 provider
-- `google_adapter.py`: Gemini provider
-- `lmstudio_adapter.py`: LMStudio provider
+- `base_provider.py`
+- `factory.py`
+- `google_adapter.py`
+- `lmstudio_adapter.py`
 
 ### `services/workers/`
 
@@ -480,36 +496,40 @@ node 完成時會做自動解鎖：
 - `lesson_worker.py`
 - `job_notifier.py`
 
-說明：
-
-- `job_notifier.py` 是三種 worker 共用的狀態更新樞紐
-
-## 6.1 AI 調用程序與 I/O
+## 8. AI 調用程序與 I/O
 
 ### Questionnaire Generation
 
 入口：
 
 - `POST /api/v1/projects/{project_id}/questionnaire`
-- worker: `services/workers/questionnaire_worker.py`
-- agent: `services/ai_agents/questionnaire_agent.py`
 
-帶入資訊：
+輸入：
 
 - `topic`
 - `project_id`
-- project scope 下的檔案與 RAG context
+- project files / RAG context
 
 輸出：
 
-- `questions: Question[]`
-- 以 `QUESTIONNAIRE_GEN` job 的 `result_data.questions` 回傳
+- `questions`
+- job `result_data.questions`
 
-後續提交：
+### Questionnaire Submission
+
+入口：
 
 - `POST /api/v1/projects/{project_id}/questionnaire/submit`
-- 帶入 `topic`、`submission`、`questions`
-- 輸出 `LearnerProfile`
+
+輸入：
+
+- `topic`
+- `submission`
+- `questions`
+
+輸出：
+
+- learner profile
 - 寫回 `projects.profile_json`
 
 ### Syllabus Generation
@@ -517,74 +537,81 @@ node 完成時會做自動解鎖：
 入口：
 
 - `POST /api/v1/syllabus/generate-syllabus`
-- worker: `services/workers/syllabus_worker.py`
-- agent: `services/ai_agents/syllabus_agent.py`
 
-帶入資訊：
+輸入：
 
 - `topic`
 - `project_id`
 - `profile_summary`
-- project file full-text context
+- project full-text context
 - RAG context
 
 輸出：
 
 - `CoursePath`
-- 完成後寫入 `courses.syllabus_json`
-- node 狀態拆寫進 `nodes`
-- job `result_data` 目前回 `course_id` 與 `topic`
+- 寫入 `courses.syllabus_json`
+- 扁平化 node 寫入 `nodes`
+- job `result_data.course_id`
 
 ### Lesson Generation
 
 入口：
 
 - `POST /api/v1/lessons/generate-lesson-from-node`
-- worker: `services/workers/lesson_worker.py`
-- agent: `services/ai_agents/course_architect.py`
 
-帶入資訊：
+輸入：
 
 - `topic`
 - `LessonNode`
-- learner profile summary
-- project file binding
+- learner profile
+- project context
 - RAG context
 - component prompt menu / schema reference
 
 輸出：
 
 - `LessonStage[]`
-- 成功後寫入 `lessons.stage_json`
+- 寫入 `lessons.stage_json`
 - job `result_data.stages`
 
-注意：
+### Answer Submission
 
-- 若 cache 合法，endpoint 會直接回傳 `COMPLETED` 結構，不重跑 AI
-- 若 cache 含舊 component，例如 `TextToken`，會略過 cache 改走重新生成
+入口：
+
+- `POST /api/v1/lessons/submit-answer`
+
+輸入：
+
+- `sessionId`
+- `stageId`
+- `userInput`
+- `context_topic`
+
+輸出：
+
+- `SubmissionResponse`
+- `result`
+- `message`
+- `evaluation`
 
 ### Remedial Generation
 
 入口：
 
 - `POST /api/v1/lessons/generate-remedial-stages-async`
-- worker: `services/workers/lesson_worker.py`
-- agent: `services/ai_agents/course_architect.py`
 
-帶入資訊：
+輸入：
 
 - `topic`
+- `sessionId`
 - `nodeId`
 - `projectId`
 - `failedStages[]`
-- 每筆 failed record 內含原始 `LessonStage`、`userInput`、`isCorrect`
 
 輸出：
 
-- AI 一次輸出一整包 remedial `LessonStage[]`
-- 關卡數不固定，由模型自行決定
-- worker 會將 `isRemedial=True` 寫入 `config.initialState`
-- 持久化到 `lesson_remedials.stage_json`
+- remedial `LessonStage[]`
+- 持久化到 `lesson_remedials`
 - job `result_data.stages`
 
 ### Feynman Grading
@@ -592,89 +619,51 @@ node 完成時會做自動解鎖：
 入口：
 
 - `POST /api/v1/lessons/submit-answer`
-- agent: `services/ai_agents/course_architect.py`
 
-帶入資訊：
+輸入：
 
-- `submission.userInput`
-- `submission.context_topic`
-- RAG context
+- learner explanation
+- topic
+- prompt
+- sample answer
 
 輸出：
 
-- `SubmissionResponse`
-- 其中 `message` 來自 AI 評語
-- `nextAction` 為 `proceed` 或 `review_later`
+- grading
+- feedback
+- `result`
 
-### `services/workflows/syllabus_workflow.py`
+## 9. Job / SSE 狀態管理
 
-用途：
+目前 job 系統除了基本 stream 外，還支援：
 
-- 目前只承接 syllabus refine 的 LangGraph workflow
+- scoped active job lookup
+- stale job detection
+- retryable job flow
+- remedial generation recovery
 
-注意：
+前端會依據：
 
-- 它不是一個大型多節點 workflow，目前只有單一步驟 `refine`
+- `job_type`
+- `project_id`
+- `node_id`
+- `session_id`
 
-## 7. 哪些檔案是核心，哪些不是
+對應回正確流程，而不是只憑單一 active job 猜測。
 
-### 核心主流程檔案
+## 10. 維護注意事項
 
-- `main.py`
-- `api/dependencies.py`
-- `api/v1/endpoints/projects.py`
-- `api/v1/endpoints/project_files.py`
-- `api/v1/endpoints/questionnaire.py`
-- `api/v1/endpoints/syllabus.py`
-- `api/v1/endpoints/courses.py`
-- `api/v1/endpoints/lessons.py`
-- `api/v1/endpoints/jobs.py`
-- `services/ai_agents/syllabus_agent.py`
-- `services/ai_agents/course_architect.py`
-- `services/ai_agents/questionnaire_agent.py`
-- `services/knowledge_base/document_processor.py`
-- `services/knowledge_base/rag_engine.py`
-- `services/workers/*.py`
+- backend 的 SSE 依賴 PostgreSQL `LISTEN/NOTIFY`
+- SQLite 不適合作為完整開發替代方案
+- Alembic migration 是正式 schema source of truth
+- `game_modules/*.yaml` 與 `lesson_schema.py` / AI prompts 有強耦合
+- 若新增題型，至少要同步考慮：
+  - `backend/game_modules/*.yaml`
+  - `lesson_schema.py` component validation
+  - `lessons.py` submit / evaluation 邏輯
+  - `course_architect_prompts.py` 題型生成規格
 
-### 存在但不是主生成路徑的模組
+## 11. 相關文件
 
-- `api/v1/endpoints/system.py`: 管理用途
-- `services/workflows/syllabus_workflow.py`: 只處理 refine
-- `core/component_loader.py`: 支援動態 component registry，不是 API 主流程入口
-- `course_architect.py` 內的 `generate_course_syllabus()`: 存在，但非目前 syllabus 主路徑
-
-### 不應納入文件主體的內容
-
-- `__pycache__/`
-- `.pyc`
-- 舊命名或猜測式檔名
-
-## 8. 目前文件維護準則
-
-之後更新這份文件時，請遵守以下原則：
-
-1. 以實際 import 與執行路徑為準，不以檔名推測功能
-2. 優先描述「主流程」而不是逐檔複製註解
-3. 若某檔案存在但非主路徑，直接標註，不要假裝它是核心
-4. 若某功能依賴特殊基礎設施，必須寫清楚
-   例如：`jobs.py` 依賴 PostgreSQL，而不是任意 SQLAlchemy database
-5. schema 檔案名稱需以目前檔名為準
-   例如：`auth_schema.py`，不是 `auth.py`
-
-## 9. 目前值得注意的技術風險
-
-- `main.py` 啟動時直接 `create_all()`，和 Alembic 並存時容易讓 schema 管理失焦
-- `config.py` 內 `SECRET_KEY` 有預設值，若部署漏設會有安全風險
-- `jobs.py` 依賴 PostgreSQL `LISTEN/NOTIFY`，但文件若仍寫 SQLite 會誤導
-- `system.py` 提供高風險管理操作，應避免暴露在非管理環境
-- `LessonAttempt.is_correct` 目前是字串欄位，不是布林
-
-## 10. 結論
-
-目前 backend 不是單純 CRUD API，而是由以下三條主軸構成：
-
-- `Project + File + RAG`
-- `Questionnaire + Learner Profile + Syllabus`
-- `Lesson Generation + Submission + Remedial + SSE Jobs`
-
-理解這三條主軸，比逐檔背誦 docstring 更接近這個專案的真實架構。
+- [README.md](README.md)
+- [LEGACY_FRONTEND.md](LEGACY_FRONTEND.md)

@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import TopStatsBar from "@/components/layout/TopStatsBar";
 import GameButton from "@/components/ui/GameButton";
-import { useDuoStore } from "@/stores/useDuoStore";
+import { useDuoStore } from "@/stores/session/useDuoStore";
 import { connectAndJoinQueue, leaveQueue, disconnectDuo } from "@/lib/duoSocketClient";
-import useUserStore from "@/stores/useUserStore";
+import useUserStore from "@/stores/app/useUserStore";
 
 export default function DuoWaitingPage() {
   const router = useRouter();
