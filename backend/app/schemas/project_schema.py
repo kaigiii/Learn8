@@ -15,6 +15,7 @@ class ProjectResponse(BaseModel):
     name: str
     user_id: int
     created_at: Any
+    draft_json: dict | None = None
 
     class Config:
         from_attributes = True

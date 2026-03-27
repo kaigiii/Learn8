@@ -88,12 +88,11 @@ class LessonStage(BaseModel):
 
 
 class SubmissionRequest(BaseModel):
+    sessionId: int
     stageId: str
     userInput: Any
-    isCorrect: bool
     context_topic: Optional[str] = None
     component: Optional[str] = None
-    failedStage: Optional[LessonStage] = None
 
 
 class FailedStageRecord(BaseModel):
@@ -101,14 +100,37 @@ class FailedStageRecord(BaseModel):
     userInput: Any
 
 
+class LessonSessionStartRequest(BaseModel):
+    courseId: int
+    nodeId: str
+    topic: str
+    projectId: Optional[int] = None
+    primaryStages: List[LessonStage]
+
+
+class LessonSessionPayload(BaseModel):
+    sessionId: int
+    status: str
+    activePhase: str
+    pendingFailedCount: int = 0
+    primaryStages: List[LessonStage] = Field(default_factory=list)
+    remedialStages: List[LessonStage] = Field(default_factory=list)
+    activeStages: List[LessonStage] = Field(default_factory=list)
+    remedialJobId: Optional[str] = None
+
+
 class RemedialGenerationRequest(BaseModel):
     topic: str
     nodeId: Optional[str] = None
     projectId: Optional[int] = None
+    sessionId: Optional[int] = None
     failedStages: List[FailedStageRecord] = Field(default_factory=list)
 
 
 class SubmissionResponse(BaseModel):
     nextAction: str
+    result: str
+    recordedFailure: bool = False
+    evaluation: dict = Field(default_factory=dict)
     remedialStage: Optional[LessonStage] = None
     message: Optional[str] = None

@@ -4,9 +4,13 @@ import React, { useMemo, useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter, useParams } from "next/navigation";
 import GameButton from "@/components/ui/GameButton";
-import { apiFetch } from "@/lib/apiClient";
-import useArenaStore, { getAccuracy, getElapsedTime, getXpGained } from "@/stores/useArenaStore";
-import useUserStore from "@/stores/useUserStore";
+import { useRequireAuthRedirect } from "@/lib/auth/useRequireAuthRedirect";
+import useUserStore from "@/stores/app/useUserStore";
+import useArenaStore, {
+  getAccuracy,
+  getElapsedTime,
+  getXpGained,
+} from "@/stores/session/useArenaStore";
 
 /* ═══════════════════ Rolling Counter Hook ═══════════════════ */
 
@@ -41,6 +45,7 @@ export default function LessonResultPageClient({
 } = {}) {
   const router = useRouter();
   const params = useParams();
+  const { isReady } = useRequireAuthRedirect();
   const nodeId = explicitNodeId ?? (params.nodeId as string);
   const routeCourseId = explicitCourseId ?? (params.courseId as string | undefined);
   const [backendCourseId, setBackendCourseId] = useState<string | null>(null);
@@ -64,6 +69,11 @@ export default function LessonResultPageClient({
   const arenaState = useArenaStore();
   const addXp = useUserStore((s) => s.addXp);
   const endSession = useArenaStore((s) => s.endSession);
+  const hasArenaSession =
+    arenaState.courseId === backendCourseId &&
+    arenaState.nodeId === nodeId &&
+    arenaState.totalStages > 0 &&
+    arenaState.startTime !== null;
 
   // Derived values from arena
   const actualAccuracy = getAccuracy(arenaState);
@@ -76,7 +86,7 @@ export default function LessonResultPageClient({
   // End session & reward on mount (once)
   const [rewarded, setRewarded] = useState(false);
   useEffect(() => {
-    if (!rewarded) {
+    if (!rewarded && hasArenaSession) {
       // Snapshot BEFORE reward so animation knows the starting point
       const snap = useUserStore.getState();
       prevUserRef.current = { xp: snap.xp, level: snap.level, xpToNext: snap.xpToNextLevel };
@@ -86,16 +96,7 @@ export default function LessonResultPageClient({
 
       setRewarded(true);
     }
-  }, [rewarded, endSession, addXp, actualXp]);
-
-  useEffect(() => {
-    if (!rewarded || !isBackendCourse || !backendCourseId || !nodeId) return;
-
-    void apiFetch(`/courses/${backendCourseId}/node/${nodeId}/status`, {
-      method: "PATCH",
-      body: JSON.stringify({ status: "completed" }),
-    });
-  }, [rewarded, isBackendCourse, backendCourseId, nodeId]);
+  }, [rewarded, endSession, addXp, actualXp, hasArenaSession]);
 
   // Read user state AFTER reward (reactive)
   const currentXp = useUserStore((s) => s.xp);
@@ -119,6 +120,33 @@ export default function LessonResultPageClient({
         <div className="mx-auto flex min-h-screen max-w-3xl items-center justify-center px-6">
           <div className="rounded-3xl border border-amber-200 bg-white/10 px-6 py-5 text-sm text-white shadow-lg backdrop-blur">
             Invalid result route.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isReady) {
+    return null;
+  }
+
+  if (!hasArenaSession) {
+    return (
+      <div className="relative min-h-screen bg-gradient-to-b from-[#1a1a2e] via-[#16213e] to-[#0f0f23]">
+        <div className="mx-auto flex min-h-screen max-w-3xl items-center justify-center px-6">
+          <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-white/10 px-6 py-6 text-white shadow-lg backdrop-blur">
+            <h1 className="font-heading text-2xl font-extrabold text-white">
+              Result Summary Unavailable
+            </h1>
+            <p className="mt-3 text-sm text-white/70">
+              This result page was opened without an active lesson summary in memory.
+              Return to the course map and continue from there.
+            </p>
+            <div className="mt-6">
+              <GameButton onClick={() => router.push(`/courses/${courseId}`)}>
+                Back to Map
+              </GameButton>
+            </div>
           </div>
         </div>
       </div>

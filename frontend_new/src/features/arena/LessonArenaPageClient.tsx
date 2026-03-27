@@ -1,21 +1,28 @@
 "use client";
 
-import React, { useState, useCallback, useMemo, useEffect } from "react";
+import React, { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter, useParams } from "next/navigation";
 import TopProgressBar from "@/components/ui/TopProgressBar";
 import GameButton from "@/components/ui/GameButton";
-import { apiFetch } from "@/lib/apiClient";
-import type { LessonStage, SubmissionResponse } from "@/lib/apiTypes";
-import useArenaStore from "@/stores/useArenaStore";
-import { useAuthStore } from "@/stores/useAuthStore";
-import { useProjectStore } from "@/stores/useProjectStore";
-import useUserStore from "@/stores/useUserStore";
-import { ArenaChatPanel } from "./ArenaChatPanel";
-import { ArenaFeedbackOverlay } from "./ArenaFeedbackOverlay";
-import { ArenaStageRenderer } from "./ArenaStageRenderer";
-import { useLessonGenerationFlow } from "./useLessonGenerationFlow";
-import { useMatchingPairsStage } from "./useMatchingPairsStage";
+import { ApiError, apiFetch } from "@/lib/apiClient";
+import { ensureRetryableJob, fetchScopedActiveJob } from "@/lib/jobs/recovery";
+import { watchJobStream } from "@/lib/jobs/stream";
+import type {
+  ActiveJobResponse,
+  LessonSessionPayload,
+  LessonStage,
+  SubmissionResponse,
+} from "@/lib/apiTypes";
+import { useAuthStore } from "@/stores/app/useAuthStore";
+import { useProjectStore } from "@/stores/app/useProjectStore";
+import useUserStore from "@/stores/app/useUserStore";
+import useArenaStore from "@/stores/session/useArenaStore";
+import { ArenaChatPanel } from "./components/ArenaChatPanel";
+import { ArenaFeedbackOverlay } from "./components/ArenaFeedbackOverlay";
+import { ArenaStageRenderer } from "./components/ArenaStageRenderer";
+import { useLessonGenerationFlow } from "./hooks/useLessonGenerationFlow";
+import { useMatchingPairsStage } from "./hooks/useMatchingPairsStage";
 
 /* ═══════════════════ Page ═══════════════════ */
 
@@ -30,8 +37,7 @@ export default function LessonArenaPageClient({
   const params = useParams();
   const nodeId = explicitNodeId ?? (params.nodeId as string);
   const routeCourseId = explicitCourseId ?? (params.courseId as string | undefined);
-  const token = useAuthStore((s) => s.token);
-  const currentProject = useProjectStore((s) => s.currentProject);
+  const currentProjectId = useProjectStore((s) => s.currentProjectId);
 
   // Arena store
   const arenaStore = useArenaStore();
@@ -42,6 +48,12 @@ export default function LessonArenaPageClient({
   const setLastActiveNode = useUserStore((s) => s.setLastActiveNode);
 
   const [stageIdx, setStageIdx] = useState(0);
+  const [lessonSession, setLessonSession] = useState<LessonSessionPayload | null>(null);
+  const [sessionLoading, setSessionLoading] = useState(false);
+  const [phaseTransitionLoading, setPhaseTransitionLoading] = useState(false);
+  const [phaseTransitionMessage, setPhaseTransitionMessage] = useState("");
+  const [phaseTransitionError, setPhaseTransitionError] = useState("");
+  const isExitingRef = useRef(false);
   const resetInteractiveStageState = useCallback(() => {
     setStageIdx(0);
   }, []);
@@ -59,12 +71,13 @@ export default function LessonArenaPageClient({
   } = useLessonGenerationFlow({
     routeCourseId,
     nodeId,
-    token,
-    currentProjectId: currentProject?.id ?? null,
+    currentProjectId,
     onStagesReady: resetInteractiveStageState,
   });
 
-  const backendStage = backendStages[stageIdx] ?? null;
+  const activeStages = lessonSession?.activeStages ?? backendStages;
+  const activePhase = lessonSession?.activePhase ?? "primary";
+  const backendStage = activeStages[stageIdx] ?? null;
   const backendMatchStage = useMemo(() => {
     if (backendStage?.component !== "MatchingPairs") return null;
     const data = backendStage.config.data as { question?: string; pairs?: { left: string; right: string }[] };
@@ -73,54 +86,171 @@ export default function LessonArenaPageClient({
       pairs: (data.pairs || []).map((pair) => ({ left: pair.left, right: pair.right })),
     };
   }, [backendStage]);
-  const totalStages = Math.max(backendStages.length, 1);
+  const totalStages = Math.max(activeStages.length, 1);
   const progress = (stageIdx / totalStages) * 100;
   const nodeDescription = backendNode?.description ?? "";
   const matchPairs = backendMatchStage?.pairs ?? [];
 
+  const connectRemedialJob = useCallback(
+    (jobId: string, sessionId: number) => {
+      if (isExitingRef.current) {
+        return null;
+      }
+      setPhaseTransitionError("");
+      setPhaseTransitionLoading(true);
+      setPhaseTransitionMessage("Generating your targeted remedial lesson...");
+      return watchJobStream(jobId, {
+        onUpdate: (data) => {
+          if (isExitingRef.current) {
+            return;
+          }
+          setPhaseTransitionMessage(data.message || "Generating remedial lesson...");
+        },
+        onCompleted: async () => {
+          const session = await apiFetch<LessonSessionPayload>(
+            `/lessons/sessions/${sessionId}`
+          );
+          if (isExitingRef.current) {
+            return;
+          }
+          setLessonSession(session);
+          resetInteractiveStageState();
+          setPhaseTransitionLoading(false);
+        },
+        onFailed: (data) => {
+          setPhaseTransitionLoading(false);
+          setPhaseTransitionError(
+            data.message || "Remedial generation stopped before it finished."
+          );
+        },
+        onCancelled: (data) => {
+          setPhaseTransitionLoading(false);
+          setPhaseTransitionError(
+            data.message || "Remedial generation was cancelled."
+          );
+        },
+        onStale: (data) => {
+          setPhaseTransitionLoading(false);
+          setPhaseTransitionError(
+            data.message || "Remedial generation stalled. Retry to continue."
+          );
+        },
+        onError: () => {
+          setPhaseTransitionLoading(false);
+          setPhaseTransitionError(
+            "Lost connection while generating remedial lesson. Retry after the backend is back."
+          );
+        },
+      });
+    },
+    [resetInteractiveStageState]
+  );
+
   useEffect(() => {
-    if (backendStages.length === 0) return;
-    startSession({ nodeId, courseId: String(backendCourseId), totalStages });
-    setLastActiveNode(nodeId);
-  }, [backendCourseId, backendStages.length, nodeId, setLastActiveNode, startSession, totalStages]);
+    if (backendStages.length === 0 || !backendCourseId || lessonSession || sessionLoading) return;
+
+    const startBackendSession = async () => {
+      setSessionLoading(true);
+      try {
+        const session = await apiFetch<LessonSessionPayload>("/lessons/sessions/start", {
+          method: "POST",
+          body: JSON.stringify({
+            courseId: backendCourseId,
+            nodeId,
+            topic: backendCourse?.topic || backendCourse?.courseTitle || backendNode?.title || "Lesson",
+            projectId: currentProjectId,
+            primaryStages: backendStages,
+          }),
+        });
+        if (isExitingRef.current) {
+          return;
+        }
+        setLessonSession(session);
+        startSession({
+          nodeId,
+          courseId: String(backendCourseId),
+          totalStages: Math.max(session.activeStages.length, 1),
+        });
+        setLastActiveNode(nodeId);
+
+        if (session.status === "remedial_generating") {
+          const activeJob = await ensureRetryableJob(await fetchScopedActiveJob({
+            jobType: "REMEDIAL_GEN",
+            sessionId: session.sessionId,
+          }));
+          if (activeJob.job_id) {
+            connectRemedialJob(String(activeJob.job_id), session.sessionId);
+          }
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setSessionLoading(false);
+      }
+    };
+
+    void startBackendSession();
+  }, [
+    backendCourse?.courseTitle,
+    backendCourse?.topic,
+    backendCourseId,
+    backendNode?.title,
+    backendStages,
+    connectRemedialJob,
+    currentProjectId,
+    lessonSession,
+    nodeId,
+    sessionLoading,
+    setLastActiveNode,
+    startSession,
+  ]);
 
   const submitBackendStage = useCallback(
-    async (stageToSubmit: LessonStage, userInput: unknown, isCorrect: boolean) => {
+    async (stageToSubmit: LessonStage, userInput: unknown) => {
+      if (!lessonSession) return;
       const response = await apiFetch<SubmissionResponse>("/lessons/submit-answer", {
         method: "POST",
         body: JSON.stringify({
+          sessionId: lessonSession.sessionId,
           stageId: stageToSubmit.stageId,
           userInput,
-          isCorrect,
           context_topic: backendCourse?.topic || backendCourse?.courseTitle || stageToSubmit.topic,
           component: stageToSubmit.component,
-          failedStage: !isCorrect ? stageToSubmit : undefined,
         }),
       });
 
-      if (response.nextAction === "proceed") {
-        matchingStage.markCorrectFeedback();
+      if (response.result === "correct") {
         arenaMarkCorrect();
         arenaTriggerConfetti();
-      } else {
-        matchingStage.markIncorrectFeedback();
+      } else if (response.result === "incorrect") {
         arenaMarkIncorrect();
         arenaTriggerShake();
       }
+      return response;
     },
-    [arenaMarkCorrect, arenaMarkIncorrect, arenaTriggerConfetti, arenaTriggerShake, backendCourse]
+    [
+      arenaMarkCorrect,
+      arenaMarkIncorrect,
+      arenaTriggerConfetti,
+      arenaTriggerShake,
+      backendCourse,
+      lessonSession,
+    ]
   );
+
   const matchingStage = useMatchingPairsStage({
     pairs: matchPairs,
     enabled: backendStage?.component === "MatchingPairs",
-    onCorrectStageComplete: (pairsPayload) => {
+    onCorrectStageComplete: async (pairsPayload) => {
       if (backendStage) {
-        void submitBackendStage(backendStage, pairsPayload, true);
+        const response = await submitBackendStage(backendStage, { matches: pairsPayload });
+        if (!response) return;
+        if (response.result === "correct") {
+          matchingStage.markCorrectFeedback();
+          return;
+        }
+        matchingStage.markIncorrectFeedback();
       }
-    },
-    onIncorrectSelection: () => {
-      arenaMarkIncorrect();
-      arenaTriggerShake();
     },
     onHintUse: () => {
       const canAfford = spendGems(10);
@@ -129,15 +259,134 @@ export default function LessonArenaPageClient({
     },
   });
 
+  const completeCurrentPhase = useCallback(async () => {
+    if (!lessonSession) return;
+
+    if (lessonSession.activePhase === "primary") {
+      setPhaseTransitionLoading(true);
+      setPhaseTransitionError("");
+      setPhaseTransitionMessage("Wrapping up the lesson and checking for targeted review...");
+      try {
+        const session = await apiFetch<LessonSessionPayload>(
+          `/lessons/sessions/${lessonSession.sessionId}/complete-primary`,
+          { method: "POST" }
+        );
+        if (isExitingRef.current) {
+          return;
+        }
+        setLessonSession(session);
+
+        if (session.status === "completed") {
+          router.push(`/courses/${backendCourseId}/nodes/${nodeId}/result?sessionId=${session.sessionId}`);
+          return;
+        }
+
+        if (session.status === "remedial_generating" && session.remedialJobId) {
+          connectRemedialJob(session.remedialJobId, session.sessionId);
+          return;
+        }
+      } catch (err) {
+        setPhaseTransitionLoading(false);
+        setPhaseTransitionError(
+          err instanceof ApiError
+            ? err.detail
+            : "Unable to complete the lesson phase right now."
+        );
+        throw err;
+      }
+      setPhaseTransitionLoading(false);
+      return;
+    }
+
+    setPhaseTransitionLoading(true);
+    setPhaseTransitionError("");
+    setPhaseTransitionMessage("Finalising your remedial lesson...");
+    try {
+      const session = await apiFetch<LessonSessionPayload>(
+        `/lessons/sessions/${lessonSession.sessionId}/complete-remedial`,
+        { method: "POST" }
+      );
+      if (isExitingRef.current) {
+        return;
+      }
+      setLessonSession(session);
+      router.push(`/courses/${backendCourseId}/nodes/${nodeId}/result?sessionId=${session.sessionId}`);
+    } catch (err) {
+      setPhaseTransitionError(
+        err instanceof ApiError
+          ? err.detail
+          : "Unable to finalise remedial lesson right now."
+      );
+    } finally {
+      setPhaseTransitionLoading(false);
+    }
+  }, [backendCourseId, connectRemedialJob, lessonSession, nodeId, router]);
+
+  const retryPhaseTransition = useCallback(async () => {
+    if (!lessonSession) return;
+
+    setPhaseTransitionError("");
+
+    if (lessonSession.status === "remedial_generating") {
+      const activeJob = await fetchScopedActiveJob({
+        jobType: "REMEDIAL_GEN",
+        sessionId: lessonSession.sessionId,
+      });
+      if (activeJob.job_id) {
+        const resumableJob = await ensureRetryableJob(activeJob);
+        if (resumableJob.job_id) {
+          connectRemedialJob(String(resumableJob.job_id), lessonSession.sessionId);
+          return;
+        }
+        return;
+      }
+
+      const refreshedSession = await apiFetch<LessonSessionPayload>(
+        `/lessons/sessions/${lessonSession.sessionId}`
+      );
+      setLessonSession(refreshedSession);
+
+      if (refreshedSession.status === "playing_remedial") {
+        resetInteractiveStageState();
+        return;
+      }
+    }
+
+    setPhaseTransitionError(
+      "Remedial generation is not currently resumable. Exit and re-enter later."
+    );
+  }, [connectRemedialJob, lessonSession, resetInteractiveStageState]);
+
+  const handleExitLesson = useCallback(() => {
+    const targetHref = backendCourseId ? `/courses/${backendCourseId}` : "/home";
+    isExitingRef.current = true;
+
+    setPhaseTransitionLoading(false);
+    setSessionLoading(false);
+
+    if (typeof window !== "undefined") {
+      window.sessionStorage.removeItem("learn8_pending_lesson");
+      window.location.replace(targetHref);
+    }
+  }, [backendCourseId]);
+
   /* Continue to next stage or result */
   const handleContinue = useCallback(() => {
     if (stageIdx < totalStages - 1) {
       setStageIdx((i) => i + 1);
       matchingStage.clearFeedback();
     } else {
-      router.push(`/courses/${backendCourseId}/nodes/${nodeId}/result`);
+      void completeCurrentPhase();
     }
-  }, [backendCourseId, matchingStage, nodeId, router, stageIdx, totalStages]);
+  }, [completeCurrentPhase, matchingStage, stageIdx, totalStages]);
+
+  const skipBackendStage = useCallback(
+    async (stageToSkip: LessonStage) => {
+      await submitBackendStage(stageToSkip, { skipped: true });
+      handleContinue();
+    },
+    [handleContinue, submitBackendStage]
+  );
 
   if (!isBackendLesson) {
     return (
@@ -157,10 +406,9 @@ export default function LessonArenaPageClient({
       {/* ─── Top Nav ─── */}
       <div className="flex items-center gap-3 px-8 pt-4 pb-1">
         <button
-          onClick={() =>
-            router.push(`/courses/${backendCourseId}`)
-          }
-          className="h-9 w-9 rounded-full bg-white/60 backdrop-blur flex items-center justify-center hover:bg-white/80 transition"
+          type="button"
+          onClick={handleExitLesson}
+          className="relative z-20 h-9 w-9 rounded-full bg-white/60 backdrop-blur flex items-center justify-center hover:bg-white/80 transition"
         >
           <svg viewBox="0 0 24 24" className="h-5 w-5 text-brand-gray-600" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
             <path d="M18 6L6 18M6 6l12 12" />
@@ -175,33 +423,67 @@ export default function LessonArenaPageClient({
       <div className="flex-1 flex gap-8 px-8 pb-4 w-full min-h-0">
         {/* ── Left: Question + Match Grid ── */}
         <div className="flex-1 flex flex-col min-w-0 min-h-0">
-          {backendLoading ? (
+          {backendLoading || sessionLoading || phaseTransitionLoading || !!phaseTransitionError ? (
               <div className="flex flex-1 items-center justify-center">
                 <div className="w-full max-w-lg rounded-3xl bg-white/70 px-8 py-6 text-center shadow-lg">
-                  <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-brand-teal/20 border-t-brand-teal" />
-                  <p className="font-heading text-lg font-bold text-brand-gray-700">
-                    Forging lesson stages...
-                  </p>
-                  <p className="mt-2 text-sm text-brand-gray-500">
-                    {backendJobMessage}
-                  </p>
-                  <div className="mx-auto mt-5 h-2 w-full max-w-sm overflow-hidden rounded-full bg-white/60">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-brand-teal to-[#5fb3af] transition-all duration-500"
-                      style={{ width: `${Math.max(0, Math.min(backendJobProgress, 100))}%` }}
-                    />
-                  </div>
-                  <p className="mt-3 text-xs font-semibold uppercase tracking-[0.2em] text-brand-teal/80">
-                    {Math.round(Math.max(0, Math.min(backendJobProgress, 100)))}% complete
-                  </p>
-                  <div className="mt-5">
+                  {phaseTransitionError ? (
+                    <>
+                      <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-rose-100 text-rose-500">
+                        <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                          <path d="M12 8v5" />
+                          <circle cx="12" cy="16" r="1" fill="currentColor" stroke="none" />
+                          <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                        </svg>
+                      </div>
+                      <p className="font-heading text-lg font-bold text-brand-gray-700">
+                        Remedial generation interrupted
+                      </p>
+                      <p className="mt-2 text-sm text-brand-gray-500">
+                        {phaseTransitionError}
+                      </p>
+                      <div className="mt-5 flex items-center justify-center gap-3">
+                        <GameButton variant="secondary" onClick={() => void retryPhaseTransition()}>
+                          Retry
+                        </GameButton>
+                        <GameButton variant="primary" onClick={handleExitLesson}>
+                          Exit
+                        </GameButton>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-brand-teal/20 border-t-brand-teal" />
+                      <p className="font-heading text-lg font-bold text-brand-gray-700">
+                        {phaseTransitionLoading ? "Preparing next lesson phase..." : "Forging lesson stages..."}
+                      </p>
+                      <p className="mt-2 text-sm text-brand-gray-500">
+                        {phaseTransitionLoading ? phaseTransitionMessage : backendJobMessage}
+                      </p>
+                      <div className="mx-auto mt-5 h-2 w-full max-w-sm overflow-hidden rounded-full bg-white/60">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-brand-teal to-[#5fb3af] transition-all duration-500"
+                          style={{ width: `${phaseTransitionLoading ? 85 : Math.max(0, Math.min(backendJobProgress, 100))}%` }}
+                        />
+                      </div>
+                      <p className="mt-3 text-xs font-semibold uppercase tracking-[0.2em] text-brand-teal/80">
+                        {phaseTransitionLoading
+                          ? activePhase === "primary"
+                            ? "Primary complete"
+                            : "Remedial complete"
+                          : `${Math.round(Math.max(0, Math.min(backendJobProgress, 100)))}% complete`}
+                      </p>
+                    </>
+                  )}
+                  {!phaseTransitionLoading && !phaseTransitionError && (
+                    <div className="mt-5">
                     <GameButton
                       variant="secondary"
                       onClick={() => void cancelGeneration()}
                     >
                       Cancel Generation
                     </GameButton>
-                  </div>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : backendError ? (
@@ -221,9 +503,8 @@ export default function LessonArenaPageClient({
                 matchPairs={matchPairs}
                 matchQuestion={backendMatchStage?.question || backendStage.topic}
                 matchingStage={matchingStage}
-                onSubmitStage={(stage, input, isCorrect) =>
-                  void submitBackendStage(stage, input, isCorrect)
-                }
+                onSubmitStage={(stage, input) => submitBackendStage(stage, input)}
+                onSkipStage={skipBackendStage}
                 onContinue={handleContinue}
                 onHintUse={() => {
                   const canAfford = spendGems(10);

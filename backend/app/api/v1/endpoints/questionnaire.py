@@ -67,6 +67,7 @@ async def generate_project_questionnaire(
         job_type="QUESTIONNAIRE_GEN",
         status="PENDING",
         message="準備生成問卷中...",
+        result_data={"project_id": project_id, "topic": topic},
     )
     db.add(new_job)
     db.commit()

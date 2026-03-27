@@ -2,9 +2,9 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import ProfileSettingsModal from "@/features/profile/ProfileSettingsModal";
-import { useAuthStore } from "@/stores/useAuthStore";
-import useUserStore from "@/stores/useUserStore";
+import ProfileSettingsDialog from "@/features/profile/ProfileSettingsDialog";
+import { useAuthStore } from "@/stores/app/useAuthStore";
+import useUserStore from "@/stores/app/useUserStore";
 
 interface TopStatsBarProps {
   backHref?: string;
@@ -101,7 +101,7 @@ export default function TopStatsBar({ backHref, pageTitle }: TopStatsBarProps = 
 
       {/* Profile modal */}
       {profileOpen && (
-        <ProfileSettingsModal onClose={() => setProfileOpen(false)} />
+        <ProfileSettingsDialog onClose={() => setProfileOpen(false)} />
       )}
     </>
   );

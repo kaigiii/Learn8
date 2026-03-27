@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String
+from sqlalchemy.orm import relationship
 from app.db.base import Base
 
 
@@ -17,3 +18,52 @@ class UserModel(Base):
     job_title = Column(String, nullable=True)  # 例如 "Full Stack Developer"
     education_level = Column(String, nullable=True)  # 例如 "Bachelor's Degree"
     daily_learning_goal_minutes = Column(Integer, default=30)
+
+    projects = relationship(
+        "ProjectModel",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    courses = relationship(
+        "CourseModel",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    lessons = relationship(
+        "LessonModel",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    lesson_sessions = relationship(
+        "LessonSessionModel",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    lesson_attempts = relationship(
+        "LessonAttempt",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    lesson_failed_stages = relationship(
+        "LessonFailedStageModel",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    lesson_remedials = relationship(
+        "LessonRemedialModel",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    generation_jobs = relationship(
+        "JobModel",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )

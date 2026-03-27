@@ -112,6 +112,11 @@ async def generate_syllabus(
         job_type="SYLLABUS_GEN",
         status="PENDING",
         message="正在排隊準備生成大綱...",
+        result_data={
+            "project_id": project_id,
+            "topic": topic,
+            "existing_course_id": existing_course.id if existing_course else None,
+        },
     )
     db.add(new_job)
     db.commit()

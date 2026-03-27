@@ -1,67 +1,69 @@
 # Learn8
 
-Learn8 是一個 AI 驅動的學習平台，將上傳資料、問卷、RAG 與遊戲化 lesson stages 串成一條完整學習流程。
+Learn8 是一個 AI 驅動的學習平台，把 `project -> file upload / RAG -> questionnaire -> learner profile -> syllabus -> lesson -> remedial` 串成一條完整學習流程。
 
-目前專案採前後端分離架構：
+目前 repo 內同時存在兩套前端：
 
-- `frontend/`: Next.js 16 + TypeScript
-- `backend/`: FastAPI + SQLAlchemy + Chroma
-- `postgres`: 用於主資料庫與 job status 推播
+- `frontend_new/`: 目前主要開發中的新版前端
+- `frontend/`: 舊版前端，仍然被 `docker-compose.yml` 使用
 
-## 核心流程
+後端為 `backend/`，採用 FastAPI、SQLAlchemy、PostgreSQL、Chroma，並以 background job + SSE 提供長任務進度與恢復能力。
+
+## 專案現況
+
+### 主要程式碼來源
+
+- 主前端: `frontend_new/`
+- 舊前端: `frontend/`
+- 後端: `backend/`
+
+### 目前真實的核心流程
 
 1. 使用者建立 project
 2. 上傳文件到 project scope
-3. 後端解析文件並寫入 Chroma
-4. 生成 questionnaire
-5. 問卷答案整理成 learner profile
-6. 以 topic + profile + project context 生成 syllabus
-7. 點選 node 生成 lesson stages
-8. 作答後依結果前進，並在 lesson 結束後視需要附加 remedial stages
+3. 後端解析文件、切 chunk、寫入 Chroma
+4. 建立 questionnaire generation job
+5. 問卷答案摘要成 learner profile，寫回 project
+6. 建立 syllabus generation job，產出 course 與 nodes
+7. 使用者進入 node，建立 lesson generation job
+8. 進入 lesson session，逐題提交答案
+9. 後端根據 `result` 判定答題結果
+10. 若有 failed stages，進入 remedial generation
+11. remedial 完成後才算 lesson / node 真正完成
 
 ## 技術棧
 
-### Frontend
+### Frontend (`frontend_new`)
 
-- Next.js 16
-- React 19
+- Next.js 14
+- React 18
 - TypeScript
 - Zustand
-- Tailwind CSS
+- Tailwind CSS 3
 - Framer Motion
-- React Flow
+- Socket.IO client（duo 模式）
 
 ### Backend
 
 - FastAPI
-- SQLAlchemy
+- SQLAlchemy 2
+- Alembic
 - PostgreSQL
 - ChromaDB
+- Pydantic 2
 - LangChain / LangGraph
-- Google Gemini API
+- Google Gemini
 
 ## 本地啟動
 
-### Docker
+### 1. Docker
 
-這是目前最直接的啟動方式。
+目前 `docker-compose.yml` 仍然接的是 **舊版 `frontend/`**，不是 `frontend_new/`。
 
-1. 建立後端環境檔：
+啟動方式：
 
 ```bash
 cp backend/.env.example backend/.env
-```
-
-2. 編輯 `backend/.env`，至少填入：
-
-```bash
-GOOGLE_API_KEY=your_key
-SECRET_KEY=your_secret
-```
-
-3. 啟動：
-
-```bash
 docker-compose up --build
 ```
 
@@ -70,7 +72,12 @@ docker-compose up --build
 - Frontend: `http://localhost:3000`
 - Backend API docs: `http://localhost:8000/docs`
 
-### 手動開發
+注意：
+
+- Docker compose 目前主要適合驗證後端與舊版前端整體啟動
+- 若你在開發新版 UI，請使用下面的手動開發方式
+
+### 2. 手動開發
 
 #### Backend
 
@@ -80,177 +87,232 @@ python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
-```
-
-請確認 `.env` 中的 `DATABASE_URL` 指向可用的 PostgreSQL。
-
-啟動：
-
-```bash
+python3.12 -m alembic upgrade head
 python3.12 -m uvicorn app.main:app --reload --port 8000
 ```
 
-#### Frontend
+請確認：
+
+- `.env` 已填入 `GOOGLE_API_KEY`
+- `DATABASE_URL` 指向可用的 PostgreSQL
+
+#### Frontend (`frontend_new`)
 
 ```bash
-cd frontend
+cd frontend_new
 npm install
 npm run dev
 ```
 
-前端預設會連到：
+若要啟動 duo socket server：
 
 ```bash
+cd frontend_new
+npm run dev:server
+```
+
+前端預設連線：
+
+```text
 http://localhost:8000/api/v1
 ```
 
-如需覆蓋，可自行設定：
+如需覆蓋：
 
 ```bash
 NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
 ```
 
-## 目前實作中的主要功能
+## 前端架構
 
-- JWT login / dev login
-- project CRUD
-- project draft 保存
-- project file upload / delete
-- 文件解析與向量化
-- questionnaire generation
-- learner profile summarization
-- syllabus generation / refinement
-- node-based lesson generation
-- remedial stage generation
-- Feynman-style answer grading
-- SSE job progress streaming
+新版前端目前採這個分層：
 
-## Stage Components
+- `src/app/`: route-owned page modules
+- `src/components/`: shared UI
+- `src/features/`: 跨 route 的完整業務模組
+- `src/lib/`: auth / jobs / navigation / API helpers
+- `src/stores/app/`: app-global state
+- `src/stores/session/`: flow/session state
 
-目前前端已註冊的互動組件：
+### 目前實際的 page modules
+
+- `src/app/(dashboard)/home/`
+- `src/app/(dashboard)/store/`
+- `src/app/auth/login/`
+- `src/app/auth/welcome/`
+- `src/app/courses/[courseId]/`
+- `src/app/questionnaire/`
+
+### 保留在 `features/` 的模組
+
+- `src/features/arena/`: lesson player / stage renderer / remedial flow
+- `src/features/profile/`: shared profile settings dialog
+
+## Lesson Stage Components
+
+目前前後端共同註冊的互動題型：
 
 - `MultipleChoice`
 - `Ordering`
 - `MatchingPairs`
 - `FeynmanMirror`
 
-後端對應的 YAML 定義位於：
+### 後端定義
 
 ```text
 backend/game_modules/
 ```
 
-前端註冊入口位於：
+### 新版前端註冊入口
 
 ```text
-frontend/src/features/stage-player/components/ComponentRegistry.tsx
+frontend_new/src/features/arena/renderers/index.ts
+```
+
+### 前端題型 UI
+
+```text
+frontend_new/src/components/arena/
 ```
 
 ## AI Pipeline
-
-目前 AI 調用分成 5 條主要路徑，輸入與輸出如下。
 
 ### 1. Questionnaire Generation
 
 用途：
 
-- 先針對特定 `topic` 與 project 內容生成探索問卷
+- 針對 `topic + project context` 生成探索型問卷
 
-帶入資訊：
+輸入：
 
 - `topic`
 - `project_id`
-- project scope 下已上傳的檔案內容與向量資料
+- project files / RAG context
 
 輸出：
 
-- `questions: Question[]`
-- 前端再把問卷答案送回 backend，整理成 `LearnerProfile`
-- `LearnerProfile` 會寫入 `projects.profile_json`
+- `questions`
+- job `result_data.questions`
 
-### 2. Syllabus Generation
+### 2. Questionnaire Submission / Learner Profile
 
 用途：
 
-- 根據使用者主題、學習者摘要與 project context 生成 `CoursePath`
+- 將問卷答案摘要成 learner profile
 
-帶入資訊：
+輸入：
+
+- `questions`
+- `submission`
+- `topic`
+
+輸出：
+
+- learner profile summary
+- 寫回 `projects.profile_json`
+
+### 3. Syllabus Generation
+
+用途：
+
+- 依 topic、learner profile、project context 生成 `CoursePath`
+
+輸入：
 
 - `topic`
 - `project_id`
-- `profile_summary` from questionnaire submission
+- `profile_summary`
 - project file full-text context
-- RAG / vector retrieval context
+- RAG context
 
 輸出：
 
 - `CoursePath`
-- 持久化為 `courses.syllabus_json`
+- 寫入 `courses.syllabus_json`
 - 扁平化 node 狀態寫入 `nodes`
 
-### 3. Lesson Generation
+### 4. Lesson Generation
 
 用途：
 
-- 點選 syllabus node 後，為單一 node 生成一組 `LessonStage[]`
+- 為單一 node 生成 `LessonStage[]`
 
-帶入資訊：
+輸入：
 
 - `topic`
-- `node.id`
-- `node.title`
-- `node.description`
-- learner profile summary
-- RAG context
-- game module registry prompt menu 與 schema reference
+- `LessonNode`
+- learner profile
+- project / file / RAG context
+- component registry prompt menu
 
 輸出：
 
 - `LessonStage[]`
-- 持久化為 `lessons.stage_json`
-- 若已有合法 cache，後端會優先回傳 cache
+- 寫入 `lessons.stage_json`
+- 若 cache 合法，後端優先回傳 cache
 
-### 4. Remedial Generation
+### 5. Answer Submission / Evaluation
 
 用途：
 
-- lesson 結束後，將整包錯題一次交給 AI 生成補救教學
+- 對使用者每一題的提交做標準化與判定
 
-帶入資訊：
+輸入：
+
+- `sessionId`
+- `stageId`
+- `userInput`
+- `context_topic`
+
+輸出：
+
+- `SubmissionResponse`
+- `result`: `correct | incorrect | skipped`
+- `message`
+- `evaluation`
+
+### 6. Remedial Generation
+
+用途：
+
+- 將同一 lesson session 中的 failed stages 打包成補救教學
+
+輸入：
 
 - `topic`
-- `failedStages[]`
-- 每筆 failed record 內含原始 `LessonStage`、`userInput`、`isCorrect`
+- `sessionId`
 - `nodeId`
 - `projectId`
+- `failedStages[]`
 
 輸出：
 
-- AI 自行決定數量的 remedial `LessonStage[]`
-- 透過 `REMEDIAL_GEN` job + SSE 回傳
-- 持久化到 `lesson_remedials`
-- 重新打開同一個 node 時，會和主 lesson stages 合併回傳
+- 一整包 remedial `LessonStage[]`
+- 寫入 `lesson_remedials`
+- session 切換到 remedial phase
 
-### 5. Feynman Grading
+### 7. Feynman Grading
 
 用途：
 
-- 對 `FeynmanMirror` 的自由回答做 AI 評分
+- 對 `FeynmanMirror` 的 learner explanation 做 AI 評分
 
-帶入資訊：
+輸入：
 
-- `topic`
-- `user_explanation`
-- RAG context
+- learner explanation
+- topic
+- stage prompt
+- sample answer
 
 輸出：
 
-- `isCorrect: boolean`
-- `feedback: string`
+- grading result
+- feedback
+- `result`
 
 ## SSE Jobs
 
-目前以下流程都採用 background job + SSE：
+目前以下流程都走 background job + SSE：
 
 - questionnaire generation
 - syllabus generation
@@ -259,45 +321,46 @@ frontend/src/features/stage-player/components/ComponentRegistry.tsx
 
 通用模式：
 
-1. API 先建立 `generation_jobs` 紀錄
+1. API 建立 `generation_jobs`
 2. 回傳 `job_id`
-3. 背景 worker 執行 AI / RAG 流程
-4. worker 透過 PostgreSQL `LISTEN/NOTIFY` 推送進度
+3. 背景 worker 執行 AI / RAG 工作
+4. worker 推送狀態到 PostgreSQL `LISTEN/NOTIFY`
 5. 前端訂閱 `/api/v1/jobs/{job_id}/stream`
-6. 完成後從 `result_data` 取回最終 payload
+6. 前端可用 `/api/v1/jobs/active` 做 resume / retry / stale recovery
 
 ## 目錄結構
 
 ```text
 Learn8/
 ├── backend/
+│   ├── alembic/
 │   ├── app/
-│   │   ├── api/
-│   │   ├── core/
-│   │   ├── db/
-│   │   ├── models/
-│   │   ├── schemas/
-│   │   └── services/
-│   ├── chroma_db/
 │   ├── game_modules/
-│   └── uploads/
+│   ├── chroma_db/
+│   ├── uploads/
+│   └── logs/
 ├── frontend/
+│   └── ... legacy frontend
+├── frontend_new/
+│   ├── server/
 │   └── src/
 │       ├── app/
 │       ├── components/
 │       ├── features/
-│       ├── stores/
-│       └── types/
+│       ├── lib/
+│       └── stores/
 └── docker-compose.yml
 ```
 
 ## 注意事項
 
-- README 以目前程式碼為準，不保留舊版規劃性描述
-- backend 的 job streaming 依賴 PostgreSQL `LISTEN/NOTIFY`，不是任意資料庫都可替代
-- backend 啟動時仍會執行 `Base.metadata.create_all()`，目前偏開發模式
-- 前端目前上傳 UI 實際上只開放 PDF，但 backend 的文件解析能力比 UI 更寬
+- `frontend_new/` 才是目前主要開發中的新版前端
+- `docker-compose.yml` 目前仍接 `frontend/`
+- backend 的 job streaming 依賴 PostgreSQL `LISTEN/NOTIFY`
+- backend 啟動時仍有 `Base.metadata.create_all()`，正式環境仍應以 Alembic 為主
+- 前端 upload UI 目前只開放 PDF，但 backend parser 能力比 UI 更寬
 
 ## 相關文件
 
 - [BACKEND_DOCS.md](BACKEND_DOCS.md)
+- [LEGACY_FRONTEND.md](LEGACY_FRONTEND.md)

@@ -1,4 +1,4 @@
-import LoginPageClient from "@/features/auth/LoginPageClient";
+import LoginPageClient from "./LoginPageClient";
 
 export default function AuthLoginPage() {
   return <LoginPageClient />;

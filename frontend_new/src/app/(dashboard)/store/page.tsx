@@ -1,5 +1,5 @@
-import CreditStorePageClient from "@/features/store/CreditStorePageClient";
+import StorePageClient from "./StorePageClient";
 
 export default function DashboardStorePage() {
-  return <CreditStorePageClient />;
+  return <StorePageClient />;
 }

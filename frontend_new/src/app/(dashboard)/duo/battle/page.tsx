@@ -3,7 +3,7 @@
 import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import TopStatsBar from "@/components/layout/TopStatsBar";
-import { useDuoStore } from "@/stores/useDuoStore";
+import { useDuoStore } from "@/stores/session/useDuoStore";
 import { submitAnswer, disconnectDuo } from "@/lib/duoSocketClient";
 
 const MAX_POSSIBLE_SCORE = 800;

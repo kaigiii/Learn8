@@ -1,4 +1,4 @@
-import CourseMapPageClient from "@/features/course-map/CourseMapPageClient";
+import CourseMapPageClient from "./CourseMapPageClient";
 
 export default function CourseMapPage({
   params,
