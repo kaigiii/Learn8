@@ -26,6 +26,7 @@ from app.schemas.course_schema import LessonNode
 from app.schemas.lesson_schema import (
     FailedStageRecord,
     LessonSessionPayload,
+    LessonSessionSummaryPayload,
     LessonSessionStartRequest,
     LessonStage,
     RemedialGenerationRequest,
@@ -120,6 +121,75 @@ def _find_active_remedial_job_id(db: Session, session_id: int, user_id: int) -> 
     return None
 
 
+def _compute_session_accuracy(correct_count: int, incorrect_count: int) -> int:
+    total_answered = correct_count + incorrect_count
+    if total_answered == 0:
+        return 100
+    return round((correct_count / total_answered) * 100)
+
+
+def _compute_session_xp(accuracy: int, hints_used: int = 0) -> int:
+    base_xp = 30
+    bonus = int((accuracy / 100) * 20)
+    hint_penalty = hints_used * 5
+    return max(10, base_xp + bonus - hint_penalty)
+
+
+def _format_elapsed_label(elapsed_seconds: int) -> str:
+    minutes = elapsed_seconds // 60
+    seconds = elapsed_seconds % 60
+    return f"{minutes}m {str(seconds).zfill(2)}s"
+
+
+def _build_session_summary_payload(
+    db: Session, session: LessonSessionModel
+) -> LessonSessionSummaryPayload:
+    attempts = (
+        db.query(LessonAttempt)
+        .filter(LessonAttempt.lesson_session_id == session.id)
+        .all()
+    )
+
+    correct_count = 0
+    incorrect_count = 0
+    skipped_count = 0
+    for attempt in attempts:
+        evaluation = attempt.evaluation_json if isinstance(attempt.evaluation_json, dict) else {}
+        user_input = attempt.user_input_json if isinstance(attempt.user_input_json, dict) else {}
+        is_skipped = bool(evaluation.get("skipped")) or bool(user_input.get("skipped"))
+        if is_skipped:
+            skipped_count += 1
+        elif attempt.is_correct_bool:
+            correct_count += 1
+        else:
+            incorrect_count += 1
+
+    accuracy = _compute_session_accuracy(correct_count, incorrect_count)
+    completed_at = session.completed_at or datetime.datetime.utcnow()
+    started_at = session.started_at or completed_at
+    elapsed_seconds = max(0, int((completed_at - started_at).total_seconds()))
+    total_stages = len(_coerce_stage_list(session.primary_stages_json)) + len(
+        _coerce_stage_list(session.remedial_stages_json)
+    )
+
+    return LessonSessionSummaryPayload(
+        sessionId=session.id,
+        courseId=session.course_id,
+        nodeId=session.node_id,
+        status=session.status,
+        activePhase=session.active_phase,
+        totalStages=total_stages,
+        attemptedCount=len(attempts),
+        correctCount=correct_count,
+        incorrectCount=incorrect_count,
+        skippedCount=skipped_count,
+        accuracy=accuracy,
+        elapsedSeconds=elapsed_seconds,
+        elapsedLabel=_format_elapsed_label(elapsed_seconds),
+        xpGained=_compute_session_xp(accuracy),
+    )
+
+
 def _find_stage_in_session(
     session: LessonSessionModel, stage_id: str
 ) -> tuple[LessonStage, str] | tuple[None, None]:
@@ -173,7 +243,7 @@ async def _evaluate_submission(
         evaluation = {"status": "skipped", "skipped": True}
         return (
             "skipped",
-            "Skipped for now. We will bring this back in remedial practice.",
+            "Skipped for now. This question will be recorded as skipped and not sent to remedial review.",
             normalized_input,
             evaluation,
         )
@@ -525,6 +595,26 @@ async def get_lesson_session(
     if not session:
         raise HTTPException(status_code=404, detail="Lesson session not found")
     return _build_session_payload(db, session)
+
+
+@router.get("/sessions/{session_id}/summary", response_model=LessonSessionSummaryPayload)
+async def get_lesson_session_summary(
+    session_id: int,
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    session = (
+        db.query(LessonSessionModel)
+        .filter(
+            LessonSessionModel.id == session_id,
+            LessonSessionModel.user_id == current_user.id,
+        )
+        .first()
+    )
+    if not session:
+        raise HTTPException(status_code=404, detail="Lesson session not found")
+
+    return _build_session_summary_payload(db, session)
 
 
 @router.post("/submit-answer", response_model=SubmissionResponse)

@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, usePathname } from "next/navigation";
 import TopProgressBar from "@/components/ui/TopProgressBar";
 import GameButton from "@/components/ui/GameButton";
 import { ApiError, apiFetch } from "@/lib/apiClient";
@@ -35,6 +35,7 @@ export default function LessonArenaPageClient({
 } = {}) {
   const router = useRouter();
   const params = useParams();
+  const pathname = usePathname();
   const nodeId = explicitNodeId ?? (params.nodeId as string);
   const routeCourseId = explicitCourseId ?? (params.courseId as string | undefined);
   const currentProjectId = useProjectStore((s) => s.currentProjectId);
@@ -54,6 +55,8 @@ export default function LessonArenaPageClient({
   const [phaseTransitionMessage, setPhaseTransitionMessage] = useState("");
   const [phaseTransitionError, setPhaseTransitionError] = useState("");
   const isExitingRef = useRef(false);
+  const isFinalizingRef = useRef(false);
+  const isNavigatingToResultRef = useRef(false);
   const resetInteractiveStageState = useCallback(() => {
     setStageIdx(0);
   }, []);
@@ -77,6 +80,10 @@ export default function LessonArenaPageClient({
 
   const activeStages = lessonSession?.activeStages ?? backendStages;
   const activePhase = lessonSession?.activePhase ?? "primary";
+  const isSessionInteractive =
+    !lessonSession ||
+    lessonSession.status === "playing_primary" ||
+    lessonSession.status === "playing_remedial";
   const backendStage = activeStages[stageIdx] ?? null;
   const backendMatchStage = useMemo(() => {
     if (backendStage?.component !== "MatchingPairs") return null;
@@ -146,6 +153,28 @@ export default function LessonArenaPageClient({
     [resetInteractiveStageState]
   );
 
+  const navigateToResult = useCallback(
+    (sessionId: number) => {
+      const resolvedCourseId = backendCourseId ?? routeCourseId;
+      if (!resolvedCourseId) {
+        return;
+      }
+
+      const targetHref = `/courses/${resolvedCourseId}/nodes/${nodeId}/result?sessionId=${sessionId}`;
+      isNavigatingToResultRef.current = true;
+      router.replace(targetHref);
+
+      if (typeof window !== "undefined") {
+        window.setTimeout(() => {
+          if (window.location.pathname === pathname) {
+            window.location.replace(targetHref);
+          }
+        }, 180);
+      }
+    },
+    [backendCourseId, nodeId, pathname, routeCourseId, router]
+  );
+
   useEffect(() => {
     if (backendStages.length === 0 || !backendCourseId || lessonSession || sessionLoading) return;
 
@@ -207,7 +236,9 @@ export default function LessonArenaPageClient({
 
   const submitBackendStage = useCallback(
     async (stageToSubmit: LessonStage, userInput: unknown) => {
-      if (!lessonSession) return;
+      if (!lessonSession || !isSessionInteractive || isFinalizingRef.current) {
+        return;
+      }
       const response = await apiFetch<SubmissionResponse>("/lessons/submit-answer", {
         method: "POST",
         body: JSON.stringify({
@@ -234,6 +265,7 @@ export default function LessonArenaPageClient({
       arenaTriggerConfetti,
       arenaTriggerShake,
       backendCourse,
+      isSessionInteractive,
       lessonSession,
     ]
   );
@@ -260,41 +292,64 @@ export default function LessonArenaPageClient({
   });
 
   const completeCurrentPhase = useCallback(async () => {
-    if (!lessonSession) return;
+    if (!lessonSession || isFinalizingRef.current) return;
+    isFinalizingRef.current = true;
 
     if (lessonSession.activePhase === "primary") {
-      setPhaseTransitionLoading(true);
       setPhaseTransitionError("");
-      setPhaseTransitionMessage("Wrapping up the lesson and checking for targeted review...");
+      let phaseTransitionVisible = false;
+      const delayedTransitionId = window.setTimeout(() => {
+        phaseTransitionVisible = true;
+        setPhaseTransitionLoading(true);
+        setPhaseTransitionMessage(
+          "Finalising this lesson and checking whether targeted review is needed..."
+        );
+      }, 350);
       try {
         const session = await apiFetch<LessonSessionPayload>(
           `/lessons/sessions/${lessonSession.sessionId}/complete-primary`,
           { method: "POST" }
         );
+        window.clearTimeout(delayedTransitionId);
         if (isExitingRef.current) {
           return;
         }
         setLessonSession(session);
 
         if (session.status === "completed") {
-          router.push(`/courses/${backendCourseId}/nodes/${nodeId}/result?sessionId=${session.sessionId}`);
+          if (phaseTransitionVisible) {
+            setPhaseTransitionLoading(false);
+          }
+          navigateToResult(session.sessionId);
           return;
         }
 
         if (session.status === "remedial_generating" && session.remedialJobId) {
+          if (!phaseTransitionVisible) {
+            setPhaseTransitionLoading(true);
+            setPhaseTransitionMessage("Generating your targeted remedial lesson...");
+          }
           connectRemedialJob(session.remedialJobId, session.sessionId);
           return;
         }
       } catch (err) {
-        setPhaseTransitionLoading(false);
+        window.clearTimeout(delayedTransitionId);
+        if (phaseTransitionVisible) {
+          setPhaseTransitionLoading(false);
+        }
         setPhaseTransitionError(
           err instanceof ApiError
             ? err.detail
             : "Unable to complete the lesson phase right now."
         );
+        isFinalizingRef.current = false;
         throw err;
       }
-      setPhaseTransitionLoading(false);
+      window.clearTimeout(delayedTransitionId);
+      if (phaseTransitionVisible) {
+        setPhaseTransitionLoading(false);
+      }
+      isFinalizingRef.current = false;
       return;
     }
 
@@ -310,17 +365,18 @@ export default function LessonArenaPageClient({
         return;
       }
       setLessonSession(session);
-      router.push(`/courses/${backendCourseId}/nodes/${nodeId}/result?sessionId=${session.sessionId}`);
+      navigateToResult(session.sessionId);
     } catch (err) {
       setPhaseTransitionError(
         err instanceof ApiError
           ? err.detail
           : "Unable to finalise remedial lesson right now."
       );
+      isFinalizingRef.current = false;
     } finally {
       setPhaseTransitionLoading(false);
     }
-  }, [backendCourseId, connectRemedialJob, lessonSession, nodeId, router]);
+  }, [connectRemedialJob, lessonSession, navigateToResult]);
 
   const retryPhaseTransition = useCallback(async () => {
     if (!lessonSession) return;
@@ -382,7 +438,10 @@ export default function LessonArenaPageClient({
 
   const skipBackendStage = useCallback(
     async (stageToSkip: LessonStage) => {
-      await submitBackendStage(stageToSkip, { skipped: true });
+      const response = await submitBackendStage(stageToSkip, { skipped: true });
+      if (!response) {
+        return;
+      }
       handleContinue();
     },
     [handleContinue, submitBackendStage]
@@ -423,7 +482,12 @@ export default function LessonArenaPageClient({
       <div className="flex-1 flex gap-8 px-8 pb-4 w-full min-h-0">
         {/* ── Left: Question + Match Grid ── */}
         <div className="flex-1 flex flex-col min-w-0 min-h-0">
-          {backendLoading || sessionLoading || phaseTransitionLoading || !!phaseTransitionError ? (
+          {backendLoading ||
+          sessionLoading ||
+          phaseTransitionLoading ||
+          !!phaseTransitionError ||
+          (!!lessonSession &&
+            (!isSessionInteractive || isNavigatingToResultRef.current)) ? (
               <div className="flex flex-1 items-center justify-center">
                 <div className="w-full max-w-lg rounded-3xl bg-white/70 px-8 py-6 text-center shadow-lg">
                   {phaseTransitionError ? (
@@ -454,19 +518,38 @@ export default function LessonArenaPageClient({
                     <>
                       <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-brand-teal/20 border-t-brand-teal" />
                       <p className="font-heading text-lg font-bold text-brand-gray-700">
-                        {phaseTransitionLoading ? "Preparing next lesson phase..." : "Forging lesson stages..."}
+                        {phaseTransitionLoading ||
+                        (!!lessonSession &&
+                          (!isSessionInteractive || isNavigatingToResultRef.current))
+                          ? "Finalising current lesson..."
+                          : "Forging lesson stages..."}
                       </p>
                       <p className="mt-2 text-sm text-brand-gray-500">
-                        {phaseTransitionLoading ? phaseTransitionMessage : backendJobMessage}
+                        {phaseTransitionLoading
+                          ? phaseTransitionMessage
+                          : lessonSession &&
+                              (!isSessionInteractive || isNavigatingToResultRef.current)
+                            ? "Wrapping up your results and moving you to the lesson summary..."
+                            : backendJobMessage}
                       </p>
                       <div className="mx-auto mt-5 h-2 w-full max-w-sm overflow-hidden rounded-full bg-white/60">
                         <div
                           className="h-full rounded-full bg-gradient-to-r from-brand-teal to-[#5fb3af] transition-all duration-500"
-                          style={{ width: `${phaseTransitionLoading ? 85 : Math.max(0, Math.min(backendJobProgress, 100))}%` }}
+                          style={{
+                            width: `${
+                              phaseTransitionLoading ||
+                              (!!lessonSession &&
+                                (!isSessionInteractive || isNavigatingToResultRef.current))
+                                ? 85
+                                : Math.max(0, Math.min(backendJobProgress, 100))
+                            }%`,
+                          }}
                         />
                       </div>
                       <p className="mt-3 text-xs font-semibold uppercase tracking-[0.2em] text-brand-teal/80">
-                        {phaseTransitionLoading
+                        {phaseTransitionLoading ||
+                        (!!lessonSession &&
+                          (!isSessionInteractive || isNavigatingToResultRef.current))
                           ? activePhase === "primary"
                             ? "Primary complete"
                             : "Remedial complete"
@@ -474,7 +557,10 @@ export default function LessonArenaPageClient({
                       </p>
                     </>
                   )}
-                  {!phaseTransitionLoading && !phaseTransitionError && (
+                  {!phaseTransitionLoading &&
+                    !phaseTransitionError &&
+                    !(lessonSession &&
+                      (!isSessionInteractive || isNavigatingToResultRef.current)) && (
                     <div className="mt-5">
                     <GameButton
                       variant="secondary"
