@@ -119,6 +119,23 @@ class LessonSessionPayload(BaseModel):
     remedialJobId: Optional[str] = None
 
 
+class LessonSessionSummaryPayload(BaseModel):
+    sessionId: int
+    courseId: Optional[int] = None
+    nodeId: str
+    status: str
+    activePhase: str
+    totalStages: int
+    attemptedCount: int
+    correctCount: int
+    incorrectCount: int
+    skippedCount: int
+    accuracy: int
+    elapsedSeconds: int
+    elapsedLabel: str
+    xpGained: int
+
+
 class RemedialGenerationRequest(BaseModel):
     topic: str
     nodeId: Optional[str] = None

@@ -4,7 +4,9 @@ import React, { useMemo, useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter, useParams } from "next/navigation";
 import GameButton from "@/components/ui/GameButton";
+import { apiFetch } from "@/lib/apiClient";
 import { useRequireAuthRedirect } from "@/lib/auth/useRequireAuthRedirect";
+import type { LessonSessionSummary } from "@/lib/apiTypes";
 import useUserStore from "@/stores/app/useUserStore";
 import useArenaStore, {
   getAccuracy,
@@ -49,10 +51,16 @@ export default function LessonResultPageClient({
   const nodeId = explicitNodeId ?? (params.nodeId as string);
   const routeCourseId = explicitCourseId ?? (params.courseId as string | undefined);
   const [backendCourseId, setBackendCourseId] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<number | null>(null);
+  const [backendSummary, setBackendSummary] = useState<LessonSessionSummary | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryResolved, setSummaryResolved] = useState(false);
   const isBackendCourse = !!backendCourseId && /^\d+$/.test(backendCourseId);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    const searchParams = new URLSearchParams(window.location.search);
+    const searchSessionId = searchParams.get("sessionId");
     const searchCourseId = new URLSearchParams(window.location.search).get("courseId");
     const resolvedCourseId =
       routeCourseId && /^\d+$/.test(routeCourseId)
@@ -63,6 +71,7 @@ export default function LessonResultPageClient({
         ? resolvedCourseId
         : null
     );
+    setSessionId(searchSessionId && /^\d+$/.test(searchSessionId) ? Number(searchSessionId) : null);
   }, [routeCourseId]);
 
   // Stores
@@ -79,6 +88,43 @@ export default function LessonResultPageClient({
   const actualAccuracy = getAccuracy(arenaState);
   const actualTime = getElapsedTime(arenaState);
   const actualXp = getXpGained(arenaState);
+
+  useEffect(() => {
+    if (!isReady || hasArenaSession || !sessionId) {
+      return;
+    }
+
+    let cancelled = false;
+    setSummaryLoading(true);
+    setSummaryResolved(false);
+
+    const loadSummary = async () => {
+      try {
+        const summary = await apiFetch<LessonSessionSummary>(
+          `/lessons/sessions/${sessionId}/summary`
+        );
+        if (!cancelled) {
+          setBackendSummary(summary);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error(error);
+          setBackendSummary(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setSummaryLoading(false);
+          setSummaryResolved(true);
+        }
+      }
+    };
+
+    void loadSummary();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasArenaSession, isReady, sessionId]);
 
   // Ref to capture user state RIGHT BEFORE addXp (set inside effect, not at render time)
   const prevUserRef = useRef<{ xp: number; level: number; xpToNext: number } | null>(null);
@@ -104,6 +150,43 @@ export default function LessonResultPageClient({
   const currentXpToNext = useUserStore((s) => s.xpToNextLevel);
 
   const courseId = backendCourseId!;
+  const resultSummary = useMemo<LessonSessionSummary | null>(() => {
+    if (hasArenaSession) {
+      return {
+        sessionId: sessionId ?? 0,
+        courseId: backendCourseId ? Number(backendCourseId) : null,
+        nodeId,
+        status: "completed",
+        activePhase: "primary",
+        totalStages: arenaState.totalStages,
+        attemptedCount: arenaState.correctCount + arenaState.incorrectCount,
+        correctCount: arenaState.correctCount,
+        incorrectCount: arenaState.incorrectCount,
+        skippedCount: Math.max(
+          0,
+          arenaState.totalStages - (arenaState.correctCount + arenaState.incorrectCount)
+        ),
+        accuracy: actualAccuracy,
+        elapsedSeconds: 0,
+        elapsedLabel: actualTime,
+        xpGained: actualXp,
+      };
+    }
+
+    return backendSummary;
+  }, [
+    actualAccuracy,
+    actualTime,
+    actualXp,
+    arenaState.correctCount,
+    arenaState.incorrectCount,
+    arenaState.totalStages,
+    backendCourseId,
+    backendSummary,
+    hasArenaSession,
+    nodeId,
+    sessionId,
+  ]);
 
   // Bar state — starts at 0; will be set to correct start position when animation begins
   const [showLevelUp, setShowLevelUp] = useState(false);
@@ -111,47 +194,8 @@ export default function LessonResultPageClient({
   const [barDuration, setBarDuration] = useState(0);   // 0 = instant (no visible animation for initial placement)
   const [displayLevel, setDisplayLevel] = useState(1);
 
-  const accuracy = useRollingNumber(actualAccuracy, 1000, 1200);
-  const xpGained = useRollingNumber(actualXp, 1000, 1200);
-
-  if (!isBackendCourse) {
-    return (
-      <div className="relative min-h-screen bg-gradient-to-b from-[#1a1a2e] via-[#16213e] to-[#0f0f23]">
-        <div className="mx-auto flex min-h-screen max-w-3xl items-center justify-center px-6">
-          <div className="rounded-3xl border border-amber-200 bg-white/10 px-6 py-5 text-sm text-white shadow-lg backdrop-blur">
-            Invalid result route.
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isReady) {
-    return null;
-  }
-
-  if (!hasArenaSession) {
-    return (
-      <div className="relative min-h-screen bg-gradient-to-b from-[#1a1a2e] via-[#16213e] to-[#0f0f23]">
-        <div className="mx-auto flex min-h-screen max-w-3xl items-center justify-center px-6">
-          <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-white/10 px-6 py-6 text-white shadow-lg backdrop-blur">
-            <h1 className="font-heading text-2xl font-extrabold text-white">
-              Result Summary Unavailable
-            </h1>
-            <p className="mt-3 text-sm text-white/70">
-              This result page was opened without an active lesson summary in memory.
-              Return to the course map and continue from there.
-            </p>
-            <div className="mt-6">
-              <GameButton onClick={() => router.push(`/courses/${courseId}`)}>
-                Back to Map
-              </GameButton>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const accuracy = useRollingNumber(resultSummary?.accuracy ?? 100, 1000, 1200);
+  const xpGained = useRollingNumber(resultSummary?.xpGained ?? 10, 1000, 1200);
 
   // Multi-phase XP bar animation — fires AFTER reward so store is up-to-date.
   const animStarted = useRef(false);
@@ -189,16 +233,95 @@ export default function LessonResultPageClient({
         setBarDuration(0.8);
         setXpBarWidth(endPct);
       }, 3750);
-      return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); };
-    } else {
-      // No level up: smoothly fill from prev to current
-      const t = setTimeout(() => {
-        setBarDuration(1.2);
-        setXpBarWidth(endPct);
-      }, 1800);
-      return () => clearTimeout(t);
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+        clearTimeout(t3);
+        clearTimeout(t4);
+      };
     }
+
+    // No level up: smoothly fill from prev to current
+    const t = setTimeout(() => {
+      setBarDuration(1.2);
+      setXpBarWidth(endPct);
+    }, 1800);
+    return () => clearTimeout(t);
   }, [rewarded]);
+
+  useEffect(() => {
+    if (hasArenaSession || rewarded) {
+      return;
+    }
+    setDisplayLevel(currentLevel);
+    setBarDuration(0);
+    setXpBarWidth(currentXpToNext > 0 ? (currentXp / currentXpToNext) * 100 : 0);
+  }, [currentLevel, currentXp, currentXpToNext, hasArenaSession, rewarded]);
+
+  useEffect(() => {
+    if (
+      !isReady ||
+      hasArenaSession ||
+      !isBackendCourse ||
+      !summaryResolved ||
+      summaryLoading ||
+      resultSummary
+    ) {
+      return;
+    }
+    router.replace(`/courses/${courseId}`);
+  }, [
+    courseId,
+    hasArenaSession,
+    isBackendCourse,
+    isReady,
+    resultSummary,
+    router,
+    summaryResolved,
+    summaryLoading,
+  ]);
+
+  if (!isBackendCourse) {
+    return (
+      <div className="relative min-h-screen bg-gradient-to-b from-[#1a1a2e] via-[#16213e] to-[#0f0f23]">
+        <div className="mx-auto flex min-h-screen max-w-3xl items-center justify-center px-6">
+          <div className="rounded-3xl border border-amber-200 bg-white/10 px-6 py-5 text-sm text-white shadow-lg backdrop-blur">
+            Invalid result route.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isReady) {
+    return null;
+  }
+
+  if (!hasArenaSession && summaryLoading) {
+    return (
+      <div className="relative min-h-screen bg-gradient-to-b from-[#1a1a2e] via-[#16213e] to-[#0f0f23]">
+        <div className="mx-auto flex min-h-screen max-w-3xl items-center justify-center px-6">
+          <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-white/10 px-6 py-6 text-white shadow-lg backdrop-blur">
+            <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-white/15 border-t-yellow-300" />
+            <h1 className="font-heading text-2xl font-extrabold text-white">
+              Loading lesson summary
+            </h1>
+            <p className="mt-3 text-sm text-white/70">
+              Rebuilding this result page from the saved lesson session...
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!hasArenaSession && !summaryResolved) {
+    return null;
+  }
+
+  if (!hasArenaSession && !resultSummary) {
+    return null;
+  }
 
   return (
     <div className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden">
@@ -283,7 +406,7 @@ export default function LessonResultPageClient({
             <div className="flex-1 text-center">
               <div className="text-xs text-white/50 font-medium mb-1">Time:</div>
               <div className="font-heading font-extrabold text-2xl sm:text-3xl text-white tabular-nums">
-                {actualTime}
+                {resultSummary?.elapsedLabel ?? "0m 00s"}
               </div>
             </div>
             {/* Divider */}
