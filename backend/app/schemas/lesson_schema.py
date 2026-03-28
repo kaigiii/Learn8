@@ -104,7 +104,6 @@ class LessonSessionStartRequest(BaseModel):
     courseId: int
     nodeId: str
     topic: str
-    projectId: Optional[int] = None
     primaryStages: List[LessonStage]
 
 
@@ -145,8 +144,8 @@ class LessonSessionSummaryPayload(BaseModel):
 
 class RemedialGenerationRequest(BaseModel):
     topic: str
+    courseId: Optional[int] = None
     nodeId: Optional[str] = None
-    projectId: Optional[int] = None
     sessionId: Optional[int] = None
     failedStages: List[FailedStageRecord] = Field(default_factory=list)
 
@@ -158,3 +157,28 @@ class SubmissionResponse(BaseModel):
     evaluation: dict = Field(default_factory=dict)
     remedialStage: Optional[LessonStage] = None
     message: Optional[str] = None
+
+
+class LessonAssistantMessage(BaseModel):
+    role: str
+    content: str
+
+
+class LessonAssistantRequest(BaseModel):
+    userQuestion: str
+    sessionId: Optional[int] = None
+    courseId: Optional[int] = None
+    courseTopic: Optional[str] = None
+    courseTitle: Optional[str] = None
+    nodeId: Optional[str] = None
+    nodeTitle: Optional[str] = None
+    nodeDescription: Optional[str] = None
+    activePhase: Optional[str] = None
+    stageIndex: Optional[int] = None
+    totalStages: Optional[int] = None
+    currentStage: Optional[LessonStage] = None
+    conversation: List[LessonAssistantMessage] = Field(default_factory=list)
+
+
+class LessonAssistantResponse(BaseModel):
+    answer: str

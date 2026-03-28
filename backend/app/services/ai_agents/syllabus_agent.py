@@ -63,7 +63,7 @@ class SyllabusAgent:
         self,
         topic: str,
         unit: BlueprintUnit,
-        project_id: Optional[int] = None,
+        course_id: Optional[int] = None,
         profile: str = "General Audience",
     ) -> List[CourseNode]:
         """步驟 2: 搭配 RAG 擴展單一單元的細節節點"""
@@ -71,7 +71,7 @@ class SyllabusAgent:
         # 針對此單元進行精確的檢索
         search_query = f"{topic} {unit.unit_title} {unit.unit_goal}"
         context_chunks = await self.rag_engine.query_context(
-            search_query, k=3, project_id=project_id
+            search_query, k=3, course_id=course_id
         )  # Async call
         context_str = (
             "\\n\\n".join(context_chunks) if context_chunks else "General Knowledge"
@@ -109,8 +109,8 @@ class SyllabusAgent:
         self,
         topic: str,
         user_id: Optional[int] = None,
-        project_folder: Optional[str] = None,
-        project_id: Optional[int] = None,
+        course_folder: Optional[str] = None,
+        course_id: Optional[int] = None,
         profile_summary: str = None,
         context: str = None,
         progress_callback: Optional[Callable[[Optional[int], str], None]] = None,
@@ -160,7 +160,7 @@ class SyllabusAgent:
 
                 logger.info(f"  Doing Unit {i + 1}: {b_unit.unit_title}...")
                 nodes = await self.expand_unit(
-                    topic, b_unit, project_id=project_id, profile=profile_str
+                    topic, b_unit, course_id=course_id, profile=profile_str
                 )
 
                 completed_units += 1

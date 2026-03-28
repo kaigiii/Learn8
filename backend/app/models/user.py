@@ -19,12 +19,6 @@ class UserModel(Base):
     education_level = Column(String, nullable=True)  # 例如 "Bachelor's Degree"
     daily_learning_goal_minutes = Column(Integer, default=30)
 
-    projects = relationship(
-        "ProjectModel",
-        back_populates="user",
-        cascade="all, delete-orphan",
-        passive_deletes=True,
-    )
     courses = relationship(
         "CourseModel",
         back_populates="user",

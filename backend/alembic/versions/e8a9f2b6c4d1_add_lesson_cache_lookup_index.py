@@ -20,12 +20,12 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     op.create_index(
-        "ix_lessons_user_project_node_topic",
+        "ix_lessons_user_course_node_topic",
         "lessons",
-        ["user_id", "project_id", "node_id", "course_topic"],
+        ["user_id", "course_id", "node_id", "course_topic"],
         unique=False,
     )
 
 
 def downgrade() -> None:
-    op.drop_index("ix_lessons_user_project_node_topic", table_name="lessons")
+    op.drop_index("ix_lessons_user_course_node_topic", table_name="lessons")

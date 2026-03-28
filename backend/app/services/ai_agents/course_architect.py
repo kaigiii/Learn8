@@ -201,6 +201,80 @@ class AIArchitectService:
             activity_logger.error(f"Feynman Grade Error: {e}")
             raise LLMGenerationError(f"Failed to grade Feynman attempt: {e}")
 
+    async def answer_lesson_question(
+        self,
+        user_question: str,
+        course_topic: str,
+        course_title: str = "",
+        node_title: str = "",
+        node_description: str = "",
+        active_phase: str = "primary",
+        stage_index: int = 0,
+        total_stages: int = 1,
+        current_stage: Optional[LessonStage] = None,
+        conversation: Optional[List[dict]] = None,
+        user_id: Optional[int] = None,
+        project_folder: Optional[str] = None,
+        learner_profile_summary: str = "",
+    ) -> str:
+        retrieval_query = " | ".join(
+            part
+            for part in [
+                course_topic,
+                course_title,
+                node_title,
+                current_stage.topic if current_stage else "",
+            ]
+            if part
+        )
+        context_chunks = await self.rag_engine.query_context(retrieval_query or course_topic)
+        rag_context = (
+            "\n\n".join(context_chunks)
+            if context_chunks
+            else "No additional vector context found for this lesson."
+        )
+
+        if user_id and project_folder:
+            files = self.file_service.list_files(user_id, project_folder)
+            if files:
+                full_paths = [
+                    self.file_service.get_upload_dir(user_id, project_folder) + "/" + f
+                    for f in files
+                ]
+                self.provider.bind_files(full_paths)
+
+        stage_summary = current_stage.model_dump() if current_stage else None
+        recent_conversation = conversation[-6:] if conversation else []
+
+        system_prompt = (
+            "You are Learn8's in-lesson AI tutor.\n"
+            "Your job is to help the learner understand the current lesson and stage.\n"
+            "Stay inside the lesson context. Do not rewrite the syllabus and do not act like the course architect.\n"
+            "Prefer hints, explanation, and step-by-step guidance over giving away the final answer immediately.\n"
+            "If the learner explicitly asks to change the course outline, tell them to use the map-page syllabus architect.\n"
+            "If lesson context is incomplete, say what assumption you are making.\n\n"
+            f"Learner profile summary: {learner_profile_summary or 'Not provided.'}\n"
+            f"Course topic: {course_topic or course_title or 'Unknown'}\n"
+            f"Course title: {course_title or 'Unknown'}\n"
+            f"Node title: {node_title or 'Unknown'}\n"
+            f"Node description: {node_description or 'Unknown'}\n"
+            f"Current phase: {active_phase or 'primary'}\n"
+            f"Current stage position: {max(1, stage_index + 1)} / {max(1, total_stages)}\n"
+            f"Current stage summary: {json.dumps(stage_summary, ensure_ascii=False) if stage_summary else 'None'}\n"
+            f"Vector context: {rag_context}\n"
+            f"Recent conversation: {json.dumps(recent_conversation, ensure_ascii=False)}"
+        )
+
+        messages = [
+            ("system", system_prompt),
+            ("user", user_question),
+        ]
+        try:
+            return await self.provider.generate_text(messages)
+        except Exception as e:
+            activity_logger.error(f"Lesson Tutor Error: {e}")
+            raise LLMGenerationError(f"Failed to answer lesson question: {e}")
+
 
 from fastapi import Depends
 from app.services.llm_clients.factory import get_llm_provider

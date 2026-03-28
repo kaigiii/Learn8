@@ -3,7 +3,6 @@ import datetime
 from app.db.session import SessionLocal
 from app.models.job import JobModel
 from app.models.user import UserModel
-from app.models.project import ProjectModel
 from app.models.course import CourseModel, NodeModel
 from app.services.ai_agents.syllabus_agent import SyllabusAgent
 from app.services.commons.activity_logger import ActivityLogger
@@ -11,6 +10,10 @@ from app.services.llm_clients.factory import LLMFactory
 from app.services.knowledge_base.rag_engine import RAGEngine
 from app.core.config import settings
 from app.services.workers.job_notifier import _notify_job_update
+from app.services.commons.course_lifecycle import (
+    mark_syllabus_completed,
+    mark_syllabus_failed,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -23,14 +26,13 @@ def _is_cancelled(db, job_id: str) -> bool:
 async def run_syllabus_generation_job(
     job_id: str,
     user_id: int,
-    project_id: int,
+    course_id: int | None,
     topic: str,
-    project_folder_name: str,
+    course_folder_name: str | None,
     profile_summary: str,
     full_text_context: str,
     files_used: list,
     regenerate: bool = False,
-    existing_course_id: int = None,
 ):
     """
     在背景獨立執行課程大綱生成的 Worker。
@@ -47,22 +49,25 @@ async def run_syllabus_generation_job(
         COST = settings.COST_SYLLABUS_GENERATION
 
         # 準備紀錄開始執行事件
-        project_name = "No Project"
-        if project_id:
-            p = db.query(ProjectModel).filter(ProjectModel.id == project_id).first()
-            if p:
-                project_name = p.name
+        course_name = "Untitled Course"
+        existing_course = (
+            db.query(CourseModel).filter(CourseModel.id == course_id).first()
+            if course_id
+            else None
+        )
+        if existing_course:
+            course_name = existing_course.title
 
         ActivityLogger.log_syllabus_generate_start(
             user.id,
             user.email,
-            project_id or 0,
-            project_name,
+            course_id or 0,
+            course_name,
             topic,
             user_prompt=None,
             rag_context_preview=full_text_context[:500] if full_text_context else None,
             questionnaire_profile=profile_summary,
-            files_context=files_used if project_id else None,
+            files_context=files_used if course_id else None,
         )
 
         provider = LLMFactory.create()
@@ -82,8 +87,8 @@ async def run_syllabus_generation_job(
         syllabus = await agent.run(
             topic,
             user_id=user.id,
-            project_folder=project_folder_name,
-            project_id=project_id,
+            course_folder=course_folder_name,
+            course_id=course_id,
             profile_summary=profile_summary,
             context=full_text_context,
             progress_callback=cb,
@@ -97,31 +102,15 @@ async def run_syllabus_generation_job(
 
         _notify_job_update(db, job, 85, "✅ 內容準備完成，正在儲存到資料庫...")
 
-        # 儲存到 CourseDB
-        should_update_existing = existing_course_id is not None and project_id is not None
-
-        if should_update_existing or (existing_course_id and regenerate):
-            c_model = (
-                db.query(CourseModel)
-                .filter(CourseModel.id == existing_course_id)
-                .first()
-            )
-            if not c_model:
-                raise Exception(f"Existing course {existing_course_id} not found.")
-            c_model.title = syllabus.courseTitle
-            c_model.topic = topic
-            c_model.syllabus_json = syllabus.model_dump()
-            c_model.updated_at = datetime.datetime.utcnow()
-            db.query(NodeModel).filter(NodeModel.course_id == c_model.id).delete()
-        else:
-            c_model = CourseModel(
-                user_id=user.id,
-                project_id=project_id,
-                topic=topic,
-                title=syllabus.courseTitle,
-                syllabus_json=syllabus.model_dump(),
-            )
-            db.add(c_model)
+        c_model = db.query(CourseModel).filter(CourseModel.id == course_id).first()
+        if not c_model:
+            raise Exception(f"Course {course_id} not found.")
+        c_model.title = syllabus.courseTitle
+        c_model.topic = topic
+        c_model.syllabus_json = syllabus.model_dump()
+        c_model.updated_at = datetime.datetime.utcnow()
+        mark_syllabus_completed(c_model)
+        db.query(NodeModel).filter(NodeModel.course_id == c_model.id).delete()
 
         # 扣點數 (非常重要: 成功才扣)
         user.credits -= COST
@@ -146,8 +135,8 @@ async def run_syllabus_generation_job(
         ActivityLogger.log_syllabus_generate_complete(
             user.id,
             user.email,
-            project_id or 0,
-            project_name,
+            c_model.id,
+            c_model.title,
             topic,
             len(syllabus.units),
             sum(len(u.nodes) for u in syllabus.units),
@@ -168,6 +157,14 @@ async def run_syllabus_generation_job(
 
     except Exception as e:
         logger.error(f"Syllabus generation job failed: {e}")
+        failed_course = (
+            db.query(CourseModel).filter(CourseModel.id == course_id).first()
+            if course_id
+            else None
+        )
+        if failed_course:
+            mark_syllabus_failed(failed_course)
+            db.commit()
         _notify_job_update(
             db, job, str(job.progress), f"生成失敗: {str(e)}", status="FAILED"
         )

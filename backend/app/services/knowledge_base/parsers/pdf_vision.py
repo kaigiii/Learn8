@@ -78,7 +78,7 @@ class VisionPDFParser:
                         with open(img_path, "wb") as f:
                             f.write(image_bytes)
 
-                        img_url = f"/api/v1/projects/files/images/{user_id}/{project_folder}/{img_filename}"
+                        img_url = f"/api/v1/courses/files/images/{user_id}/{project_folder}/{img_filename}"
                         b64_img = base64.b64encode(image_bytes).decode("utf-8")
 
                         content_parts.append(

@@ -10,7 +10,6 @@ from sqlalchemy import func
 from app.core.config import settings
 from app.api.dependencies import get_db, get_current_user
 from app.models.job import JobModel
-from app.models.project import ProjectModel
 from app.models.course import CourseModel
 from app.models.lesson import LessonFailedStageModel, LessonSessionModel
 from app.schemas.course_schema import LessonNode
@@ -21,6 +20,12 @@ from app.services.workers.syllabus_worker import run_syllabus_generation_job
 from app.services.workers.lesson_worker import (
     run_lesson_generation_job,
     run_remedial_generation_job,
+)
+from app.services.commons.course_lifecycle import (
+    ensure_course_can_generate_questionnaire,
+    ensure_course_can_generate_syllabus,
+    mark_questionnaire_started,
+    mark_syllabus_started,
 )
 import logging
 
@@ -37,7 +42,7 @@ def _normalize_job_result_data(job: JobModel) -> dict:
 def _job_matches_scope(
     job: JobModel,
     job_type: Optional[str] = None,
-    project_id: Optional[int] = None,
+    course_id: Optional[int] = None,
     node_id: Optional[str] = None,
     session_id: Optional[int] = None,
 ) -> bool:
@@ -46,8 +51,8 @@ def _job_matches_scope(
 
     metadata = _normalize_job_result_data(job)
 
-    if project_id is not None:
-        if metadata.get("project_id") != project_id and job.project_id != project_id:
+    if course_id is not None:
+        if metadata.get("course_id") != course_id and job.course_id != course_id:
             return False
 
     if node_id is not None and metadata.get("node_id") != node_id:
@@ -76,6 +81,22 @@ def _mark_stale_jobs(db: Session, user_id: int):
         job.message = "Job expired after backend restart or timeout."
     if stale_jobs:
         db.commit()
+
+
+def _create_retry_job(db: Session, current_user_id: int, job: JobModel, metadata: dict) -> JobModel:
+    new_job = JobModel(
+        user_id=current_user_id,
+        course_id=job.course_id,
+        job_type=job.job_type,
+        status="PENDING",
+        progress=0,
+        message=f"Retrying {job.job_type}...",
+        result_data=metadata,
+    )
+    db.add(new_job)
+    db.commit()
+    db.refresh(new_job)
+    return new_job
 
 
 @router.get("/{job_id}/stream")
@@ -215,7 +236,7 @@ async def stream_job_status(job_id: str):
 @router.get("/active")
 async def check_active_jobs(
     job_type: Optional[str] = None,
-    project_id: Optional[int] = None,
+    course_id: Optional[int] = None,
     node_id: Optional[str] = None,
     session_id: Optional[int] = None,
     current_user=Depends(get_current_user),
@@ -246,7 +267,7 @@ async def check_active_jobs(
             if _job_matches_scope(
                 job,
                 job_type=job_type,
-                project_id=project_id,
+                course_id=course_id,
                 node_id=node_id,
                 session_id=session_id,
             )
@@ -342,118 +363,106 @@ async def retry_job(
     metadata = _normalize_job_result_data(job)
     file_service = FileService()
 
-    new_job = JobModel(
-        user_id=current_user.id,
-        project_id=job.project_id,
-        job_type=job.job_type,
-        status="PENDING",
-        progress=0,
-        message=f"Retrying {job.job_type}...",
-        result_data=metadata,
-    )
-    db.add(new_job)
-    db.commit()
-    db.refresh(new_job)
-
     if job.job_type == "QUESTIONNAIRE_GEN":
-        project_id = metadata.get("project_id")
+        course_id = metadata.get("course_id")
         topic = metadata.get("topic")
-        if not project_id or not topic:
+        if not course_id or not topic:
             raise HTTPException(status_code=400, detail="Questionnaire retry metadata is incomplete.")
-        project = (
-            db.query(ProjectModel)
-            .filter(ProjectModel.id == project_id, ProjectModel.user_id == current_user.id)
+        course = (
+            db.query(CourseModel)
+            .filter(CourseModel.id == course_id, CourseModel.user_id == current_user.id)
             .first()
         )
-        if not project:
-            raise HTTPException(status_code=404, detail="Project not found for questionnaire retry.")
-        files_used = file_service.list_files(current_user.id, project.folder_name)
+        if not course:
+            raise HTTPException(status_code=404, detail="Course not found for questionnaire retry.")
+        ensure_course_can_generate_questionnaire(course)
+        files_used = (
+            file_service.list_files(current_user.id, course.folder_name)
+            if course.folder_name
+            else []
+        )
+        mark_questionnaire_started(course)
+        new_job = _create_retry_job(db, current_user.id, job, metadata)
         background_tasks.add_task(
             run_questionnaire_generation_job,
             job_id=new_job.id,
             user_id=current_user.id,
-            project_id=project_id,
+            course_id=course_id,
             topic=topic,
             files_used=files_used,
         )
     elif job.job_type == "SYLLABUS_GEN":
         topic = metadata.get("topic")
-        project_id = metadata.get("project_id")
-        existing_course_id = metadata.get("existing_course_id")
+        course_id = metadata.get("course_id")
         if not topic:
             raise HTTPException(status_code=400, detail="Syllabus retry metadata is incomplete.")
+        if not course_id:
+            raise HTTPException(status_code=400, detail="Syllabus retry is missing course_id.")
 
-        project_folder_name = None
+        course_folder_name = None
         profile_summary = None
         full_text_context = ""
         files = []
-        if project_id:
-            project = (
-                db.query(ProjectModel)
-                .filter(ProjectModel.id == project_id, ProjectModel.user_id == current_user.id)
-                .first()
+        course = (
+            db.query(CourseModel)
+            .filter(CourseModel.id == course_id, CourseModel.user_id == current_user.id)
+            .first()
+        )
+        if not course:
+            raise HTTPException(status_code=404, detail="Course not found for syllabus retry.")
+        ensure_course_can_generate_syllabus(course, regenerate=bool(course.syllabus_json))
+        course_folder_name = course.folder_name
+        if course.profile_json:
+            profile_summary = course.profile_json.get("summary", "General Audience")
+        files = (
+            file_service.list_files(current_user.id, course_folder_name)
+            if course_folder_name
+            else []
+        )
+        for fname in files:
+            if fname.startswith("."):
+                continue
+            fpath = file_service.get_upload_dir(current_user.id, course_folder_name) + "/" + fname
+            content = file_service.read_file_content(
+                fpath, max_chars=settings.MAX_COURSE_CONTEXT_BYTES
             )
-            if not project:
-                raise HTTPException(status_code=404, detail="Project not found for syllabus retry.")
-            project_folder_name = project.folder_name
-            if project.profile_json:
-                profile_summary = project.profile_json.get("summary", "General Audience")
-            files = file_service.list_files(current_user.id, project_folder_name)
-            for fname in files:
-                if fname.startswith("."):
-                    continue
-                fpath = file_service.get_upload_dir(current_user.id, project_folder_name) + "/" + fname
-                content = file_service.read_file_content(
-                    fpath, max_chars=settings.MAX_COURSE_CONTEXT_BYTES
-                )
-                if content:
-                    full_text_context += f"\n--- Document: {fname} ---\n{content}\n"
-
+            if content:
+                full_text_context += f"\n--- Document: {fname} ---\n{content}\n"
+        mark_syllabus_started(course)
+        new_job = _create_retry_job(db, current_user.id, job, metadata)
         background_tasks.add_task(
             run_syllabus_generation_job,
             job_id=new_job.id,
             user_id=current_user.id,
-            project_id=project_id,
+            course_id=course_id,
             topic=topic,
-            project_folder_name=project_folder_name,
+            course_folder_name=course_folder_name,
             profile_summary=profile_summary,
             full_text_context=full_text_context,
             files_used=files,
-            regenerate=bool(existing_course_id),
-            existing_course_id=existing_course_id,
+            regenerate=bool(course.syllabus_json),
         )
     elif job.job_type == "LESSON_GEN":
         topic = metadata.get("topic")
         node_id = metadata.get("node_id")
-        project_id = metadata.get("project_id")
+        course_id = metadata.get("course_id")
         if not topic or not node_id:
             raise HTTPException(status_code=400, detail="Lesson retry metadata is incomplete.")
 
-        project_folder_name = None
+        course_folder_name = None
         profile_summary = "General Learner"
-        project = None
-        if project_id:
-            project = (
-                db.query(ProjectModel)
-                .filter(ProjectModel.id == project_id, ProjectModel.user_id == current_user.id)
-                .first()
-            )
-            if not project:
-                raise HTTPException(status_code=404, detail="Project not found for lesson retry.")
-            project_folder_name = project.folder_name
-            if project.profile_json:
-                profile_summary = project.profile_json.get("summary", "General Learner")
-
         course = None
-        if project_id:
+        if course_id:
             course = (
                 db.query(CourseModel)
-                .filter(CourseModel.project_id == project_id, CourseModel.user_id == current_user.id)
-                .order_by(CourseModel.updated_at.desc())
+                .filter(CourseModel.id == course_id, CourseModel.user_id == current_user.id)
                 .first()
             )
         if not course or not course.syllabus_json:
             raise HTTPException(status_code=404, detail="Course not found for lesson retry.")
+        course_folder_name = course.folder_name
+        if course.profile_json:
+            profile_summary = course.profile_json.get("summary", "General Learner")
 
         node_payload = None
         for unit in course.syllabus_json.get("units", []):
@@ -472,14 +481,15 @@ async def retry_job(
             description=node_payload.get("description", ""),
             status=node_payload.get("status", "locked"),
         )
+        new_job = _create_retry_job(db, current_user.id, job, metadata)
         background_tasks.add_task(
             run_lesson_generation_job,
             new_job.id,
             current_user.id,
-            project_id,
+            course_id,
             topic,
             lesson_node.model_dump(),
-            project_folder_name,
+            course_folder_name,
             profile_summary,
         )
     elif job.job_type == "REMEDIAL_GEN":
@@ -515,13 +525,14 @@ async def retry_job(
 
         session.status = "remedial_generating"
         db.commit()
+        new_job = _create_retry_job(db, current_user.id, job, metadata)
         background_tasks.add_task(
             run_remedial_generation_job,
             new_job.id,
             current_user.id,
             session.course_topic,
             session.node_id,
-            session.project_id,
+            session.course_id,
             failed_stages,
             session.id,
         )

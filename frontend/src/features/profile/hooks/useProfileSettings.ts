@@ -1,0 +1,111 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { ApiError, apiFetch } from "@/lib/apiClient";
+import { syncPersistedProfile } from "@/lib/auth/profileSync";
+import type { UserProfile } from "@/lib/apiTypes";
+import { useAuthStore } from "@/stores/app/useAuthStore";
+import { useCourseStore } from "@/stores/app/useCourseStore";
+import useUserStore, { selectUserName, selectUserTitle } from "@/stores/app/useUserStore";
+
+export function useProfileSettings(onClose: () => void) {
+  const router = useRouter();
+  const authUser = useAuthStore((s) => s.user);
+  const clearSession = useAuthStore((s) => s.clearSession);
+  const setCurrentCourse = useCourseStore((s) => s.setCurrentCourse);
+  const name = useUserStore(selectUserName);
+  const title = useUserStore(selectUserTitle);
+  const preferences = useUserStore((s) => s.preferences);
+  const setPreferences = useUserStore((s) => s.setPreferences);
+  const logout = useUserStore((s) => s.logout);
+
+  const [form, setForm] = useState({
+    full_name: "",
+    job_title: "",
+    education_level: "",
+    daily_learning_goal_minutes: "",
+  });
+  const [saving, setSaving] = useState(false);
+  const [toppingUpAmount, setToppingUpAmount] = useState<number | null>(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    setForm({
+      full_name: authUser?.full_name || name,
+      job_title: authUser?.job_title || "",
+      education_level: authUser?.education_level || "",
+      daily_learning_goal_minutes: authUser?.daily_learning_goal_minutes
+        ? String(authUser.daily_learning_goal_minutes)
+        : "",
+    });
+  }, [authUser, name]);
+
+  const handleSaveProfile = async () => {
+    setSaving(true);
+    setError("");
+    try {
+      const profile = await apiFetch<UserProfile>("/auth/me", {
+        method: "PUT",
+        body: JSON.stringify({
+          full_name: form.full_name.trim() || null,
+          job_title: form.job_title.trim() || null,
+          education_level: form.education_level.trim() || null,
+          daily_learning_goal_minutes: form.daily_learning_goal_minutes
+            ? Number(form.daily_learning_goal_minutes)
+            : null,
+        }),
+      });
+      syncPersistedProfile(profile);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.detail : "Failed to save profile.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleQuickTopUp = async (amount: number) => {
+    setToppingUpAmount(amount);
+    setError("");
+    try {
+      const profile = await apiFetch<UserProfile>(
+        `/auth/credits/top-up?amount=${amount}`,
+        { method: "POST" }
+      );
+      syncPersistedProfile(profile);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.detail : "Failed to top up credits.");
+    } finally {
+      setToppingUpAmount(null);
+    }
+  };
+
+  const handleOpenStore = () => {
+    onClose();
+    router.push("/store");
+  };
+
+  const handleLogout = () => {
+    clearSession();
+    setCurrentCourse(null);
+    logout();
+    onClose();
+    router.push("/auth/login");
+  };
+
+  return {
+    authUser,
+    title,
+    preferences,
+    form,
+    setForm,
+    saving,
+    toppingUpAmount,
+    error,
+    setPreferences,
+    handleSaveProfile,
+    handleQuickTopUp,
+    handleOpenStore,
+    handleLogout,
+  };
+}

@@ -19,7 +19,7 @@ class JobModel(Base):
 
     # 關聯
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=True)
+    course_id = Column(Integer, ForeignKey("courses.id", ondelete="CASCADE"), nullable=True)
 
     # 任務類型 (SYLLABUS_GEN, QUESTIONNAIRE_GEN, etc.)
     job_type = Column(String(50), nullable=False)
@@ -40,4 +40,4 @@ class JobModel(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     user = relationship("UserModel", back_populates="generation_jobs")
-    project = relationship("ProjectModel", back_populates="generation_jobs")
+    course = relationship("CourseModel")

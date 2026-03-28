@@ -1,8 +1,8 @@
 import logging
 from app.db.session import SessionLocal
+from app.models.course import CourseModel
 from app.models.job import JobModel
 from app.models.user import UserModel
-from app.models.project import ProjectModel
 from app.services.ai_agents.questionnaire_agent import QuestionnaireAgent
 from app.services.commons.activity_logger import ActivityLogger
 from app.services.llm_clients.factory import LLMFactory
@@ -19,7 +19,11 @@ def _is_cancelled(db, job_id: str) -> bool:
 
 
 async def run_questionnaire_generation_job(
-    job_id: str, user_id: int, project_id: int, topic: str, files_used: list
+    job_id: str,
+    user_id: int,
+    topic: str,
+    files_used: list,
+    course_id: int | None = None,
 ):
     """
     在背景獨立執行問卷生成的 Worker。
@@ -35,13 +39,19 @@ async def run_questionnaire_generation_job(
         user = db.query(UserModel).filter(UserModel.id == user_id).first()
         COST = settings.COST_QUESTIONNAIRE_GENERATION
 
-        project = db.query(ProjectModel).filter(ProjectModel.id == project_id).first()
+        course = (
+            db.query(CourseModel).filter(CourseModel.id == course_id).first()
+            if course_id is not None
+            else None
+        )
+        scope_id = course_id or 0
+        scope_name = course.title if course is not None else "Untitled Course"
 
         ActivityLogger.log_questionnaire_generate(
             user.id,
             user.email,
-            project_id,
-            project.name if project else "No Project",
+            scope_id,
+            scope_name,
             topic,
             files_used,
         )
@@ -52,7 +62,7 @@ async def run_questionnaire_generation_job(
 
         _notify_job_update(db, job, 40, "🤔 AI 正在思考最適合您的探索問題...")
 
-        questions = await agent.generate_questions(topic, project_id=project_id)
+        questions = await agent.generate_questions(topic, course_id=course_id)
 
         if _is_cancelled(db, job_id):
             return

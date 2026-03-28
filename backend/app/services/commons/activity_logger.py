@@ -48,8 +48,8 @@ class ActivityLogger:
         return f"User[{user_id}:{user_email}]"
 
     @staticmethod
-    def _format_project(project_id: int, project_name: str) -> str:
-        return f"Project[{project_id}:{project_name}]"
+    def _format_course(course_id: int, course_name: str) -> str:
+        return f"Course[{course_id}:{course_name}]"
 
     @staticmethod
     def _truncate(text: str, max_len: int = 100) -> str:
@@ -81,53 +81,25 @@ class ActivityLogger:
             f"PROFILE_EDIT | {ActivityLogger._format_user(user_id, user_email)} updated fields: {', '.join(fields_changed)}"
         )
 
-    # ==================== PROJECTS ====================
-
-    @staticmethod
-    def log_project_create(
-        user_id: int, user_email: str, project_id: int, project_name: str
-    ):
-        activity_logger.info(
-            f"PROJECT_CREATE | {ActivityLogger._format_user(user_id, user_email)} created {ActivityLogger._format_project(project_id, project_name)}"
-        )
-
-    @staticmethod
-    def log_project_update(
-        user_id: int, user_email: str, project_id: int, old_name: str, new_name: str
-    ):
-        activity_logger.info(
-            f"PROJECT_UPDATE | {ActivityLogger._format_user(user_id, user_email)} renamed Project[{project_id}] from '{old_name}' to '{new_name}'"
-        )
-
-    @staticmethod
-    def log_project_delete(
-        user_id: int, user_email: str, project_id: int, project_name: str
-    ):
-        activity_logger.info(
-            f"PROJECT_DELETE | {ActivityLogger._format_user(user_id, user_email)} deleted {ActivityLogger._format_project(project_id, project_name)}"
-        )
-
-    # ==================== FILES ====================
-
     @staticmethod
     def log_file_upload(
         user_id: int,
         user_email: str,
-        project_id: int,
-        project_name: str,
+        course_id: int,
+        course_name: str,
         filenames: List[str],
     ):
         files_str = ", ".join(filenames)
         activity_logger.info(
-            f"FILE_UPLOAD | {ActivityLogger._format_user(user_id, user_email)} uploaded to {ActivityLogger._format_project(project_id, project_name)}: [{files_str}]"
+            f"FILE_UPLOAD | {ActivityLogger._format_user(user_id, user_email)} uploaded to {ActivityLogger._format_course(course_id, course_name)}: [{files_str}]"
         )
 
     @staticmethod
     def log_file_delete(
-        user_id: int, user_email: str, project_id: int, project_name: str, filename: str
+        user_id: int, user_email: str, course_id: int, course_name: str, filename: str
     ):
         activity_logger.info(
-            f"FILE_DELETE | {ActivityLogger._format_user(user_id, user_email)} deleted '{filename}' from {ActivityLogger._format_project(project_id, project_name)}"
+            f"FILE_DELETE | {ActivityLogger._format_user(user_id, user_email)} deleted '{filename}' from {ActivityLogger._format_course(course_id, course_name)}"
         )
 
     # ==================== QUESTIONNAIRE ====================
@@ -136,14 +108,14 @@ class ActivityLogger:
     def log_questionnaire_generate(
         user_id: int,
         user_email: str,
-        project_id: int,
-        project_name: str,
+        course_id: int,
+        course_name: str,
         topic: str,
         files_used: Optional[List[str]] = None,
     ):
         files_str = ", ".join(files_used) if files_used else "None"
         activity_logger.info(
-            f"QUESTIONNAIRE_GENERATE | {ActivityLogger._format_user(user_id, user_email)} started questionnaire for {ActivityLogger._format_project(project_id, project_name)} | "
+            f"QUESTIONNAIRE_GENERATE | {ActivityLogger._format_user(user_id, user_email)} started questionnaire for {ActivityLogger._format_course(course_id, course_name)} | "
             f"Topic: '{ActivityLogger._truncate(topic)}' | Files: [{files_str}]"
         )
 
@@ -151,13 +123,13 @@ class ActivityLogger:
     def log_questionnaire_submit(
         user_id: int,
         user_email: str,
-        project_id: int,
-        project_name: str,
+        course_id: int,
+        course_name: str,
         topic: str,
         learner_profile_summary: str,
     ):
         activity_logger.info(
-            f"QUESTIONNAIRE_SUBMIT | {ActivityLogger._format_user(user_id, user_email)} submitted questionnaire for {ActivityLogger._format_project(project_id, project_name)} | "
+            f"QUESTIONNAIRE_SUBMIT | {ActivityLogger._format_user(user_id, user_email)} submitted questionnaire for {ActivityLogger._format_course(course_id, course_name)} | "
             f"Topic: '{ActivityLogger._truncate(topic)}' | Profile Summary: '{ActivityLogger._truncate(learner_profile_summary, 200)}'"
         )
 
@@ -167,8 +139,8 @@ class ActivityLogger:
     def log_syllabus_generate_start(
         user_id: int,
         user_email: str,
-        project_id: int,
-        project_name: str,
+        course_id: int,
+        course_name: str,
         topic: str,
         user_prompt: Optional[str] = None,
         rag_context_preview: Optional[str] = None,
@@ -176,7 +148,7 @@ class ActivityLogger:
         files_context: Optional[List[str]] = None,
     ):
         activity_logger.info(
-            f"SYLLABUS_GENERATE_START | {ActivityLogger._format_user(user_id, user_email)} started syllabus generation for {ActivityLogger._format_project(project_id, project_name)} | "
+            f"SYLLABUS_GENERATE_START | {ActivityLogger._format_user(user_id, user_email)} started syllabus generation for {ActivityLogger._format_course(course_id, course_name)} | "
             f"Topic: '{ActivityLogger._truncate(topic)}'"
         )
         if user_prompt:
@@ -198,15 +170,15 @@ class ActivityLogger:
     def log_syllabus_generate_complete(
         user_id: int,
         user_email: str,
-        project_id: int,
-        project_name: str,
+        course_id: int,
+        course_name: str,
         topic: str,
         units_count: int,
         lessons_count: int,
         unit_titles: Optional[List[str]] = None,
     ):
         activity_logger.info(
-            f"SYLLABUS_GENERATE_COMPLETE | {ActivityLogger._format_user(user_id, user_email)} completed syllabus for {ActivityLogger._format_project(project_id, project_name)} | "
+            f"SYLLABUS_GENERATE_COMPLETE | {ActivityLogger._format_user(user_id, user_email)} completed syllabus for {ActivityLogger._format_course(course_id, course_name)} | "
             f"Topic: '{ActivityLogger._truncate(topic)}' | Generated: {units_count} units, {lessons_count} lessons"
         )
         if unit_titles:
@@ -217,13 +189,13 @@ class ActivityLogger:
     def log_syllabus_refine(
         user_id: int,
         user_email: str,
-        project_id: int,
-        project_name: str,
+        course_id: int,
+        course_name: str,
         topic: str,
         user_feedback: str,
     ):
         activity_logger.info(
-            f"SYLLABUS_REFINE | {ActivityLogger._format_user(user_id, user_email)} requested refinement for {ActivityLogger._format_project(project_id, project_name)} | "
+            f"SYLLABUS_REFINE | {ActivityLogger._format_user(user_id, user_email)} requested refinement for {ActivityLogger._format_course(course_id, course_name)} | "
             f"Topic: '{ActivityLogger._truncate(topic)}' | Feedback: '{ActivityLogger._truncate(user_feedback, 200)}'"
         )
 

@@ -20,10 +20,10 @@ def _is_cancelled(db, job_id: str) -> bool:
 async def run_lesson_generation_job(
     job_id: str,
     user_id: int,
-    project_id: int,
+    course_id: int | None,
     topic: str,
     node_data: dict,
-    project_folder_name: str,
+    course_folder_name: str | None,
     profile_summary: str,
 ):
     """
@@ -59,7 +59,7 @@ async def run_lesson_generation_job(
             node,
             topic,
             user_id=user.id,
-            project_folder=project_folder_name,
+            project_folder=course_folder_name,
             profile=profile_summary,
         )
 
@@ -80,13 +80,9 @@ async def run_lesson_generation_job(
             LessonModel.course_topic == topic,
             LessonModel.user_id == user.id,
         )
-        if project_id is not None:
+        if course_id is not None:
             existing_lesson_query = existing_lesson_query.filter(
-                LessonModel.project_id == project_id
-            )
-        else:
-            existing_lesson_query = existing_lesson_query.filter(
-                LessonModel.project_id.is_(None)
+                LessonModel.course_id == course_id
             )
 
         existing_lesson = existing_lesson_query.order_by(LessonModel.created_at.desc()).first()
@@ -101,7 +97,7 @@ async def run_lesson_generation_job(
                 course_topic=topic,
                 stage_json=stages_json,
                 user_id=user.id,
-                project_id=project_id,
+                course_id=course_id,
             )
             db.add(new_lesson)
 
@@ -139,7 +135,7 @@ async def run_remedial_generation_job(
     user_id: int,
     topic: str,
     node_id: str | None,
-    project_id: int | None,
+    course_id: int | None,
     failed_stages: list[dict],
     session_id: int | None = None,
 ):
@@ -202,7 +198,7 @@ async def run_remedial_generation_job(
                 LessonRemedialModel.user_id == user_id,
                 LessonRemedialModel.node_id == node_id,
                 LessonRemedialModel.course_topic == topic,
-                LessonRemedialModel.project_id == project_id,
+                LessonRemedialModel.course_id == course_id,
             )
             .first()
         )
@@ -213,7 +209,7 @@ async def run_remedial_generation_job(
         else:
             remedial_record = LessonRemedialModel(
                 user_id=user_id,
-                project_id=project_id,
+                course_id=course_id,
                 lesson_session_id=session_id,
                 node_id=node_id,
                 course_topic=topic,
