@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ApiError, apiFetch } from "@/lib/apiClient";
 import { ensureRetryableJob, fetchScopedActiveJob } from "@/lib/jobs/recovery";
 import { getJobCopy } from "@/lib/jobs/policy";
@@ -20,7 +20,7 @@ export type QuestionnaireJobType = "QUESTIONNAIRE_GEN" | "SYLLABUS_GEN" | null;
 
 export function useQuestionnaireFlow() {
   const router = useRouter();
-  const startedRef = useRef(false);
+  const searchParams = useSearchParams();
   const activeJobIdRef = useRef<string | null>(null);
   const hasNavigatedAwayRef = useRef(false);
 
@@ -39,6 +39,22 @@ export function useQuestionnaireFlow() {
   const clearPendingQuestionnaire = useCallback(() => {
     if (typeof window === "undefined") return;
     window.sessionStorage.removeItem("learn8_pending_questionnaire");
+  }, []);
+
+  const resetQuestionnaireState = useCallback(() => {
+    activeJobIdRef.current = null;
+    hasNavigatedAwayRef.current = false;
+    setProjectId(null);
+    setTopic("");
+    setQuestions([]);
+    setAnswers({});
+    setFreeText("");
+    setError("");
+    setJobProgress(0);
+    setJobMessage("");
+    setJobType(null);
+    setCanRetryGeneration(false);
+    setStep("answering");
   }, []);
 
   const connectQuestionnaireJob = useCallback(
@@ -88,8 +104,8 @@ export function useQuestionnaireFlow() {
         onFailed: (data) => {
           if (hasNavigatedAwayRef.current) return;
           activeJobIdRef.current = null;
-          clearPendingQuestionnaire();
           setCanRetryGeneration(false);
+          setStep("answering");
           setError(data.message || "Questionnaire generation failed.");
         },
         onCancelled: (data) => {
@@ -111,8 +127,8 @@ export function useQuestionnaireFlow() {
         onError: () => {
           if (hasNavigatedAwayRef.current) return;
           activeJobIdRef.current = null;
-          clearPendingQuestionnaire();
           setCanRetryGeneration(true);
+          setStep("answering");
           setError("Lost connection while generating questionnaire. Retry when the backend is back.");
         },
       });
@@ -182,7 +198,6 @@ export function useQuestionnaireFlow() {
         onStale: (data) => {
           if (hasNavigatedAwayRef.current) return;
           activeJobIdRef.current = null;
-          clearPendingQuestionnaire();
           setCanRetryGeneration(true);
           setStep("answering");
           setError(
@@ -192,7 +207,6 @@ export function useQuestionnaireFlow() {
         onError: () => {
           if (hasNavigatedAwayRef.current) return;
           activeJobIdRef.current = null;
-          clearPendingQuestionnaire();
           setCanRetryGeneration(true);
           setStep("answering");
           setError("Lost connection while forging syllabus. Retry when the backend is back.");
@@ -203,13 +217,12 @@ export function useQuestionnaireFlow() {
   );
 
   useEffect(() => {
-    if (startedRef.current || typeof window === "undefined") return;
-    startedRef.current = true;
+    if (typeof window === "undefined") return;
+
+    resetQuestionnaireState();
 
     const raw = window.sessionStorage.getItem("learn8_pending_questionnaire");
-    const projectIdFromQuery = new URLSearchParams(window.location.search).get(
-      "projectId"
-    );
+    const projectIdFromQuery = searchParams.get("projectId");
 
     const start = async () => {
       try {
@@ -308,7 +321,12 @@ export function useQuestionnaireFlow() {
     };
 
     void start();
-  }, [connectQuestionnaireJob, connectSyllabusJob]);
+  }, [
+    connectQuestionnaireJob,
+    connectSyllabusJob,
+    resetQuestionnaireState,
+    searchParams,
+  ]);
 
   const submitQuestionnaire = useCallback(async () => {
     if (!projectId) return;
@@ -427,31 +445,38 @@ export function useQuestionnaireFlow() {
   const retryGeneration = useCallback(async () => {
     if (!projectId || !jobType) return;
 
-    setError("");
-    setCanRetryGeneration(false);
+    try {
+      setError("");
+      setCanRetryGeneration(false);
 
-    const activeJob = await fetchScopedActiveJob({
-      jobType,
-      projectId,
-    });
+      const activeJob = await fetchScopedActiveJob({
+        jobType,
+        projectId,
+      });
 
-    if (!activeJob.job_id) {
-      setError("No retryable generation was found for this flow.");
-      return;
+      if (!activeJob.job_id) {
+        setError("No retryable generation was found for this flow.");
+        return;
+      }
+
+      const resumableJob = await ensureRetryableJob(activeJob);
+      if (!resumableJob.job_id) {
+        setError("This generation cannot be retried right now.");
+        return;
+      }
+
+      if (jobType === "QUESTIONNAIRE_GEN") {
+        connectQuestionnaireJob(resumableJob.job_id, projectId, topic);
+        return;
+      }
+
+      connectSyllabusJob(resumableJob.job_id, projectId);
+    } catch (err) {
+      setCanRetryGeneration(true);
+      setError(
+        err instanceof ApiError ? err.detail : "Failed to retry generation."
+      );
     }
-
-    const resumableJob = await ensureRetryableJob(activeJob);
-    if (!resumableJob.job_id) {
-      setError("This generation cannot be retried right now.");
-      return;
-    }
-
-    if (jobType === "QUESTIONNAIRE_GEN") {
-      connectQuestionnaireJob(resumableJob.job_id, projectId, topic);
-      return;
-    }
-
-    connectSyllabusJob(resumableJob.job_id, projectId);
   }, [
     connectQuestionnaireJob,
     connectSyllabusJob,
