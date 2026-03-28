@@ -10,6 +10,11 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "supersecretkey123"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 3000
+    AUTH_MAX_LOGIN_ATTEMPTS: int = 5
+    AUTH_LOCKOUT_MINUTES: int = 15
+    AUTH_MAX_RESET_REQUESTS_PER_HOUR: int = 3
+    AUTH_RESET_TOKEN_TTL_MINUTES: int = 30
+    AUTH_DEBUG_EXPOSE_RESET_TOKEN: bool = False
 
     # Database
     DATABASE_URL: str  # Required to be set in .env

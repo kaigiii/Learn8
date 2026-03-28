@@ -24,23 +24,26 @@ export function HomeCourseModal({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[120] flex items-center justify-center bg-brand-gray-700/30 px-4 backdrop-blur-sm"
+          transition={{ duration: 0.01 }}
+          className="fixed inset-0 z-[100] flex items-center justify-center px-4"
           onClick={() => {
             if (!courseModal.submitting) {
               setCourseModal(null);
             }
           }}
         >
+          <div className="absolute inset-0 bg-brand-gray-700/24 backdrop-blur-[4px]" />
           <motion.div
-            initial={{ opacity: 0, y: 14, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 8, scale: 0.98 }}
-            transition={{ duration: 0.18 }}
-            className="w-full max-w-md rounded-[28px] border border-white/70 bg-white/92 p-6 shadow-[0_24px_60px_rgba(31,41,55,0.22)]"
+            initial={{ opacity: 0, scale: 1 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1 }}
+            transition={{ duration: 0.01 }}
+            className="relative z-10 mx-4 w-full max-w-sm overflow-hidden rounded-2xl border border-white/40 bg-white/80 px-6 pb-5 pt-14 shadow-2xl ring-1 ring-white/20 backdrop-blur-xl"
             onClick={(event) => event.stopPropagation()}
           >
             {courseModal.type === "rename" ? (
               <>
+                <div className="absolute left-6 top-5 h-6 w-14 rounded-full bg-gradient-to-r from-teal-100 to-cyan-50 shadow-[0_10px_26px_rgba(97,163,184,0.18)]" />
                 <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.24em] text-brand-teal">
                   Rename {courseModal.renameTarget === "course" ? "Course" : "Draft"}
                 </p>
@@ -88,6 +91,7 @@ export function HomeCourseModal({
               </>
             ) : (
               <>
+                <div className="absolute left-6 top-5 h-6 w-14 rounded-full bg-gradient-to-r from-rose-100 to-orange-50 shadow-[0_10px_26px_rgba(232,121,149,0.2)]" />
                 <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.24em] text-rose-500">
                   Delete Course
                 </p>

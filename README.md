@@ -148,7 +148,6 @@ NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
 - `syllabus.py`
 - `lessons.py`
 - `jobs.py`
-- `system.py`
 
 ## AI Pipeline
 

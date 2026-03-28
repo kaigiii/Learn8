@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, DateTime, Integer, String
 from sqlalchemy.orm import relationship
 from app.db.base import Base
 
@@ -18,6 +18,10 @@ class UserModel(Base):
     job_title = Column(String, nullable=True)  # 例如 "Full Stack Developer"
     education_level = Column(String, nullable=True)  # 例如 "Bachelor's Degree"
     daily_learning_goal_minutes = Column(Integer, default=30)
+    failed_login_attempts = Column(Integer, default=0, nullable=False)
+    locked_until = Column(DateTime(timezone=True), nullable=True)
+    last_login_at = Column(DateTime(timezone=True), nullable=True)
+    password_changed_at = Column(DateTime(timezone=True), nullable=True)
 
     courses = relationship(
         "CourseModel",
@@ -57,6 +61,12 @@ class UserModel(Base):
     )
     generation_jobs = relationship(
         "JobModel",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    password_reset_tokens = relationship(
+        "PasswordResetTokenModel",
         back_populates="user",
         cascade="all, delete-orphan",
         passive_deletes=True,

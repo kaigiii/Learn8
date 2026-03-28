@@ -236,7 +236,6 @@ API 層，負責：
 - `syllabus.py`
 - `lessons.py`
 - `jobs.py`
-- `system.py`
 
 ### `backend/app/core/`
 
@@ -370,16 +369,6 @@ Pydantic schemas：
 - `/jobs/active`
 - `/jobs/{job_id}/retry`
 - `/jobs/{job_id}/cancel`
-
-### `system.py`
-
-用途：
-
-- 維護與除錯
-
-風險：
-
-- 含 reset database、clear files 這類高風險操作
 
 ## 8. AI / RAG / Workflow 層
 

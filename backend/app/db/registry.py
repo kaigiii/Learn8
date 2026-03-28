@@ -1,5 +1,6 @@
 from app.db.base import Base
 from app.models.user import UserModel
+from app.models.password_reset import PasswordResetTokenModel
 from app.models.course import CourseModel, NodeModel
 from app.models.lesson import (
     LessonAttempt,

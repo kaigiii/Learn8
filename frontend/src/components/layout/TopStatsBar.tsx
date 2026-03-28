@@ -86,7 +86,10 @@ export default function TopStatsBar({ backHref, pageTitle }: TopStatsBarProps = 
           </Link>
 
           {/* Profile badge */}
-          <div className="flex items-center gap-1.5">
+          <Link
+            href="/profile"
+            className="flex items-center gap-3 rounded-full px-2 py-1.5 transition hover:bg-white/55"
+          >
             <div className="h-8 min-w-8 rounded-full bg-gradient-to-br from-yellow-300 to-yellow-500 flex items-center justify-center shadow-md px-2">
               <span className="font-heading font-extrabold text-white text-[10px]">
                 {authUser?.full_name?.trim()?.slice(0, 1).toUpperCase() || "P"}
@@ -95,7 +98,7 @@ export default function TopStatsBar({ backHref, pageTitle }: TopStatsBarProps = 
             <span className="font-heading font-bold text-brand-gray-700 text-sm md:text-base hidden md:inline">
               {profileLabel}
             </span>
-          </div>
+          </Link>
         </div>
       </nav>
 
