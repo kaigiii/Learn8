@@ -36,7 +36,7 @@ export function StoreTierCard({
         onClick={onSelect}
       >
         <h3 className="mb-1 font-heading text-lg font-bold text-brand-gray-700">
-          {tier.label} ({tier.gems} 💎)
+          {tier.label}
         </h3>
 
         <div className="my-6 flex h-28 items-center justify-center">

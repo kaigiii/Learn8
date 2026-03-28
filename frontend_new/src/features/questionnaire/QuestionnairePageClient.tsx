@@ -38,6 +38,55 @@ export default function QuestionnairePageClient() {
     });
   }, [answers, questions]);
 
+  const isGenerationStep =
+    (step === "loading" || step === "forging") && !!jobType;
+
+  if (isGenerationStep) {
+    return (
+      <div className="relative min-h-dvh overflow-hidden bg-gradient-to-br from-[#edf7fb] via-[#c9e6f2] to-[#a3d5e8]">
+        <main className="relative z-10 flex min-h-dvh flex-1 flex-col">
+          <div className="flex flex-1 flex-col">
+            <ForgeStatus
+              error={error}
+              title={
+                step === "loading"
+                  ? "Generating your personalised questionnaire..."
+                  : jobType === "QUESTIONNAIRE_GEN"
+                    ? "Generating your personalised questionnaire..."
+                    : "Forging your personalised syllabus..."
+              }
+              subtitle={
+                step === "loading"
+                  ? "We are analysing your topic and preparing a short set of questions to shape the course path."
+                  : "Questionnaire received. Forging your personalised syllabus..."
+              }
+              statusMessage={jobMessage}
+              progress={jobProgress}
+              actions={
+                <>
+                  {canRetryGeneration && (
+                    <GameButton
+                      variant="secondary"
+                      onClick={() => void retryGeneration()}
+                    >
+                      {getJobRetryLabel()}
+                    </GameButton>
+                  )}
+                  <GameButton
+                    variant="secondary"
+                    onClick={() => void cancelGeneration()}
+                  >
+                    {getJobCancelLabel()}
+                  </GameButton>
+                </>
+              }
+            />
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="relative min-h-screen bg-gradient-to-br from-[#edf7fb] via-[#c9e6f2] to-[#a3d5e8]">
       <TopStatsBar backHref="/home" pageTitle="Questionnaire" />
@@ -57,73 +106,7 @@ export default function QuestionnairePageClient() {
                 background, pace, and practical goals before the course is forged.
               </p>
             </div>
-            <div className="rounded-2xl border border-white/60 bg-white/60 px-4 py-3 text-sm text-brand-gray-600 shadow-sm">
-              <span className="font-semibold text-brand-gray-700">
-                {questions.length}
-              </span>{" "}
-              prompts in this set
-            </div>
           </div>
-
-          {step === "loading" && jobType && (
-            <div className="space-y-4">
-              <ForgeStatus
-                title="Generating your personalised questionnaire..."
-                subtitle="We are analysing your topic and preparing a short set of questions to shape the course path."
-                statusMessage={jobMessage}
-                progress={jobProgress}
-                error={error}
-              />
-              <div className="flex justify-center gap-3">
-                {canRetryGeneration && (
-                  <GameButton
-                    variant="secondary"
-                    onClick={() => void retryGeneration()}
-                  >
-                    {getJobRetryLabel()}
-                  </GameButton>
-                )}
-                <GameButton
-                  variant="secondary"
-                  onClick={() => void cancelGeneration()}
-                >
-                  {getJobCancelLabel()}
-                </GameButton>
-              </div>
-            </div>
-          )}
-
-          {step === "forging" && (
-            <div className="space-y-4">
-              <ForgeStatus
-                error={error}
-                title={
-                  jobType === "QUESTIONNAIRE_GEN"
-                    ? "Generating your personalised questionnaire..."
-                    : "Forging your personalised syllabus..."
-                }
-                subtitle="Questionnaire received. Forging your personalised syllabus..."
-                statusMessage={jobMessage}
-                progress={jobProgress}
-              />
-              <div className="flex justify-center gap-3">
-                {canRetryGeneration && (
-                  <GameButton
-                    variant="secondary"
-                    onClick={() => void retryGeneration()}
-                  >
-                    {getJobRetryLabel()}
-                  </GameButton>
-                )}
-                <GameButton
-                  variant="secondary"
-                  onClick={() => void cancelGeneration()}
-                >
-                  {getJobCancelLabel()}
-                </GameButton>
-              </div>
-            </div>
-          )}
 
           {step === "answering" && questions.length > 0 && (
             <div className="space-y-6">

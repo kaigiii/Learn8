@@ -51,8 +51,8 @@ export interface UserActions {
   setName: (name: string) => void;
   setTitle: (title: string) => void;
   addXp: (amount: number) => void;
-  addGems: (amount: number) => void;
-  spendGems: (amount: number) => boolean;
+  addCredits: (amount: number) => void;
+  spendCredits: (amount: number) => boolean;
   incrementStreak: () => void;
   resetStreak: () => void;
   incrementCoursesCompleted: () => void;
@@ -124,81 +124,32 @@ function migratePersistedState(persistedState: unknown): UserState {
   }
 
   const raw = persistedState as Record<string, unknown>;
-  if ("identity" in raw || "progression" in raw || "wallet" in raw) {
-    return {
-      ...INITIAL_STATE,
-      ...raw,
-      identity: {
-        ...INITIAL_STATE.identity,
-        ...(raw.identity as Partial<UserIdentityState> | undefined),
-      },
-      progression: {
-        ...INITIAL_STATE.progression,
-        ...(raw.progression as Partial<UserProgressionState> | undefined),
-      },
-      wallet: {
-        ...INITIAL_STATE.wallet,
-        ...(raw.wallet as Partial<UserWalletState> | undefined),
-      },
-      navigation: {
-        ...INITIAL_STATE.navigation,
-        ...(raw.navigation as Partial<UserNavigationState> | undefined),
-      },
-      preferences: {
-        ...INITIAL_STATE.preferences,
-        ...(raw.preferences as Partial<UserPreferences> | undefined),
-      },
-      onboarding: {
-        ...INITIAL_STATE.onboarding,
-        ...(raw.onboarding as Partial<UserOnboardingState> | undefined),
-      },
-    };
-  }
-
   return {
+    ...INITIAL_STATE,
+    ...raw,
     identity: {
-      name: typeof raw.name === "string" ? raw.name : INITIAL_STATE.identity.name,
-      title: typeof raw.title === "string" ? raw.title : INITIAL_STATE.identity.title,
+      ...INITIAL_STATE.identity,
+      ...(raw.identity as Partial<UserIdentityState> | undefined),
     },
     progression: {
-      xp: typeof raw.xp === "number" ? raw.xp : INITIAL_STATE.progression.xp,
-      level: typeof raw.level === "number" ? raw.level : INITIAL_STATE.progression.level,
-      xpToNextLevel:
-        typeof raw.xpToNextLevel === "number"
-          ? raw.xpToNextLevel
-          : INITIAL_STATE.progression.xpToNextLevel,
-      streak:
-        typeof raw.streak === "number" ? raw.streak : INITIAL_STATE.progression.streak,
-      longestStreak:
-        typeof raw.longestStreak === "number"
-          ? raw.longestStreak
-          : INITIAL_STATE.progression.longestStreak,
-      coursesCompleted:
-        typeof raw.coursesCompleted === "number"
-          ? raw.coursesCompleted
-          : INITIAL_STATE.progression.coursesCompleted,
+      ...INITIAL_STATE.progression,
+      ...(raw.progression as Partial<UserProgressionState> | undefined),
     },
     wallet: {
-      credits: typeof raw.gems === "number" ? raw.gems : INITIAL_STATE.wallet.credits,
-      localSpentCredits: 0,
+      ...INITIAL_STATE.wallet,
+      ...(raw.wallet as Partial<UserWalletState> | undefined),
     },
     navigation: {
-      lastActiveCourseId:
-        typeof raw.lastActiveCourseId === "string" ? raw.lastActiveCourseId : null,
-      lastActiveNodeId:
-        typeof raw.lastActiveNodeId === "string" ? raw.lastActiveNodeId : null,
+      ...INITIAL_STATE.navigation,
+      ...(raw.navigation as Partial<UserNavigationState> | undefined),
     },
     preferences: {
       ...INITIAL_STATE.preferences,
       ...(raw.preferences as Partial<UserPreferences> | undefined),
     },
     onboarding: {
-      onboarded: Boolean(raw.onboarded),
-      selectedTopics: Array.isArray(raw.selectedTopics)
-        ? (raw.selectedTopics as string[])
-        : INITIAL_STATE.onboarding.selectedTopics,
-      dailyGoal:
-        typeof raw.dailyGoal === "string" ? raw.dailyGoal : INITIAL_STATE.onboarding.dailyGoal,
+      ...INITIAL_STATE.onboarding,
+      ...(raw.onboarding as Partial<UserOnboardingState> | undefined),
     },
   };
 }
@@ -244,7 +195,7 @@ const useUserStore = create<UserState & UserActions>()(
         }));
       },
 
-      addGems: (amount) =>
+      addCredits: (amount) =>
         set((state) => ({
           wallet: {
             credits: state.wallet.credits + amount,
@@ -252,7 +203,7 @@ const useUserStore = create<UserState & UserActions>()(
           },
         })),
 
-      spendGems: (amount) => {
+      spendCredits: (amount) => {
         const state = get();
         if (getEffectiveCredits(state.wallet) < amount) {
           return false;
@@ -347,7 +298,7 @@ const useUserStore = create<UserState & UserActions>()(
     }),
     {
       name: "learn8-user",
-      version: 2,
+      version: 3,
       migrate: (persistedState) => migratePersistedState(persistedState),
     }
   )

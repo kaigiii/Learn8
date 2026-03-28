@@ -74,7 +74,7 @@ export default function TopStatsBar({ backHref, pageTitle }: TopStatsBarProps = 
             </span>
           </div>
 
-          {/* Gems */}
+          {/* Credits */}
           <Link
             href="/store"
             className="flex items-center gap-1.5 hover:opacity-80 transition"

@@ -18,7 +18,7 @@ interface UseArenaStageFlowParams {
   matchPairs: { left: string; right: string }[];
   stageIdx: number;
   totalStages: number;
-  spendGems: (amount: number) => boolean;
+  spendCredits: (amount: number) => boolean;
   onCorrect: () => void;
   onIncorrect: () => void;
   onHintUsed: () => void;
@@ -34,7 +34,7 @@ export function useArenaStageFlow({
   matchPairs,
   stageIdx,
   totalStages,
-  spendGems,
+  spendCredits,
   onCorrect,
   onIncorrect,
   onHintUsed,
@@ -91,7 +91,7 @@ export function useArenaStageFlow({
       matchingStage.markIncorrectFeedback();
     },
     onHintUse: () => {
-      const canAfford = spendGems(10);
+      const canAfford = spendCredits(10);
       if (canAfford) {
         onHintUsed();
       }
@@ -121,12 +121,12 @@ export function useArenaStageFlow({
   );
 
   const useHint = useCallback(() => {
-    const canAfford = spendGems(10);
+    const canAfford = spendCredits(10);
     if (canAfford) {
       onHintUsed();
     }
     return canAfford;
-  }, [onHintUsed, spendGems]);
+  }, [onHintUsed, spendCredits]);
 
   return {
     matchingStage,

@@ -230,9 +230,11 @@ class ActivityLogger:
     # ==================== CREDITS ====================
 
     @staticmethod
-    def log_credits_topup(user_id: int, user_email: str, amount: int, new_balance: int):
+    def log_credits_top_up(
+        user_id: int, user_email: str, amount: int, new_balance: int
+    ):
         activity_logger.info(
-            f"CREDITS_TOPUP | {ActivityLogger._format_user(user_id, user_email)} topped up {amount} credits | New balance: {new_balance}"
+            f"CREDITS_TOP_UP | {ActivityLogger._format_user(user_id, user_email)} topped up {amount} credits | New balance: {new_balance}"
         )
 
     @staticmethod

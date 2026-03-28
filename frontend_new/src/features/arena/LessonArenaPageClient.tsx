@@ -2,13 +2,14 @@
 
 import React, { useState, useCallback, useMemo } from "react";
 import { AnimatePresence } from "framer-motion";
+import ForgeStatus from "@/components/feedback/ForgeStatus";
+import GameButton from "@/components/ui/GameButton";
 import TopProgressBar from "@/components/ui/TopProgressBar";
 import { useProjectStore } from "@/stores/app/useProjectStore";
 import useUserStore from "@/stores/app/useUserStore";
 import useArenaStore from "@/stores/session/useArenaStore";
 import { ArenaChatPanel } from "./components/ArenaChatPanel";
 import { ArenaFeedbackOverlay } from "./components/ArenaFeedbackOverlay";
-import { ArenaPageSkeleton } from "./components/ArenaPageSkeleton";
 import { ArenaStageRenderer } from "./components/ArenaStageRenderer";
 import { ArenaStatusPanel } from "./components/ArenaStatusPanel";
 import { useArenaStageFlow } from "./hooks/useArenaStageFlow";
@@ -43,7 +44,7 @@ export default function LessonArenaPageClient({
   const arenaHintsUsed = useArenaStore((s) => s.hintsUsed);
 
   // User store
-  const spendGems = useUserStore((s) => s.spendGems);
+  const spendCredits = useUserStore((s) => s.spendCredits);
   const setLastActiveNode = useUserStore((s) => s.setLastActiveNode);
 
   const [stageIdx, setStageIdx] = useState(0);
@@ -130,7 +131,7 @@ export default function LessonArenaPageClient({
       matchPairs,
       stageIdx,
       totalStages,
-      spendGems,
+      spendCredits,
       onCorrect: () => {
         arenaMarkCorrect();
         arenaTriggerConfetti();
@@ -157,6 +158,11 @@ export default function LessonArenaPageClient({
   const shouldRenderArenaSkeleton =
     (!backendStage && hasPendingStatusFlow && !shouldRenderStatusPanel && !backendError) ||
     awaitingSessionStart;
+  const shouldRenderImmersiveStatus =
+    shouldRenderStatusPanel ||
+    shouldRenderArenaSkeleton ||
+    !!sessionError ||
+    !!backendError;
 
   if (!isBackendLesson) {
     return (
@@ -167,6 +173,85 @@ export default function LessonArenaPageClient({
             Invalid lesson route.
           </div>
         </div>
+      </div>
+    );
+  }
+
+  if (shouldRenderImmersiveStatus) {
+    return (
+      <div className="relative min-h-dvh overflow-hidden bg-gradient-to-br from-[#edf7fb] via-[#c9e6f2] to-[#a3d5e8]">
+        <main className="relative z-10 flex min-h-dvh flex-1 flex-col">
+          <div className="flex flex-1 flex-col">
+            {shouldRenderStatusPanel ? (
+              <ArenaStatusPanel
+                phaseTransitionError={phaseTransitionError}
+                phaseTransitionLoading={phaseTransitionLoading}
+                phaseTransitionMessage={phaseTransitionMessage}
+                hasPendingNavigation={
+                  !!lessonSession && (!isSessionInteractive || isNavigatingToResult)
+                }
+                backendJobMessage={backendJobMessage}
+                backendJobProgress={backendJobProgress}
+                activePhase={activePhase}
+                onRetry={() => void retryPhaseTransition()}
+                onExit={handleExitLesson}
+                onCancelGeneration={() => void cancelGeneration()}
+              />
+            ) : shouldRenderArenaSkeleton ? (
+              <ForgeStatus
+                title="Preparing your lesson..."
+                subtitle="Loading the stage flow and reconnecting to the lesson session."
+                statusMessage={
+                  backendJobMessage ||
+                  (sessionLoading
+                    ? "Starting lesson session..."
+                    : "Preparing lesson experience...")
+                }
+                progress={backendLoading ? backendJobProgress : undefined}
+                actions={
+                  backendLoading ? (
+                    <GameButton
+                      variant="secondary"
+                      onClick={() => void cancelGeneration()}
+                    >
+                      Cancel
+                    </GameButton>
+                  ) : undefined
+                }
+              />
+            ) : sessionError ? (
+              <ForgeStatus
+                error={sessionError}
+                title="Lesson session interrupted"
+                subtitle="We couldn't prepare this lesson session. You can retry or exit back to the map."
+                actions={
+                  <>
+                    <GameButton
+                      variant="secondary"
+                      onClick={() => void retrySessionStart()}
+                    >
+                      Retry
+                    </GameButton>
+                    <GameButton variant="primary" onClick={handleExitLesson}>
+                      Exit
+                    </GameButton>
+                  </>
+                }
+              />
+            ) : (
+              <ForgeStatus
+                error={backendError}
+                title="Lesson generation interrupted"
+                subtitle="This lesson couldn't be generated right now. Return to the map and try again from the node."
+                actions={
+                  <GameButton variant="primary" onClick={handleExitLesson}>
+                    Exit
+                  </GameButton>
+                }
+              />
+            )}
+          </div>
+        </main>
       </div>
     );
   }
@@ -193,56 +278,7 @@ export default function LessonArenaPageClient({
       <div className="flex-1 flex gap-8 px-8 pb-4 w-full min-h-0">
         {/* ── Left: Question + Match Grid ── */}
         <div className="flex-1 flex flex-col min-w-0 min-h-0">
-          {shouldRenderStatusPanel ? (
-              <ArenaStatusPanel
-                phaseTransitionError={phaseTransitionError}
-                phaseTransitionLoading={phaseTransitionLoading}
-                phaseTransitionMessage={phaseTransitionMessage}
-                hasPendingNavigation={
-                  !!lessonSession && (!isSessionInteractive || isNavigatingToResult)
-                }
-                backendJobMessage={backendJobMessage}
-                backendJobProgress={backendJobProgress}
-                activePhase={activePhase}
-                onRetry={() => void retryPhaseTransition()}
-                onExit={handleExitLesson}
-                onCancelGeneration={() => void cancelGeneration()}
-              />
-            ) : shouldRenderArenaSkeleton ? (
-              <ArenaPageSkeleton />
-            ) : sessionError ? (
-              <div className="flex flex-1 items-center justify-center">
-                <div className="w-full max-w-lg rounded-3xl bg-white/80 px-8 py-6 text-center shadow-lg">
-                  <p className="font-heading text-lg font-bold text-rose-500">
-                    {sessionError}
-                  </p>
-                  <div className="mt-5 flex items-center justify-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => void retrySessionStart()}
-                      className="rounded-2xl border border-brand-teal/20 bg-brand-teal px-4 py-2 text-sm font-semibold text-white shadow"
-                    >
-                      Retry
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleExitLesson}
-                      className="rounded-2xl border border-brand-gray-200 bg-white px-4 py-2 text-sm font-semibold text-brand-gray-600 shadow-sm"
-                    >
-                      Exit
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : backendError ? (
-              <div className="flex flex-1 items-center justify-center">
-                <div className="rounded-3xl bg-white/80 px-8 py-6 text-center shadow-lg">
-                  <p className="font-heading text-lg font-bold text-rose-500">
-                    {backendError}
-                  </p>
-                </div>
-              </div>
-            ) : backendStage ? (
+          {backendStage ? (
               <ArenaStageRenderer
                 stage={backendStage}
                 lesson={{

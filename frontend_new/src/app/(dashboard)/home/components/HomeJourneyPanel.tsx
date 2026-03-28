@@ -30,18 +30,15 @@ export function HomeJourneyPanel({
   activeProgress,
 }: HomeJourneyPanelProps) {
   return (
-    <DeepGlassCard className="h-full min-h-[360px] px-6 py-6 md:px-8 md:py-8">
+    <DeepGlassCard className="h-full min-h-[360px] px-6 py-6 md:px-7 md:py-7">
       <div className="flex h-full flex-col">
         <h2 className="mb-1 font-heading text-2xl font-extrabold text-brand-gray-700 md:text-3xl">
           Welcome back, {name}!
         </h2>
         <p className="mb-5 text-sm text-brand-gray-400">Continue your journey</p>
-        {currentProject && (
-          <p className="mb-4 text-xs text-brand-gray-500">Project: {currentProject.name}</p>
-        )}
 
         {hasResumeCourse ? (
-          <div className="flex flex-1 items-start gap-5">
+          <div className="flex flex-1 items-start gap-5 rounded-2xl border border-[#9ecbd4]/18 bg-white/46 p-4 shadow-[0_12px_30px_rgba(97,163,184,0.10)] backdrop-blur-sm">
             <div
                 className={`shrink-0 flex h-32 w-28 items-center justify-center rounded-xl bg-gradient-to-br ${
                 HOME_COURSE_CARD_GRADIENTS[
@@ -71,7 +68,7 @@ export function HomeJourneyPanel({
             </div>
           </div>
         ) : (
-          <div className="flex flex-1 flex-col">
+          <div className="flex flex-1 flex-col rounded-2xl border border-[#9ecbd4]/18 bg-white/46 p-4 shadow-[0_12px_30px_rgba(97,163,184,0.10)] backdrop-blur-sm">
             <p className="text-sm text-brand-gray-400">
               No generated course for this project yet.
             </p>
