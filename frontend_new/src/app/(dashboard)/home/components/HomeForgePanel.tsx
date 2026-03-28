@@ -39,7 +39,7 @@ export function HomeForgePanel({
   onRemoveProjectFile,
 }: HomeForgePanelProps) {
   return (
-    <DeepGlassCard className="relative h-full min-h-[360px] rounded-3xl border border-white/40 bg-white/60 px-6 py-6 shadow-2xl ring-1 ring-white/20 backdrop-blur-xl md:px-7 md:py-7">
+    <DeepGlassCard className="relative h-full min-h-[360px] px-6 py-6 md:px-7 md:py-7">
       <div className="flex h-full flex-col">
         <input
           ref={fileInputRef}
@@ -108,8 +108,8 @@ export function HomeForgePanel({
           </AnimatePresence>
         </motion.div>
 
-        <div className="mt-4 space-y-3 rounded-2xl border border-white/60 bg-white/55 p-4 backdrop-blur-sm">
-          <div className="rounded-2xl border border-white/70 bg-white/70 px-4 py-3">
+        <div className="mt-4 space-y-3 rounded-2xl border border-[#9ecbd4]/18 bg-white/46 p-4 shadow-[0_12px_30px_rgba(97,163,184,0.10)] backdrop-blur-sm">
+          <div className="rounded-2xl border border-[#9ecbd4]/18 bg-white/62 px-4 py-3">
             <p className="mb-3 text-sm font-semibold text-brand-gray-700">Files</p>
 
             {fileActionMessage && (

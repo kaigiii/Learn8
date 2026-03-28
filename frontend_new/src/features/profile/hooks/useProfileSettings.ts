@@ -69,7 +69,7 @@ export function useProfileSettings(onClose: () => void) {
     setError("");
     try {
       const profile = await apiFetch<UserProfile>(
-        `/auth/credits/topup?amount=${amount}`,
+        `/auth/credits/top-up?amount=${amount}`,
         { method: "POST" }
       );
       syncPersistedProfile(profile);

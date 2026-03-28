@@ -11,11 +11,11 @@ export default function DeepGlassCard({
 }: DeepGlassCardProps) {
   return (
     <div
-      className={`relative rounded-3xl border border-white/40 bg-white/60 backdrop-blur-xl shadow-2xl ring-1 ring-white/20 ${className}`}
+      className={`relative rounded-3xl border border-[#9ecbd4]/20 bg-white/56 backdrop-blur-xl shadow-[0_24px_70px_rgba(97,163,184,0.16)] ${className}`}
       {...props}
     >
       {/* Inner highlight edge */}
-      <div className="pointer-events-none absolute inset-0 rounded-3xl bg-gradient-to-br from-white/30 via-transparent to-transparent" />
+      <div className="pointer-events-none absolute inset-0 rounded-3xl bg-gradient-to-br from-white/18 via-transparent to-transparent" />
       <div className="relative z-10">{children}</div>
     </div>
   );

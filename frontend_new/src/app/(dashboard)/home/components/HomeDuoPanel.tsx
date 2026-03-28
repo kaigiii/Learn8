@@ -22,7 +22,7 @@ export function HomeDuoPanel() {
           </div>
         </div>
 
-        <div className="flex-1 rounded-2xl border border-white/60 bg-white/55 p-4 backdrop-blur-sm">
+        <div className="flex-1 rounded-2xl border border-[#9ecbd4]/18 bg-white/46 p-4 shadow-[0_12px_30px_rgba(97,163,184,0.10)] backdrop-blur-sm">
           <p className="text-sm leading-relaxed text-brand-gray-500">
             Use this entry when you want the deployed two-player mode. It stays separate from the Learn8 backend flow.
           </p>

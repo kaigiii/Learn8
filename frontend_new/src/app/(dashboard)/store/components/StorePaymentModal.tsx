@@ -18,20 +18,20 @@ export function StorePaymentModal({
   const [processing, setProcessing] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
-  const addGems = useUserStore((state) => state.addGems);
+  const addCredits = useUserStore((state) => state.addCredits);
 
   const handlePay = async () => {
     setProcessing(true);
     setError("");
     try {
-      if (tier.gems > 0) {
+      if (tier.credits > 0) {
         const profile = await apiFetch<UserProfile>(
-          `/auth/credits/topup?amount=${tier.gems}`,
+          `/auth/credits/top-up?amount=${tier.credits}`,
           { method: "POST" }
         );
         syncPersistedProfile(profile);
       } else {
-        addGems(0);
+        addCredits(0);
       }
       setDone(true);
     } catch (err) {

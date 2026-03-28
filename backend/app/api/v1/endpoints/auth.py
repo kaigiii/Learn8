@@ -137,8 +137,8 @@ def delete_user_me(
     return
 
 
-@router.post("/credits/topup", response_model=UserResponse)
-def top_up_credits(
+@router.post("/credits/top-up", response_model=UserResponse)
+def top_up_user_credits(
     amount: int = 100,
     current_user: UserModel = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -147,7 +147,7 @@ def top_up_credits(
     db.commit()
     db.refresh(current_user)
 
-    ActivityLogger.log_credits_topup(
+    ActivityLogger.log_credits_top_up(
         current_user.id, current_user.email, amount, current_user.credits
     )
     return current_user

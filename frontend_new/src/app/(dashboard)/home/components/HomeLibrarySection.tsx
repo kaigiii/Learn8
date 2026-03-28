@@ -95,10 +95,10 @@ export function HomeLibrarySection({
                       submitting: false,
                     });
                   }}
-                  className="flex h-9 w-9 items-center justify-center rounded-full border border-white/70 bg-white/85 text-brand-gray-600 shadow-md backdrop-blur hover:bg-white"
+                  className="flex h-7 w-7 items-center justify-center rounded-full bg-[#eef6f8]/72 text-brand-gray-600 shadow-[0_6px_16px_rgba(97,163,184,0.12)] backdrop-blur transition hover:bg-[#f7fbfc]"
                   aria-label="Rename project"
                 >
-                  <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M12 20h9" />
                     <path d="M16.5 3.5a2.1 2.1 0 113 3L7 19l-4 1 1-4z" />
                   </svg>
@@ -113,10 +113,10 @@ export function HomeLibrarySection({
                       submitting: false,
                     });
                   }}
-                  className="flex h-9 w-9 items-center justify-center rounded-full border border-white/70 bg-white/85 text-rose-500 shadow-md backdrop-blur hover:bg-white"
+                  className="flex h-7 w-7 items-center justify-center rounded-full bg-rose-50/78 text-rose-500 shadow-[0_6px_16px_rgba(244,114,182,0.12)] backdrop-blur transition hover:bg-rose-50"
                   aria-label="Delete project"
                 >
-                  <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M3 6h18" />
                     <path d="M8 6V4h8v2" />
                     <path d="M19 6l-1 14H6L5 6" />
@@ -130,7 +130,7 @@ export function HomeLibrarySection({
                 <div
                   className={`flex h-36 items-center justify-center rounded-2xl bg-gradient-to-br shadow-md transition-all hover:shadow-lg md:h-44 ${gradient} ${
                     item.kind === "draft"
-                      ? "ring-2 ring-white/70 ring-offset-2 ring-offset-transparent"
+                      ? "border border-[#9ecbd4]/28 shadow-[0_14px_34px_rgba(97,163,184,0.16)]"
                       : ""
                   }`}
                 >
@@ -142,9 +142,6 @@ export function HomeLibrarySection({
                   </p>
                   <p className="truncate text-sm font-semibold text-brand-gray-600">
                     {item.title}
-                  </p>
-                  <p className="truncate text-xs text-brand-gray-400">
-                    {item.subtitle}
                   </p>
                 </div>
               </Link>
