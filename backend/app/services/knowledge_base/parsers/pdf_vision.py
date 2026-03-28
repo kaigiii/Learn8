@@ -21,7 +21,7 @@ class VisionPDFParser:
         file_path: str,
         max_chars: int = None,
         user_id: int = None,
-        project_folder: str = None,
+        course_folder: str = None,
     ) -> str:
         from app.services.commons.file_service import FileService
 
@@ -52,9 +52,9 @@ class VisionPDFParser:
                     }
                 ]
 
-                if image_list and user_id and project_folder:
+                if image_list and user_id and course_folder:
                     images_dir = os.path.join(
-                        FileService().get_upload_dir(user_id, project_folder), "images"
+                        FileService().get_upload_dir(user_id, course_folder), "images"
                     )
                     os.makedirs(images_dir, exist_ok=True)
 
@@ -78,7 +78,7 @@ class VisionPDFParser:
                         with open(img_path, "wb") as f:
                             f.write(image_bytes)
 
-                        img_url = f"/api/v1/courses/files/images/{user_id}/{project_folder}/{img_filename}"
+                        img_url = f"/api/v1/courses/files/images/{user_id}/{course_folder}/{img_filename}"
                         b64_img = base64.b64encode(image_bytes).decode("utf-8")
 
                         content_parts.append(
@@ -119,5 +119,5 @@ class VisionPDFParser:
                 f"Falling back to BasicPDFParser for {file_path} due to error."
             )
             return await BasicPDFParser().parse_async(
-                file_path, max_chars, user_id, project_folder
+                file_path, max_chars, user_id, course_folder
             )

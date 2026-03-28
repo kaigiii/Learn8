@@ -713,7 +713,7 @@ async def respond_to_lesson_question(
         if session and session.course_id is not None
         else request.courseId
     )
-    project_folder, learner_profile_summary = _resolve_course_folder_and_profile(
+    course_folder, learner_profile_summary = _resolve_course_folder_and_profile(
         db, resolved_course_id, current_user.id
     )
 
@@ -734,7 +734,7 @@ async def respond_to_lesson_question(
         current_stage=request.currentStage,
         conversation=[message.model_dump() for message in request.conversation],
         user_id=current_user.id,
-        project_folder=project_folder,
+        course_folder=course_folder,
         learner_profile_summary=learner_profile_summary,
     )
     return LessonAssistantResponse(answer=answer)

@@ -40,13 +40,13 @@ class AIArchitectService:
         current_syllabus: CoursePath,
         user_feedback: str,
         user_id: Optional[int] = None,
-        project_folder: Optional[str] = None,
+        course_folder: Optional[str] = None,
     ) -> Optional[CoursePath]:
         # 準備上下文檔案
-        files = self.file_service.list_files(user_id, project_folder) if user_id else []
+        files = self.file_service.list_files(user_id, course_folder) if user_id else []
         if files:
             full_paths = [
-                self.file_service.get_upload_dir(user_id, project_folder) + "/" + f
+                self.file_service.get_upload_dir(user_id, course_folder) + "/" + f
                 for f in files
             ]
             self.provider.bind_files(full_paths)
@@ -77,7 +77,7 @@ class AIArchitectService:
         node: LessonNode,
         topic: str,
         user_id: Optional[int] = None,
-        project_folder: Optional[str] = None,
+        course_folder: Optional[str] = None,
         profile: str = "General Learner",
     ) -> List[LessonStage]:
 
@@ -91,10 +91,10 @@ class AIArchitectService:
 
         # 2. 綁定本地專案檔案
         if user_id:
-            files = self.file_service.list_files(user_id, project_folder)
+            files = self.file_service.list_files(user_id, course_folder)
             if files:
                 full_paths = [
-                    self.file_service.get_upload_dir(user_id, project_folder) + "/" + f
+                    self.file_service.get_upload_dir(user_id, course_folder) + "/" + f
                     for f in files
                 ]
                 self.provider.bind_files(full_paths)
@@ -214,7 +214,7 @@ class AIArchitectService:
         current_stage: Optional[LessonStage] = None,
         conversation: Optional[List[dict]] = None,
         user_id: Optional[int] = None,
-        project_folder: Optional[str] = None,
+        course_folder: Optional[str] = None,
         learner_profile_summary: str = "",
     ) -> str:
         retrieval_query = " | ".join(
@@ -234,11 +234,11 @@ class AIArchitectService:
             else "No additional vector context found for this lesson."
         )
 
-        if user_id and project_folder:
-            files = self.file_service.list_files(user_id, project_folder)
+        if user_id and course_folder:
+            files = self.file_service.list_files(user_id, course_folder)
             if files:
                 full_paths = [
-                    self.file_service.get_upload_dir(user_id, project_folder) + "/" + f
+                    self.file_service.get_upload_dir(user_id, course_folder) + "/" + f
                     for f in files
                 ]
                 self.provider.bind_files(full_paths)
