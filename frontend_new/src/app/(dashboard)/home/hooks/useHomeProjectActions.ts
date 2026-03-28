@@ -3,7 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError, apiFetch } from "@/lib/apiClient";
-import type { CourseListItem, CoursePath, DraftData, Project } from "@/lib/apiTypes";
+import type { CourseListItem, DraftData, Project } from "@/lib/apiTypes";
 import type { ProjectModalState } from "../types";
 
 interface UseHomeProjectActionsParams {

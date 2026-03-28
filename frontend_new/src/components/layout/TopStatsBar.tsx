@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import ProfileSettingsDialog from "@/features/profile/ProfileSettingsDialog";
 import { useAuthStore } from "@/stores/app/useAuthStore";
-import useUserStore from "@/stores/app/useUserStore";
+import useUserStore, { selectAvailableCredits } from "@/stores/app/useUserStore";
 
 interface TopStatsBarProps {
   backHref?: string;
@@ -14,8 +14,8 @@ interface TopStatsBarProps {
 export default function TopStatsBar({ backHref, pageTitle }: TopStatsBarProps = {}) {
   const [profileOpen, setProfileOpen] = useState(false);
   const authUser = useAuthStore((s) => s.user);
-  const { gems } = useUserStore();
-  const creditBalance = authUser?.credits ?? gems;
+  const availableCredits = useUserStore(selectAvailableCredits);
+  const creditBalance = authUser?.credits ?? availableCredits;
   const goalLabel = authUser?.daily_learning_goal_minutes
     ? `${authUser.daily_learning_goal_minutes} min/day`
     : "Set Goal";

@@ -1,31 +1,21 @@
 "use client";
 
-import dynamic from "next/dynamic";
-import { getFeynmanSubmitResult, StageComponentLoading } from "./shared";
+import FeynmanQuestion from "@/components/arena/FeynmanQuestion";
+import { getFeynmanSubmitResult } from "./shared";
 import type { ArenaStagePlugin, ArenaStageRendererProps } from "./types";
-
-const FeynmanQuestion = dynamic(
-  () => import("@/components/arena/FeynmanQuestion"),
-  { loading: () => <StageComponentLoading /> }
-);
 
 export function renderFeynmanStage({
   stage,
-  stageIdx,
-  totalStages,
-  nodeDescription,
-  onSubmitStage,
-  onSkipStage,
-  onContinue,
-  onHintUse,
+  lesson,
+  actions,
 }: ArenaStageRendererProps) {
   return (
     <FeynmanQuestion
-      key={`backend-feynman-${stageIdx}`}
-      stageIndex={stageIdx}
-      totalStages={totalStages}
+      key={`backend-feynman-${lesson.stageIdx}`}
+      stageIndex={lesson.stageIdx}
+      totalStages={lesson.totalStages}
       topic={stage.topic}
-      description={nodeDescription}
+      description={lesson.nodeDescription}
       prompt={String((stage.config.data as { prompt?: string }).prompt || stage.topic)}
       sampleAnswer={String((stage.config.data as { sampleAnswer?: string }).sampleAnswer || "")}
       feedbackMsg={{
@@ -35,32 +25,28 @@ export function renderFeynmanStage({
       }}
       onSubmit={async (answer) =>
         getFeynmanSubmitResult(
-          await onSubmitStage(stage, { explanation: answer })
+          await actions.onSubmitStage(stage, { explanation: answer })
         )
       }
-      onContinue={onContinue}
-      onSkip={() => void onSkipStage(stage)}
-      onHintUse={onHintUse}
+      onContinue={actions.onContinue}
+      onSkip={() => void actions.onSkipStage(stage)}
+      onHintUse={actions.onHintUse}
     />
   );
 }
 
 export function renderUnsupportedStage({
   stage,
-  stageIdx,
-  totalStages,
-  nodeDescription,
-  onSubmitStage,
-  onContinue,
-  onHintUse,
+  lesson,
+  actions,
 }: ArenaStageRendererProps) {
   return (
     <FeynmanQuestion
-      key={`backend-stage-${stageIdx}`}
-      stageIndex={stageIdx}
-      totalStages={totalStages}
+      key={`backend-stage-${lesson.stageIdx}`}
+      stageIndex={lesson.stageIdx}
+      totalStages={lesson.totalStages}
       topic={stage.topic}
-      description={nodeDescription}
+      description={lesson.nodeDescription}
       prompt={String((stage.config.data as { prompt?: string }).prompt || stage.topic)}
       sampleAnswer={String((stage.config.data as { sampleAnswer?: string }).sampleAnswer || "")}
       feedbackMsg={{
@@ -70,11 +56,11 @@ export function renderUnsupportedStage({
       }}
       onSubmit={async (answer) =>
         getFeynmanSubmitResult(
-          await onSubmitStage(stage, { explanation: answer })
+          await actions.onSubmitStage(stage, { explanation: answer })
         )
       }
-      onContinue={onContinue}
-      onHintUse={onHintUse}
+      onContinue={actions.onContinue}
+      onHintUse={actions.onHintUse}
     />
   );
 }

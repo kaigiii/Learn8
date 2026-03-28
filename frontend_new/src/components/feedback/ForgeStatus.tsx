@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { clampJobProgress, formatJobProgressLabel } from "@/lib/jobs/presentation";
 
 const STEPS = [
   "Scanning document...",
@@ -29,8 +30,7 @@ export default function ForgeStatus({
   const [stepIdx, setStepIdx] = useState(0);
   const [charIdx, setCharIdx] = useState(0);
   const hasLiveStatus = typeof progress === "number" || !!statusMessage;
-  const safeProgress =
-    typeof progress === "number" ? Math.max(0, Math.min(progress, 100)) : null;
+  const safeProgress = typeof progress === "number" ? clampJobProgress(progress) : null;
   const displayedTitle = error
     ? "Generation interrupted"
     : title || "Forging your learning universe...";
@@ -149,7 +149,7 @@ export default function ForgeStatus({
 
         {safeProgress !== null && !error && (
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-brand-teal/80">
-            {Math.round(safeProgress)}% complete
+            {formatJobProgressLabel(safeProgress)}
           </p>
         )}
       </div>

@@ -7,6 +7,7 @@ import DeepGlassCard from "@/components/ui/DeepGlassCard";
 import GameButton from "@/components/ui/GameButton";
 import MascotHint from "@/components/ui/MascotHint";
 import { ApiError, apiFetch } from "@/lib/apiClient";
+import { syncPersistedProfile } from "@/lib/auth/profileSync";
 import type { UserProfile } from "@/lib/apiTypes";
 import { useAuthStore } from "@/stores/app/useAuthStore";
 import useUserStore from "@/stores/app/useUserStore";
@@ -55,8 +56,6 @@ const slideVariants = {
 export default function WelcomeOnboardingPageClient() {
   const router = useRouter();
   const token = useAuthStore((s) => s.token);
-  const updateUser = useAuthStore((s) => s.updateUser);
-  const syncFromProfile = useUserStore((s) => s.syncFromProfile);
   const completeOnboarding = useUserStore((s) => s.completeOnboarding);
   const [step, setStep] = useState(0);
   const [direction, setDirection] = useState(1);
@@ -109,8 +108,7 @@ export default function WelcomeOnboardingPageClient() {
             daily_learning_goal_minutes: goalToMinutes(selectedGoal),
           }),
         });
-        updateUser(profile);
-        syncFromProfile(profile);
+        syncPersistedProfile(profile);
       }
       router.push("/home");
     } catch (err) {

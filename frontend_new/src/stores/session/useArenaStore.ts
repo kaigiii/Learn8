@@ -7,6 +7,8 @@ export interface ArenaState {
   nodeId: string | null;
   courseId: string | null;
   totalStages: number;
+  rewardEligible: boolean;
+  resumedSession: boolean;
   currentStageIndex: number;
   /* ── Stage state ── */
   isCorrect: boolean | null;
@@ -29,6 +31,8 @@ export interface ArenaActions {
     nodeId: string;
     courseId: string;
     totalStages: number;
+    rewardEligible?: boolean;
+    resumedSession?: boolean;
   }) => void;
   endSession: () => void;
   /* ── Stage progression ── */
@@ -55,6 +59,8 @@ const INITIAL_STATE: ArenaState = {
   nodeId: null,
   courseId: null,
   totalStages: 0,
+  rewardEligible: true,
+  resumedSession: false,
   currentStageIndex: 0,
   isCorrect: null,
   showFeedback: false,
@@ -69,16 +75,24 @@ const INITIAL_STATE: ArenaState = {
 
 /* ═══════════════════ Store ═══════════════════ */
 
-const useArenaStore = create<ArenaState & ArenaActions>()((set, get) => ({
+const useArenaStore = create<ArenaState & ArenaActions>()((set) => ({
   ...INITIAL_STATE,
 
   /* ── Session lifecycle ── */
-  startSession: ({ nodeId, courseId, totalStages }) =>
+  startSession: ({
+    nodeId,
+    courseId,
+    totalStages,
+    rewardEligible = true,
+    resumedSession = false,
+  }) =>
     set({
       ...INITIAL_STATE,
       nodeId,
       courseId,
       totalStages,
+      rewardEligible,
+      resumedSession,
       startTime: Date.now(),
     }),
 
@@ -148,11 +162,32 @@ export function getElapsedTime(state: ArenaState): string {
 
 /** Derived: compute XP gained */
 export function getXpGained(state: ArenaState): number {
+  if (!state.rewardEligible) return 0;
   const accuracy = getAccuracy(state);
   const baseXp = 30;
   const bonus = Math.floor((accuracy / 100) * 20);
   const hintPenalty = state.hintsUsed * 5;
   return Math.max(10, baseXp + bonus - hintPenalty);
+}
+
+export function selectArenaSessionIdentity(state: ArenaState) {
+  return {
+    courseId: state.courseId,
+    nodeId: state.nodeId,
+    totalStages: state.totalStages,
+    rewardEligible: state.rewardEligible,
+    resumedSession: state.resumedSession,
+    startTime: state.startTime,
+    endTime: state.endTime,
+  };
+}
+
+export function selectArenaScoreState(state: ArenaState) {
+  return {
+    correctCount: state.correctCount,
+    incorrectCount: state.incorrectCount,
+    hintsUsed: state.hintsUsed,
+  };
 }
 
 export default useArenaStore;

@@ -2,195 +2,379 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { UserProfile } from "@/lib/apiTypes";
 
-/* ═══════════════════ Types ═══════════════════ */
-
 export interface UserPreferences {
   soundOn: boolean;
   darkGlass: boolean;
-  difficulty: number; // 0-100
+  difficulty: number;
 }
 
-export interface UserState {
-  /* ── Identity ── */
+export interface UserIdentityState {
   name: string;
   title: string;
-  /* ── Progression ── */
+}
+
+export interface UserProgressionState {
   xp: number;
   level: number;
   xpToNextLevel: number;
   streak: number;
   longestStreak: number;
-  gems: number;
   coursesCompleted: number;
-  /* ── Navigation ── */
+}
+
+export interface UserWalletState {
+  credits: number;
+  localSpentCredits: number;
+}
+
+export interface UserNavigationState {
   lastActiveCourseId: string | null;
   lastActiveNodeId: string | null;
-  /* ── Preferences ── */
-  preferences: UserPreferences;
-  /* ── Onboarding ── */
+}
+
+export interface UserOnboardingState {
   onboarded: boolean;
   selectedTopics: string[];
   dailyGoal: string;
 }
 
+export interface UserState {
+  identity: UserIdentityState;
+  progression: UserProgressionState;
+  wallet: UserWalletState;
+  navigation: UserNavigationState;
+  preferences: UserPreferences;
+  onboarding: UserOnboardingState;
+}
+
 export interface UserActions {
-  /* ── Identity ── */
   setName: (name: string) => void;
   setTitle: (title: string) => void;
-  /* ── XP & Leveling ── */
   addXp: (amount: number) => void;
-  /* ── Gems ── */
   addGems: (amount: number) => void;
-  spendGems: (amount: number) => boolean; // returns false if insufficient
-  /* ── Streak ── */
+  spendGems: (amount: number) => boolean;
   incrementStreak: () => void;
   resetStreak: () => void;
-  /* ── Courses ── */
   incrementCoursesCompleted: () => void;
-  /* ── Navigation ── */
   setLastActiveCourse: (courseId: string) => void;
   setLastActiveNode: (nodeId: string) => void;
-  /* ── Preferences ── */
   setPreferences: (prefs: Partial<UserPreferences>) => void;
-  /* ── Onboarding ── */
   completeOnboarding: (data: {
     name: string;
     topics: string[];
     goal: string;
   }) => void;
   syncFromProfile: (profile: UserProfile) => void;
-  /* ── Reset ── */
   logout: () => void;
 }
 
-/* ═══════════════════ Helpers ═══════════════════ */
-
-/** XP required for a given level */
 function xpForLevel(level: number): number {
-  return 100 + (level - 1) * 50; // Level 1 = 100, Level 2 = 150, etc.
+  return 100 + (level - 1) * 50;
+}
+
+function titleForLevel(level: number) {
+  if (level >= 20) return "Grandmaster Scholar";
+  if (level >= 15) return "Master Scholar";
+  if (level >= 10) return "Expert Scholar";
+  if (level >= 5) return "Quantum Scholar";
+  if (level >= 3) return "Apprentice Scholar";
+  return "Novice Learner";
+}
+
+function getEffectiveCredits(wallet: UserWalletState) {
+  return Math.max(0, wallet.credits - wallet.localSpentCredits);
 }
 
 const INITIAL_STATE: UserState = {
-  name: "Explorer",
-  title: "Novice Learner",
-  xp: 0,
-  level: 1,
-  xpToNextLevel: xpForLevel(1),
-  streak: 12,
-  longestStreak: 28,
-  gems: 1500,
-  coursesCompleted: 3,
-  lastActiveCourseId: null,
-  lastActiveNodeId: null,
+  identity: {
+    name: "Explorer",
+    title: "Novice Learner",
+  },
+  progression: {
+    xp: 0,
+    level: 1,
+    xpToNextLevel: xpForLevel(1),
+    streak: 0,
+    longestStreak: 0,
+    coursesCompleted: 0,
+  },
+  wallet: {
+    credits: 0,
+    localSpentCredits: 0,
+  },
+  navigation: {
+    lastActiveCourseId: null,
+    lastActiveNodeId: null,
+  },
   preferences: {
     soundOn: true,
     darkGlass: true,
     difficulty: 50,
   },
-  onboarded: false,
-  selectedTopics: [],
-  dailyGoal: "",
+  onboarding: {
+    onboarded: false,
+    selectedTopics: [],
+    dailyGoal: "",
+  },
 };
 
-/* ═══════════════════ Store ═══════════════════ */
+function migratePersistedState(persistedState: unknown): UserState {
+  if (!persistedState || typeof persistedState !== "object") {
+    return INITIAL_STATE;
+  }
+
+  const raw = persistedState as Record<string, unknown>;
+  if ("identity" in raw || "progression" in raw || "wallet" in raw) {
+    return {
+      ...INITIAL_STATE,
+      ...raw,
+      identity: {
+        ...INITIAL_STATE.identity,
+        ...(raw.identity as Partial<UserIdentityState> | undefined),
+      },
+      progression: {
+        ...INITIAL_STATE.progression,
+        ...(raw.progression as Partial<UserProgressionState> | undefined),
+      },
+      wallet: {
+        ...INITIAL_STATE.wallet,
+        ...(raw.wallet as Partial<UserWalletState> | undefined),
+      },
+      navigation: {
+        ...INITIAL_STATE.navigation,
+        ...(raw.navigation as Partial<UserNavigationState> | undefined),
+      },
+      preferences: {
+        ...INITIAL_STATE.preferences,
+        ...(raw.preferences as Partial<UserPreferences> | undefined),
+      },
+      onboarding: {
+        ...INITIAL_STATE.onboarding,
+        ...(raw.onboarding as Partial<UserOnboardingState> | undefined),
+      },
+    };
+  }
+
+  return {
+    identity: {
+      name: typeof raw.name === "string" ? raw.name : INITIAL_STATE.identity.name,
+      title: typeof raw.title === "string" ? raw.title : INITIAL_STATE.identity.title,
+    },
+    progression: {
+      xp: typeof raw.xp === "number" ? raw.xp : INITIAL_STATE.progression.xp,
+      level: typeof raw.level === "number" ? raw.level : INITIAL_STATE.progression.level,
+      xpToNextLevel:
+        typeof raw.xpToNextLevel === "number"
+          ? raw.xpToNextLevel
+          : INITIAL_STATE.progression.xpToNextLevel,
+      streak:
+        typeof raw.streak === "number" ? raw.streak : INITIAL_STATE.progression.streak,
+      longestStreak:
+        typeof raw.longestStreak === "number"
+          ? raw.longestStreak
+          : INITIAL_STATE.progression.longestStreak,
+      coursesCompleted:
+        typeof raw.coursesCompleted === "number"
+          ? raw.coursesCompleted
+          : INITIAL_STATE.progression.coursesCompleted,
+    },
+    wallet: {
+      credits: typeof raw.gems === "number" ? raw.gems : INITIAL_STATE.wallet.credits,
+      localSpentCredits: 0,
+    },
+    navigation: {
+      lastActiveCourseId:
+        typeof raw.lastActiveCourseId === "string" ? raw.lastActiveCourseId : null,
+      lastActiveNodeId:
+        typeof raw.lastActiveNodeId === "string" ? raw.lastActiveNodeId : null,
+    },
+    preferences: {
+      ...INITIAL_STATE.preferences,
+      ...(raw.preferences as Partial<UserPreferences> | undefined),
+    },
+    onboarding: {
+      onboarded: Boolean(raw.onboarded),
+      selectedTopics: Array.isArray(raw.selectedTopics)
+        ? (raw.selectedTopics as string[])
+        : INITIAL_STATE.onboarding.selectedTopics,
+      dailyGoal:
+        typeof raw.dailyGoal === "string" ? raw.dailyGoal : INITIAL_STATE.onboarding.dailyGoal,
+    },
+  };
+}
 
 const useUserStore = create<UserState & UserActions>()(
   persist(
     (set, get) => ({
       ...INITIAL_STATE,
 
-      /* ── Identity ── */
-      setName: (name) => set({ name }),
-      setTitle: (title) => set({ title }),
+      setName: (name) =>
+        set((state) => ({
+          identity: { ...state.identity, name },
+        })),
 
-      /* ── XP & Leveling ── */
+      setTitle: (title) =>
+        set((state) => ({
+          identity: { ...state.identity, title },
+        })),
+
       addXp: (amount) => {
         const state = get();
-        let newXp = state.xp + amount;
-        let newLevel = state.level;
-        let xpNeeded = state.xpToNextLevel;
-        let newTitle = state.title;
+        let newXp = state.progression.xp + amount;
+        let newLevel = state.progression.level;
+        let xpNeeded = state.progression.xpToNextLevel;
 
-        // Level-up loop (handle multi-level jumps)
         while (newXp >= xpNeeded) {
           newXp -= xpNeeded;
           newLevel += 1;
           xpNeeded = xpForLevel(newLevel);
-          // Update title based on level
-          if (newLevel >= 20) newTitle = "Grandmaster Scholar";
-          else if (newLevel >= 15) newTitle = "Master Scholar";
-          else if (newLevel >= 10) newTitle = "Expert Scholar";
-          else if (newLevel >= 5) newTitle = "Quantum Scholar";
-          else if (newLevel >= 3) newTitle = "Apprentice Scholar";
-          else newTitle = "Novice Learner";
         }
 
-        set({
-          xp: newXp,
-          level: newLevel,
-          xpToNextLevel: xpNeeded,
-          title: newTitle,
-        });
+        set((current) => ({
+          identity: {
+            ...current.identity,
+            title: titleForLevel(newLevel),
+          },
+          progression: {
+            ...current.progression,
+            xp: newXp,
+            level: newLevel,
+            xpToNextLevel: xpNeeded,
+          },
+        }));
       },
 
-      /* ── Gems ── */
-      addGems: (amount) => set((s) => ({ gems: s.gems + amount })),
+      addGems: (amount) =>
+        set((state) => ({
+          wallet: {
+            credits: state.wallet.credits + amount,
+            localSpentCredits: state.wallet.localSpentCredits,
+          },
+        })),
+
       spendGems: (amount) => {
         const state = get();
-        if (state.gems < amount) return false;
-        set({ gems: state.gems - amount });
+        if (getEffectiveCredits(state.wallet) < amount) {
+          return false;
+        }
+        set((current) => ({
+          wallet: {
+            ...current.wallet,
+            localSpentCredits: current.wallet.localSpentCredits + amount,
+          },
+        }));
         return true;
       },
 
-      /* ── Streak ── */
       incrementStreak: () =>
-        set((s) => ({
-          streak: s.streak + 1,
-          longestStreak: Math.max(s.longestStreak, s.streak + 1),
+        set((state) => ({
+          progression: {
+            ...state.progression,
+            streak: state.progression.streak + 1,
+            longestStreak: Math.max(
+              state.progression.longestStreak,
+              state.progression.streak + 1
+            ),
+          },
         })),
-      resetStreak: () => set({ streak: 0 }),
 
-      /* ── Courses ── */
+      resetStreak: () =>
+        set((state) => ({
+          progression: {
+            ...state.progression,
+            streak: 0,
+          },
+        })),
+
       incrementCoursesCompleted: () =>
-        set((s) => ({ coursesCompleted: s.coursesCompleted + 1 })),
-
-      /* ── Navigation ── */
-      setLastActiveCourse: (courseId) =>
-        set({ lastActiveCourseId: courseId }),
-      setLastActiveNode: (nodeId) => set({ lastActiveNodeId: nodeId }),
-
-      /* ── Preferences ── */
-      setPreferences: (prefs) =>
-        set((s) => ({
-          preferences: { ...s.preferences, ...prefs },
+        set((state) => ({
+          progression: {
+            ...state.progression,
+            coursesCompleted: state.progression.coursesCompleted + 1,
+          },
         })),
 
-      /* ── Onboarding ── */
+      setLastActiveCourse: (courseId) =>
+        set((state) => ({
+          navigation: {
+            ...state.navigation,
+            lastActiveCourseId: courseId,
+          },
+        })),
+
+      setLastActiveNode: (nodeId) =>
+        set((state) => ({
+          navigation: {
+            ...state.navigation,
+            lastActiveNodeId: nodeId,
+          },
+        })),
+
+      setPreferences: (prefs) =>
+        set((state) => ({
+          preferences: { ...state.preferences, ...prefs },
+        })),
+
       completeOnboarding: ({ name, topics, goal }) =>
-        set({
-          name,
-          selectedTopics: topics,
-          dailyGoal: goal,
-          onboarded: true,
-        }),
+        set((state) => ({
+          identity: {
+            ...state.identity,
+            name,
+          },
+          onboarding: {
+            onboarded: true,
+            selectedTopics: topics,
+            dailyGoal: goal,
+          },
+        })),
 
       syncFromProfile: (profile) =>
         set((state) => ({
-          name:
-            profile.full_name?.trim() ||
-            profile.email.split("@")[0] ||
-            state.name,
-          title: profile.job_title?.trim() || state.title,
-          gems: profile.credits,
+          identity: {
+            name:
+              profile.full_name?.trim() ||
+              profile.email.split("@")[0] ||
+              state.identity.name,
+            title: profile.job_title?.trim() || state.identity.title,
+          },
+          wallet: {
+            credits: profile.credits,
+            localSpentCredits: 0,
+          },
         })),
 
-      /* ── Reset ── */
       logout: () => set(INITIAL_STATE),
     }),
     {
       name: "learn8-user",
+      version: 2,
+      migrate: (persistedState) => migratePersistedState(persistedState),
     }
   )
 );
+
+export function selectUserName(state: UserState) {
+  return state.identity.name;
+}
+
+export function selectUserTitle(state: UserState) {
+  return state.identity.title;
+}
+
+export function selectUserXp(state: UserState) {
+  return state.progression.xp;
+}
+
+export function selectUserLevel(state: UserState) {
+  return state.progression.level;
+}
+
+export function selectUserXpToNextLevel(state: UserState) {
+  return state.progression.xpToNextLevel;
+}
+
+export function selectAvailableCredits(state: UserState) {
+  return getEffectiveCredits(state.wallet);
+}
 
 export default useUserStore;

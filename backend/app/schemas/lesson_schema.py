@@ -112,11 +112,17 @@ class LessonSessionPayload(BaseModel):
     sessionId: int
     status: str
     activePhase: str
+    rewardEligible: bool = True
+    resumedSession: bool = False
     pendingFailedCount: int = 0
     primaryStages: List[LessonStage] = Field(default_factory=list)
     remedialStages: List[LessonStage] = Field(default_factory=list)
     activeStages: List[LessonStage] = Field(default_factory=list)
     remedialJobId: Optional[str] = None
+
+
+class LessonSessionCompleteRequest(BaseModel):
+    hintsUsed: int = 0
 
 
 class LessonSessionSummaryPayload(BaseModel):
@@ -125,6 +131,7 @@ class LessonSessionSummaryPayload(BaseModel):
     nodeId: str
     status: str
     activePhase: str
+    rewardEligible: bool = True
     totalStages: int
     attemptedCount: int
     correctCount: int

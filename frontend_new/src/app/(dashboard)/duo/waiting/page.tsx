@@ -7,13 +7,13 @@ import TopStatsBar from "@/components/layout/TopStatsBar";
 import GameButton from "@/components/ui/GameButton";
 import { useDuoStore } from "@/stores/session/useDuoStore";
 import { connectAndJoinQueue, leaveQueue, disconnectDuo } from "@/lib/duoSocketClient";
-import useUserStore from "@/stores/app/useUserStore";
+import useUserStore, { selectUserName } from "@/stores/app/useUserStore";
 
 export default function DuoWaitingPage() {
   const router = useRouter();
   const phase = useDuoStore((s) => s.phase);
   const opponentName = useDuoStore((s) => s.opponentName);
-  const playerName = useUserStore((s) => s.name);
+  const playerName = useUserStore(selectUserName);
 
   // Connect to socket server and join matchmaking queue
   useEffect(() => {

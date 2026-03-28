@@ -2,16 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { ApiError, apiFetch } from "@/lib/apiClient";
+import { syncPersistedProfile } from "@/lib/auth/profileSync";
 import type { CourseListItem, DraftData, Project, UserProfile } from "@/lib/apiTypes";
-import { useAuthStore } from "@/stores/app/useAuthStore";
 import { useProjectStore } from "@/stores/app/useProjectStore";
-import useUserStore from "@/stores/app/useUserStore";
 
 export function useHomeDashboardData(token: string | null) {
-  const updateUser = useAuthStore((s) => s.updateUser);
   const currentProjectId = useProjectStore((s) => s.currentProjectId);
   const setCurrentProject = useProjectStore((s) => s.setCurrentProject);
-  const syncFromProfile = useUserStore((s) => s.syncFromProfile);
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [courses, setCourses] = useState<CourseListItem[]>([]);
@@ -38,8 +35,7 @@ export function useHomeDashboardData(token: string | null) {
           projectData.map((project) => [project.id, project.draft_json || {}])
         );
 
-        updateUser(profile);
-        syncFromProfile(profile);
+        syncPersistedProfile(profile);
         setProjects(projectData);
         setCourses(courseData);
         setDraftsByProject(draftsByProjectMap);
@@ -59,7 +55,7 @@ export function useHomeDashboardData(token: string | null) {
     };
 
     void load();
-  }, [token, updateUser, syncFromProfile, setCurrentProject]);
+  }, [token, setCurrentProject]);
 
   return {
     currentProject,

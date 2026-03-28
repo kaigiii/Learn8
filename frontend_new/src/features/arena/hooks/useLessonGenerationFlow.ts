@@ -7,6 +7,7 @@ import { useRequireAuthRedirect } from "@/lib/auth/useRequireAuthRedirect";
 import { ensureRetryableJob, fetchScopedActiveJob } from "@/lib/jobs/recovery";
 import { watchJobStream } from "@/lib/jobs/stream";
 import type { CoursePath, LessonNode, LessonStage } from "@/lib/apiTypes";
+import { useResolvedLessonRoute } from "./useResolvedLessonRoute";
 
 interface UseLessonGenerationFlowParams {
   routeCourseId?: string;
@@ -23,7 +24,10 @@ export function useLessonGenerationFlow({
 }: UseLessonGenerationFlowParams) {
   const router = useRouter();
   const { isReady } = useRequireAuthRedirect();
-  const [backendCourseId, setBackendCourseId] = useState<number | null>(null);
+  const { backendCourseIdNumber } = useResolvedLessonRoute({
+    courseId: routeCourseId,
+    nodeId,
+  });
   const [backendCourse, setBackendCourse] = useState<CoursePath | null>(null);
   const [backendStages, setBackendStages] = useState<LessonStage[]>([]);
   const [backendLoading, setBackendLoading] = useState(false);
@@ -34,21 +38,8 @@ export function useLessonGenerationFlow({
   );
   const [backendJobId, setBackendJobId] = useState<string | null>(null);
 
+  const backendCourseId = backendCourseIdNumber;
   const isBackendLesson = backendCourseId !== null;
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const searchCourseId = new URLSearchParams(window.location.search).get("courseId");
-    const resolvedCourseId =
-      routeCourseId && /^\d+$/.test(routeCourseId)
-        ? routeCourseId
-        : searchCourseId;
-    setBackendCourseId(
-      resolvedCourseId && /^\d+$/.test(resolvedCourseId)
-        ? Number(resolvedCourseId)
-        : null
-    );
-  }, [routeCourseId]);
 
   useEffect(() => {
     if (!isBackendLesson) return;
@@ -99,6 +90,7 @@ export function useLessonGenerationFlow({
     };
 
     const connectLessonJob = (jobId: string) => {
+      setBackendLoading(true);
       setBackendJobId(jobId);
       eventSource = watchJobStream(jobId, {
         onUpdate: (data) => {
@@ -138,7 +130,7 @@ export function useLessonGenerationFlow({
     };
 
     const generateLesson = async () => {
-      setBackendLoading(true);
+      setBackendLoading(false);
       setBackendError("");
       setBackendJobProgress(0);
       setBackendJobMessage("Preparing lesson generation...");

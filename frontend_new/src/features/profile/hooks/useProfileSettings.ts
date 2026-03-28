@@ -3,19 +3,22 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError, apiFetch } from "@/lib/apiClient";
+import { syncPersistedProfile } from "@/lib/auth/profileSync";
 import type { UserProfile } from "@/lib/apiTypes";
 import { useAuthStore } from "@/stores/app/useAuthStore";
 import { useProjectStore } from "@/stores/app/useProjectStore";
-import useUserStore from "@/stores/app/useUserStore";
+import useUserStore, { selectUserName, selectUserTitle } from "@/stores/app/useUserStore";
 
 export function useProfileSettings(onClose: () => void) {
   const router = useRouter();
   const authUser = useAuthStore((s) => s.user);
-  const updateUser = useAuthStore((s) => s.updateUser);
   const clearSession = useAuthStore((s) => s.clearSession);
   const setCurrentProject = useProjectStore((s) => s.setCurrentProject);
-  const { name, title, preferences, setPreferences, syncFromProfile, logout } =
-    useUserStore();
+  const name = useUserStore(selectUserName);
+  const title = useUserStore(selectUserTitle);
+  const preferences = useUserStore((s) => s.preferences);
+  const setPreferences = useUserStore((s) => s.setPreferences);
+  const logout = useUserStore((s) => s.logout);
 
   const [form, setForm] = useState({
     full_name: "",
@@ -53,8 +56,7 @@ export function useProfileSettings(onClose: () => void) {
             : null,
         }),
       });
-      updateUser(profile);
-      syncFromProfile(profile);
+      syncPersistedProfile(profile);
     } catch (err) {
       setError(err instanceof ApiError ? err.detail : "Failed to save profile.");
     } finally {
@@ -70,8 +72,7 @@ export function useProfileSettings(onClose: () => void) {
         `/auth/credits/topup?amount=${amount}`,
         { method: "POST" }
       );
-      updateUser(profile);
-      syncFromProfile(profile);
+      syncPersistedProfile(profile);
     } catch (err) {
       setError(err instanceof ApiError ? err.detail : "Failed to top up credits.");
     } finally {

@@ -1,4 +1,5 @@
 import logging
+import datetime
 from app.db.session import SessionLocal
 from app.models.job import JobModel
 from app.models.user import UserModel
@@ -74,14 +75,35 @@ async def run_lesson_generation_job(
         from app.models.lesson import LessonModel
 
         stages_json = [s.model_dump() for s in stages]
-        new_lesson = LessonModel(
-            node_id=node.id,
-            course_topic=topic,
-            stage_json=stages_json,
-            user_id=user.id,
-            project_id=project_id,
+        existing_lesson_query = db.query(LessonModel).filter(
+            LessonModel.node_id == node.id,
+            LessonModel.course_topic == topic,
+            LessonModel.user_id == user.id,
         )
-        db.add(new_lesson)
+        if project_id is not None:
+            existing_lesson_query = existing_lesson_query.filter(
+                LessonModel.project_id == project_id
+            )
+        else:
+            existing_lesson_query = existing_lesson_query.filter(
+                LessonModel.project_id.is_(None)
+            )
+
+        existing_lesson = existing_lesson_query.order_by(LessonModel.created_at.desc()).first()
+
+        if existing_lesson:
+            existing_lesson.stage_json = stages_json
+            existing_lesson.created_at = datetime.datetime.utcnow()
+            db.add(existing_lesson)
+        else:
+            new_lesson = LessonModel(
+                node_id=node.id,
+                course_topic=topic,
+                stage_json=stages_json,
+                user_id=user.id,
+                project_id=project_id,
+            )
+            db.add(new_lesson)
 
         # 扣點數
         user.credits -= COST

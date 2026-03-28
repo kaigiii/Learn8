@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 
 export function CourseMapBackground() {
@@ -13,6 +13,20 @@ export function CourseMapBackground() {
 }
 
 function MapFloatingParticles() {
+  const [viewportHeight, setViewportHeight] = useState(900);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const updateViewportHeight = () => {
+      setViewportHeight(window.innerHeight + 40);
+    };
+
+    updateViewportHeight();
+    window.addEventListener("resize", updateViewportHeight);
+    return () => window.removeEventListener("resize", updateViewportHeight);
+  }, []);
+
   const particles = useMemo(
     () =>
       Array.from({ length: 24 }, (_, index) => ({
@@ -35,7 +49,7 @@ function MapFloatingParticles() {
           className="absolute"
           style={{ left: `${particle.x}%`, bottom: -20 }}
           animate={{
-            y: [0, -(typeof window !== "undefined" ? window.innerHeight + 40 : 900)],
+            y: [0, -viewportHeight],
             x: [0, (particle.id % 2 === 0 ? 1 : -1) * (15 + Math.random() * 25)],
             rotate: [0, 180 + Math.random() * 180],
           }}

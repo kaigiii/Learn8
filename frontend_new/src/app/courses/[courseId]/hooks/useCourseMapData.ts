@@ -19,14 +19,12 @@ const X_PATTERN = [50, 28, 68, 32, 58, 40, 65, 30, 55, 42, 62, 35, 58, 45, 50];
 
 export function useCourseMapData({
   courseId,
-  explicitCourseId,
-  paramsCourseId,
+  routeCourseId,
   setLastActiveCourse,
   lastActiveNodeId,
 }: {
   courseId: string;
-  explicitCourseId?: string;
-  paramsCourseId?: string;
+  routeCourseId?: string;
   setLastActiveCourse: (courseId: string) => void;
   lastActiveNodeId: string | null;
 }) {
@@ -63,7 +61,7 @@ export function useCourseMapData({
     };
 
     void load();
-  }, [courseId, explicitCourseId, hasResolvedCourseId, isBackendCourse, isReady, paramsCourseId, router]);
+  }, [courseId, hasResolvedCourseId, isBackendCourse, isReady, routeCourseId, router]);
 
   useEffect(() => {
     const previousOverflow = document.documentElement.style.overflow;

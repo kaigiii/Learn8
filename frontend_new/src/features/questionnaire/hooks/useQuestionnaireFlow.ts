@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError, apiFetch } from "@/lib/apiClient";
 import { ensureRetryableJob, fetchScopedActiveJob } from "@/lib/jobs/recovery";
+import { getJobCopy } from "@/lib/jobs/policy";
 import { rememberCourseNavigation } from "@/lib/navigation/intents";
 import { watchJobStream } from "@/lib/jobs/stream";
 import type {
@@ -23,7 +24,7 @@ export function useQuestionnaireFlow() {
   const activeJobIdRef = useRef<string | null>(null);
   const hasNavigatedAwayRef = useRef(false);
 
-  const [step, setStep] = useState<QuestionnaireStep>("loading");
+  const [step, setStep] = useState<QuestionnaireStep>("answering");
   const [projectId, setProjectId] = useState<number | null>(null);
   const [topic, setTopic] = useState("");
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -33,6 +34,7 @@ export function useQuestionnaireFlow() {
   const [jobProgress, setJobProgress] = useState(0);
   const [jobMessage, setJobMessage] = useState("");
   const [jobType, setJobType] = useState<QuestionnaireJobType>(null);
+  const [canRetryGeneration, setCanRetryGeneration] = useState(false);
 
   const clearPendingQuestionnaire = useCallback(() => {
     if (typeof window === "undefined") return;
@@ -42,10 +44,13 @@ export function useQuestionnaireFlow() {
   const connectQuestionnaireJob = useCallback(
     (jobId: string, pendingProjectId: number, pendingTopic: string) => {
       activeJobIdRef.current = jobId;
+      setCanRetryGeneration(false);
       setStep("loading");
       setJobType("QUESTIONNAIRE_GEN");
       setJobProgress(0);
-      setJobMessage("Preparing your personalised questionnaire...");
+      setJobMessage(
+        getJobCopy("QUESTIONNAIRE_GEN", "PROCESSING").fallbackMessage
+      );
 
       return watchJobStream(jobId, {
         onUpdate: (data) => {
@@ -56,10 +61,9 @@ export function useQuestionnaireFlow() {
           );
         },
         onCompleted: async (data) => {
-          if (hasNavigatedAwayRef.current) {
-            return;
-          }
+          if (hasNavigatedAwayRef.current) return;
           activeJobIdRef.current = null;
+          setCanRetryGeneration(false);
           const result =
             typeof data.result_data === "string"
               ? (JSON.parse(data.result_data) as { questions?: Question[] })
@@ -82,35 +86,34 @@ export function useQuestionnaireFlow() {
           });
         },
         onFailed: (data) => {
-          if (hasNavigatedAwayRef.current) {
-            return;
-          }
+          if (hasNavigatedAwayRef.current) return;
           activeJobIdRef.current = null;
           clearPendingQuestionnaire();
+          setCanRetryGeneration(false);
           setError(data.message || "Questionnaire generation failed.");
         },
         onCancelled: (data) => {
-          if (hasNavigatedAwayRef.current) {
-            return;
-          }
+          if (hasNavigatedAwayRef.current) return;
           activeJobIdRef.current = null;
           clearPendingQuestionnaire();
+          setCanRetryGeneration(false);
           setError(data.message || "Questionnaire generation was cancelled.");
         },
         onStale: async (data) => {
-          if (hasNavigatedAwayRef.current) {
-            return;
-          }
+          if (hasNavigatedAwayRef.current) return;
           activeJobIdRef.current = null;
-          setError(data.message || "Questionnaire generation stalled. Reload to retry.");
+          setCanRetryGeneration(true);
+          setError(
+            data.message ||
+              getJobCopy("QUESTIONNAIRE_GEN", "STALE").fallbackMessage
+          );
         },
         onError: () => {
-          if (hasNavigatedAwayRef.current) {
-            return;
-          }
+          if (hasNavigatedAwayRef.current) return;
           activeJobIdRef.current = null;
           clearPendingQuestionnaire();
-          setError("Lost connection while generating questionnaire.");
+          setCanRetryGeneration(true);
+          setError("Lost connection while generating questionnaire. Retry when the backend is back.");
         },
       });
     },
@@ -121,9 +124,10 @@ export function useQuestionnaireFlow() {
     (jobId: string, pendingProjectId: number) => {
       setStep("forging");
       activeJobIdRef.current = jobId;
+      setCanRetryGeneration(false);
       setJobType("SYLLABUS_GEN");
       setJobProgress(0);
-      setJobMessage("Preparing your syllabus forge...");
+      setJobMessage(getJobCopy("SYLLABUS_GEN", "PROCESSING").fallbackMessage);
 
       return watchJobStream(jobId, {
         onUpdate: (data) => {
@@ -132,10 +136,9 @@ export function useQuestionnaireFlow() {
           setJobMessage(data.message || "Forging your personalised syllabus...");
         },
         onCompleted: async (data) => {
-          if (hasNavigatedAwayRef.current) {
-            return;
-          }
+          if (hasNavigatedAwayRef.current) return;
           activeJobIdRef.current = null;
+          setCanRetryGeneration(false);
           const result =
             typeof data.result_data === "string"
               ? (JSON.parse(data.result_data) as { course_id?: number })
@@ -155,45 +158,44 @@ export function useQuestionnaireFlow() {
             setError("Syllabus finished, but the course could not be located.");
             return;
           }
+
           hasNavigatedAwayRef.current = true;
           rememberCourseNavigation(resolvedCourseId);
           router.push(`/courses/${resolvedCourseId}`);
         },
         onFailed: (data) => {
-          if (hasNavigatedAwayRef.current) {
-            return;
-          }
+          if (hasNavigatedAwayRef.current) return;
           activeJobIdRef.current = null;
           clearPendingQuestionnaire();
+          setCanRetryGeneration(false);
           setStep("answering");
           setError(data.message || "Failed to forge syllabus.");
         },
         onCancelled: (data) => {
-          if (hasNavigatedAwayRef.current) {
-            return;
-          }
+          if (hasNavigatedAwayRef.current) return;
           activeJobIdRef.current = null;
           clearPendingQuestionnaire();
+          setCanRetryGeneration(false);
           setStep("answering");
           setError(data.message || "Syllabus generation was cancelled.");
         },
         onStale: (data) => {
-          if (hasNavigatedAwayRef.current) {
-            return;
-          }
+          if (hasNavigatedAwayRef.current) return;
           activeJobIdRef.current = null;
           clearPendingQuestionnaire();
+          setCanRetryGeneration(true);
           setStep("answering");
-          setError(data.message || "Syllabus generation stalled. Reload to retry.");
+          setError(
+            data.message || getJobCopy("SYLLABUS_GEN", "STALE").fallbackMessage
+          );
         },
         onError: () => {
-          if (hasNavigatedAwayRef.current) {
-            return;
-          }
+          if (hasNavigatedAwayRef.current) return;
           activeJobIdRef.current = null;
           clearPendingQuestionnaire();
+          setCanRetryGeneration(true);
           setStep("answering");
-          setError("Lost connection while forging syllabus.");
+          setError("Lost connection while forging syllabus. Retry when the backend is back.");
         },
       });
     },
@@ -224,6 +226,7 @@ export function useQuestionnaireFlow() {
 
         if (!pendingProjectId || Number.isNaN(pendingProjectId)) {
           setStep("answering");
+          setCanRetryGeneration(false);
           setError("Missing journey context. Start a new journey from Home.");
           return;
         }
@@ -246,10 +249,31 @@ export function useQuestionnaireFlow() {
           setFreeText(draft.freeText);
         }
 
-        const questionnaireJob = await ensureRetryableJob(await fetchScopedActiveJob({
-          jobType: "QUESTIONNAIRE_GEN",
-          projectId: pendingProjectId,
-        }));
+        const syllabusJob = await ensureRetryableJob(
+          await fetchScopedActiveJob({
+            jobType: "SYLLABUS_GEN",
+            projectId: pendingProjectId,
+          })
+        );
+        if (syllabusJob.job_id) {
+          setJobType("SYLLABUS_GEN");
+          connectSyllabusJob(String(syllabusJob.job_id), pendingProjectId);
+          return;
+        }
+
+        if (draft?.questions?.length) {
+          setQuestions(draft.questions);
+          setStep("answering");
+          setCanRetryGeneration(false);
+          return;
+        }
+
+        const questionnaireJob = await ensureRetryableJob(
+          await fetchScopedActiveJob({
+            jobType: "QUESTIONNAIRE_GEN",
+            projectId: pendingProjectId,
+          })
+        );
         if (questionnaireJob.job_id) {
           setJobType("QUESTIONNAIRE_GEN");
           connectQuestionnaireJob(
@@ -260,24 +284,9 @@ export function useQuestionnaireFlow() {
           return;
         }
 
-        const syllabusJob = await ensureRetryableJob(await fetchScopedActiveJob({
-          jobType: "SYLLABUS_GEN",
-          projectId: pendingProjectId,
-        }));
-        if (syllabusJob.job_id) {
-          setJobType("SYLLABUS_GEN");
-          connectSyllabusJob(String(syllabusJob.job_id), pendingProjectId);
-          return;
-        }
-
-        if (draft?.questions?.length) {
-          setQuestions(draft.questions);
-          setStep("answering");
-          return;
-        }
-
         if (!pendingTopic) {
           setStep("answering");
+          setCanRetryGeneration(false);
           setError(
             "This journey does not have a topic yet. Return to Home to start a new one."
           );
@@ -306,6 +315,7 @@ export function useQuestionnaireFlow() {
 
     setStep("forging");
     setError("");
+    setCanRetryGeneration(false);
     setJobType("SYLLABUS_GEN");
     setJobProgress(0);
     setJobMessage("Packaging your answers into a learner profile...");
@@ -408,10 +418,47 @@ export function useQuestionnaireFlow() {
       activeJobIdRef.current = null;
       clearPendingQuestionnaire();
       setStep("answering");
+      setCanRetryGeneration(false);
       setError("");
       router.push("/home");
     }
   }, [clearPendingQuestionnaire, router]);
+
+  const retryGeneration = useCallback(async () => {
+    if (!projectId || !jobType) return;
+
+    setError("");
+    setCanRetryGeneration(false);
+
+    const activeJob = await fetchScopedActiveJob({
+      jobType,
+      projectId,
+    });
+
+    if (!activeJob.job_id) {
+      setError("No retryable generation was found for this flow.");
+      return;
+    }
+
+    const resumableJob = await ensureRetryableJob(activeJob);
+    if (!resumableJob.job_id) {
+      setError("This generation cannot be retried right now.");
+      return;
+    }
+
+    if (jobType === "QUESTIONNAIRE_GEN") {
+      connectQuestionnaireJob(resumableJob.job_id, projectId, topic);
+      return;
+    }
+
+    connectSyllabusJob(resumableJob.job_id, projectId);
+  }, [
+    connectQuestionnaireJob,
+    connectSyllabusJob,
+    jobType,
+    projectId,
+    topic,
+  ]);
 
   return {
     step,
@@ -427,7 +474,9 @@ export function useQuestionnaireFlow() {
     jobProgress,
     jobMessage,
     jobType,
+    canRetryGeneration,
     setError,
+    retryGeneration,
     submitQuestionnaire,
     cancelGeneration,
   };
