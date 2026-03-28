@@ -4,7 +4,6 @@ from app.api.v1.endpoints import (
     courses,
     syllabus,
     lessons,
-    system,
     jobs,
 )
 
@@ -13,5 +12,4 @@ api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 api_router.include_router(courses.router, prefix="/courses", tags=["courses"])
 api_router.include_router(syllabus.router, prefix="/courses", tags=["syllabus"])
 api_router.include_router(lessons.router, prefix="/lessons", tags=["lessons"])
-api_router.include_router(system.router, prefix="/system", tags=["system"])
 api_router.include_router(jobs.router, prefix="/jobs", tags=["jobs"])

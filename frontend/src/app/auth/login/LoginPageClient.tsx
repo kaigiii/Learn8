@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FcGoogle } from "react-icons/fc";
@@ -7,19 +8,50 @@ import { FaFacebook, FaApple } from "react-icons/fa";
 import { ApiError, apiFetch } from "@/lib/apiClient";
 import type { AuthTokenResponse, UserProfile } from "@/lib/apiTypes";
 import { establishAuthenticatedSession } from "@/lib/auth/profileSync";
+import { isProfileOnboardingComplete } from "@/lib/auth/onboarding";
 import { resolvePreferredAuthenticatedHref } from "@/lib/navigation/intents";
 import { useAuthStore } from "@/stores/app/useAuthStore";
 
 type AuthTab = "signup" | "login";
+type AuthFieldErrors = Partial<
+  Record<"email" | "password" | "confirmPassword", string>
+>;
+
+const PASSWORD_RULES = [
+  "At least 8 characters",
+  "One uppercase letter",
+  "One lowercase letter",
+  "One number",
+  "One special character",
+];
+
+function validateEmail(email: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function validatePassword(password: string) {
+  return (
+    password.length >= 8 &&
+    /[A-Z]/.test(password) &&
+    /[a-z]/.test(password) &&
+    /\d/.test(password) &&
+    /[^A-Za-z0-9]/.test(password)
+  );
+}
 
 export default function LoginPageClient() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<AuthTab>("signup");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<AuthFieldErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const token = useAuthStore((s) => s.token);
+  const authUser = useAuthStore((s) => s.user);
   const authHydrated = useAuthStore((s) => s.hasHydrated);
   const setSession = useAuthStore((s) => s.setSession);
   const clearSession = useAuthStore((s) => s.clearSession);
@@ -27,13 +59,52 @@ export default function LoginPageClient() {
   useEffect(() => {
     if (!authHydrated) return;
     if (token) {
-      router.replace(resolvePreferredAuthenticatedHref("/home"));
+      router.replace(
+        isProfileOnboardingComplete(authUser)
+          ? resolvePreferredAuthenticatedHref("/home")
+          : "/auth/welcome"
+      );
     }
-  }, [authHydrated, router, token]);
+  }, [authHydrated, authUser, router, token]);
+
+  useEffect(() => {
+    setError("");
+    setFieldErrors({});
+  }, [activeTab]);
+
+  const validateAuthForm = (): boolean => {
+    const nextErrors: AuthFieldErrors = {};
+    const trimmedEmail = email.trim();
+
+    if (!trimmedEmail) {
+      nextErrors.email = "Email is required.";
+    } else if (!validateEmail(trimmedEmail)) {
+      nextErrors.email = "Please enter a valid email address.";
+    }
+
+    if (!password) {
+      nextErrors.password = "Password is required.";
+    } else if (activeTab === "signup" && !validatePassword(password)) {
+      nextErrors.password =
+        "Use at least 8 characters, with uppercase, lowercase, a number, and a special character.";
+    }
+
+    if (activeTab === "signup") {
+      if (!confirmPassword) {
+        nextErrors.confirmPassword = "Please confirm your password.";
+      } else if (password !== confirmPassword) {
+        nextErrors.confirmPassword = "Passwords do not match.";
+      }
+    }
+
+    setFieldErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    if (!validateAuthForm()) return;
     setIsSubmitting(true);
 
     try {
@@ -41,7 +112,7 @@ export default function LoginPageClient() {
         await apiFetch("/auth/register", {
           method: "POST",
           body: JSON.stringify({
-            email,
+            email: email.trim(),
             password,
           }),
         });
@@ -49,7 +120,7 @@ export default function LoginPageClient() {
 
       const tokenRes = await apiFetch<AuthTokenResponse>("/auth/login", {
         method: "POST",
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: email.trim(), password }),
       });
 
       setSession(tokenRes.access_token, null);
@@ -57,7 +128,7 @@ export default function LoginPageClient() {
       establishAuthenticatedSession(tokenRes.access_token, profile);
 
       router.replace(
-        activeTab === "signup"
+        !isProfileOnboardingComplete(profile)
           ? "/auth/welcome"
           : resolvePreferredAuthenticatedHref("/home")
       );
@@ -73,6 +144,7 @@ export default function LoginPageClient() {
 
   const handleDevLogin = async () => {
     setError("");
+    setFieldErrors({});
     setIsSubmitting(true);
 
     try {
@@ -84,7 +156,11 @@ export default function LoginPageClient() {
       const profile = await apiFetch<UserProfile>("/auth/me");
       establishAuthenticatedSession(tokenRes.access_token, profile);
 
-      router.replace(resolvePreferredAuthenticatedHref("/home"));
+      router.replace(
+        isProfileOnboardingComplete(profile)
+          ? resolvePreferredAuthenticatedHref("/home")
+          : "/auth/welcome"
+      );
     } catch (err) {
       clearSession();
       setError(
@@ -198,7 +274,7 @@ export default function LoginPageClient() {
 
         <section className="bg-white rounded-2xl shadow-xl px-8 py-10 w-96 shrink-0">
           <h2 className="font-heading text-2xl font-extrabold text-brand-gray-700 text-center mb-6">
-            Begin Your Mastery
+            {activeTab === "signup" ? "Create Your Account" : "Welcome Back"}
           </h2>
 
           <div className="flex border-b border-brand-gray-200 mb-6">
@@ -229,31 +305,120 @@ export default function LoginPageClient() {
           <form onSubmit={handleAuth} className="flex flex-col gap-4">
             <div>
               <label className="block text-xs font-bold uppercase tracking-wide text-brand-gray-500 mb-1">
-                {activeTab === "signup" ? "Email or Username" : "Email"}
+                Email
               </label>
               <input
-                type="text"
+                type="email"
                 placeholder="jane.doe@email.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-lg border border-brand-gray-200 bg-brand-gray-50 px-4 py-2.5 text-sm text-brand-gray-700 placeholder:text-brand-gray-400 focus:border-brand-teal focus:ring-2 focus:ring-brand-teal/30 outline-none transition"
+                autoComplete="email"
+                className={`w-full rounded-lg border bg-brand-gray-50 px-4 py-2.5 text-sm text-brand-gray-700 placeholder:text-brand-gray-400 outline-none transition ${
+                  fieldErrors.email
+                    ? "border-rose-300 focus:border-rose-400 focus:ring-2 focus:ring-rose-200"
+                    : "border-brand-gray-200 focus:border-brand-teal focus:ring-2 focus:ring-brand-teal/30"
+                }`}
               />
+              {fieldErrors.email && (
+                <p className="mt-1 text-xs text-rose-500">{fieldErrors.email}</p>
+              )}
             </div>
 
             <div>
               <label className="block text-xs font-bold uppercase tracking-wide text-brand-gray-500 mb-1">
                 Password
               </label>
-              <input
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-lg border border-brand-gray-200 bg-brand-gray-50 px-4 py-2.5 text-sm text-brand-gray-700 placeholder:text-brand-gray-400 focus:border-brand-teal focus:ring-2 focus:ring-brand-teal/30 outline-none transition"
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete={
+                    activeTab === "signup" ? "new-password" : "current-password"
+                  }
+                  className={`w-full rounded-lg border bg-brand-gray-50 px-4 py-2.5 pr-12 text-sm text-brand-gray-700 placeholder:text-brand-gray-400 outline-none transition ${
+                    fieldErrors.password
+                      ? "border-rose-300 focus:border-rose-400 focus:ring-2 focus:ring-rose-200"
+                      : "border-brand-gray-200 focus:border-brand-teal focus:ring-2 focus:ring-brand-teal/30"
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((value) => !value)}
+                  className="absolute inset-y-0 right-3 text-xs font-semibold text-brand-gray-400 transition hover:text-brand-gray-600"
+                >
+                  {showPassword ? "Hide" : "Show"}
+                </button>
+              </div>
+              {fieldErrors.password && (
+                <p className="mt-1 text-xs text-rose-500">{fieldErrors.password}</p>
+              )}
+              {activeTab === "signup" && (
+                <div className="mt-2 rounded-lg border border-brand-teal/15 bg-brand-teal/5 px-3 py-2">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-brand-teal">
+                    Password Requirements
+                  </p>
+                  <div className="mt-2 grid gap-1">
+                    {PASSWORD_RULES.map((rule) => (
+                      <p key={rule} className="text-xs text-brand-gray-500">
+                        {rule}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
+            {activeTab === "signup" && (
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wide text-brand-gray-500 mb-1">
+                  Confirm Password
+                </label>
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    autoComplete="new-password"
+                    className={`w-full rounded-lg border bg-brand-gray-50 px-4 py-2.5 pr-12 text-sm text-brand-gray-700 placeholder:text-brand-gray-400 outline-none transition ${
+                      fieldErrors.confirmPassword
+                        ? "border-rose-300 focus:border-rose-400 focus:ring-2 focus:ring-rose-200"
+                        : "border-brand-gray-200 focus:border-brand-teal focus:ring-2 focus:ring-brand-teal/30"
+                    }`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword((value) => !value)}
+                    className="absolute inset-y-0 right-3 text-xs font-semibold text-brand-gray-400 transition hover:text-brand-gray-600"
+                  >
+                    {showConfirmPassword ? "Hide" : "Show"}
+                  </button>
+                </div>
+                {fieldErrors.confirmPassword && (
+                  <p className="mt-1 text-xs text-rose-500">
+                    {fieldErrors.confirmPassword}
+                  </p>
+                )}
+              </div>
+            )}
+
             {error && <p className="text-sm text-rose-500">{error}</p>}
+
+            {activeTab === "login" && (
+              <div className="flex items-center justify-between gap-3 text-xs">
+                <p className="leading-relaxed text-brand-gray-400">
+                  Use the email and password you registered with.
+                </p>
+                <Link
+                  href="/auth/forgot-password"
+                  className="shrink-0 font-semibold text-brand-teal hover:underline"
+                >
+                  Forgot password?
+                </Link>
+              </div>
+            )}
 
             <button
               type="submit"
@@ -284,14 +449,14 @@ export default function LoginPageClient() {
               <div className="w-full border-t border-brand-gray-200" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-white px-3 text-brand-gray-400">Or continue with</span>
+              <span className="bg-white px-3 text-brand-gray-400">Social login coming later</span>
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-3">
-            <SocialButton icon={<FcGoogle className="h-5 w-5" />} />
-            <SocialButton icon={<FaFacebook className="h-5 w-5 text-[#1877F2]" />} />
-            <SocialButton icon={<FaApple className="h-5 w-5 text-brand-gray-700" />} />
+            <SocialButton label="Google" icon={<FcGoogle className="h-5 w-5" />} />
+            <SocialButton label="Facebook" icon={<FaFacebook className="h-5 w-5 text-[#1877F2]" />} />
+            <SocialButton label="Apple" icon={<FaApple className="h-5 w-5 text-brand-gray-700" />} />
           </div>
         </section>
       </main>
@@ -299,9 +464,20 @@ export default function LoginPageClient() {
   );
 }
 
-function SocialButton({ icon }: { icon: React.ReactNode }) {
+function SocialButton({
+  icon,
+  label,
+}: {
+  icon: React.ReactNode;
+  label: string;
+}) {
   return (
-    <button className="flex items-center justify-center rounded-xl border border-brand-gray-200 bg-white py-3 shadow-sm transition hover:border-brand-gray-300 hover:shadow">
+    <button
+      type="button"
+      disabled
+      aria-label={`${label} login coming soon`}
+      className="flex items-center justify-center rounded-xl border border-brand-gray-200 bg-brand-gray-50 py-3 shadow-sm opacity-60"
+    >
       {icon}
     </button>
   );

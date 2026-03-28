@@ -31,6 +31,10 @@ def upgrade() -> None:
     sa.Column('job_title', sa.String(), nullable=True),
     sa.Column('education_level', sa.String(), nullable=True),
     sa.Column('daily_learning_goal_minutes', sa.Integer(), nullable=True),
+    sa.Column('failed_login_attempts', sa.Integer(), nullable=False, server_default='0'),
+    sa.Column('locked_until', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('last_login_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('password_changed_at', sa.DateTime(timezone=True), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_users_email'), 'users', ['email'], unique=True)

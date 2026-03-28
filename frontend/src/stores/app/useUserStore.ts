@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { UserProfile } from "@/lib/apiTypes";
+import { deriveOnboardingStateFromProfile } from "@/lib/auth/onboarding";
 
 export interface UserPreferences {
   soundOn: boolean;
@@ -288,6 +289,7 @@ const useUserStore = create<UserState & UserActions>()(
               state.identity.name,
             title: profile.job_title?.trim() || state.identity.title,
           },
+          onboarding: deriveOnboardingStateFromProfile(profile),
           wallet: {
             credits: profile.credits,
             localSpentCredits: 0,

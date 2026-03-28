@@ -1,0 +1,298 @@
+"use client";
+
+import TopStatsBar from "@/components/layout/TopStatsBar";
+import DeepGlassCard from "@/components/ui/DeepGlassCard";
+import GameButton from "@/components/ui/GameButton";
+import { ProfileStatBox } from "@/features/profile/components/ProfileStatBox";
+import { ProfileToggle } from "@/features/profile/components/ProfileToggle";
+import { useProfileSettings } from "@/features/profile/hooks/useProfileSettings";
+import useUserStore from "@/stores/app/useUserStore";
+
+export default function ProfilePageClient() {
+  const {
+    authUser,
+    title,
+    preferences,
+    form,
+    setForm,
+    saving,
+    toppingUpAmount,
+    error,
+    setPreferences,
+    handleSaveProfile,
+    handleQuickTopUp,
+    handleOpenStore,
+    handleLogout,
+  } = useProfileSettings(() => {});
+  const progression = useUserStore((state) => state.progression);
+
+  const displayName = authUser?.full_name?.trim() || form.full_name || "Learner";
+  const profileLabel =
+    authUser?.job_title?.trim() ||
+    authUser?.education_level?.trim() ||
+    title ||
+    "Learner";
+  const initial = displayName.slice(0, 1).toUpperCase() || "P";
+
+  return (
+    <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-[#edf7fb] via-[#c9e6f2] to-[#a3d5e8]">
+      <TopStatsBar backHref="/home" pageTitle="Profile" />
+
+      <div className="relative z-10 mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8 md:px-8">
+        <DeepGlassCard className="overflow-hidden border border-white/70 bg-white/78 px-6 py-6 shadow-[0_24px_60px_rgba(31,41,55,0.12)]">
+          <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#ffd23c] to-[#f4b800] shadow-[0_18px_36px_rgba(244,184,0,0.35)]">
+                <span className="font-heading text-2xl font-extrabold text-white">
+                  {initial}
+                </span>
+              </div>
+              <div>
+                <p className="font-heading text-3xl font-extrabold text-brand-gray-700">
+                  {profileLabel}
+                </p>
+                <p className="mt-1 text-sm text-brand-gray-500">{displayName}</p>
+                {authUser?.email && (
+                  <p className="mt-1 text-xs text-brand-gray-400">
+                    {authUser.email}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              <ProfileStatBox
+                label="Credits"
+                value={String(authUser?.credits ?? 0)}
+              />
+              <ProfileStatBox
+                label="Level"
+                value={String(progression.level)}
+              />
+              <ProfileStatBox
+                label="XP"
+                value={String(progression.xp)}
+              />
+              <ProfileStatBox
+                label="Daily Goal"
+                value={
+                  authUser?.daily_learning_goal_minutes
+                    ? `${authUser.daily_learning_goal_minutes} min`
+                    : "Not set"
+                }
+              />
+            </div>
+          </div>
+        </DeepGlassCard>
+
+        <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+          <DeepGlassCard className="border border-white/70 bg-white/80 px-6 py-6 shadow-[0_20px_50px_rgba(31,41,55,0.10)]">
+            <div className="mb-5">
+              <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-brand-teal">
+                Account
+              </p>
+              <h2 className="mt-2 font-heading text-2xl font-extrabold text-brand-gray-700">
+                Personal Details
+              </h2>
+              <p className="mt-2 text-sm leading-relaxed text-brand-gray-500">
+                Update the identity shown across your courses, map, and learning
+                sessions.
+              </p>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="block">
+                <span className="text-sm text-brand-gray-600">Display Name</span>
+                <input
+                  type="text"
+                  value={form.full_name}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, full_name: e.target.value }))
+                  }
+                  className="mt-1.5 w-full rounded-2xl border border-brand-gray-200 bg-white/75 px-4 py-3 text-sm text-brand-gray-700 outline-none focus:border-brand-teal"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-sm text-brand-gray-600">Job Title</span>
+                <input
+                  type="text"
+                  value={form.job_title}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, job_title: e.target.value }))
+                  }
+                  className="mt-1.5 w-full rounded-2xl border border-brand-gray-200 bg-white/75 px-4 py-3 text-sm text-brand-gray-700 outline-none focus:border-brand-teal"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-sm text-brand-gray-600">Education Level</span>
+                <input
+                  type="text"
+                  value={form.education_level}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      education_level: e.target.value,
+                    }))
+                  }
+                  className="mt-1.5 w-full rounded-2xl border border-brand-gray-200 bg-white/75 px-4 py-3 text-sm text-brand-gray-700 outline-none focus:border-brand-teal"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-sm text-brand-gray-600">Daily Goal (min)</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="5"
+                  value={form.daily_learning_goal_minutes}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      daily_learning_goal_minutes: e.target.value,
+                    }))
+                  }
+                  className="mt-1.5 w-full rounded-2xl border border-brand-gray-200 bg-white/75 px-4 py-3 text-sm text-brand-gray-700 outline-none focus:border-brand-teal"
+                />
+              </label>
+            </div>
+
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <GameButton
+                onClick={() => void handleSaveProfile()}
+                disabled={saving}
+                className="min-w-[170px]"
+              >
+                {saving ? "Saving..." : "Save Profile"}
+              </GameButton>
+              {error && <p className="text-sm text-rose-500">{error}</p>}
+            </div>
+          </DeepGlassCard>
+
+          <div className="space-y-6">
+            <DeepGlassCard className="border border-white/70 bg-white/80 px-6 py-6 shadow-[0_20px_50px_rgba(31,41,55,0.10)]">
+              <div className="mb-4">
+                <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-brand-teal">
+                  Credits
+                </p>
+                <h2 className="mt-2 font-heading text-2xl font-extrabold text-brand-gray-700">
+                  Wallet
+                </h2>
+              </div>
+
+              <div className="rounded-3xl border border-[#f5d77a]/55 bg-gradient-to-br from-[#fff7d8] via-white to-[#f6fbfc] px-5 py-5 shadow-[0_16px_40px_rgba(244,184,0,0.12)]">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-brand-gray-400">
+                      Available
+                    </p>
+                    <p className="mt-2 font-heading text-3xl font-extrabold text-brand-gray-700">
+                      {(authUser?.credits ?? 0).toLocaleString()}
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleOpenStore}
+                    className="rounded-2xl border border-brand-gray-200 bg-white px-3 py-2 text-xs font-semibold text-brand-gray-600 transition hover:border-brand-teal hover:text-brand-teal"
+                  >
+                    Open Store
+                  </button>
+                </div>
+
+                <div className="mt-4 grid grid-cols-3 gap-2">
+                  {[500, 2000, 5000].map((amount) => (
+                    <button
+                      key={amount}
+                      onClick={() => void handleQuickTopUp(amount)}
+                      disabled={toppingUpAmount !== null}
+                      className="rounded-2xl bg-brand-teal/10 px-3 py-2 text-xs font-semibold text-brand-teal transition hover:bg-brand-teal hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {toppingUpAmount === amount
+                        ? "Adding..."
+                        : `+${amount.toLocaleString()}`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </DeepGlassCard>
+
+            <DeepGlassCard className="border border-white/70 bg-white/80 px-6 py-6 shadow-[0_20px_50px_rgba(31,41,55,0.10)]">
+              <div className="mb-4">
+                <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-brand-teal">
+                  Preferences
+                </p>
+                <h2 className="mt-2 font-heading text-2xl font-extrabold text-brand-gray-700">
+                  Learning Setup
+                </h2>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-brand-gray-600">
+                    Sound Effects
+                  </span>
+                  <ProfileToggle
+                    on={preferences.soundOn}
+                    onChange={() =>
+                      setPreferences({ soundOn: !preferences.soundOn })
+                    }
+                  />
+                </div>
+
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm text-brand-gray-600">
+                    Dark / Glass Theme
+                  </span>
+                  <ProfileToggle
+                    on={preferences.darkGlass}
+                    onChange={() =>
+                      setPreferences({ darkGlass: !preferences.darkGlass })
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-brand-gray-600">
+                      Difficulty Scaling
+                    </span>
+                    <span className="text-xs font-semibold text-brand-gray-400">
+                      {preferences.difficulty}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={preferences.difficulty}
+                    onChange={(e) =>
+                      setPreferences({ difficulty: Number(e.target.value) })
+                    }
+                    className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-brand-gray-200 accent-brand-teal"
+                  />
+                </div>
+              </div>
+            </DeepGlassCard>
+
+            <DeepGlassCard className="border border-white/70 bg-white/80 px-6 py-6 shadow-[0_20px_50px_rgba(31,41,55,0.10)]">
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={handleOpenStore}
+                  className="rounded-2xl border border-brand-gray-200 bg-white px-4 py-3 text-sm font-semibold text-brand-gray-600 transition hover:border-brand-teal hover:text-brand-teal"
+                >
+                  Open Full Store
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="rounded-2xl bg-brand-teal px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90"
+                >
+                  Log Out
+                </button>
+              </div>
+            </DeepGlassCard>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

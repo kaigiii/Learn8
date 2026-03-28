@@ -76,6 +76,26 @@ class ActivityLogger:
         )
 
     @staticmethod
+    def log_password_reset_requested(email: str):
+        activity_logger.info(f"PASSWORD_RESET_REQUESTED | Email={email}")
+
+    @staticmethod
+    def log_password_reset_completed(user_id: int, user_email: str):
+        activity_logger.info(
+            f"PASSWORD_RESET_COMPLETED | {ActivityLogger._format_user(user_id, user_email)} changed password successfully"
+        )
+
+    @staticmethod
+    def log_account_locked(user_id: int, user_email: str, until: datetime):
+        activity_logger.warning(
+            f"ACCOUNT_LOCKED | {ActivityLogger._format_user(user_id, user_email)} locked until {until.isoformat()}"
+        )
+
+    @staticmethod
+    def log_reset_rate_limited(email: str):
+        activity_logger.warning(f"PASSWORD_RESET_RATE_LIMITED | Email={email}")
+
+    @staticmethod
     def log_profile_edit(user_id: int, user_email: str, fields_changed: List[str]):
         activity_logger.info(
             f"PROFILE_EDIT | {ActivityLogger._format_user(user_id, user_email)} updated fields: {', '.join(fields_changed)}"
