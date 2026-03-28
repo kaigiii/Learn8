@@ -3,6 +3,7 @@ from sqlalchemy import (
     Column,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     JSON,
     String,
@@ -14,6 +15,15 @@ import datetime
 
 class LessonModel(Base):
     __tablename__ = "lessons"
+    __table_args__ = (
+        Index(
+            "ix_lessons_user_project_node_topic",
+            "user_id",
+            "project_id",
+            "node_id",
+            "course_topic",
+        ),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
@@ -73,6 +83,8 @@ class LessonSessionModel(Base):
     active_phase = Column(String, nullable=False, default="primary")
     primary_stages_json = Column(JSON, nullable=False, default=list)
     remedial_stages_json = Column(JSON, nullable=True)
+    hints_used_count = Column(Integer, nullable=False, default=0)
+    reward_eligible = Column(Boolean, nullable=False, default=True)
     started_at = Column(DateTime, default=datetime.datetime.utcnow)
     completed_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)

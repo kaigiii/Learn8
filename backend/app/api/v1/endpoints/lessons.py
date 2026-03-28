@@ -25,6 +25,7 @@ from app.models.user import UserModel
 from app.schemas.course_schema import LessonNode
 from app.schemas.lesson_schema import (
     FailedStageRecord,
+    LessonSessionCompleteRequest,
     LessonSessionPayload,
     LessonSessionSummaryPayload,
     LessonSessionStartRequest,
@@ -75,7 +76,10 @@ def _serialize_failed_record(record: LessonFailedStageModel) -> FailedStageRecor
 
 
 def _build_session_payload(
-    db: Session, session: LessonSessionModel, remedial_job_id: str | None = None
+    db: Session,
+    session: LessonSessionModel,
+    remedial_job_id: str | None = None,
+    resumed_session: bool = False,
 ) -> LessonSessionPayload:
     primary_stages = _coerce_stage_list(session.primary_stages_json)
     remedial_stages = _coerce_stage_list(session.remedial_stages_json)
@@ -93,6 +97,8 @@ def _build_session_payload(
         sessionId=session.id,
         status=session.status,
         activePhase=session.active_phase,
+        rewardEligible=bool(session.reward_eligible),
+        resumedSession=resumed_session,
         pendingFailedCount=pending_failed_count,
         primaryStages=primary_stages,
         remedialStages=remedial_stages,
@@ -172,12 +178,19 @@ def _build_session_summary_payload(
         _coerce_stage_list(session.remedial_stages_json)
     )
 
+    xp_gained = (
+        _compute_session_xp(accuracy, session.hints_used_count or 0)
+        if session.reward_eligible
+        else 0
+    )
+
     return LessonSessionSummaryPayload(
         sessionId=session.id,
         courseId=session.course_id,
         nodeId=session.node_id,
         status=session.status,
         activePhase=session.active_phase,
+        rewardEligible=bool(session.reward_eligible),
         totalStages=total_stages,
         attemptedCount=len(attempts),
         correctCount=correct_count,
@@ -186,8 +199,30 @@ def _build_session_summary_payload(
         accuracy=accuracy,
         elapsedSeconds=elapsed_seconds,
         elapsedLabel=_format_elapsed_label(elapsed_seconds),
-        xpGained=_compute_session_xp(accuracy),
+        xpGained=xp_gained,
     )
+
+
+def _is_course_node_already_completed(
+    db: Session, course_id: int | None, node_id: str, current_user_id: int
+) -> bool:
+    if not course_id:
+        return False
+
+    course_record = (
+        db.query(CourseModel)
+        .filter(CourseModel.id == course_id, CourseModel.user_id == current_user_id)
+        .first()
+    )
+    if not course_record:
+        return False
+
+    syllabus_data = course_record.syllabus_json or {}
+    for unit in syllabus_data.get("units", []):
+        for node in unit.get("nodes", []):
+            if node.get("id") == node_id:
+                return node.get("status") == "completed"
+    return False
 
 
 def _find_stage_in_session(
@@ -368,6 +403,13 @@ def _apply_course_node_completion(
     units = syllabus_data.get("units", [])
     updates_to_sync = []
 
+    def promote_next_node(next_node: dict) -> None:
+        current_status = next_node.get("status")
+        if current_status == "completed":
+            return
+        next_node["status"] = "available"
+        updates_to_sync.append((next_node["id"], "available"))
+
     for unit_idx, unit in enumerate(units):
         nodes = unit.get("nodes", [])
         for node_idx, node in enumerate(nodes):
@@ -377,15 +419,11 @@ def _apply_course_node_completion(
             node_found = True
             updates_to_sync.append((node_id, "completed"))
             if node_idx + 1 < len(nodes):
-                next_node = nodes[node_idx + 1]
-                next_node["status"] = "available"
-                updates_to_sync.append((next_node["id"], "available"))
+                promote_next_node(nodes[node_idx + 1])
             elif unit_idx + 1 < len(units):
                 next_unit = units[unit_idx + 1]
                 if next_unit.get("nodes"):
-                    next_node = next_unit["nodes"][0]
-                    next_node["status"] = "available"
-                    updates_to_sync.append((next_node["id"], "available"))
+                    promote_next_node(next_unit["nodes"][0])
             break
         if node_found:
             break
@@ -425,9 +463,11 @@ async def generate_lesson_from_node_endpoint(
             LessonModel.course_topic == topic,
             LessonModel.user_id == current_user.id,
         )
-        if project_id:
+        if project_id is not None:
             query = query.filter(LessonModel.project_id == project_id)
-        return query.first()
+        else:
+            query = query.filter(LessonModel.project_id.is_(None))
+        return query.order_by(LessonModel.created_at.desc()).first()
 
     cached_lesson = await run_in_threadpool(_fetch_cached_lesson)
 
@@ -531,14 +571,19 @@ async def start_lesson_session(
                 existing_session.active_phase = "remedial"
                 db.commit()
                 db.refresh(existing_session)
-                return _build_session_payload(db, existing_session)
+                return _build_session_payload(
+                    db, existing_session, resumed_session=True
+                )
 
             remedial_job_id = _find_active_remedial_job_id(
                 db, existing_session.id, current_user.id
             )
             if remedial_job_id:
                 return _build_session_payload(
-                    db, existing_session, remedial_job_id=remedial_job_id
+                    db,
+                    existing_session,
+                    remedial_job_id=remedial_job_id,
+                    resumed_session=True,
                 )
 
             # Recover stale sessions that were left in generating state without an active job.
@@ -547,7 +592,7 @@ async def start_lesson_session(
             db.commit()
             db.refresh(existing_session)
 
-        return _build_session_payload(db, existing_session)
+        return _build_session_payload(db, existing_session, resumed_session=True)
 
     cached_lesson = (
         db.query(LessonModel)
@@ -570,6 +615,9 @@ async def start_lesson_session(
         course_topic=request.topic,
         status="playing_primary",
         active_phase="primary",
+        reward_eligible=not _is_course_node_already_completed(
+            db, request.courseId, request.nodeId, current_user.id
+        ),
         primary_stages_json=[stage.model_dump() for stage in request.primaryStages],
     )
     db.add(session)
@@ -721,6 +769,7 @@ async def submit_answer(
 @router.post("/sessions/{session_id}/complete-primary", response_model=LessonSessionPayload)
 async def complete_primary_lesson_session(
     session_id: int,
+    request: LessonSessionCompleteRequest,
     background_tasks: BackgroundTasks,
     current_user: UserModel = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -744,6 +793,8 @@ async def complete_primary_lesson_session(
             status_code=409,
             detail=f"Cannot complete primary lesson from state {session.status}.",
         )
+
+    session.hints_used_count = max(0, int(request.hintsUsed or 0))
 
     failed_records = (
         db.query(LessonFailedStageModel)
@@ -802,6 +853,7 @@ async def complete_primary_lesson_session(
 @router.post("/sessions/{session_id}/complete-remedial", response_model=LessonSessionPayload)
 async def complete_remedial_lesson_session(
     session_id: int,
+    request: LessonSessionCompleteRequest,
     current_user: UserModel = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -824,6 +876,8 @@ async def complete_remedial_lesson_session(
             status_code=409,
             detail=f"Cannot complete remedial lesson from state {session.status}.",
         )
+
+    session.hints_used_count = max(0, int(request.hintsUsed or 0))
 
     now = datetime.datetime.utcnow()
     failed_records = (

@@ -85,6 +85,13 @@ async def update_node_status(
     units = syllabus_data.get("units", [])
     updates_to_sync = []
 
+    def promote_next_node(next_node: dict) -> None:
+        current_status = next_node.get("status")
+        if current_status == "completed":
+            return
+        next_node["status"] = "available"
+        updates_to_sync.append((next_node["id"], "available"))
+
     # 尋找目標節點並更新狀態，若狀態為 "completed" 則自動解鎖下一個節點
     for unit_idx, unit in enumerate(units):
         nodes = unit.get("nodes", [])
@@ -98,16 +105,12 @@ async def update_node_status(
                 if request.status == "completed":
                     if node_idx + 1 < len(nodes):
                         # 同一單元內的下一個節點
-                        next_node = nodes[node_idx + 1]
-                        next_node["status"] = "available"
-                        updates_to_sync.append((next_node["id"], "available"))
+                        promote_next_node(nodes[node_idx + 1])
                     elif unit_idx + 1 < len(units):
                         # 跨單元解鎖：下個單元的第一個節點
                         next_unit = units[unit_idx + 1]
                         if next_unit.get("nodes"):
-                            next_node = next_unit["nodes"][0]
-                            next_node["status"] = "available"
-                            updates_to_sync.append((next_node["id"], "available"))
+                            promote_next_node(next_unit["nodes"][0])
                 break
         if node_found:
             break

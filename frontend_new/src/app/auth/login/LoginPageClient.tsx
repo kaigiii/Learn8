@@ -6,9 +6,9 @@ import { FcGoogle } from "react-icons/fc";
 import { FaFacebook, FaApple } from "react-icons/fa";
 import { ApiError, apiFetch } from "@/lib/apiClient";
 import type { AuthTokenResponse, UserProfile } from "@/lib/apiTypes";
+import { establishAuthenticatedSession } from "@/lib/auth/profileSync";
 import { resolvePreferredAuthenticatedHref } from "@/lib/navigation/intents";
 import { useAuthStore } from "@/stores/app/useAuthStore";
-import useUserStore from "@/stores/app/useUserStore";
 
 type AuthTab = "signup" | "login";
 
@@ -23,7 +23,6 @@ export default function LoginPageClient() {
   const authHydrated = useAuthStore((s) => s.hasHydrated);
   const setSession = useAuthStore((s) => s.setSession);
   const clearSession = useAuthStore((s) => s.clearSession);
-  const syncFromProfile = useUserStore((s) => s.syncFromProfile);
 
   useEffect(() => {
     if (!authHydrated) return;
@@ -55,8 +54,7 @@ export default function LoginPageClient() {
 
       setSession(tokenRes.access_token, null);
       const profile = await apiFetch<UserProfile>("/auth/me");
-      setSession(tokenRes.access_token, profile);
-      syncFromProfile(profile);
+      establishAuthenticatedSession(tokenRes.access_token, profile);
 
       router.replace(
         activeTab === "signup"
@@ -84,8 +82,7 @@ export default function LoginPageClient() {
 
       setSession(tokenRes.access_token, null);
       const profile = await apiFetch<UserProfile>("/auth/me");
-      setSession(tokenRes.access_token, profile);
-      syncFromProfile(profile);
+      establishAuthenticatedSession(tokenRes.access_token, profile);
 
       router.replace(resolvePreferredAuthenticatedHref("/home"));
     } catch (err) {

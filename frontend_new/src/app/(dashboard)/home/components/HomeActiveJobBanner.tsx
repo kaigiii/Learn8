@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import GameButton from "@/components/ui/GameButton";
+import { getJobCancelLabel, getJobCtaLabel, getJobRetryLabel } from "@/lib/jobs/policy";
+import { clampJobProgress, formatJobProgressLabel } from "@/lib/jobs/presentation";
 import type { ActiveJobResumeState } from "@/lib/jobs/recovery";
 
 interface HomeActiveJobBannerProps {
@@ -15,7 +17,7 @@ export function HomeActiveJobBanner({
   onCancel,
   onRetry,
 }: HomeActiveJobBannerProps) {
-  const progress = Math.round(Math.max(0, Math.min(activeJob.progress ?? 0, 100)));
+  const progress = clampJobProgress(activeJob.progress);
 
   return (
     <div className="rounded-[28px] border border-white/60 bg-white/70 px-5 py-4 shadow-[0_12px_30px_rgba(122,199,196,0.10)] backdrop-blur-xl">
@@ -40,7 +42,7 @@ export function HomeActiveJobBanner({
                 {activeJob.message || "Waiting for server updates..."}
               </span>
               <span className="shrink-0 font-semibold uppercase tracking-[0.18em] text-brand-teal/80">
-                {progress}%
+                {formatJobProgressLabel(progress)}
               </span>
             </div>
           </div>
@@ -52,7 +54,7 @@ export function HomeActiveJobBanner({
               onClick={() => void onRetry()}
               className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700 transition hover:bg-amber-100"
             >
-              Retry
+              {getJobRetryLabel()}
             </button>
           )}
           <button
@@ -60,11 +62,11 @@ export function HomeActiveJobBanner({
             onClick={() => void onCancel()}
             className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-600 transition hover:bg-rose-100"
           >
-            Cancel
+            {getJobCancelLabel()}
           </button>
           <Link href={activeJob.resumeHref}>
             <GameButton className="min-w-[220px]">
-              {activeJob.status === "STALE" ? "Open Flow" : "Resume"}
+              {getJobCtaLabel(activeJob.status)}
             </GameButton>
           </Link>
         </div>

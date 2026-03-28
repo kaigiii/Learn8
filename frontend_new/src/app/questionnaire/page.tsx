@@ -1,6 +1,4 @@
-"use client";
-
-import QuestionnairePageClient from "./QuestionnairePageClient";
+import QuestionnairePageClient from "@/features/questionnaire/QuestionnairePageClient";
 
 export default function QuestionnairePage() {
   return <QuestionnairePageClient />;

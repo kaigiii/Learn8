@@ -1,31 +1,21 @@
 "use client";
 
-import dynamic from "next/dynamic";
-import { StageComponentLoading, getCorrectOptionId, normalizeChoiceOptions } from "./shared";
+import MultipleChoiceQuestion from "@/components/arena/MultipleChoiceQuestion";
+import { getCorrectOptionId, normalizeChoiceOptions } from "./shared";
 import type { ArenaStagePlugin, ArenaStageRendererProps } from "./types";
-
-const MultipleChoiceQuestion = dynamic(
-  () => import("@/components/arena/MultipleChoiceQuestion"),
-  { loading: () => <StageComponentLoading /> }
-);
 
 export function renderMultipleChoiceStage({
   stage,
-  stageIdx,
-  totalStages,
-  nodeDescription,
-  onSubmitStage,
-  onSkipStage,
-  onContinue,
-  onHintUse,
+  lesson,
+  actions,
 }: ArenaStageRendererProps) {
   return (
     <MultipleChoiceQuestion
-      key={`backend-mcq-${stageIdx}`}
-      stageIndex={stageIdx}
-      totalStages={totalStages}
+      key={`backend-mcq-${lesson.stageIdx}`}
+      stageIndex={lesson.stageIdx}
+      totalStages={lesson.totalStages}
       topic={stage.topic}
-      description={nodeDescription}
+      description={lesson.nodeDescription}
       question={String((stage.config.data as { question?: string }).question || stage.topic)}
       options={normalizeChoiceOptions(stage)}
       correctId={getCorrectOptionId(stage)}
@@ -35,14 +25,14 @@ export function renderMultipleChoiceStage({
         hint: "Eliminate the least likely options first.",
       }}
       onComplete={(selectedOptionId) =>
-        void onSubmitStage(stage, { selectedOptionId })
+        void actions.onSubmitStage(stage, { selectedOptionId })
       }
       onError={(selectedOptionId) =>
-        void onSubmitStage(stage, { selectedOptionId })
+        void actions.onSubmitStage(stage, { selectedOptionId })
       }
-      onWrongAdvance={onContinue}
-      onSkip={() => void onSkipStage(stage)}
-      onHintUse={onHintUse}
+      onWrongAdvance={actions.onContinue}
+      onSkip={() => void actions.onSkipStage(stage)}
+      onHintUse={actions.onHintUse}
     />
   );
 }

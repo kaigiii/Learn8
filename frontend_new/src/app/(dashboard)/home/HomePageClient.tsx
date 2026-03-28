@@ -3,13 +3,12 @@
 import React, { useRef, useEffect, useLayoutEffect, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import TopStatsBar from "@/components/layout/TopStatsBar";
-import type { Project } from "@/lib/apiTypes";
 import {
   clearRecentCourseNavigation,
   getRecentCourseNavigation,
 } from "@/lib/navigation/intents";
 import { useAuthStore } from "@/stores/app/useAuthStore";
-import useUserStore from "@/stores/app/useUserStore";
+import useUserStore, { selectUserName } from "@/stores/app/useUserStore";
 import { HomeActiveJobBanner } from "./components/HomeActiveJobBanner";
 import { HomeBackground } from "./components/HomeBackground";
 import { HomeDuoPanel } from "./components/HomeDuoPanel";
@@ -31,7 +30,7 @@ export default function HomePage() {
   const router = useRouter();
   const token = useAuthStore((s) => s.token);
   const authHydrated = useAuthStore((s) => s.hasHydrated);
-  const name = useUserStore((s) => s.name);
+  const name = useUserStore(selectUserName);
   const {
     currentProject,
     setCurrentProject,

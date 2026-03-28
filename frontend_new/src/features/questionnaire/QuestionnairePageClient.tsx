@@ -6,7 +6,8 @@ import ForgeStatus from "@/components/feedback/ForgeStatus";
 import TopStatsBar from "@/components/layout/TopStatsBar";
 import DeepGlassCard from "@/components/ui/DeepGlassCard";
 import GameButton from "@/components/ui/GameButton";
-import { useQuestionnaireFlow } from "./hooks/useQuestionnaireFlow";
+import { useQuestionnaireFlow } from "@/features/questionnaire/hooks/useQuestionnaireFlow";
+import { getJobCancelLabel, getJobRetryLabel } from "@/lib/jobs/policy";
 
 export default function QuestionnairePageClient() {
   const {
@@ -21,6 +22,8 @@ export default function QuestionnairePageClient() {
     jobProgress,
     jobMessage,
     jobType,
+    canRetryGeneration,
+    retryGeneration,
     submitQuestionnaire,
     cancelGeneration,
   } = useQuestionnaireFlow();
@@ -62,7 +65,7 @@ export default function QuestionnairePageClient() {
             </div>
           </div>
 
-          {step === "loading" && (
+          {step === "loading" && jobType && (
             <div className="space-y-4">
               <ForgeStatus
                 title="Generating your personalised questionnaire..."
@@ -71,12 +74,20 @@ export default function QuestionnairePageClient() {
                 progress={jobProgress}
                 error={error}
               />
-              <div className="flex justify-center">
+              <div className="flex justify-center gap-3">
+                {canRetryGeneration && (
+                  <GameButton
+                    variant="secondary"
+                    onClick={() => void retryGeneration()}
+                  >
+                    {getJobRetryLabel()}
+                  </GameButton>
+                )}
                 <GameButton
                   variant="secondary"
                   onClick={() => void cancelGeneration()}
                 >
-                  Cancel Generation
+                  {getJobCancelLabel()}
                 </GameButton>
               </div>
             </div>
@@ -95,12 +106,20 @@ export default function QuestionnairePageClient() {
                 statusMessage={jobMessage}
                 progress={jobProgress}
               />
-              <div className="flex justify-center">
+              <div className="flex justify-center gap-3">
+                {canRetryGeneration && (
+                  <GameButton
+                    variant="secondary"
+                    onClick={() => void retryGeneration()}
+                  >
+                    {getJobRetryLabel()}
+                  </GameButton>
+                )}
                 <GameButton
                   variant="secondary"
                   onClick={() => void cancelGeneration()}
                 >
-                  Cancel Generation
+                  {getJobCancelLabel()}
                 </GameButton>
               </div>
             </div>

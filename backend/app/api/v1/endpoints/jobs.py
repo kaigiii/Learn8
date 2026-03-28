@@ -265,6 +265,7 @@ async def check_active_jobs(
             "job_id": active_job.id,
             "status": active_job.status,
             "job_type": active_job.job_type,
+            "progress": active_job.progress,
             "result_data": active_job.result_data,
             "message": active_job.message,
             "retryable": retryable,

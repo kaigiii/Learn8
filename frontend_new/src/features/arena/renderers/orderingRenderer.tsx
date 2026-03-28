@@ -1,30 +1,22 @@
 "use client";
 
-import dynamic from "next/dynamic";
-import { StageComponentLoading } from "./shared";
+import OrderingQuestion from "@/components/arena/OrderingQuestion";
 import type { ArenaStagePlugin, ArenaStageRendererProps } from "./types";
-
-const OrderingQuestion = dynamic(
-  () => import("@/components/arena/OrderingQuestion"),
-  { loading: () => <StageComponentLoading /> }
-);
 
 export function renderOrderingStage({
   stage,
-  stageIdx,
-  totalStages,
-  onSubmitStage,
-  onSkipStage,
+  lesson,
+  actions,
 }: ArenaStageRendererProps) {
   return (
     <OrderingQuestion
-      key={`backend-order-${stageIdx}`}
+      key={`backend-order-${lesson.stageIdx}`}
       stage={stage}
-      stageIndex={stageIdx}
-      totalStages={totalStages}
+      stageIndex={lesson.stageIdx}
+      totalStages={lesson.totalStages}
       topic={stage.topic}
-      onSubmit={(input) => void onSubmitStage(stage, { order: input })}
-      onSkip={() => void onSkipStage(stage)}
+      onSubmit={(input) => void actions.onSubmitStage(stage, { order: input })}
+      onSkip={() => void actions.onSkipStage(stage)}
     />
   );
 }

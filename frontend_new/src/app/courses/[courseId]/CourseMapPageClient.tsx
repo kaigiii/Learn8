@@ -3,8 +3,10 @@
 import React from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import TopStatsBar from "@/components/layout/TopStatsBar";
+import { useResolvedCourseRoute } from "@/features/courseMap/hooks/useResolvedCourseRoute";
+import { useDelayedVisibility } from "@/lib/ui/useDelayedVisibility";
 import useUserStore from "@/stores/app/useUserStore";
 import { CourseMapAssistantPanel } from "./components/CourseMapAssistantPanel";
 import { CourseMapBackground } from "./components/CourseMapBackground";
@@ -15,12 +17,11 @@ export default function CourseMapPageClient({
 }: {
   courseId?: string;
 } = {}) {
-  const params = useParams();
-  const courseId =
-    (typeof explicitCourseId === "string" && explicitCourseId) ||
-    (typeof params.courseId === "string" ? params.courseId : "");
+  const { courseId, routeCourseId } = useResolvedCourseRoute({
+    courseId: explicitCourseId,
+  });
   const setLastActiveCourse = useUserStore((state) => state.setLastActiveCourse);
-  const lastActiveNodeId = useUserStore((state) => state.lastActiveNodeId);
+  const lastActiveNodeId = useUserStore((state) => state.navigation.lastActiveNodeId);
 
   const {
     backendError,
@@ -35,11 +36,11 @@ export default function CourseMapPageClient({
     handleMouseUp,
   } = useCourseMapData({
     courseId,
-    explicitCourseId,
-    paramsCourseId: typeof params.courseId === "string" ? params.courseId : undefined,
+    routeCourseId,
     setLastActiveCourse,
     lastActiveNodeId,
   });
+  const showDelayedMapLoading = useDelayedVisibility(backendLoading, 220);
 
   if (!isBackendCourse) {
     return null;
@@ -67,7 +68,7 @@ export default function CourseMapPageClient({
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
         >
-          {backendLoading && (
+          {showDelayedMapLoading && (
             <div className="mb-4 rounded-xl border border-sky-200 bg-white/75 px-4 py-3 text-sm text-brand-gray-600 shadow-sm backdrop-blur">
               Loading course map...
             </div>
@@ -135,7 +136,9 @@ function MapNodeCircle({
   index: number;
   courseId: string;
 }) {
+  const router = useRouter();
   const isClickable = node.status === "available" || node.status === "completed";
+  const targetHref = `/courses/${courseId}/nodes/${node.id}`;
 
   const content = (
     <motion.div
@@ -143,6 +146,11 @@ function MapNodeCircle({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ delay: 0.15 * index, type: "spring", damping: 14 }}
       className="flex cursor-pointer flex-col items-center gap-2"
+      onHoverStart={() => {
+        if (isClickable) {
+          void router.prefetch(targetHref);
+        }
+      }}
       whileHover={isClickable ? { scale: 1.1 } : {}}
       whileTap={isClickable ? { scale: 0.92 } : {}}
     >
@@ -311,7 +319,7 @@ function MapNodeCircle({
         transform: "translate(-50%, -50%)",
       }}
     >
-      {isClickable ? <Link href={`/courses/${courseId}/nodes/${node.id}`}>{content}</Link> : content}
+      {isClickable ? <Link href={targetHref}>{content}</Link> : content}
     </div>
   );
 }

@@ -18,14 +18,16 @@ export interface MatchingStageViewModel {
   handleHint: () => void;
 }
 
-export interface ArenaStageRendererProps {
-  stage: LessonStage;
+export interface ArenaLessonRendererViewModel {
   stageIdx: number;
   totalStages: number;
   nodeDescription: string;
   matchPairs: MatchPair[];
   matchQuestion: string;
   matchingStage: MatchingStageViewModel;
+}
+
+export interface ArenaStageActionHandlers {
   onSubmitStage: (
     stage: LessonStage,
     input: unknown
@@ -33,6 +35,12 @@ export interface ArenaStageRendererProps {
   onSkipStage: (stage: LessonStage) => Promise<void>;
   onContinue: () => void;
   onHintUse: () => boolean;
+}
+
+export interface ArenaStageRendererProps {
+  stage: LessonStage;
+  lesson: ArenaLessonRendererViewModel;
+  actions: ArenaStageActionHandlers;
 }
 
 export type StageRenderer = (props: ArenaStageRendererProps) => JSX.Element;

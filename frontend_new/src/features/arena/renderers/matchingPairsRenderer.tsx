@@ -1,44 +1,34 @@
 "use client";
 
-import dynamic from "next/dynamic";
-import { StageComponentLoading } from "./shared";
+import MatchingPairsQuestion from "@/components/arena/MatchingPairsQuestion";
 import type { ArenaStagePlugin, ArenaStageRendererProps } from "./types";
-
-const MatchingPairsQuestion = dynamic(
-  () => import("@/components/arena/MatchingPairsQuestion"),
-  { loading: () => <StageComponentLoading /> }
-);
 
 export function renderMatchingPairsStage({
   stage,
-  stageIdx,
-  totalStages,
-  matchPairs,
-  matchQuestion,
-  matchingStage,
-  onSkipStage,
+  lesson,
+  actions,
 }: ArenaStageRendererProps) {
   return (
     <MatchingPairsQuestion
-      key={`backend-match-${stageIdx}`}
-      stageIndex={stageIdx}
-      totalStages={totalStages}
+      key={`backend-match-${lesson.stageIdx}`}
+      stageIndex={lesson.stageIdx}
+      totalStages={lesson.totalStages}
       topic={stage.topic}
-      question={matchQuestion}
-      pairs={matchPairs}
-      shuffledRight={matchingStage.shuffledRight}
-      matched={matchingStage.matched}
-      selectedLeft={matchingStage.selectedLeft}
-      selectedRight={matchingStage.selectedRight}
-      wrongPair={matchingStage.wrongPair}
-      hintPair={matchingStage.hintPair}
-      hintUsed={matchingStage.hintUsed}
-      allMatched={matchingStage.allMatched}
-      onPickLeft={matchingStage.pickLeft}
-      onPickRight={matchingStage.pickRight}
-      onHint={matchingStage.handleHint}
-      onSubmit={matchingStage.handleCheck}
-      onSkip={() => void onSkipStage(stage)}
+      question={lesson.matchQuestion}
+      pairs={lesson.matchPairs}
+      shuffledRight={lesson.matchingStage.shuffledRight}
+      matched={lesson.matchingStage.matched}
+      selectedLeft={lesson.matchingStage.selectedLeft}
+      selectedRight={lesson.matchingStage.selectedRight}
+      wrongPair={lesson.matchingStage.wrongPair}
+      hintPair={lesson.matchingStage.hintPair}
+      hintUsed={lesson.matchingStage.hintUsed}
+      allMatched={lesson.matchingStage.allMatched}
+      onPickLeft={lesson.matchingStage.pickLeft}
+      onPickRight={lesson.matchingStage.pickRight}
+      onHint={lesson.matchingStage.handleHint}
+      onSubmit={lesson.matchingStage.handleCheck}
+      onSkip={() => void actions.onSkipStage(stage)}
     />
   );
 }

@@ -2,16 +2,6 @@
 
 import type { LessonStage, SubmissionResponse } from "@/lib/apiTypes";
 
-export function StageComponentLoading() {
-  return (
-    <div className="flex flex-1 items-center justify-center">
-      <div className="rounded-3xl bg-white/70 px-6 py-5 text-sm text-brand-gray-600 shadow-sm">
-        Loading stage...
-      </div>
-    </div>
-  );
-}
-
 export function getFeynmanSubmitResult(
   response: SubmissionResponse | void
 ) {

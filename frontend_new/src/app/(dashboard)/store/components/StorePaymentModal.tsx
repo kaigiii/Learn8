@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { ApiError, apiFetch } from "@/lib/apiClient";
+import { syncPersistedProfile } from "@/lib/auth/profileSync";
 import type { UserProfile } from "@/lib/apiTypes";
-import { useAuthStore } from "@/stores/app/useAuthStore";
 import useUserStore from "@/stores/app/useUserStore";
 import type { CreditStoreTier } from "../types";
 
@@ -19,8 +19,6 @@ export function StorePaymentModal({
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
   const addGems = useUserStore((state) => state.addGems);
-  const syncFromProfile = useUserStore((state) => state.syncFromProfile);
-  const updateUser = useAuthStore((state) => state.updateUser);
 
   const handlePay = async () => {
     setProcessing(true);
@@ -31,8 +29,7 @@ export function StorePaymentModal({
           `/auth/credits/topup?amount=${tier.gems}`,
           { method: "POST" }
         );
-        updateUser(profile);
-        syncFromProfile(profile);
+        syncPersistedProfile(profile);
       } else {
         addGems(0);
       }
