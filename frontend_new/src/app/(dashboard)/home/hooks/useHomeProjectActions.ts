@@ -39,6 +39,40 @@ export function useHomeProjectActions({
   const [projectModal, setProjectModal] = useState<ProjectModalState>(null);
   const [isDragging, setIsDragging] = useState(false);
 
+  const rollbackCreatedProject = useCallback(
+    async (project: Project | null) => {
+      if (!project) return;
+
+      try {
+        await apiFetch(`/projects/${project.id}`, {
+          method: "DELETE",
+        });
+      } catch {
+        // Ignore rollback failure. The primary action error will still be shown.
+      }
+
+      setProjects((prev) => prev.filter((item) => item.id !== project.id));
+      setCourses((prev) =>
+        prev.filter((course) => course.project_id !== project.id)
+      );
+      setDraftsByProject((prev) => {
+        const next = { ...prev };
+        delete next[project.id];
+        return next;
+      });
+      if (currentProject?.id === project.id) {
+        setCurrentProject(null);
+      }
+    },
+    [
+      currentProject?.id,
+      setCourses,
+      setCurrentProject,
+      setDraftsByProject,
+      setProjects,
+    ]
+  );
+
   const createProject = useCallback(
     async (name: string) => {
       const project = await apiFetch<Project>("/projects", {
@@ -63,10 +97,12 @@ export function useHomeProjectActions({
   const handleFileAccepted = useCallback(
     async (file: File, setTopic: (value: string) => void) => {
       const inferredName = file.name.replace(/\.[^.]+$/, "") || "Imported Project";
+      let createdProject: Project | null = null;
       setError("");
       setIsForging(true);
       try {
         const project = await resolveProjectForNewJourney(inferredName);
+        createdProject = project;
 
         const formData = new FormData();
         formData.append("file", file);
@@ -78,12 +114,13 @@ export function useHomeProjectActions({
         setFileActionMessage(`Added ${file.name}`);
         setTopic(inferredName || project.name);
       } catch (err) {
+        await rollbackCreatedProject(createdProject);
         setError(err instanceof ApiError ? err.detail : "Forge setup failed.");
       } finally {
         setIsForging(false);
       }
     },
-    [loadProjectFiles, resolveProjectForNewJourney, setError]
+    [loadProjectFiles, resolveProjectForNewJourney, rollbackCreatedProject, setError]
   );
 
   const handleRemoveProjectFile = useCallback(
@@ -125,11 +162,11 @@ export function useHomeProjectActions({
     );
     setError("");
 
-    try {
-      const updated = await apiFetch<Project>(`/projects/${projectModal.project.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ name: nextName }),
-      });
+      try {
+        const updated = await apiFetch<Project>(`/projects/${projectModal.project.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ name: nextName }),
+        });
 
       setProjects((prev) =>
         prev.map((project) =>
@@ -138,7 +175,10 @@ export function useHomeProjectActions({
       );
 
       if (currentProject?.id === updated.id) {
-        setCurrentProject(updated);
+        setCurrentProject({
+          ...currentProject,
+          ...updated,
+        });
       }
 
       setProjectModal(null);
@@ -203,11 +243,13 @@ export function useHomeProjectActions({
     async (topic: string) => {
       const trimmedTopic = topic.trim();
       if (!trimmedTopic) return;
+      let createdProject: Project | null = null;
 
       setError("");
       setIsSubmittingTopic(true);
       try {
         const project = await resolveProjectForNewJourney(trimmedTopic);
+        createdProject = project;
 
         await apiFetch(`/projects/${project.id}/draft`, {
           method: "PUT",
@@ -242,6 +284,7 @@ export function useHomeProjectActions({
 
         router.push("/questionnaire");
       } catch (err) {
+        await rollbackCreatedProject(createdProject);
         setError(
           err instanceof ApiError ? err.detail : "Failed to start questionnaire."
         );
@@ -249,7 +292,13 @@ export function useHomeProjectActions({
         setIsSubmittingTopic(false);
       }
     },
-    [resolveProjectForNewJourney, router, setDraftsByProject, setError]
+    [
+      resolveProjectForNewJourney,
+      rollbackCreatedProject,
+      router,
+      setDraftsByProject,
+      setError,
+    ]
   );
 
   return {
