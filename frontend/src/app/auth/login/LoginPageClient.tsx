@@ -239,7 +239,7 @@ export default function LoginPageClient() {
                 onClick={() => setActiveTab("signup")}
                 className="w-full rounded-xl bg-brand-green px-6 py-3 font-heading font-bold text-white uppercase tracking-wide shadow-md hover:bg-brand-green-dark active:translate-y-0.5 transition mb-4"
               >
-                Start Your Journey
+                Create Your Account
               </button>
               <button
                 type="button"

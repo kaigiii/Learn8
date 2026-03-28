@@ -46,7 +46,7 @@ class DocumentProcessor:
         file_path: str,
         max_chars: int = None,
         user_id: int = None,
-        project_folder: str = None,
+        course_folder: str = None,
     ) -> str:
         """
         根據副檔名決定正確的解析器並執行非同步擷取。
@@ -66,7 +66,7 @@ class DocumentProcessor:
             file_path,
             max_chars=max_chars,
             user_id=user_id,
-            project_folder=project_folder,
+            course_folder=course_folder,
         )
 
 

@@ -5,16 +5,16 @@ from app.services.commons.activity_logger import activity_logger
 
 
 class FileService:
-    def get_upload_dir(self, user_id: int, project_folder: str = None) -> str:
+    def get_upload_dir(self, user_id: int, course_folder: str = None) -> str:
         base_path = os.path.join(os.getcwd(), "uploads", str(user_id))
-        if project_folder:
-            base_path = os.path.join(base_path, project_folder)
+        if course_folder:
+            base_path = os.path.join(base_path, course_folder)
         return base_path
 
     def save_upload_file(
-        self, file: UploadFile, user_id: int, project_folder: str = None
+        self, file: UploadFile, user_id: int, course_folder: str = None
     ) -> str:
-        upload_dir = self.get_upload_dir(user_id, project_folder)
+        upload_dir = self.get_upload_dir(user_id, course_folder)
         os.makedirs(upload_dir, exist_ok=True)
 
         # 可以在此加入基礎的檔名清理邏輯 (Sanitization)
@@ -28,8 +28,8 @@ class FileService:
             activity_logger.error(f"File save failed for {file.filename}: {e}")
             raise HTTPException(status_code=500, detail=f"File save failed: {str(e)}")
 
-    def list_files(self, user_id: int, project_folder: str) -> list[str]:
-        upload_dir = self.get_upload_dir(user_id, project_folder)
+    def list_files(self, user_id: int, course_folder: str) -> list[str]:
+        upload_dir = self.get_upload_dir(user_id, course_folder)
         if not os.path.exists(upload_dir):
             return []
 

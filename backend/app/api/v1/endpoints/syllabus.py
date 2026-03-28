@@ -167,7 +167,7 @@ async def refine_syllabus_endpoint(
             "user_feedback": request.userFeedback,
             "history": request.history,
             "user_id": current_user.id,
-            "project_folder": course_folder_name,
+            "course_folder": course_folder_name,
             "architect_service": architect_service,
         }
     )

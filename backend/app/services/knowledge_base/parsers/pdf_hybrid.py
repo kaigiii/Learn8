@@ -15,7 +15,7 @@ class HybridPDFParser:
         file_path: str,
         max_chars: int = None,
         user_id: int = None,
-        project_folder: str = None,
+        course_folder: str = None,
     ) -> str:
         try:
             doc = fitz.open(file_path)
@@ -27,19 +27,19 @@ class HybridPDFParser:
                     f"HybridPDFParser: 0 images found in {file_path}. Routing to BasicPDFParser."
                 )
                 return await BasicPDFParser().parse_async(
-                    file_path, max_chars, user_id, project_folder
+                    file_path, max_chars, user_id, course_folder
                 )
             else:
                 activity_logger.info(
                     f"HybridPDFParser: {total_images} images found in {file_path}. Routing to VisionPDFParser."
                 )
                 return await VisionPDFParser().parse_async(
-                    file_path, max_chars, user_id, project_folder
+                    file_path, max_chars, user_id, course_folder
                 )
         except Exception as e:
             activity_logger.warning(
                 f"HybridPDFParser Check Error for {file_path}: {e}. Falling back to BasicPDFParser."
             )
             return await BasicPDFParser().parse_async(
-                file_path, max_chars, user_id, project_folder
+                file_path, max_chars, user_id, course_folder
             )

@@ -23,8 +23,8 @@ class PDFParserStrategyRouter:
         file_path: str,
         max_chars: int = None,
         user_id: int = None,
-        project_folder: str = None,
+        course_folder: str = None,
     ) -> str:
         return await self._get_parser().parse_async(
-            file_path, max_chars, user_id, project_folder
+            file_path, max_chars, user_id, course_folder
         )

@@ -292,7 +292,7 @@ async def delete_course_file(
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
     if not course.folder_name:
-        raise HTTPException(status_code=404, detail="Course does not have a file workspace")
+        raise HTTPException(status_code=404, detail="Course does not have a materials folder")
 
     file_path = os.path.join(
         file_service.get_upload_dir(current_user.id, course.folder_name),

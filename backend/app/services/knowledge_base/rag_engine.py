@@ -86,7 +86,7 @@ class RAGEngine:
 
             # 使用統一的 DocumentProcessor 來讀取支援的所有檔案格式
             content = await DocumentProcessor.async_read_content(
-                file_path=temp_filename, user_id=user_id, project_folder=course_folder
+                file_path=temp_filename, user_id=user_id, course_folder=course_folder
             )
             if not content:
                 activity_logger.warning(
@@ -182,7 +182,7 @@ class RAGEngine:
         filename: str,
         course_id: int | None = None,
     ):
-        """Deletes vector embeddings for a specific file in a scoped container."""
+        """Deletes vector embeddings for a specific file within a course scope."""
         vectorstore = self.get_vectorstore()
         if vectorstore:
             try:

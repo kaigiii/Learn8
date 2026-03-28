@@ -59,7 +59,7 @@ async def run_lesson_generation_job(
             node,
             topic,
             user_id=user.id,
-            project_folder=course_folder_name,
+            course_folder=course_folder_name,
             profile=profile_summary,
         )
 

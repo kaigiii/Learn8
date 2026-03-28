@@ -23,6 +23,6 @@ class BasicPDFParser:
         file_path: str,
         max_chars: int = None,
         user_id: int = None,
-        project_folder: str = None,
+        course_folder: str = None,
     ) -> str:
         return self.parse(file_path, max_chars)
