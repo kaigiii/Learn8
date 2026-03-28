@@ -17,10 +17,18 @@ from langchain_core.messages import SystemMessage, HumanMessage
 class TextSplitterService:
     """處理將大型文件切分為較小區塊，以便進行向量索引 (Vector Indexing)。"""
 
-    def split_document(self, text: str, source: str, project_id: int) -> List[Document]:
+    def split_document(
+        self,
+        text: str,
+        source: str,
+        course_id: int | None = None,
+    ) -> List[Document]:
+        metadata = {"source": source}
+        if course_id is not None:
+            metadata["course_id"] = str(course_id)
         doc = Document(
             page_content=text,
-            metadata={"project_id": str(project_id), "source": source},
+            metadata=metadata,
         )
 
         text_splitter = RecursiveCharacterTextSplitter(
@@ -63,9 +71,9 @@ class RAGEngine:
     async def ingest_document(
         self,
         file: UploadFile,
-        project_id: int,
+        course_id: int | None = None,
         user_id: int = None,
-        project_folder: str = None,
+        course_folder: str = None,
     ) -> int:
         os.makedirs("temp", exist_ok=True)
         temp_filename = os.path.join("temp", f"temp_{file.filename}")
@@ -78,7 +86,7 @@ class RAGEngine:
 
             # 使用統一的 DocumentProcessor 來讀取支援的所有檔案格式
             content = await DocumentProcessor.async_read_content(
-                file_path=temp_filename, user_id=user_id, project_folder=project_folder
+                file_path=temp_filename, user_id=user_id, project_folder=course_folder
             )
             if not content:
                 activity_logger.warning(
@@ -87,7 +95,7 @@ class RAGEngine:
                 return 0
 
             splits = self._text_splitter.split_document(
-                content, file.filename, project_id
+                content, file.filename, course_id=course_id
             )
 
             vectorstore = self.get_vectorstore()
@@ -156,41 +164,49 @@ class RAGEngine:
         # e.g. ask LLM: "Which of these snippets answer '{query}' best?"
         return docs[:top_k]
 
-    async def delete_project_context(self, project_id: int):
-        """Deletes all vector embeddings associated with a project."""
+    async def delete_course_context(self, course_id: int):
         vectorstore = self.get_vectorstore()
         if vectorstore:
             try:
                 activity_logger.info(
-                    f"Deleting RAG context for project_id={project_id}"
+                    f"Deleting RAG context for course_id={course_id}"
                 )
-                vectorstore.delete(where={"project_id": str(project_id)})
+                vectorstore.delete(where={"course_id": str(course_id)})
             except Exception as e:
                 activity_logger.error(
-                    f"Error deleting RAG context for project {project_id}: {e}"
+                    f"Error deleting RAG context for course {course_id}: {e}"
                 )
 
-    async def delete_file_context(self, project_id: int, filename: str):
-        """Deletes vector embeddings for a specific file in a project."""
+    async def delete_file_context(
+        self,
+        filename: str,
+        course_id: int | None = None,
+    ):
+        """Deletes vector embeddings for a specific file in a scoped container."""
         vectorstore = self.get_vectorstore()
         if vectorstore:
             try:
-                activity_logger.info(
-                    f"Deleting RAG context for file={filename} in project_id={project_id}"
-                )
-                # ChromaDB where clause with multiple conditions
-                vectorstore.delete(
-                    where={
-                        "$and": [{"project_id": str(project_id)}, {"source": filename}]
-                    }
-                )
+                scope_filter = None
+                if course_id is not None:
+                    activity_logger.info(
+                        f"Deleting RAG context for file={filename} in course_id={course_id}"
+                    )
+                    scope_filter = {"course_id": str(course_id)}
+
+                if scope_filter is None:
+                    return
+
+                vectorstore.delete(where={"$and": [scope_filter, {"source": filename}]})
             except Exception as e:
                 activity_logger.error(
-                    f"Error deleting file context {filename} in project {project_id}: {e}"
+                    f"Error deleting file context {filename}: {e}"
                 )
 
     async def query_context(
-        self, topic: str, k: Optional[int] = None, project_id: Optional[int] = None
+        self,
+        topic: str,
+        k: Optional[int] = None,
+        course_id: Optional[int] = None,
     ) -> List[str]:
         vectorstore = self.get_vectorstore()
         if not vectorstore:
@@ -206,11 +222,9 @@ class RAGEngine:
             queries = [topic]
 
         # Prepare filter (ChromaDB uses 'filter' kwarg)
-        # If project_id is provided, strict filter. If None, theoretically searches everything (or nothing? safe to search existing global?)
-        # For security, ideally we force project_id, but for backward compat we might leave it optional or assume "public"
         search_kwargs = {"k": settings.RAG_SEARCH_K}
-        if project_id:
-            search_kwargs["filter"] = {"project_id": str(project_id)}
+        if course_id:
+            search_kwargs["filter"] = {"course_id": str(course_id)}
 
         all_docs = []
         for q in queries:

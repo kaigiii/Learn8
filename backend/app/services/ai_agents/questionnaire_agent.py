@@ -53,12 +53,14 @@ class QuestionnaireAgent:
         self.rag_engine = rag_engine
 
     async def generate_questions(
-        self, topic: str, project_id: int = None
+        self,
+        topic: str,
+        course_id: int = None,
     ) -> List[Question]:
 
         # 取得上下文以確保問題的關聯性
         context_chunks = await self.rag_engine.query_context(
-            topic, k=2, project_id=project_id
+            topic, k=2, course_id=course_id
         )
         context_str = (
             "\\n".join(context_chunks) if context_chunks else "No specific context."

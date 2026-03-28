@@ -5,32 +5,39 @@ from sqlalchemy import (
     JSON,
     DateTime,
     ForeignKey,
-    UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
 from app.db.base import Base
 import datetime
 
 
+class CourseStatus:
+    DRAFT = "draft"
+    QUESTIONNAIRE_READY = "questionnaire_ready"
+    PROFILING = "profiling"
+    GENERATING = "generating"
+    READY = "ready"
+    ARCHIVED = "archived"
+
+
 class CourseModel(Base):
     __tablename__ = "courses"
-    __table_args__ = (
-        UniqueConstraint("project_id", name="uq_courses_project_id"),
-    )
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
-    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=True)
     topic = Column(String, index=True)
     title = Column(String)
-    syllabus_json = Column(JSON)
+    status = Column(String, nullable=False, default=CourseStatus.DRAFT, index=True)
+    folder_name = Column(String, unique=True, nullable=True)
+    profile_json = Column(JSON, nullable=True)
+    draft_json = Column(JSON, nullable=True)
+    syllabus_json = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(
         DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow
     )
 
     user = relationship("UserModel", back_populates="courses")
-    project = relationship("ProjectModel", back_populates="course")
     nodes = relationship(
         "NodeModel",
         back_populates="course",
@@ -51,6 +58,12 @@ class CourseModel(Base):
     )
     lesson_failed_stages = relationship(
         "LessonFailedStageModel",
+        back_populates="course",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    lesson_remedials = relationship(
+        "LessonRemedialModel",
         back_populates="course",
         cascade="all, delete-orphan",
         passive_deletes=True,

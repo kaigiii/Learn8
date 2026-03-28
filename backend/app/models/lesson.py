@@ -17,9 +17,9 @@ class LessonModel(Base):
     __tablename__ = "lessons"
     __table_args__ = (
         Index(
-            "ix_lessons_user_project_node_topic",
+            "ix_lessons_user_course_node_topic",
             "user_id",
-            "project_id",
+            "course_id",
             "node_id",
             "course_topic",
         ),
@@ -27,14 +27,14 @@ class LessonModel(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
-    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=True)
+    course_id = Column(Integer, ForeignKey("courses.id", ondelete="CASCADE"), nullable=True, index=True)
     node_id = Column(String, index=True)
     course_topic = Column(String, index=True)
     stage_json = Column(JSON)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     user = relationship("UserModel", back_populates="lessons")
-    project = relationship("ProjectModel", back_populates="lessons")
+    course = relationship("CourseModel")
     sessions = relationship(
         "LessonSessionModel",
         back_populates="lesson",
@@ -48,7 +48,6 @@ class LessonAttempt(Base):
     id = Column(Integer, primary_key=True, index=True)
     lesson_session_id = Column(Integer, ForeignKey("lesson_sessions.id", ondelete="CASCADE"), index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
-    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=True)
     course_id = Column(Integer, ForeignKey("courses.id", ondelete="CASCADE"), nullable=True)
     node_id = Column(String, index=True)
     course_topic = Column(String, index=True)
@@ -65,7 +64,6 @@ class LessonAttempt(Base):
 
     lesson_session = relationship("LessonSessionModel", back_populates="attempts")
     user = relationship("UserModel", back_populates="lesson_attempts")
-    project = relationship("ProjectModel", back_populates="lesson_attempts")
     course = relationship("CourseModel", back_populates="lesson_attempts")
 
 
@@ -74,7 +72,6 @@ class LessonSessionModel(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=True, index=True)
     course_id = Column(Integer, ForeignKey("courses.id", ondelete="CASCADE"), nullable=True, index=True)
     lesson_id = Column(Integer, ForeignKey("lessons.id", ondelete="SET NULL"), nullable=True, index=True)
     node_id = Column(String, nullable=False, index=True)
@@ -93,7 +90,6 @@ class LessonSessionModel(Base):
     )
 
     user = relationship("UserModel", back_populates="lesson_sessions")
-    project = relationship("ProjectModel", back_populates="lesson_sessions")
     course = relationship("CourseModel", back_populates="lesson_sessions")
     lesson = relationship("LessonModel", back_populates="sessions")
     attempts = relationship(
@@ -124,7 +120,6 @@ class LessonFailedStageModel(Base):
         Integer, ForeignKey("lesson_sessions.id", ondelete="CASCADE"), nullable=False, index=True
     )
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=True, index=True)
     course_id = Column(Integer, ForeignKey("courses.id", ondelete="CASCADE"), nullable=True, index=True)
     node_id = Column(String, nullable=False, index=True)
     course_topic = Column(String, nullable=False, index=True)
@@ -143,7 +138,6 @@ class LessonFailedStageModel(Base):
 
     lesson_session = relationship("LessonSessionModel", back_populates="failed_stages")
     user = relationship("UserModel", back_populates="lesson_failed_stages")
-    project = relationship("ProjectModel", back_populates="lesson_failed_stages")
     course = relationship("CourseModel", back_populates="lesson_failed_stages")
 
 
@@ -152,7 +146,7 @@ class LessonRemedialModel(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
-    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=True)
+    course_id = Column(Integer, ForeignKey("courses.id", ondelete="CASCADE"), nullable=True, index=True)
     lesson_session_id = Column(Integer, ForeignKey("lesson_sessions.id", ondelete="CASCADE"), nullable=True)
     node_id = Column(String, index=True)
     course_topic = Column(String, index=True)
@@ -163,5 +157,5 @@ class LessonRemedialModel(Base):
     )
 
     user = relationship("UserModel", back_populates="lesson_remedials")
-    project = relationship("ProjectModel", back_populates="lesson_remedials")
+    course = relationship("CourseModel", back_populates="lesson_remedials")
     lesson_session = relationship("LessonSessionModel", back_populates="remedials")

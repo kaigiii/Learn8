@@ -20,11 +20,12 @@ from app.models.lesson import (
     LessonRemedialModel,
     LessonSessionModel,
 )
-from app.models.project import ProjectModel
 from app.models.user import UserModel
 from app.schemas.course_schema import LessonNode
 from app.schemas.lesson_schema import (
     FailedStageRecord,
+    LessonAssistantRequest,
+    LessonAssistantResponse,
     LessonSessionCompleteRequest,
     LessonSessionPayload,
     LessonSessionSummaryPayload,
@@ -145,6 +146,27 @@ def _format_elapsed_label(elapsed_seconds: int) -> str:
     minutes = elapsed_seconds // 60
     seconds = elapsed_seconds % 60
     return f"{minutes}m {str(seconds).zfill(2)}s"
+
+
+def _resolve_course_folder_and_profile(
+    db: Session, course_id: int | None, current_user_id: int
+) -> tuple[str | None, str]:
+    if not course_id:
+        return None, ""
+
+    course = (
+        db.query(CourseModel)
+        .filter(CourseModel.id == course_id, CourseModel.user_id == current_user_id)
+        .first()
+    )
+    if not course:
+        return None, ""
+
+    return course.folder_name, (
+        course.profile_json.get("summary", "")
+        if isinstance(course.profile_json, dict)
+        else ""
+    )
 
 
 def _build_session_summary_payload(
@@ -453,7 +475,7 @@ async def generate_lesson_from_node_endpoint(
     node: LessonNode,
     topic: str,
     background_tasks: BackgroundTasks,
-    project_id: int = None,
+    course_id: int | None = None,
     current_user: UserModel = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -463,10 +485,8 @@ async def generate_lesson_from_node_endpoint(
             LessonModel.course_topic == topic,
             LessonModel.user_id == current_user.id,
         )
-        if project_id is not None:
-            query = query.filter(LessonModel.project_id == project_id)
-        else:
-            query = query.filter(LessonModel.project_id.is_(None))
+        if course_id is not None:
+            query = query.filter(LessonModel.course_id == course_id)
         return query.order_by(LessonModel.created_at.desc()).first()
 
     cached_lesson = await run_in_threadpool(_fetch_cached_lesson)
@@ -495,25 +515,25 @@ async def generate_lesson_from_node_endpoint(
             detail=f"Insufficient credits. Need {settings.COST_LESSON_GENERATION}.",
         )
 
-    project_folder_name = None
+    course_folder_name = None
     profile_summary = "General Learner"
-    if project_id:
+    if course_id:
 
-        def _fetch_project_lesson():
+        def _fetch_course_lesson():
             return (
-                db.query(ProjectModel)
+                db.query(CourseModel)
                 .filter(
-                    ProjectModel.id == project_id,
-                    ProjectModel.user_id == current_user.id,
+                    CourseModel.id == course_id,
+                    CourseModel.user_id == current_user.id,
                 )
                 .first()
             )
 
-        db_project = await run_in_threadpool(_fetch_project_lesson)
-        if db_project:
-            project_folder_name = db_project.folder_name
-            if db_project.profile_json:
-                profile_summary = db_project.profile_json.get(
+        db_course = await run_in_threadpool(_fetch_course_lesson)
+        if db_course:
+            course_folder_name = db_course.folder_name
+            if db_course.profile_json:
+                profile_summary = db_course.profile_json.get(
                     "summary", "General Learner"
                 )
 
@@ -521,12 +541,16 @@ async def generate_lesson_from_node_endpoint(
     new_job = JobModel(
         id=job_id,
         user_id=current_user.id,
-        project_id=project_id,
+        course_id=course_id,
         job_type="LESSON_GEN",
         status="PENDING",
         progress=0,
         message="Waiting for resources...",
-        result_data={"project_id": project_id, "node_id": node.id, "topic": topic},
+        result_data={
+            "course_id": course_id,
+            "node_id": node.id,
+            "topic": topic,
+        },
     )
     db.add(new_job)
     db.commit()
@@ -535,10 +559,10 @@ async def generate_lesson_from_node_endpoint(
         run_lesson_generation_job,
         job_id,
         current_user.id,
-        project_id,
+        course_id,
         topic,
         node.model_dump(),
-        project_folder_name,
+        course_folder_name,
         profile_summary,
     )
     return {"job_id": job_id, "status": "PENDING"}
@@ -598,7 +622,7 @@ async def start_lesson_session(
         db.query(LessonModel)
         .filter(
             LessonModel.user_id == current_user.id,
-            LessonModel.project_id == request.projectId,
+            LessonModel.course_id == request.courseId,
             LessonModel.node_id == request.nodeId,
             LessonModel.course_topic == request.topic,
         )
@@ -608,7 +632,6 @@ async def start_lesson_session(
 
     session = LessonSessionModel(
         user_id=current_user.id,
-        project_id=request.projectId,
         course_id=request.courseId,
         lesson_id=cached_lesson.id if cached_lesson else None,
         node_id=request.nodeId,
@@ -665,6 +688,58 @@ async def get_lesson_session_summary(
     return _build_session_summary_payload(db, session)
 
 
+@router.post("/assistant/respond", response_model=LessonAssistantResponse)
+async def respond_to_lesson_question(
+    request: LessonAssistantRequest,
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    architect_service: AIArchitectService = Depends(get_architect_service),
+):
+    session = None
+    if request.sessionId is not None:
+        session = (
+            db.query(LessonSessionModel)
+            .filter(
+                LessonSessionModel.id == request.sessionId,
+                LessonSessionModel.user_id == current_user.id,
+            )
+            .first()
+        )
+        if not session:
+            raise HTTPException(status_code=404, detail="Lesson session not found")
+
+    resolved_course_id = (
+        session.course_id
+        if session and session.course_id is not None
+        else request.courseId
+    )
+    project_folder, learner_profile_summary = _resolve_course_folder_and_profile(
+        db, resolved_course_id, current_user.id
+    )
+
+    answer = await architect_service.answer_lesson_question(
+        user_question=request.userQuestion,
+        course_topic=(
+            request.courseTopic
+            or (session.course_topic if session else "")
+            or request.courseTitle
+            or "Lesson"
+        ),
+        course_title=request.courseTitle or request.courseTopic or "",
+        node_title=request.nodeTitle or (session.node_id if session else "") or "",
+        node_description=request.nodeDescription or "",
+        active_phase=request.activePhase or (session.active_phase if session else "primary"),
+        stage_index=max(0, int(request.stageIndex or 0)),
+        total_stages=max(1, int(request.totalStages or 1)),
+        current_stage=request.currentStage,
+        conversation=[message.model_dump() for message in request.conversation],
+        user_id=current_user.id,
+        project_folder=project_folder,
+        learner_profile_summary=learner_profile_summary,
+    )
+    return LessonAssistantResponse(answer=answer)
+
+
 @router.post("/submit-answer", response_model=SubmissionResponse)
 async def submit_answer(
     submission: SubmissionRequest,
@@ -704,7 +779,6 @@ async def submit_answer(
     attempt = LessonAttempt(
         lesson_session_id=session.id,
         user_id=current_user.id,
-        project_id=session.project_id,
         course_id=session.course_id,
         node_id=session.node_id,
         course_topic=session.course_topic,
@@ -740,7 +814,6 @@ async def submit_answer(
                 LessonFailedStageModel(
                     lesson_session_id=session.id,
                     user_id=current_user.id,
-                    project_id=session.project_id,
                     course_id=session.course_id,
                     node_id=session.node_id,
                     course_topic=session.course_topic,
@@ -819,14 +892,14 @@ async def complete_primary_lesson_session(
     job = JobModel(
         id=job_id,
         user_id=current_user.id,
-        project_id=session.project_id,
+        course_id=session.course_id,
         job_type="REMEDIAL_GEN",
         status="PENDING",
         progress=0,
         message="Preparing remedial lesson...",
         result_data={
             "session_id": session.id,
-            "project_id": session.project_id,
+            "course_id": session.course_id,
             "node_id": session.node_id,
             "topic": session.course_topic,
         },
@@ -841,7 +914,7 @@ async def complete_primary_lesson_session(
         current_user.id,
         session.course_topic,
         session.node_id,
-        session.project_id,
+        session.course_id,
         [_serialize_failed_record(record).model_dump() for record in failed_records],
         session.id,
     )
@@ -958,14 +1031,14 @@ async def generate_remedial_stages_async_endpoint(
     new_job = JobModel(
         id=job_id,
         user_id=current_user.id,
-        project_id=request.projectId,
+        course_id=request.courseId,
         job_type="REMEDIAL_GEN",
         status="PENDING",
         progress=0,
         message="Waiting for remedial generation...",
         result_data={
             "session_id": request.sessionId,
-            "project_id": request.projectId,
+            "course_id": request.courseId,
             "node_id": request.nodeId,
             "topic": request.topic,
         },
@@ -979,7 +1052,7 @@ async def generate_remedial_stages_async_endpoint(
         current_user.id,
         request.topic,
         request.nodeId,
-        request.projectId,
+        request.courseId,
         [record.model_dump() for record in failed_records],
         request.sessionId,
     )

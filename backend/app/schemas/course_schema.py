@@ -3,6 +3,15 @@ from typing import List, Dict, Optional
 from pydantic import BaseModel, Field
 
 
+class CourseLifecycleStatus(str, Enum):
+    draft = "draft"
+    questionnaire_ready = "questionnaire_ready"
+    profiling = "profiling"
+    generating = "generating"
+    ready = "ready"
+    archived = "archived"
+
+
 class LessonNodeStatus(str, Enum):
     locked = "locked"
     available = "available"
@@ -36,8 +45,26 @@ class RefineSyllabusRequest(BaseModel):
     currentSyllabus: CoursePath
     userFeedback: str
     history: List[Dict[str, str]] = Field(default_factory=list)
-    projectId: Optional[int] = None
+    courseId: Optional[int] = None
+
+
+class CourseUpdateRequest(BaseModel):
+    title: str = Field(min_length=1)
 
 
 class UpdateNodeStatusRequest(BaseModel):
     status: LessonNodeStatus
+
+
+class CourseCreateRequest(BaseModel):
+    title: str = Field(min_length=1)
+    topic: Optional[str] = None
+    status: CourseLifecycleStatus = CourseLifecycleStatus.draft
+
+
+class CourseDraftRequest(BaseModel):
+    draft: dict
+
+
+class CourseProfileUpdateRequest(BaseModel):
+    profile: dict

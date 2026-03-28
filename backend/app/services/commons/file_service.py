@@ -1,9 +1,6 @@
 import os
 import shutil
 from fastapi import UploadFile, HTTPException
-from app.models.project import ProjectModel
-from app.models.user import UserModel
-from app.core.config import settings
 from app.services.commons.activity_logger import activity_logger
 
 
@@ -44,22 +41,22 @@ class FileService:
                     files.append(f)
         return files
 
-    def delete_project_folder(self, user_id: int, project_folder: str):
-        """遞迴刪除專案的實體上傳目錄。"""
-        if not project_folder:
+    def delete_course_folder(self, user_id: int, course_folder: str):
+        """遞迴刪除 course 的實體上傳目錄。"""
+        if not course_folder:
             return
 
-        target_dir = self.get_upload_dir(user_id, project_folder)
+        target_dir = self.get_upload_dir(user_id, course_folder)
 
         # 安全檢查：確保我們刪除的是 uploads 目錄下的資料夾
         # (雖然 get_upload_dir 已經鎖定基礎路徑，但多一層預防總是好的)
         if os.path.exists(target_dir):
             try:
                 shutil.rmtree(target_dir)
-                activity_logger.info(f"Deleted project folder: {target_dir}")
+                activity_logger.info(f"Deleted course folder: {target_dir}")
             except Exception as e:
                 activity_logger.error(
-                    f"Error deleting project folder {target_dir}: {e}"
+                    f"Error deleting course folder {target_dir}: {e}"
                 )
 
     def read_file_content(self, file_path: str, max_chars: int = None) -> str:
