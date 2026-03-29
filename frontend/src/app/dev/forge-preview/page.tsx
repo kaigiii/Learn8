@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { Suspense, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import ForgeStatus from "@/components/feedback/ForgeStatus";
 import GameButton from "@/components/ui/GameButton";
@@ -69,7 +69,7 @@ function getPreviewConfig(variant: PreviewVariant) {
   }
 }
 
-export default function ForgePreviewPage() {
+function ForgePreviewPageContent() {
   const searchParams = useSearchParams();
   const variantParam = searchParams.get("variant");
   const variant = PREVIEW_VARIANTS.includes(variantParam as PreviewVariant)
@@ -119,5 +119,13 @@ export default function ForgePreviewPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ForgePreviewPage() {
+  return (
+    <Suspense fallback={null}>
+      <ForgePreviewPageContent />
+    </Suspense>
   );
 }
