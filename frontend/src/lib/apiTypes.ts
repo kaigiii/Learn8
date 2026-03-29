@@ -50,6 +50,7 @@ export interface LessonNode {
   title: string;
   description: string;
   status: NodeStatus;
+  hasGeneratedLesson?: boolean;
 }
 
 export interface CourseUnit {
@@ -205,6 +206,21 @@ export interface LessonComponentManifestItem {
 
 export interface LessonComponentManifestResponse {
   items: LessonComponentManifestItem[];
+}
+
+export interface LessonGenerationPreferences {
+  allowedComponents: string[];
+}
+
+export interface LessonGenerationPreferenceItem {
+  id: number;
+  courseId: number;
+  nodeId?: string | null;
+  allowedComponents: string[];
+}
+
+export interface LessonGenerationPreferenceListResponse {
+  items: LessonGenerationPreferenceItem[];
 }
 
 export interface Question {

@@ -24,6 +24,7 @@ class LessonNode(BaseModel):
     title: str
     description: str
     status: LessonNodeStatus = LessonNodeStatus.locked
+    hasGeneratedLesson: bool = False
 
 
 class Unit(BaseModel):

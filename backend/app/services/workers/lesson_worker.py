@@ -1,4 +1,5 @@
 import logging
+from app.core.component_loader import registry as component_registry
 from app.domain.statuses import (
     JobStatus,
     LessonFailedStageStatus,
@@ -31,6 +32,7 @@ async def run_lesson_generation_job(
     node_data: dict,
     course_folder_name: str | None,
     profile_summary: str,
+    allowed_components: list[str] | None = None,
 ):
     """
     在背景獨立執行單元課程生成的 Worker。
@@ -62,6 +64,11 @@ async def run_lesson_generation_job(
         from app.schemas.course_schema import LessonNode
 
         node = LessonNode(**node_data)
+        resolved_allowed_components = (
+            list(allowed_components)
+            if allowed_components
+            else component_registry.get_component_names()
+        )
 
         stages = await architect_service.generate_lesson_from_node(
             node,
@@ -69,6 +76,7 @@ async def run_lesson_generation_job(
             user_id=user.id,
             course_folder=course_folder_name,
             profile=profile_summary,
+            allowed_components=allowed_components,
         )
 
         if _is_cancelled(db, job_id):
@@ -83,6 +91,13 @@ async def run_lesson_generation_job(
         from app.models.lesson import LessonModel
 
         stages_json = [s.model_dump() for s in stages]
+        generation_metadata = {
+            "allowed_components": resolved_allowed_components,
+            "source": "lesson_generation",
+            "job_id": job_id,
+            "course_id": course_id,
+            "node_id": node.id,
+        }
         existing_lesson_query = db.query(LessonModel).filter(
             LessonModel.node_id == node.id,
             LessonModel.course_topic == topic,
@@ -97,6 +112,7 @@ async def run_lesson_generation_job(
 
         if existing_lesson:
             existing_lesson.stage_json = stages_json
+            existing_lesson.generation_metadata_json = generation_metadata
             existing_lesson.created_at = utc_now_naive()
             db.add(existing_lesson)
         else:
@@ -104,6 +120,7 @@ async def run_lesson_generation_job(
                 node_id=node.id,
                 course_topic=topic,
                 stage_json=stages_json,
+                generation_metadata_json=generation_metadata,
                 user_id=user.id,
                 course_id=course_id,
             )
@@ -127,7 +144,13 @@ async def run_lesson_generation_job(
         job.progress = 100
         job.message = "🎉 單元建立完成！"
         job.status = JobStatus.COMPLETED
-        job.result_data = {"stages": stages_json}
+        job.result_data = {
+            "stages": stages_json,
+            "allowed_components": resolved_allowed_components,
+            "node_id": node.id,
+            "course_id": course_id,
+            "topic": topic,
+        }
         db.commit()
         db.refresh(job)
         _publish_job_notification(db, job)

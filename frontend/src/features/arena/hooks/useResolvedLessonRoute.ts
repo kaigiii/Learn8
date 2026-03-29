@@ -36,12 +36,24 @@ export function useResolvedLessonRoute({
     return parseNumericSearchParam(searchParams.get("sessionId"));
   }, [searchParams]);
 
+  const allowedComponents = useMemo(() => {
+    const raw = searchParams.get("components");
+    if (!raw) {
+      return [];
+    }
+    return raw
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }, [searchParams]);
+
   return {
     nodeId,
     routeCourseId,
     backendCourseId,
     backendCourseIdNumber: backendCourseId ? Number(backendCourseId) : null,
     sessionId,
+    allowedComponents,
     isBackendCourse: backendCourseId !== null,
   };
 }

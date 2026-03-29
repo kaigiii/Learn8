@@ -11,7 +11,10 @@ import { clearRecentCourseNavigation } from "@/lib/navigation/intents";
 export interface CourseMapNode {
   id: string;
   title: string;
+  description: string;
   status: NodeStatus;
+  hasGeneratedLesson?: boolean;
+  unitTitle?: string;
   x: number;
   y: number;
 }
@@ -86,14 +89,24 @@ export function useCourseMapData({
 
   const nodes = useMemo<CourseMapNode[]>(() => {
     const buildPositions = (
-      sourceNodes: { id: string; title: string; status: NodeStatus }[]
+      sourceNodes: {
+        id: string;
+        title: string;
+        description: string;
+        status: NodeStatus;
+        hasGeneratedLesson?: boolean;
+        unitTitle?: string;
+      }[]
     ) => {
       const count = sourceNodes.length;
       const spacing = 120;
       return sourceNodes.map((node, index) => ({
         id: node.id,
         title: node.title,
+        description: node.description,
         status: node.status,
+        hasGeneratedLesson: node.hasGeneratedLesson,
+        unitTitle: node.unitTitle,
         x: X_PATTERN[index % X_PATTERN.length],
         y: (count - 1 - index) * spacing + 60,
       }));
@@ -106,7 +119,10 @@ export function useCourseMapData({
         unit.nodes.map((node) => ({
           id: node.id,
           title: node.title,
+          description: node.description,
           status: node.status,
+          hasGeneratedLesson: node.hasGeneratedLesson,
+          unitTitle: unit.unitTitle,
         }))
       )
     );

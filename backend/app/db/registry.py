@@ -11,3 +11,4 @@ from app.models.lesson import (
 )
 from app.models.job import JobModel
 from app.models.user_ledger_event import UserLedgerEventModel
+from app.models.lesson_generation_preference import LessonGenerationPreferenceModel

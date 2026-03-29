@@ -30,7 +30,7 @@ export function useLessonGenerationFlow({
 }: UseLessonGenerationFlowParams) {
   const router = useRouter();
   const { isReady } = useRequireAuthRedirect();
-  const { backendCourseIdNumber } = useResolvedLessonRoute({
+  const { backendCourseIdNumber, allowedComponents } = useResolvedLessonRoute({
     courseId: routeCourseId,
     nodeId,
   });
@@ -156,7 +156,11 @@ export function useLessonGenerationFlow({
         }>(
           `/lessons/generate-lesson-from-node?topic=${encodeURIComponent(
             backendCourse.topic || backendCourse.courseTitle
-          )}&course_id=${backendCourseId ?? currentCourseId ?? ""}`,
+          )}&course_id=${backendCourseId ?? currentCourseId ?? ""}${
+            allowedComponents.length
+              ? `&allowed_components=${encodeURIComponent(allowedComponents.join(","))}`
+              : ""
+          }`,
           {
             method: "POST",
             body: JSON.stringify(backendNode),
@@ -193,6 +197,7 @@ export function useLessonGenerationFlow({
     isBackendLesson,
     nodeId,
     onStagesReady,
+    allowedComponents,
   ]);
 
   const cancelGeneration = useCallback(async () => {
