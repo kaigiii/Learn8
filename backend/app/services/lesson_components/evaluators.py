@@ -46,6 +46,12 @@ def normalize_matching_input(user_input: Any) -> dict:
     return {"matches": {str(k): str(v) for k, v in dict(matches).items()}}
 
 
+def _normalize_matching_pair_id(pair: Any, index: int) -> str:
+    if isinstance(pair, dict) and pair.get("id"):
+        return str(pair.get("id"))
+    return f"pair-{index}"
+
+
 async def evaluate_multiple_choice(
     stage: LessonStage,
     user_input: Any,
@@ -112,8 +118,10 @@ async def evaluate_matching_pairs(
     data = stage.config.data if isinstance(stage.config.data, dict) else {}
     normalized_input = normalize_matching_input(user_input)
     expected_pairs = {
-        str(pair.get("left", "")): str(pair.get("right", ""))
-        for pair in list(data.get("pairs", []))
+        _normalize_matching_pair_id(pair, index): _normalize_matching_pair_id(
+            pair, index
+        )
+        for index, pair in enumerate(list(data.get("pairs", [])))
     }
     is_correct = normalized_input["matches"] == expected_pairs
     evaluation = {

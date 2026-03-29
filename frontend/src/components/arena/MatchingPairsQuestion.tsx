@@ -16,18 +16,18 @@ export interface MatchingPairsQuestionProps
     QuestionCommonActions {
   question: string;
   pairs: MatchPair[];
-  shuffledRight: string[];
+  shuffledRightIds: string[];
   matched: string[];
   matchedPairs: Record<string, string>;
-  selectedLeft: string | null;
-  selectedRight: string | null;
+  selectedLeftId: string | null;
+  selectedRightId: string | null;
   wrongPair: [string, string] | null;
-  hintPair: string | null;
+  hintPairId: string | null;
   hintUsed: boolean;
   allMatched: boolean;
   feedback: "correct" | "incorrect" | null;
-  onPickLeft: (word: string) => void;
-  onPickRight: (word: string) => void;
+  onPickLeft: (pairId: string) => void;
+  onPickRight: (pairId: string) => void;
   onHint: () => void;
   onSubmit: () => void;
   onSkip: () => void;
@@ -40,13 +40,13 @@ export default function MatchingPairsQuestion({
   topic,
   question,
   pairs,
-  shuffledRight,
+  shuffledRightIds,
   matched,
   matchedPairs,
-  selectedLeft,
-  selectedRight,
+  selectedLeftId,
+  selectedRightId,
   wrongPair,
-  hintPair,
+  hintPairId,
   hintUsed,
   allMatched,
   feedback,
@@ -71,13 +71,13 @@ export default function MatchingPairsQuestion({
         <div className="flex">
           <MatchGrid
             pairs={pairs}
-            shuffledRight={shuffledRight}
+            shuffledRightIds={shuffledRightIds}
             matched={matched}
             matchedPairs={matchedPairs}
-            selectedLeft={selectedLeft}
-            selectedRight={selectedRight}
+            selectedLeftId={selectedLeftId}
+            selectedRightId={selectedRightId}
             wrongPair={wrongPair}
-            hintPair={hintPair}
+            hintPairId={hintPairId}
             feedback={feedback}
             onPickLeft={onPickLeft}
             onPickRight={onPickRight}
@@ -125,28 +125,28 @@ export default function MatchingPairsQuestion({
 
 function MatchGrid({
   pairs,
-  shuffledRight,
+  shuffledRightIds,
   matched,
   matchedPairs,
-  selectedLeft,
-  selectedRight,
+  selectedLeftId,
+  selectedRightId,
   wrongPair,
-  hintPair,
+  hintPairId,
   feedback,
   onPickLeft,
   onPickRight,
 }: {
   pairs: MatchPair[];
-  shuffledRight: string[];
+  shuffledRightIds: string[];
   matched: string[];
   matchedPairs: Record<string, string>;
-  selectedLeft: string | null;
-  selectedRight: string | null;
+  selectedLeftId: string | null;
+  selectedRightId: string | null;
   wrongPair: [string, string] | null;
-  hintPair: string | null;
+  hintPairId: string | null;
   feedback: "correct" | "incorrect" | null;
-  onPickLeft: (word: string) => void;
-  onPickRight: (word: string) => void;
+  onPickLeft: (pairId: string) => void;
+  onPickRight: (pairId: string) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const leftRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
@@ -162,12 +162,12 @@ function MatchGrid({
     const box = container.getBoundingClientRect();
     const nextLines: typeof lines = [];
 
-    for (const [leftWord, rightWord] of Object.entries(matchedPairs)) {
-      if (selectedLeft === leftWord || selectedRight === rightWord) {
+    for (const [leftId, rightId] of Object.entries(matchedPairs)) {
+      if (selectedLeftId === leftId || selectedRightId === rightId) {
         continue;
       }
-      const leftElement = leftRefs.current.get(leftWord);
-      const rightElement = rightRefs.current.get(rightWord);
+      const leftElement = leftRefs.current.get(leftId);
+      const rightElement = rightRefs.current.get(rightId);
       if (!leftElement || !rightElement) continue;
 
       const leftBox = leftElement.getBoundingClientRect();
@@ -181,9 +181,9 @@ function MatchGrid({
       });
     }
 
-    if (selectedLeft && selectedRight) {
-      const leftElement = leftRefs.current.get(selectedLeft);
-      const rightElement = rightRefs.current.get(selectedRight);
+    if (selectedLeftId && selectedRightId) {
+      const leftElement = leftRefs.current.get(selectedLeftId);
+      const rightElement = rightRefs.current.get(selectedRightId);
       if (leftElement && rightElement) {
         const leftBox = leftElement.getBoundingClientRect();
         const rightBox = rightElement.getBoundingClientRect();
@@ -199,9 +199,10 @@ function MatchGrid({
     }
 
     setLines(nextLines);
-  }, [feedback, matchedPairs, selectedLeft, selectedRight]);
+  }, [feedback, matchedPairs, selectedLeftId, selectedRightId]);
 
   const assignedRights = new Set(Object.values(matchedPairs));
+  const pairById = new Map(pairs.map((pair) => [pair.id, pair]));
 
   return (
     <div ref={containerRef} className="relative mx-auto flex w-full gap-12">
@@ -223,19 +224,19 @@ function MatchGrid({
 
       <div className="flex flex-1 flex-col gap-5">
         {pairs.map((pair) => {
-          const isMatched = matched.includes(pair.left);
-          const isAssigned = pair.left in matchedPairs;
-          const isSelected = selectedLeft === pair.left;
-          const isWrong = wrongPair?.[0] === pair.left;
-          const isHint = hintPair === pair.left;
+          const isMatched = matched.includes(pair.id);
+          const isAssigned = pair.id in matchedPairs;
+          const isSelected = selectedLeftId === pair.id;
+          const isWrong = wrongPair?.[0] === pair.id;
+          const isHint = hintPairId === pair.id;
 
           return (
             <motion.button
-              key={pair.left}
+              key={pair.id}
               ref={(element) => {
-                if (element) leftRefs.current.set(pair.left, element);
+                if (element) leftRefs.current.set(pair.id, element);
               }}
-              onClick={() => onPickLeft(pair.left)}
+              onClick={() => onPickLeft(pair.id)}
               className={`relative rounded-2xl border-2 border-b-4 px-8 py-6 text-center font-heading text-xl font-bold transition-all ${
                 isMatched && feedback === "correct"
                   ? "border-brand-green bg-brand-green/10 text-brand-green"
@@ -275,20 +276,24 @@ function MatchGrid({
       </div>
 
       <div className="flex flex-1 flex-col gap-5">
-        {shuffledRight.map((word) => {
-          const pair = pairs.find((item) => item.right === word);
-          const isMatched = pair ? matched.includes(pair.left) : false;
-          const isAssigned = assignedRights.has(word);
-          const isSelected = selectedRight === word;
-          const isWrong = wrongPair?.[1] === word;
+        {shuffledRightIds.map((pairId) => {
+          const pair = pairById.get(pairId);
+          if (!pair) {
+            return null;
+          }
+
+          const isMatched = matched.includes(pairId);
+          const isAssigned = assignedRights.has(pairId);
+          const isSelected = selectedRightId === pairId;
+          const isWrong = wrongPair?.[1] === pairId;
 
           return (
             <motion.button
-              key={word}
+              key={pair.id}
               ref={(element) => {
-                if (element) rightRefs.current.set(word, element);
+                if (element) rightRefs.current.set(pair.id, element);
               }}
-              onClick={() => onPickRight(word)}
+              onClick={() => onPickRight(pair.id)}
               className={`relative rounded-2xl border-2 border-b-4 px-8 py-6 text-center font-heading text-xl font-bold transition-all ${
                 isMatched && feedback === "correct"
                   ? "border-brand-green bg-brand-green/10 text-brand-green"
@@ -302,7 +307,7 @@ function MatchGrid({
               }`}
               whileTap={isMatched && feedback === "correct" ? {} : { scale: 0.95 }}
             >
-              {word}
+              {pair.right}
               {isMatched && feedback === "correct" && (
                 <motion.span
                   initial={{ scale: 0 }}

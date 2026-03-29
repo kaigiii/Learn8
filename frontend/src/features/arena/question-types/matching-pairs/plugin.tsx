@@ -18,14 +18,15 @@ export function parseMatchingPairsStage(
 ): ParsedMatchingPairsStageData {
   const data = stage.config.data as {
     question?: string;
-    pairs?: { left: string; right: string }[];
+    pairs?: { id?: string; left?: string; right?: string }[];
   };
 
   return {
     question: data.question || stage.topic,
-    pairs: (data.pairs || []).map((pair) => ({
-      left: pair.left,
-      right: pair.right,
+    pairs: (data.pairs || []).map((pair, index) => ({
+      id: String(pair.id || `pair-${index}`),
+      left: String(pair.left || ""),
+      right: String(pair.right || ""),
     })),
   };
 }
@@ -71,13 +72,13 @@ export function MatchingPairsStageRenderer({
         topic={stage.topic}
         question={question}
         pairs={pairs}
-        shuffledRight={matchingStage.shuffledRight}
+        shuffledRightIds={matchingStage.shuffledRightIds}
         matched={matchingStage.matched}
         matchedPairs={matchingStage.matchedPairs}
-        selectedLeft={matchingStage.selectedLeft}
-        selectedRight={matchingStage.selectedRight}
+        selectedLeftId={matchingStage.selectedLeftId}
+        selectedRightId={matchingStage.selectedRightId}
         wrongPair={matchingStage.wrongPair}
-        hintPair={matchingStage.hintPair}
+        hintPairId={matchingStage.hintPairId}
         hintUsed={matchingStage.hintUsed}
         allMatched={matchingStage.allMatched}
         feedback={matchingStage.feedback}

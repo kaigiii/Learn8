@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 export interface MatchPair {
+  id: string;
   left: string;
   right: string;
 }
@@ -30,29 +31,29 @@ export function useMatchingPairsStage({
   onHintUse,
 }: UseMatchingPairsStageParams) {
   const pairsKey = useMemo(
-    () => pairs.map((pair) => `${pair.left}::${pair.right}`).join("|"),
+    () => pairs.map((pair) => `${pair.id}::${pair.left}::${pair.right}`).join("|"),
     [pairs]
   );
-  const [selectedLeft, setSelectedLeft] = useState<string | null>(null);
-  const [selectedRight, setSelectedRight] = useState<string | null>(null);
+  const [selectedLeftId, setSelectedLeftId] = useState<string | null>(null);
+  const [selectedRightId, setSelectedRightId] = useState<string | null>(null);
   const [matchedPairs, setMatchedPairs] = useState<Record<string, string>>({});
   const [hintUsed, setHintUsed] = useState(false);
-  const [hintPair, setHintPair] = useState<string | null>(null);
+  const [hintPairId, setHintPairId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<"correct" | "incorrect" | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
-  const [shuffledRight, setShuffledRight] = useState<string[]>(() =>
-    pairs.map((p) => p.right)
+  const [shuffledRightIds, setShuffledRightIds] = useState<string[]>(() =>
+    pairs.map((p) => p.id)
   );
 
   useEffect(() => {
-    setSelectedLeft(null);
-    setSelectedRight(null);
+    setSelectedLeftId(null);
+    setSelectedRightId(null);
     setMatchedPairs({});
     setHintUsed(false);
-    setHintPair(null);
+    setHintPairId(null);
     setFeedback(null);
     setShowConfetti(false);
-    setShuffledRight(enabled ? shuffle(pairs.map((p) => p.right)) : []);
+    setShuffledRightIds(enabled ? shuffle(pairs.map((p) => p.id)) : []);
   }, [enabled, pairsKey]);
 
   const matched = useMemo(
@@ -66,48 +67,48 @@ export function useMatchingPairsStage({
   );
 
   const pickLeft = useCallback(
-    (word: string) => {
+    (pairId: string) => {
       if (!enabled || feedback) return;
-      if (matchedPairs[word]) {
+      if (matchedPairs[pairId]) {
         setMatchedPairs((prev) => {
           const next = { ...prev };
-          delete next[word];
+          delete next[pairId];
           return next;
         });
-        setSelectedLeft(null);
-        setSelectedRight(null);
+        setSelectedLeftId(null);
+        setSelectedRightId(null);
         return;
       }
-      if (selectedLeft === word) {
-        setSelectedLeft(null);
+      if (selectedLeftId === pairId) {
+        setSelectedLeftId(null);
         return;
       }
-      if (selectedRight) {
+      if (selectedRightId) {
         setMatchedPairs((prev) => {
           const nextEntries = Object.entries(prev).filter(
-            ([left, right]) => left !== word && right !== selectedRight
+            ([leftId, rightId]) => leftId !== pairId && rightId !== selectedRightId
           );
           return {
             ...Object.fromEntries(nextEntries),
-            [word]: selectedRight,
+            [pairId]: selectedRightId,
           };
         });
-        setSelectedRight(null);
+        setSelectedRightId(null);
         setTimeout(() => {
-          setSelectedLeft(null);
+          setSelectedLeftId(null);
         }, 120);
         return;
       }
-      setSelectedLeft(word);
+      setSelectedLeftId(pairId);
     },
-    [enabled, feedback, matchedPairs, selectedLeft, selectedRight]
+    [enabled, feedback, matchedPairs, selectedLeftId, selectedRightId]
   );
 
   const pickRight = useCallback(
-    (word: string) => {
+    (pairId: string) => {
       if (!enabled || feedback) return;
       const linkedLeft = Object.entries(matchedPairs).find(
-        ([, right]) => right === word
+        ([, rightId]) => rightId === pairId
       )?.[0];
       if (linkedLeft) {
         setMatchedPairs((prev) => {
@@ -115,35 +116,35 @@ export function useMatchingPairsStage({
           delete next[linkedLeft];
           return next;
         });
-        setSelectedLeft(null);
-        setSelectedRight(null);
+        setSelectedLeftId(null);
+        setSelectedRightId(null);
         return;
       }
-      if (selectedRight === word) {
-        setSelectedRight(null);
+      if (selectedRightId === pairId) {
+        setSelectedRightId(null);
         return;
       }
-      if (!selectedLeft) {
-        setSelectedRight(word);
+      if (!selectedLeftId) {
+        setSelectedRightId(pairId);
         return;
       }
 
-      setSelectedRight(word);
+      setSelectedRightId(pairId);
       setMatchedPairs((prev) => {
         const nextEntries = Object.entries(prev).filter(
-          ([left, right]) => left !== selectedLeft && right !== word
+          ([leftId, rightId]) => leftId !== selectedLeftId && rightId !== pairId
         );
         return {
           ...Object.fromEntries(nextEntries),
-          [selectedLeft]: word,
+          [selectedLeftId]: pairId,
         };
       });
-      setSelectedLeft(null);
+      setSelectedLeftId(null);
       setTimeout(() => {
-        setSelectedRight(null);
+        setSelectedRightId(null);
       }, 120);
     },
-    [enabled, feedback, matchedPairs, selectedLeft]
+    [enabled, feedback, matchedPairs, selectedLeftId, selectedRightId]
   );
 
   const handleCheck = useCallback(() => {
@@ -176,34 +177,34 @@ export function useMatchingPairsStage({
     const canAfford = await onHintUse();
     if (!canAfford) return;
 
-    const unmatched = pairs.filter((p) => !matched.includes(p.left));
+    const unmatched = pairs.filter((p) => !matched.includes(p.id));
     if (unmatched.length > 0) {
       const pair = unmatched[0];
-      setHintPair(pair.left);
+      setHintPairId(pair.id);
       setMatchedPairs((prev) => ({
         ...prev,
-        [pair.left]: pair.right,
+        [pair.id]: pair.id,
       }));
       setHintUsed(true);
       setTimeout(() => {
-        setSelectedLeft(null);
-        setSelectedRight(null);
-        setHintPair(null);
+        setSelectedLeftId(null);
+        setSelectedRightId(null);
+        setHintPairId(null);
       }, 1200);
     }
   }, [allMatched, enabled, hintUsed, matched, onHintUse, pairs]);
 
   return {
-    selectedLeft,
-    selectedRight,
+    selectedLeftId,
+    selectedRightId,
     matched,
     matchedPairs,
     wrongPair: null,
     hintUsed,
-    hintPair,
+    hintPairId,
     feedback,
     showConfetti,
-    shuffledRight,
+    shuffledRightIds,
     allMatched,
     pickLeft,
     pickRight,
