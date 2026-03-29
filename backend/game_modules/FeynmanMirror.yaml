@@ -1,5 +1,13 @@
 name: FeynmanMirror
+frontend_registry_key: FeynmanMirror
 module: Assessment
+allowed_in_remedial: true
+required_config_data_fields: []
+optional_config_data_fields:
+  - prompt
+  - sampleAnswer
+submission_keys:
+  - explanation
 description: If the goal is to verify deep understanding via user explanation (Feynman Technique).
 schema_requirements: |
   config.data requires no specific fields, just an empty object.

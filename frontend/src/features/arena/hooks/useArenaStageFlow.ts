@@ -9,14 +9,11 @@ import type {
   LessonStage,
   SubmissionResponse,
 } from "@/lib/apiTypes";
-import { useMatchingPairsStage } from "./useMatchingPairsStage";
 
 interface UseArenaStageFlowParams {
   lessonSession: LessonSessionPayload | null;
   isSessionInteractive: boolean;
   backendCourse: CoursePath | null;
-  backendStage: LessonStage | null;
-  matchPairs: { left: string; right: string }[];
   stageIdx: number;
   totalStages: number;
   onCorrect: () => void;
@@ -30,8 +27,6 @@ export function useArenaStageFlow({
   lessonSession,
   isSessionInteractive,
   backendCourse,
-  backendStage,
-  matchPairs,
   stageIdx,
   totalStages,
   onCorrect,
@@ -82,38 +77,14 @@ export function useArenaStageFlow({
     }
   }, [onHintUsed]);
 
-  const matchingStage = useMatchingPairsStage({
-    pairs: matchPairs,
-    enabled: backendStage?.component === "MatchingPairs",
-    onCorrectStageComplete: async (pairsPayload) => {
-      if (!backendStage) {
-        return;
-      }
-
-      const response = await submitStage(backendStage, { matches: pairsPayload });
-      if (!response) {
-        return;
-      }
-
-      if (response.result === "correct") {
-        matchingStage.markCorrectFeedback();
-        return;
-      }
-
-      matchingStage.markIncorrectFeedback();
-    },
-    onHintUse: consumeHintCredits,
-  });
-
   const continueStage = useCallback(() => {
     if (stageIdx < totalStages - 1) {
       onAdvanceStage();
-      matchingStage.clearFeedback();
       return;
     }
 
     void onCompletePhase();
-  }, [matchingStage, onAdvanceStage, onCompletePhase, stageIdx, totalStages]);
+  }, [onAdvanceStage, onCompletePhase, stageIdx, totalStages]);
 
   const skipStage = useCallback(
     async (stageToSkip: LessonStage) => {
@@ -129,7 +100,6 @@ export function useArenaStageFlow({
   const useHint = useCallback(() => consumeHintCredits(), [consumeHintCredits]);
 
   return {
-    matchingStage,
     submitStage,
     continueStage,
     skipStage,

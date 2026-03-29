@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useMemo } from "react";
-import { AnimatePresence } from "framer-motion";
+import React, { useState, useCallback } from "react";
 import ForgeStatus from "@/components/feedback/ForgeStatus";
 import GameButton from "@/components/ui/GameButton";
 import TopProgressBar from "@/components/ui/TopProgressBar";
@@ -9,7 +8,6 @@ import { useCourseStore } from "@/stores/app/useCourseStore";
 import useUserStore from "@/stores/app/useUserStore";
 import useArenaStore from "@/stores/session/useArenaStore";
 import { ArenaChatPanel } from "./components/ArenaChatPanel";
-import { ArenaFeedbackOverlay } from "./components/ArenaFeedbackOverlay";
 import { ArenaStageRenderer } from "./components/ArenaStageRenderer";
 import { ArenaStatusPanel } from "./components/ArenaStatusPanel";
 import { useArenaStageFlow } from "./hooks/useArenaStageFlow";
@@ -106,17 +104,6 @@ export default function LessonArenaPageClient({
   });
   const activeStages = lessonSession?.activeStages ?? backendStages;
   const backendStage = activeStages[stageIdx] ?? null;
-  const backendMatchStage = useMemo(() => {
-    if (backendStage?.component !== "MatchingPairs") return null;
-    const data = backendStage.config.data as {
-      question?: string;
-      pairs?: { left: string; right: string }[];
-    };
-    return {
-      question: data.question || backendStage.topic,
-      pairs: (data.pairs || []).map((pair) => ({ left: pair.left, right: pair.right })),
-    };
-  }, [backendStage]);
   const activeStageCount = Math.max(activeStages.length, 1);
   const primaryStageCount = lessonSession?.primaryStages.length ?? backendStages.length;
   const remedialStageCount = lessonSession?.remedialStages.length ?? 0;
@@ -133,29 +120,25 @@ export default function LessonArenaPageClient({
   const headerStageLabel = isRemedialPhase ? "Remedial" : "Stage";
   const progress = (displayStageIdx / displayTotalStages) * 100;
   const nodeDescription = backendNode?.description ?? "";
-  const matchPairs = useMemo(() => backendMatchStage?.pairs ?? [], [backendMatchStage]);
 
-  const { matchingStage, submitStage, continueStage, skipStage, useHint } =
-    useArenaStageFlow({
-      lessonSession,
-      isSessionInteractive,
-      backendCourse,
-      backendStage,
-      matchPairs,
-      stageIdx,
-      totalStages: activeStageCount,
-      onCorrect: () => {
-        arenaMarkCorrect();
-        arenaTriggerConfetti();
-      },
-      onIncorrect: () => {
-        arenaMarkIncorrect();
-        arenaTriggerShake();
-      },
-      onHintUsed: arenaUseHint,
-      onAdvanceStage: () => setStageIdx((i) => i + 1),
-      onCompletePhase: completeCurrentPhase,
-    });
+  const { submitStage, continueStage, skipStage, useHint } = useArenaStageFlow({
+    lessonSession,
+    isSessionInteractive,
+    backendCourse,
+    stageIdx,
+    totalStages: activeStageCount,
+    onCorrect: () => {
+      arenaMarkCorrect();
+      arenaTriggerConfetti();
+    },
+    onIncorrect: () => {
+      arenaMarkIncorrect();
+      arenaTriggerShake();
+    },
+    onHintUsed: arenaUseHint,
+    onAdvanceStage: () => setStageIdx((i) => i + 1),
+    onCompletePhase: completeCurrentPhase,
+  });
 
   const hasPendingStatusFlow =
     backendLoading ||
@@ -298,15 +281,12 @@ export default function LessonArenaPageClient({
                   totalStages: headerTotalStages,
                   stageLabel: headerStageLabel,
                   nodeDescription,
-                  matchPairs,
-                  matchQuestion: backendMatchStage?.question || backendStage.topic,
-                  matchingStage,
                 }}
                 actions={{
-                  onSubmitStage: submitStage,
-                  onSkipStage: skipStage,
-                  onContinue: continueStage,
-                  onHintUse: useHint,
+                  submitStage,
+                  skipStage,
+                  continueStage,
+                  useHint,
                 }}
               />
             ) : null}
@@ -328,17 +308,6 @@ export default function LessonArenaPageClient({
           />
         </div>
       </div>
-
-      {/* ─── Feedback overlay ─── */}
-      <AnimatePresence>
-        {matchingStage.feedback && (
-          <ArenaFeedbackOverlay
-            type={matchingStage.feedback}
-            onContinue={continueStage}
-            showConfetti={matchingStage.showConfetti}
-          />
-        )}
-      </AnimatePresence>
     </div>
   );
 }

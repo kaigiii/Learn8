@@ -1,11 +1,11 @@
 "use client";
 
-import { renderUnsupportedStage, stageRenderers } from "../renderers";
-import type { ArenaStageRendererProps } from "../renderers/types";
+import { getArenaStagePlugin, renderUnsupportedStage } from "../renderers";
+import type { ArenaStageRenderContext } from "../renderers/types";
 
-export function ArenaStageRenderer(props: ArenaStageRendererProps) {
+export function ArenaStageRenderer(props: ArenaStageRenderContext) {
   const renderer =
-    stageRenderers[props.stage.component] || renderUnsupportedStage;
+    getArenaStagePlugin(props.stage.component)?.Renderer || renderUnsupportedStage;
 
   return renderer(props);
 }

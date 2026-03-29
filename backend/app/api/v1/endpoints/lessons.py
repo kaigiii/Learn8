@@ -34,6 +34,8 @@ from app.models.user import UserModel
 from app.schemas.course_schema import LessonNode
 from app.schemas.lesson_schema import (
     FailedStageRecord,
+    LessonComponentManifestItem,
+    LessonComponentManifestResponse,
     LessonAssistantRequest,
     LessonAssistantResponse,
     LessonSessionCompleteRequest,
@@ -50,6 +52,8 @@ from app.services.commons.user_credits import has_sufficient_credits
 from app.services.commons.user_economy import (
     award_lesson_completion_xp,
 )
+from app.services.lesson_components.evaluator_registry import evaluator_registry
+from app.services.lesson_components import evaluators as _lesson_component_evaluators  # noqa: F401
 from app.services.workers.lesson_worker import (
     run_lesson_generation_job,
     run_remedial_generation_job,
@@ -61,26 +65,38 @@ logger = logging.getLogger(__name__)
 LESSON_STAGE_LIST_ADAPTER = TypeAdapter(List[LessonStage])
 
 
+@router.get("/components", response_model=LessonComponentManifestResponse)
+def get_lesson_component_manifest():
+    from app.core.component_loader import registry
+
+    items = []
+    for component_name in registry.get_component_names():
+        component = registry.get_component(component_name) or {}
+        items.append(
+            LessonComponentManifestItem(
+                name=component_name,
+                frontendRegistryKey=registry.get_frontend_registry_key(component_name)
+                or component_name,
+                module=str(component.get("module") or ""),
+                description=str(component.get("description") or ""),
+                allowedInRemedial=bool(component.get("allowed_in_remedial", False)),
+                requiredConfigDataFields=registry.get_required_data_fields(component_name),
+                optionalConfigDataFields=registry.get_optional_data_fields(component_name),
+                submissionKeys=registry.get_submission_keys(component_name),
+                schemaRequirements=str(component.get("schema_requirements") or ""),
+            )
+        )
+
+    items.sort(key=lambda item: item.name)
+    return LessonComponentManifestResponse(items=items)
+
+
 def _coerce_stage_list(raw: Any) -> List[LessonStage]:
     if isinstance(raw, list):
         return LESSON_STAGE_LIST_ADAPTER.validate_python(raw)
     if isinstance(raw, dict):
         return [TypeAdapter(LessonStage).validate_python(raw)]
     return []
-
-
-def _normalize_ordering_item(item: Any) -> str:
-    if isinstance(item, str):
-        return item
-    if isinstance(item, dict):
-        return (
-            item.get("text")
-            or item.get("label")
-            or item.get("content")
-            or item.get("id")
-            or str(item)
-        )
-    return str(item)
 
 
 def _serialize_failed_record(record: LessonFailedStageModel) -> FailedStageRecord:
@@ -306,32 +322,6 @@ def _find_stage_in_session(
     return None, None
 
 
-def _normalize_multiple_choice_input(user_input: Any) -> dict:
-    if isinstance(user_input, dict):
-        selected_option_id = user_input.get("selectedOptionId") or user_input.get(
-            "selected_option_id"
-        )
-    else:
-        selected_option_id = user_input
-    return {"selectedOptionId": str(selected_option_id or "")}
-
-
-def _normalize_ordering_input(user_input: Any) -> dict:
-    if isinstance(user_input, dict):
-        order = user_input.get("order") or user_input.get("steps") or []
-    else:
-        order = user_input or []
-    return {"order": [_normalize_ordering_item(item) for item in list(order)]}
-
-
-def _normalize_matching_input(user_input: Any) -> dict:
-    if isinstance(user_input, dict):
-        matches = user_input.get("matches", user_input)
-    else:
-        matches = {}
-    return {"matches": {str(k): str(v) for k, v in dict(matches).items()}}
-
-
 def _is_skipped_submission(user_input: Any) -> bool:
     return isinstance(user_input, dict) and bool(user_input.get("skipped"))
 
@@ -352,95 +342,9 @@ async def _evaluate_submission(
             evaluation,
         )
 
-    data = stage.config.data if isinstance(stage.config.data, dict) else {}
-    validation = (
-        stage.validation.condition
-        if isinstance(stage.validation.condition, dict)
-        else {}
-    )
-
-    if stage.component == "MultipleChoice":
-        normalized_input = _normalize_multiple_choice_input(user_input)
-        correct_option_id = (
-            data.get("correctId")
-            or data.get("correctOptionId")
-            or validation.get("correctId")
-            or validation.get("correctOptionId")
-            or ""
-        )
-        is_correct = normalized_input["selectedOptionId"] == str(correct_option_id)
-        evaluation = {
-            "selectedOptionId": normalized_input["selectedOptionId"],
-            "correctOptionId": str(correct_option_id),
-        }
-        return (
-            "correct" if is_correct else "incorrect",
-            stage.feedback.success if is_correct else stage.feedback.error,
-            normalized_input,
-            evaluation,
-        )
-
-    if stage.component == "Ordering":
-        normalized_input = _normalize_ordering_input(user_input)
-        expected_order = [
-            _normalize_ordering_item(item) for item in list(data.get("steps", []))
-        ]
-        is_correct = normalized_input["order"] == expected_order
-        evaluation = {
-            "submittedOrder": normalized_input["order"],
-            "expectedOrder": expected_order,
-        }
-        return (
-            "correct" if is_correct else "incorrect",
-            stage.feedback.success if is_correct else stage.feedback.error,
-            normalized_input,
-            evaluation,
-        )
-
-    if stage.component == "MatchingPairs":
-        normalized_input = _normalize_matching_input(user_input)
-        expected_pairs = {
-            str(pair.get("left", "")): str(pair.get("right", ""))
-            for pair in list(data.get("pairs", []))
-        }
-        is_correct = normalized_input["matches"] == expected_pairs
-        evaluation = {
-            "submittedMatches": normalized_input["matches"],
-            "expectedMatches": expected_pairs,
-        }
-        return (
-            "correct" if is_correct else "incorrect",
-            stage.feedback.success if is_correct else stage.feedback.error,
-            normalized_input,
-            evaluation,
-        )
-
-    if stage.component == "FeynmanMirror":
-        explanation = ""
-        if isinstance(user_input, dict):
-            explanation = str(user_input.get("explanation") or "").strip()
-        else:
-            explanation = str(user_input or "").strip()
-
-        normalized_input = {"explanation": explanation}
-        grading = await architect_service.grade_feynman_attempt(
-            explanation,
-            context_topic or stage.topic,
-            prompt=str(data.get("prompt") or stage.topic),
-            sample_answer=str(data.get("sampleAnswer") or ""),
-        )
-        is_correct = bool(grading.get("isCorrect"))
-        evaluation = {
-            "prompt": str(data.get("prompt") or stage.topic),
-            "sampleAnswer": str(data.get("sampleAnswer") or ""),
-            "grading": grading,
-        }
-        return (
-            "correct" if is_correct else "incorrect",
-            grading.get("feedback", stage.feedback.success if is_correct else stage.feedback.error),
-            normalized_input,
-            evaluation,
-        )
+    evaluator = evaluator_registry.get(stage.component)
+    if evaluator is not None:
+        return await evaluator(stage, user_input, context_topic, architect_service)
 
     normalized_input = {"raw": user_input}
     is_correct = bool(user_input)

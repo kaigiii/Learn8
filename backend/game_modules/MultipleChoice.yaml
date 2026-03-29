@@ -1,5 +1,15 @@
 name: MultipleChoice
+frontend_registry_key: MultipleChoice
 module: Assessment
+allowed_in_remedial: true
+required_config_data_fields:
+  - question
+  - options
+  - correctOptionId
+optional_config_data_fields:
+  - correctId
+submission_keys:
+  - selectedOptionId
 description: If the goal is to let the learner choose the best answer from four options.
 schema_requirements: |
   config.data MUST contain:
