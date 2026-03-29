@@ -54,4 +54,4 @@ jobs:
         run: npm ci
 
       - name: Run type check
-        run: npx tsc --noEmit
+        run: npx tsc --project ./tsconfig.json --noEmit
