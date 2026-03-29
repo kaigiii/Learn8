@@ -87,14 +87,31 @@ export function useActiveJobResume(token: string | null) {
     if (!activeJob?.jobId) return;
 
     try {
-      await apiFetch(`/jobs/${activeJob.jobId}/cancel`, {
+      const cancelled = await apiFetch<ActiveJobResponse>(`/jobs/${activeJob.jobId}/cancel`, {
         method: "POST",
       });
-    } catch {
-      // Ignore cancel failure and still clear stale local state.
+
+      if (cancelled.status === JOB_STATUS.CANCELLED) {
+        clearAllNavigationIntents();
+        setActiveJob(null);
+        return;
+      }
+
+      // If the backend says the job is already terminal, refresh local banner state from that.
+      setActiveJob((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: cancelled.status,
+              message: cancelled.message || prev.message,
+            }
+          : prev
+      );
+    } catch (error) {
+      console.error("[useActiveJobResume] Failed to cancel active job", error);
+      return;
     } finally {
-      clearAllNavigationIntents();
-      setActiveJob(null);
+      // no-op
     }
   }, [activeJob?.jobId]);
 
@@ -118,10 +135,22 @@ export function useActiveJobResume(token: string | null) {
     );
   }, [activeJob?.jobId]);
 
+  const refreshActiveJob = useCallback(async () => {
+    if (!token) return;
+    try {
+      const active = await apiFetch<ActiveJobResponse>("/jobs/active");
+      setActiveJob(buildActiveJobResumeState(active));
+    } catch {
+      clearAllNavigationIntents();
+      setActiveJob(null);
+    }
+  }, [token]);
+
   return {
     activeJob,
     setActiveJob,
     cancelActiveJob,
     retryActiveJob,
+    refreshActiveJob,
   };
 }
