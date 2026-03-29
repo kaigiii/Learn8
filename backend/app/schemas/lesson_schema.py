@@ -91,6 +91,38 @@ class LessonStage(BaseModel):
         from app.core.component_loader import registry
 
         errors = registry.validate_component_data(self.component, self.config.data)
+        if self.component == "MatchingPairs" and isinstance(self.config.data, dict):
+            pairs = self.config.data.get("pairs", [])
+            if not isinstance(pairs, list) or not pairs:
+                errors.append("Component `MatchingPairs` requires a non-empty `pairs` list.")
+            else:
+                seen_ids = set()
+                for index, pair in enumerate(pairs):
+                    if not isinstance(pair, dict):
+                        errors.append(
+                            f"Component `MatchingPairs` pair at index {index} must be an object."
+                        )
+                        continue
+
+                    left = str(pair.get("left") or "").strip()
+                    right = str(pair.get("right") or "").strip()
+                    pair_id = str(pair.get("id") or "").strip()
+
+                    if not left:
+                        errors.append(
+                            f"Component `MatchingPairs` pair at index {index} is missing `left`."
+                        )
+                    if not right:
+                        errors.append(
+                            f"Component `MatchingPairs` pair at index {index} is missing `right`."
+                        )
+                    if pair_id:
+                        if pair_id in seen_ids:
+                            errors.append(
+                                f"Component `MatchingPairs` has duplicate pair id `{pair_id}`."
+                            )
+                        seen_ids.add(pair_id)
+
         if errors:
             raise ValueError(" ".join(errors))
         return self
