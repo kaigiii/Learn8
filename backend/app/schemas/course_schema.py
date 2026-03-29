@@ -1,21 +1,22 @@
 from enum import Enum
 from typing import List, Dict, Optional
 from pydantic import BaseModel, Field
+from app.domain.statuses import CourseStatus, NodeStatus
 
 
 class CourseLifecycleStatus(str, Enum):
-    draft = "draft"
-    questionnaire_ready = "questionnaire_ready"
-    profiling = "profiling"
-    generating = "generating"
-    ready = "ready"
-    archived = "archived"
+    draft = CourseStatus.DRAFT
+    questionnaire_ready = CourseStatus.QUESTIONNAIRE_READY
+    profiling = CourseStatus.PROFILING
+    generating = CourseStatus.GENERATING
+    ready = CourseStatus.READY
+    archived = CourseStatus.ARCHIVED
 
 
 class LessonNodeStatus(str, Enum):
-    locked = "locked"
-    available = "available"
-    completed = "completed"
+    locked = NodeStatus.LOCKED
+    available = NodeStatus.AVAILABLE
+    completed = NodeStatus.COMPLETED
 
 
 class LessonNode(BaseModel):

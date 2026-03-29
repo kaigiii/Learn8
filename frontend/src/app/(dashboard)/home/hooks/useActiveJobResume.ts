@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { apiFetch } from "@/lib/apiClient";
+import { JOB_STATUS } from "@/lib/domain/statuses";
+import { clearAllNavigationIntents } from "@/lib/navigation/intents";
 import {
   buildActiveJobResumeState,
   type ActiveJobResumeState,
@@ -49,7 +51,7 @@ export function useActiveJobResume(token: string | null) {
           prev && prev.jobId === activeJob.jobId
             ? {
                 ...prev,
-                status: "STALE",
+                status: JOB_STATUS.STALE,
                 message: data.message || prev.message,
                 retryable: true,
               }
@@ -61,7 +63,7 @@ export function useActiveJobResume(token: string | null) {
           prev && prev.jobId === activeJob.jobId
             ? {
                 ...prev,
-                status: "STALE",
+                status: JOB_STATUS.STALE,
                 message: data.message || prev.message,
                 retryable: true,
               }
@@ -91,10 +93,7 @@ export function useActiveJobResume(token: string | null) {
     } catch {
       // Ignore cancel failure and still clear stale local state.
     } finally {
-      if (typeof window !== "undefined") {
-        window.sessionStorage.removeItem("learn8_pending_questionnaire");
-        window.sessionStorage.removeItem("learn8_pending_lesson");
-      }
+      clearAllNavigationIntents();
       setActiveJob(null);
     }
   }, [activeJob?.jobId]);

@@ -4,7 +4,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError, apiFetch } from "@/lib/apiClient";
 import { useRequireAuthRedirect } from "@/lib/auth/useRequireAuthRedirect";
+import { JOB_STATUS, JOB_TYPE } from "@/lib/domain/statuses";
 import { ensureRetryableJob, fetchScopedActiveJob } from "@/lib/jobs/recovery";
+import {
+  clearPendingLessonNavigation,
+  getPendingLessonNavigation,
+  rememberPendingLessonNavigation,
+} from "@/lib/navigation/intents";
 import { watchJobStream } from "@/lib/jobs/stream";
 import type { CoursePath, LessonNode, LessonStage } from "@/lib/apiTypes";
 import { useResolvedLessonRoute } from "./useResolvedLessonRoute";
@@ -72,12 +78,8 @@ export function useLessonGenerationFlow({
     if (!isBackendLesson || !backendCourse || !backendNode) return;
 
     let eventSource: EventSource | null = null;
-    const storageKey = "learn8_pending_lesson";
-
     const clearPendingLesson = () => {
-      if (typeof window !== "undefined") {
-        window.sessionStorage.removeItem(storageKey);
-      }
+      clearPendingLessonNavigation();
     };
 
     const applyStages = (stages: LessonStage[]) => {
@@ -135,35 +137,20 @@ export function useLessonGenerationFlow({
       setBackendJobProgress(0);
       setBackendJobMessage("Preparing lesson generation...");
       try {
-        if (typeof window !== "undefined") {
-          const rawPending = window.sessionStorage.getItem(storageKey);
-          if (rawPending) {
-            try {
-              const pending = JSON.parse(rawPending) as {
-                nodeId?: string;
-                courseId?: number;
-              };
-              if (
-                pending.nodeId === nodeId &&
-                pending.courseId === backendCourseId
-              ) {
-                const activeJob = await ensureRetryableJob(await fetchScopedActiveJob({
-                  jobType: "LESSON_GEN",
-                  nodeId,
-                }));
-                if (activeJob.job_id) {
-                  connectLessonJob(String(activeJob.job_id));
-                  return;
-                }
-              }
-            } catch {
-              window.sessionStorage.removeItem(storageKey);
-            }
+        const pending = getPendingLessonNavigation();
+        if (pending?.nodeId === nodeId && pending.courseId === backendCourseId) {
+          const activeJob = await ensureRetryableJob(await fetchScopedActiveJob({
+            jobType: JOB_TYPE.LESSON_GENERATION,
+            nodeId,
+          }));
+          if (activeJob.job_id) {
+            connectLessonJob(String(activeJob.job_id));
+            return;
           }
         }
 
         const response = await apiFetch<{
-          status: "PENDING" | "COMPLETED";
+          status: typeof JOB_STATUS.PENDING | typeof JOB_STATUS.COMPLETED;
           job_id?: string;
           result_data?: { stages?: LessonStage[] };
         }>(
@@ -176,21 +163,13 @@ export function useLessonGenerationFlow({
           }
         );
 
-        if (response.status === "COMPLETED") {
+        if (response.status === JOB_STATUS.COMPLETED) {
           setBackendJobId(null);
           applyStages(response.result_data?.stages || []);
           return;
         }
 
-        if (typeof window !== "undefined") {
-          window.sessionStorage.setItem(
-            storageKey,
-            JSON.stringify({
-              nodeId,
-              courseId: backendCourseId,
-            })
-          );
-        }
+        rememberPendingLessonNavigation(backendCourseId, nodeId);
         connectLessonJob(String(response.job_id));
       } catch (err) {
         setBackendJobId(null);
@@ -229,9 +208,7 @@ export function useLessonGenerationFlow({
     } catch {
       // Ignore cancel failure and still unwind local UI state.
     } finally {
-      if (typeof window !== "undefined") {
-        window.sessionStorage.removeItem("learn8_pending_lesson");
-      }
+      clearPendingLessonNavigation();
       setBackendJobId(null);
       setBackendLoading(false);
       setBackendError("");

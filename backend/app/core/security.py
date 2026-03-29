@@ -1,19 +1,20 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 import hashlib
 import secrets
 from typing import Optional, Any
 from jose import jwt
 from passlib.context import CryptContext
 from app.core.config import settings
+from app.core.time import utc_now
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def create_access_token(subject: str | Any, expires_delta: timedelta = None) -> str:
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = utc_now() + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(
+        expire = utc_now() + timedelta(
             minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
         )
 

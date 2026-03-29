@@ -6,21 +6,24 @@ import type { MatchPair } from "../hooks/useMatchingPairsStage";
 export interface MatchingStageViewModel {
   shuffledRight: string[];
   matched: string[];
+  matchedPairs: Record<string, string>;
   selectedLeft: string | null;
   selectedRight: string | null;
   wrongPair: [string, string] | null;
   hintPair: string | null;
   hintUsed: boolean;
   allMatched: boolean;
+  feedback: "correct" | "incorrect" | null;
   pickLeft: (word: string) => void;
   pickRight: (word: string) => void;
   handleCheck: () => void;
-  handleHint: () => void;
+  handleHint: () => void | Promise<void>;
 }
 
 export interface ArenaLessonRendererViewModel {
   stageIdx: number;
   totalStages: number;
+  stageLabel?: string;
   nodeDescription: string;
   matchPairs: MatchPair[];
   matchQuestion: string;
@@ -34,7 +37,7 @@ export interface ArenaStageActionHandlers {
   ) => Promise<SubmissionResponse | void>;
   onSkipStage: (stage: LessonStage) => Promise<void>;
   onContinue: () => void;
-  onHintUse: () => boolean;
+  onHintUse: () => Promise<boolean>;
 }
 
 export interface ArenaStageRendererProps {

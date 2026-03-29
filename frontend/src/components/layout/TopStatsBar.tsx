@@ -20,6 +20,7 @@ export default function TopStatsBar({ backHref, pageTitle }: TopStatsBarProps = 
     ? `${authUser.daily_learning_goal_minutes} min/day`
     : "Set Goal";
   const profileLabel =
+    authUser?.full_name?.trim() ||
     authUser?.job_title?.trim() ||
     authUser?.education_level?.trim() ||
     "Learner";

@@ -1,7 +1,7 @@
 import re
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from app.api.dependencies import get_db, get_current_user
 from app.core.security import (
@@ -20,11 +20,20 @@ from app.schemas.auth_schema import (
     PasswordResetResponse,
     Token,
     UserCreate,
+    UserResponse,
     UserLogin,
+    UserLedgerEventResponse,
+    UserLedgerResponse,
     UserUpdate,
 )
 from app.services.commons.activity_logger import ActivityLogger
 from app.core.config import settings
+from app.services.commons.user_economy import (
+    list_user_ledger_events,
+    spend_user_credits as apply_credit_spend,
+    top_up_user_credits as apply_credit_top_up,
+)
+from app.services.commons.user_progress import ensure_user_progress_fields
 
 router = APIRouter()
 EMAIL_RE = re.compile(r"^[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}$", re.IGNORECASE)
@@ -242,13 +251,45 @@ def dev_login(db: Session = Depends(get_db)):
     access_token = create_access_token(subject=db_user.email)
     return {"access_token": access_token, "token_type": "bearer"}
 
-
-from app.schemas.auth_schema import UserResponse
-
-
 @router.get("/me", response_model=UserResponse)
 def read_users_me(current_user: UserModel = Depends(get_current_user)):
+    ensure_user_progress_fields(current_user)
     return current_user
+
+
+@router.get("/ledger", response_model=UserLedgerResponse)
+def read_user_ledger(
+    limit: int = 50,
+    offset: int = 0,
+    event_type: str | None = None,
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    events, total = list_user_ledger_events(
+        db,
+        current_user.id,
+        limit=limit,
+        offset=offset,
+        event_type=event_type,
+    )
+    return UserLedgerResponse(
+        items=[
+            UserLedgerEventResponse(
+                id=event.id,
+                event_type=event.event_type,
+                event_key=event.event_key,
+                credits_delta=event.credits_delta,
+                xp_delta=event.xp_delta,
+                credits_balance_after=event.credits_balance_after,
+                xp_balance_after=event.xp_balance_after,
+                level_after=event.level_after,
+                metadata_json=event.metadata_json,
+                created_at=event.created_at.isoformat(),
+            )
+            for event in events
+        ],
+        total=total,
+    )
 
 
 @router.put("/me", response_model=UserResponse)
@@ -257,6 +298,8 @@ def update_user_me(
     current_user: UserModel = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    ensure_user_progress_fields(current_user)
+
     if user_in.full_name is not None:
         current_user.full_name = user_in.full_name
     if user_in.phone_number is not None:
@@ -297,14 +340,57 @@ def delete_user_me(
 @router.post("/credits/top-up", response_model=UserResponse)
 def top_up_user_credits(
     amount: int = 100,
+    request: Request = None,
     current_user: UserModel = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    current_user.credits += amount
-    db.commit()
-    db.refresh(current_user)
+    ensure_user_progress_fields(current_user)
+    if amount <= 0:
+        raise HTTPException(status_code=400, detail="Top-up amount must be greater than zero.")
 
-    ActivityLogger.log_credits_top_up(
-        current_user.id, current_user.email, amount, current_user.credits
+    idempotency_key = request.headers.get("Idempotency-Key") if request else None
+    result = apply_credit_top_up(
+        db,
+        current_user,
+        amount,
+        reason="auth_credits_top_up",
+        idempotency_scope=f"auth:credits_top_up:user:{current_user.id}",
+        idempotency_key=idempotency_key,
+        metadata={"source": "auth_credits_top_up"},
     )
-    return current_user
+    db.commit()
+    db.refresh(result.user)
+    return result.user
+
+
+@router.post("/credits/spend", response_model=UserResponse)
+def spend_user_credits(
+    amount: int = 0,
+    request: Request = None,
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    ensure_user_progress_fields(current_user)
+
+    normalized_amount = int(amount or 0)
+    if normalized_amount <= 0:
+        raise HTTPException(status_code=400, detail="Spend amount must be greater than zero.")
+
+    idempotency_key = request.headers.get("Idempotency-Key") if request else None
+
+    try:
+        result = apply_credit_spend(
+            db,
+            current_user,
+            normalized_amount,
+            reason="lesson_hint",
+            idempotency_scope=f"auth:credits_spend:user:{current_user.id}",
+            idempotency_key=idempotency_key,
+            metadata={"source": "lesson_hint"},
+        )
+    except ValueError:
+        raise HTTPException(status_code=402, detail="Insufficient credits.")
+
+    db.commit()
+    db.refresh(result.user)
+    return result.user

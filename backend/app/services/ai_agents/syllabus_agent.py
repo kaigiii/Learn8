@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from app.domain.statuses import NodeStatus
 from typing import List, Optional, Any, Callable
 from pydantic import BaseModel, Field
 
@@ -99,7 +100,7 @@ class SyllabusAgent:
             for i, node in enumerate(nodes):
                 if not node.id:
                     node.id = f"node-{unit.unit_title[:3]}-{i}"
-                node.status = "locked"  # Default
+                node.status = NodeStatus.LOCKED  # Default
             return nodes
         except Exception as e:
             logger.error(f"Unit Expansion Error ({unit.unit_title}): {e}")
@@ -193,7 +194,7 @@ class SyllabusAgent:
 
         # 解鎖第一個節點
         if course_path.units and course_path.units[0].nodes:
-            course_path.units[0].nodes[0].status = "available"
+            course_path.units[0].nodes[0].status = NodeStatus.AVAILABLE
 
         logger.info(f"✅ [SyllabusAgent] Finished. Total Units: {len(final_units)}")
         return course_path

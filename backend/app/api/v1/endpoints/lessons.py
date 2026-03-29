@@ -1,4 +1,3 @@
-import datetime
 import logging
 import uuid
 from typing import Any, List
@@ -11,6 +10,17 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from app.api.dependencies import get_db, get_current_user
 from app.core.config import settings
+from app.core.time import utc_now_naive
+from app.domain.statuses import (
+    ACTIVE_JOB_STATUSES,
+    ACTIVE_LESSON_SESSION_STATUSES,
+    JobStatus,
+    JobType,
+    LessonFailedStageStatus,
+    LessonSessionPhase,
+    LessonSessionStatus,
+    NodeStatus,
+)
 from app.models.course import CourseModel, NodeModel
 from app.models.job import JobModel
 from app.models.lesson import (
@@ -36,6 +46,10 @@ from app.schemas.lesson_schema import (
     SubmissionResponse,
 )
 from app.services.ai_agents.course_architect import AIArchitectService, get_architect_service
+from app.services.commons.user_credits import has_sufficient_credits
+from app.services.commons.user_economy import (
+    award_lesson_completion_xp,
+)
 from app.services.workers.lesson_worker import (
     run_lesson_generation_job,
     run_remedial_generation_job,
@@ -84,12 +98,21 @@ def _build_session_payload(
 ) -> LessonSessionPayload:
     primary_stages = _coerce_stage_list(session.primary_stages_json)
     remedial_stages = _coerce_stage_list(session.remedial_stages_json)
-    active_stages = remedial_stages if session.active_phase == "remedial" else primary_stages
+    active_stages = (
+        remedial_stages
+        if session.active_phase == LessonSessionPhase.REMEDIAL
+        else primary_stages
+    )
     pending_failed_count = (
         db.query(LessonFailedStageModel)
         .filter(
             LessonFailedStageModel.lesson_session_id == session.id,
-            LessonFailedStageModel.status.in_(["pending", "remedial_generated"]),
+            LessonFailedStageModel.status.in_(
+                [
+                    LessonFailedStageStatus.PENDING,
+                    LessonFailedStageStatus.REMEDIAL_GENERATED,
+                ]
+            ),
         )
         .count()
     )
@@ -113,8 +136,8 @@ def _find_active_remedial_job_id(db: Session, session_id: int, user_id: int) -> 
         db.query(JobModel)
         .filter(
             JobModel.user_id == user_id,
-            JobModel.job_type == "REMEDIAL_GEN",
-            JobModel.status.in_(["PENDING", "PROCESSING"]),
+            JobModel.job_type == JobType.REMEDIAL_GENERATION,
+            JobModel.status.in_(ACTIVE_JOB_STATUSES),
         )
         .order_by(JobModel.created_at.desc())
         .all()
@@ -193,7 +216,7 @@ def _build_session_summary_payload(
             incorrect_count += 1
 
     accuracy = _compute_session_accuracy(correct_count, incorrect_count)
-    completed_at = session.completed_at or datetime.datetime.utcnow()
+    completed_at = session.completed_at or utc_now_naive()
     started_at = session.started_at or completed_at
     elapsed_seconds = max(0, int((completed_at - started_at).total_seconds()))
     total_stages = len(_coerce_stage_list(session.primary_stages_json)) + len(
@@ -225,6 +248,30 @@ def _build_session_summary_payload(
     )
 
 
+def _award_session_completion_rewards(
+    db: Session,
+    session: LessonSessionModel,
+    current_user: UserModel,
+) -> None:
+    if not session.reward_eligible:
+        return
+
+    summary = _build_session_summary_payload(db, session)
+    if summary.xpGained <= 0:
+        return
+
+    award_lesson_completion_xp(
+        db,
+        current_user,
+        session_id=session.id,
+        amount=summary.xpGained,
+        course_id=session.course_id,
+        node_id=session.node_id,
+        active_phase=session.active_phase,
+        accuracy=summary.accuracy,
+    )
+
+
 def _is_course_node_already_completed(
     db: Session, course_id: int | None, node_id: str, current_user_id: int
 ) -> bool:
@@ -243,7 +290,7 @@ def _is_course_node_already_completed(
     for unit in syllabus_data.get("units", []):
         for node in unit.get("nodes", []):
             if node.get("id") == node_id:
-                return node.get("status") == "completed"
+                return node.get("status") == NodeStatus.COMPLETED
     return False
 
 
@@ -252,10 +299,10 @@ def _find_stage_in_session(
 ) -> tuple[LessonStage, str] | tuple[None, None]:
     for stage in _coerce_stage_list(session.primary_stages_json):
         if stage.stageId == stage_id:
-            return stage, "primary"
+            return stage, LessonSessionPhase.PRIMARY
     for stage in _coerce_stage_list(session.remedial_stages_json):
         if stage.stageId == stage_id:
-            return stage, "remedial"
+            return stage, LessonSessionPhase.REMEDIAL
     return None, None
 
 
@@ -427,19 +474,19 @@ def _apply_course_node_completion(
 
     def promote_next_node(next_node: dict) -> None:
         current_status = next_node.get("status")
-        if current_status == "completed":
+        if current_status == NodeStatus.COMPLETED:
             return
-        next_node["status"] = "available"
-        updates_to_sync.append((next_node["id"], "available"))
+        next_node["status"] = NodeStatus.AVAILABLE
+        updates_to_sync.append((next_node["id"], NodeStatus.AVAILABLE))
 
     for unit_idx, unit in enumerate(units):
         nodes = unit.get("nodes", [])
         for node_idx, node in enumerate(nodes):
             if node["id"] != node_id:
                 continue
-            node["status"] = "completed"
+            node["status"] = NodeStatus.COMPLETED
             node_found = True
-            updates_to_sync.append((node_id, "completed"))
+            updates_to_sync.append((node_id, NodeStatus.COMPLETED))
             if node_idx + 1 < len(nodes):
                 promote_next_node(nodes[node_idx + 1])
             elif unit_idx + 1 < len(units):
@@ -464,7 +511,7 @@ def _apply_course_node_completion(
         )
         if db_node:
             db_node.status = nstatus
-            db_node.updated_at = datetime.datetime.utcnow()
+            db_node.updated_at = utc_now_naive()
 
     db.commit()
     db.refresh(course_record)
@@ -496,7 +543,7 @@ async def generate_lesson_from_node_endpoint(
             stages = _coerce_stage_list(cached_lesson.stage_json)
             if stages:
                 return {
-                    "status": "COMPLETED",
+                    "status": JobStatus.COMPLETED,
                     "result_data": {"stages": [s.model_dump() for s in stages]},
                 }
         except Exception as exc:
@@ -509,7 +556,7 @@ async def generate_lesson_from_node_endpoint(
                 exc,
             )
 
-    if current_user.credits < settings.COST_LESSON_GENERATION:
+    if not has_sufficient_credits(current_user, settings.COST_LESSON_GENERATION):
         raise HTTPException(
             status_code=402,
             detail=f"Insufficient credits. Need {settings.COST_LESSON_GENERATION}.",
@@ -542,8 +589,8 @@ async def generate_lesson_from_node_endpoint(
         id=job_id,
         user_id=current_user.id,
         course_id=course_id,
-        job_type="LESSON_GEN",
-        status="PENDING",
+        job_type=JobType.LESSON_GENERATION,
+        status=JobStatus.PENDING,
         progress=0,
         message="Waiting for resources...",
         result_data={
@@ -565,7 +612,7 @@ async def generate_lesson_from_node_endpoint(
         course_folder_name,
         profile_summary,
     )
-    return {"job_id": job_id, "status": "PENDING"}
+    return {"job_id": job_id, "status": JobStatus.PENDING}
 
 
 @router.post("/sessions/start", response_model=LessonSessionPayload)
@@ -580,19 +627,17 @@ async def start_lesson_session(
             LessonSessionModel.user_id == current_user.id,
             LessonSessionModel.course_id == request.courseId,
             LessonSessionModel.node_id == request.nodeId,
-            LessonSessionModel.status.in_(
-                ["playing_primary", "remedial_generating", "playing_remedial"]
-            ),
+            LessonSessionModel.status.in_(ACTIVE_LESSON_SESSION_STATUSES),
         )
         .order_by(LessonSessionModel.created_at.desc())
         .first()
     )
     if existing_session:
-        if existing_session.status == "remedial_generating":
+        if existing_session.status == LessonSessionStatus.REMEDIAL_GENERATING:
             remedial_stages = _coerce_stage_list(existing_session.remedial_stages_json)
             if remedial_stages:
-                existing_session.status = "playing_remedial"
-                existing_session.active_phase = "remedial"
+                existing_session.status = LessonSessionStatus.PLAYING_REMEDIAL
+                existing_session.active_phase = LessonSessionPhase.REMEDIAL
                 db.commit()
                 db.refresh(existing_session)
                 return _build_session_payload(
@@ -611,8 +656,8 @@ async def start_lesson_session(
                 )
 
             # Recover stale sessions that were left in generating state without an active job.
-            existing_session.status = "playing_primary"
-            existing_session.active_phase = "primary"
+            existing_session.status = LessonSessionStatus.PLAYING_PRIMARY
+            existing_session.active_phase = LessonSessionPhase.PRIMARY
             db.commit()
             db.refresh(existing_session)
 
@@ -636,8 +681,8 @@ async def start_lesson_session(
         lesson_id=cached_lesson.id if cached_lesson else None,
         node_id=request.nodeId,
         course_topic=request.topic,
-        status="playing_primary",
-        active_phase="primary",
+        status=LessonSessionStatus.PLAYING_PRIMARY,
+        active_phase=LessonSessionPhase.PRIMARY,
         reward_eligible=not _is_course_node_already_completed(
             db, request.courseId, request.nodeId, current_user.id
         ),
@@ -728,7 +773,10 @@ async def respond_to_lesson_question(
         course_title=request.courseTitle or request.courseTopic or "",
         node_title=request.nodeTitle or (session.node_id if session else "") or "",
         node_description=request.nodeDescription or "",
-        active_phase=request.activePhase or (session.active_phase if session else "primary"),
+        active_phase=(
+            request.activePhase
+            or (session.active_phase if session else LessonSessionPhase.PRIMARY)
+        ),
         stage_index=max(0, int(request.stageIndex or 0)),
         total_stages=max(1, int(request.totalStages or 1)),
         current_stage=request.currentStage,
@@ -758,7 +806,10 @@ async def submit_answer(
     if not session:
         raise HTTPException(status_code=404, detail="Lesson session not found")
 
-    if session.status not in ["playing_primary", "playing_remedial"]:
+    if session.status not in (
+        LessonSessionStatus.PLAYING_PRIMARY,
+        LessonSessionStatus.PLAYING_REMEDIAL,
+    ):
         raise HTTPException(
             status_code=409,
             detail=f"Lesson session is not accepting submissions in state {session.status}.",
@@ -795,20 +846,25 @@ async def submit_answer(
     db.add(attempt)
 
     recorded_failure = False
-    if phase == "primary" and result == "incorrect":
+    if phase == LessonSessionPhase.PRIMARY and result == "incorrect":
         existing_failed_stage = (
             db.query(LessonFailedStageModel)
             .filter(
                 LessonFailedStageModel.lesson_session_id == session.id,
                 LessonFailedStageModel.stage_id == stage.stageId,
-                LessonFailedStageModel.status.in_(["pending", "remedial_generated"]),
+                LessonFailedStageModel.status.in_(
+                    [
+                        LessonFailedStageStatus.PENDING,
+                        LessonFailedStageStatus.REMEDIAL_GENERATED,
+                    ]
+                ),
             )
             .first()
         )
         if existing_failed_stage:
             existing_failed_stage.user_input_json = normalized_input
             existing_failed_stage.evaluation_json = evaluation
-            existing_failed_stage.updated_at = datetime.datetime.utcnow()
+            existing_failed_stage.updated_at = utc_now_naive()
         else:
             db.add(
                 LessonFailedStageModel(
@@ -820,7 +876,7 @@ async def submit_answer(
                     stage_id=stage.stageId,
                     component=stage.component,
                     source_phase=phase,
-                    status="pending",
+                    status=LessonFailedStageStatus.PENDING,
                     stage_snapshot_json=stage.model_dump(),
                     user_input_json=normalized_input,
                     evaluation_json=evaluation,
@@ -858,10 +914,10 @@ async def complete_primary_lesson_session(
     if not session:
         raise HTTPException(status_code=404, detail="Lesson session not found")
 
-    if session.status == "completed":
+    if session.status == LessonSessionStatus.COMPLETED:
         return _build_session_payload(db, session)
 
-    if session.status != "playing_primary":
+    if session.status != LessonSessionStatus.PLAYING_PRIMARY:
         raise HTTPException(
             status_code=409,
             detail=f"Cannot complete primary lesson from state {session.status}.",
@@ -873,16 +929,17 @@ async def complete_primary_lesson_session(
         db.query(LessonFailedStageModel)
         .filter(
             LessonFailedStageModel.lesson_session_id == session.id,
-            LessonFailedStageModel.status == "pending",
+            LessonFailedStageModel.status == LessonFailedStageStatus.PENDING,
         )
         .order_by(LessonFailedStageModel.created_at.asc())
         .all()
     )
 
     if not failed_records:
-        session.status = "completed"
-        session.active_phase = "primary"
-        session.completed_at = datetime.datetime.utcnow()
+        session.status = LessonSessionStatus.COMPLETED
+        session.active_phase = LessonSessionPhase.PRIMARY
+        session.completed_at = utc_now_naive()
+        _award_session_completion_rewards(db, session, current_user)
         db.commit()
         _apply_course_node_completion(db, session.course_id, session.node_id, current_user.id)
         db.refresh(session)
@@ -893,8 +950,8 @@ async def complete_primary_lesson_session(
         id=job_id,
         user_id=current_user.id,
         course_id=session.course_id,
-        job_type="REMEDIAL_GEN",
-        status="PENDING",
+        job_type=JobType.REMEDIAL_GENERATION,
+        status=JobStatus.PENDING,
         progress=0,
         message="Preparing remedial lesson...",
         result_data={
@@ -905,7 +962,7 @@ async def complete_primary_lesson_session(
         },
     )
     db.add(job)
-    session.status = "remedial_generating"
+    session.status = LessonSessionStatus.REMEDIAL_GENERATING
     db.commit()
 
     background_tasks.add_task(
@@ -941,10 +998,10 @@ async def complete_remedial_lesson_session(
     if not session:
         raise HTTPException(status_code=404, detail="Lesson session not found")
 
-    if session.status == "completed":
+    if session.status == LessonSessionStatus.COMPLETED:
         return _build_session_payload(db, session)
 
-    if session.status != "playing_remedial":
+    if session.status != LessonSessionStatus.PLAYING_REMEDIAL:
         raise HTTPException(
             status_code=409,
             detail=f"Cannot complete remedial lesson from state {session.status}.",
@@ -952,23 +1009,29 @@ async def complete_remedial_lesson_session(
 
     session.hints_used_count = max(0, int(request.hintsUsed or 0))
 
-    now = datetime.datetime.utcnow()
+    now = utc_now_naive()
     failed_records = (
         db.query(LessonFailedStageModel)
         .filter(
             LessonFailedStageModel.lesson_session_id == session.id,
-            LessonFailedStageModel.status.in_(["pending", "remedial_generated"]),
+            LessonFailedStageModel.status.in_(
+                [
+                    LessonFailedStageStatus.PENDING,
+                    LessonFailedStageStatus.REMEDIAL_GENERATED,
+                ]
+            ),
         )
         .all()
     )
     for record in failed_records:
-        record.status = "resolved"
+        record.status = LessonFailedStageStatus.RESOLVED
         record.resolved_at = now
         record.updated_at = now
 
-    session.status = "completed"
-    session.active_phase = "remedial"
+    session.status = LessonSessionStatus.COMPLETED
+    session.active_phase = LessonSessionPhase.REMEDIAL
     session.completed_at = now
+    _award_session_completion_rewards(db, session, current_user)
     db.commit()
 
     _apply_course_node_completion(db, session.course_id, session.node_id, current_user.id)
@@ -989,7 +1052,12 @@ async def generate_remedial_stages_endpoint(
             db.query(LessonFailedStageModel)
             .filter(
                 LessonFailedStageModel.lesson_session_id == request.sessionId,
-                LessonFailedStageModel.status.in_(["pending", "remedial_generated"]),
+                LessonFailedStageModel.status.in_(
+                    [
+                        LessonFailedStageStatus.PENDING,
+                        LessonFailedStageStatus.REMEDIAL_GENERATED,
+                    ]
+                ),
             )
             .all()
         )
@@ -1018,22 +1086,27 @@ async def generate_remedial_stages_async_endpoint(
             db.query(LessonFailedStageModel)
             .filter(
                 LessonFailedStageModel.lesson_session_id == request.sessionId,
-                LessonFailedStageModel.status.in_(["pending", "remedial_generated"]),
+                LessonFailedStageModel.status.in_(
+                    [
+                        LessonFailedStageStatus.PENDING,
+                        LessonFailedStageStatus.REMEDIAL_GENERATED,
+                    ]
+                ),
             )
             .all()
         )
         failed_records = [_serialize_failed_record(record) for record in persisted_records]
 
     if not failed_records:
-        return {"status": "COMPLETED", "result_data": {"stages": []}}
+        return {"status": JobStatus.COMPLETED, "result_data": {"stages": []}}
 
     job_id = str(uuid.uuid4())
     new_job = JobModel(
         id=job_id,
         user_id=current_user.id,
         course_id=request.courseId,
-        job_type="REMEDIAL_GEN",
-        status="PENDING",
+        job_type=JobType.REMEDIAL_GENERATION,
+        status=JobStatus.PENDING,
         progress=0,
         message="Waiting for remedial generation...",
         result_data={
@@ -1056,4 +1129,4 @@ async def generate_remedial_stages_async_endpoint(
         [record.model_dump() for record in failed_records],
         request.sessionId,
     )
-    return {"job_id": job_id, "status": "PENDING"}
+    return {"job_id": job_id, "status": JobStatus.PENDING}

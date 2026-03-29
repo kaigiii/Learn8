@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ApiError, apiFetch } from "@/lib/apiClient";
+import { COURSE_STATUS, NODE_STATUS } from "@/lib/domain/statuses";
 import type { CourseListItem, CoursePath } from "@/lib/apiTypes";
 
 interface UseHomeActiveCourseParams {
@@ -19,9 +20,9 @@ export function useHomeActiveCourse({
 
   const activeCourse = useMemo(
     () =>
-      currentCourse?.status === "ready"
+      currentCourse?.status === COURSE_STATUS.READY
         ? currentCourse
-        : courses.find((course) => course.status === "ready") || null,
+        : courses.find((course) => course.status === COURSE_STATUS.READY) || null,
     [courses, currentCourse]
   );
 
@@ -67,7 +68,7 @@ export function useHomeActiveCourse({
   const allNodes = activeCoursePath?.units.flatMap((unit) => unit.nodes) ?? [];
   const resumeNodeCount = allNodes.length;
   const completedNodeCount = allNodes.filter(
-    (node) => node.status === "completed"
+    (node) => node.status === NODE_STATUS.COMPLETED
   ).length;
   const activeProgress =
     resumeNodeCount > 0

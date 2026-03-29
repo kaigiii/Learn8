@@ -1,14 +1,17 @@
 import uuid
 from typing import List
 import os
+import datetime
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.api.dependencies import get_db, get_current_user
+from app.core.time import utc_now_naive
+from app.domain.statuses import CourseStatus, JobStatus, JobType, NodeStatus
 from app.models.user import UserModel
-from app.models.course import CourseModel, CourseStatus, NodeModel
+from app.models.course import CourseModel, NodeModel
 from app.models.job import JobModel
 from app.schemas.course_schema import (
     CoursePath,
@@ -20,12 +23,12 @@ from app.schemas.course_schema import (
     UpdateNodeStatusRequest,
 )
 from app.schemas.questionnaire_schema import LearnerProfile, QuestionnaireSubmitRequest
-import datetime
 from app.services.ai_agents.questionnaire_agent import (
     QuestionnaireAgent,
     get_questionnaire_agent,
 )
 from app.services.commons.file_service import FileService, get_file_service
+from app.services.commons.user_credits import has_sufficient_credits
 from app.services.commons.course_lifecycle import (
     ensure_course_can_edit_draft,
     ensure_course_can_generate_questionnaire,
@@ -147,7 +150,7 @@ async def update_course(
     course.title = request.title.strip()
     course.syllabus_json = syllabus_data
     flag_modified(course, "syllabus_json")
-    course.updated_at = datetime.datetime.utcnow()
+    course.updated_at = utc_now_naive()
     db.commit()
     db.refresh(course)
 
@@ -363,7 +366,7 @@ async def generate_course_questionnaire(
     ensure_course_can_generate_questionnaire(course)
 
     COST = settings.COST_QUESTIONNAIRE_GENERATION
-    if current_user.credits < COST:
+    if not has_sufficient_credits(current_user, COST):
         raise HTTPException(
             status_code=402, detail=f"Insufficient credits. Need {COST}."
         )
@@ -376,8 +379,8 @@ async def generate_course_questionnaire(
 
     new_job = JobModel(
         user_id=current_user.id,
-        job_type="QUESTIONNAIRE_GEN",
-        status="PENDING",
+        job_type=JobType.QUESTIONNAIRE_GENERATION,
+        status=JobStatus.PENDING,
         message="準備生成問卷中...",
         result_data={"course_id": course_id, "topic": topic},
     )
@@ -395,7 +398,7 @@ async def generate_course_questionnaire(
         files_used=files_used,
     )
 
-    return {"job_id": new_job.id, "status": "PENDING"}
+    return {"job_id": new_job.id, "status": JobStatus.PENDING}
 
 
 @router.post("/{course_id}/questionnaire/submit", response_model=LearnerProfile)
@@ -457,10 +460,10 @@ async def update_node_status(
 
     def promote_next_node(next_node: dict) -> None:
         current_status = next_node.get("status")
-        if current_status == "completed":
+        if current_status == NodeStatus.COMPLETED:
             return
-        next_node["status"] = "available"
-        updates_to_sync.append((next_node["id"], "available"))
+        next_node["status"] = NodeStatus.AVAILABLE
+        updates_to_sync.append((next_node["id"], NodeStatus.AVAILABLE))
 
     # 尋找目標節點並更新狀態，若狀態為 "completed" 則自動解鎖下一個節點
     for unit_idx, unit in enumerate(units):
@@ -472,7 +475,7 @@ async def update_node_status(
                 updates_to_sync.append((node_id, request.status))
 
                 # 若目前節點已完成，嘗試解鎖下一個學習節點
-                if request.status == "completed":
+                if request.status == NodeStatus.COMPLETED:
                     if node_idx + 1 < len(nodes):
                         # 同一單元內的下一個節點
                         promote_next_node(nodes[node_idx + 1])
@@ -502,7 +505,7 @@ async def update_node_status(
             )
             if db_node:
                 db_node.status = nstatus
-                db_node.updated_at = datetime.datetime.utcnow()
+                db_node.updated_at = utc_now_naive()
 
         db.commit()
         db.refresh(course_record)

@@ -48,9 +48,30 @@ class UserResponse(BaseModel):
     id: int
     email: str
     credits: int
+    xp: int = 0
+    level: int = 1
+    xp_to_next_level: int = 100
     full_name: Optional[str] = None
     phone_number: Optional[str] = None
     avatar_url: Optional[str] = None
     job_title: Optional[str] = None
     education_level: Optional[str] = None
     daily_learning_goal_minutes: int = 30
+
+
+class UserLedgerEventResponse(BaseModel):
+    id: int
+    event_type: str
+    event_key: Optional[str] = None
+    credits_delta: int
+    xp_delta: int
+    credits_balance_after: int
+    xp_balance_after: int
+    level_after: int
+    metadata_json: Optional[dict] = None
+    created_at: str
+
+
+class UserLedgerResponse(BaseModel):
+    items: list[UserLedgerEventResponse]
+    total: int

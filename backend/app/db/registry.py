@@ -10,3 +10,4 @@ from app.models.lesson import (
     LessonSessionModel,
 )
 from app.models.job import JobModel
+from app.models.user_ledger_event import UserLedgerEventModel

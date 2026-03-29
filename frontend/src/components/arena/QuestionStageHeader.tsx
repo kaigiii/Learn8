@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 interface QuestionStageHeaderProps {
   stageIndex: number;
   totalStages: number;
+  stageLabel?: string;
   topic: string;
   accentClassName: string;
   accentTextClassName: string;
@@ -14,6 +15,7 @@ interface QuestionStageHeaderProps {
 export function QuestionStageHeader({
   stageIndex,
   totalStages,
+  stageLabel = "Stage",
   topic,
   accentClassName,
   accentTextClassName,
@@ -36,7 +38,7 @@ export function QuestionStageHeader({
         <p
           className={`mb-0.5 text-[11px] font-bold uppercase tracking-wider ${accentTextClassName}`}
         >
-          Stage {stageIndex + 1} of {totalStages}
+          {stageLabel} {stageIndex + 1} of {totalStages}
           {subtitle ? ` ${subtitle}` : ""}
         </p>
         <h2 className="font-heading text-lg font-bold leading-snug text-brand-gray-700">

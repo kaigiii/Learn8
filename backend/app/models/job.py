@@ -4,6 +4,7 @@ from sqlalchemy.sql import func
 import uuid
 
 from app.db.base import Base
+from app.domain.statuses import JobStatus
 
 
 class JobModel(Base):
@@ -25,7 +26,7 @@ class JobModel(Base):
     job_type = Column(String(50), nullable=False)
 
     # 狀態 (PENDING, PROCESSING, COMPLETED, FAILED, CANCELLED)
-    status = Column(String(20), nullable=False, default="PENDING")
+    status = Column(String(20), nullable=False, default=JobStatus.PENDING)
 
     # 執行進度 0-100
     progress = Column(Integer, default=0)

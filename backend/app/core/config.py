@@ -1,8 +1,11 @@
-from pydantic_settings import BaseSettings
 from typing import Optional
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(case_sensitive=True, env_file=".env")
+
     PROJECT_NAME: str = "Learn8"
     API_V1_STR: str = "/api/v1"
 
@@ -49,10 +52,5 @@ class Settings(BaseSettings):
     COST_QUESTIONNAIRE_GENERATION: int = 5
     MAX_FILE_READ_BYTES: int = 50000
     MAX_COURSE_CONTEXT_BYTES: int = 30000
-
-    class Config:
-        case_sensitive = True
-        env_file = ".env"
-
 
 settings = Settings()

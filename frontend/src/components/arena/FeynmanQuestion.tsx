@@ -23,7 +23,7 @@ export interface FeynmanQuestionProps
   onSubmit: (answer: string) => Promise<QuestionSubmitResponse | void>;
   onContinue: () => void;
   onError?: () => void;
-  onHintUse: () => boolean;
+  onHintUse: () => Promise<boolean>;
 }
 
 /* ═══════════════════ Owl Teacher ═══════════════════ */
@@ -52,6 +52,7 @@ function OwlTeacher() {
 export default function FeynmanQuestion({
   stageIndex,
   totalStages,
+  stageLabel,
   topic,
   prompt,
   sampleAnswer,
@@ -89,9 +90,9 @@ export default function FeynmanQuestion({
     onContinue();
   }, [onContinue]);
 
-  const handleHint = useCallback(() => {
+  const handleHint = useCallback(async () => {
     if (hintUsed) return;
-    const canAfford = onHintUse();
+    const canAfford = await onHintUse();
     if (!canAfford) return;
     setHintUsed(true);
   }, [hintUsed, onHintUse]);
@@ -102,6 +103,7 @@ export default function FeynmanQuestion({
         <QuestionStageHeader
           stageIndex={stageIndex}
           totalStages={totalStages}
+          stageLabel={stageLabel}
           topic={topic}
           accentClassName="bg-gradient-to-br from-purple-500 to-purple-600 shadow-purple-300/30"
           accentTextClassName="text-purple-500"
@@ -239,7 +241,7 @@ export default function FeynmanQuestion({
         leftSlot={
           phase === "writing" ? (
             <button
-              onClick={handleHint}
+              onClick={() => void handleHint()}
               disabled={hintUsed}
               className={`mb-1 flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
                 hintUsed

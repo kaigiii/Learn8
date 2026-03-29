@@ -14,6 +14,7 @@ export function renderMultipleChoiceStage({
       key={`backend-mcq-${lesson.stageIdx}`}
       stageIndex={lesson.stageIdx}
       totalStages={lesson.totalStages}
+      stageLabel={lesson.stageLabel}
       topic={stage.topic}
       description={lesson.nodeDescription}
       question={String((stage.config.data as { question?: string }).question || stage.topic)}
@@ -30,6 +31,7 @@ export function renderMultipleChoiceStage({
       onError={(selectedOptionId) =>
         void actions.onSubmitStage(stage, { selectedOptionId })
       }
+      onCorrectAdvance={actions.onContinue}
       onWrongAdvance={actions.onContinue}
       onSkip={() => void actions.onSkipStage(stage)}
       onHintUse={actions.onHintUse}

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError, apiFetch } from "@/lib/apiClient";
+import { NODE_STATUS, type NodeStatus } from "@/lib/domain/statuses";
 import { useRequireAuthRedirect } from "@/lib/auth/useRequireAuthRedirect";
 import type { CoursePath } from "@/lib/apiTypes";
 import { clearRecentCourseNavigation } from "@/lib/navigation/intents";
@@ -10,7 +11,7 @@ import { clearRecentCourseNavigation } from "@/lib/navigation/intents";
 export interface CourseMapNode {
   id: string;
   title: string;
-  status: "completed" | "available" | "locked";
+  status: NodeStatus;
   x: number;
   y: number;
 }
@@ -85,7 +86,7 @@ export function useCourseMapData({
 
   const nodes = useMemo<CourseMapNode[]>(() => {
     const buildPositions = (
-      sourceNodes: { id: string; title: string; status: "completed" | "available" | "locked" }[]
+      sourceNodes: { id: string; title: string; status: NodeStatus }[]
     ) => {
       const count = sourceNodes.length;
       const spacing = 120;
@@ -121,8 +122,8 @@ export function useCourseMapData({
       (lastActiveNodeId
         ? nodes.find((node) => node.id === lastActiveNodeId)
         : null) ||
-      nodes.find((node) => node.status === "available") ||
-      [...nodes].reverse().find((node) => node.status === "completed") ||
+      nodes.find((node) => node.status === NODE_STATUS.AVAILABLE) ||
+      [...nodes].reverse().find((node) => node.status === NODE_STATUS.COMPLETED) ||
       nodes[0];
 
     const targetTop = Math.max(

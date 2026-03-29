@@ -3,6 +3,7 @@
 import React, { useRef, useEffect, useLayoutEffect, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import TopStatsBar from "@/components/layout/TopStatsBar";
+import { COURSE_STATUS } from "@/lib/domain/statuses";
 import {
   clearRecentCourseNavigation,
   getRecentCourseNavigation,
@@ -122,7 +123,7 @@ export default function HomePage() {
 
     courses.forEach((course, index) => {
       const draft = draftsByCourse[course.id] || course.draft_json || {};
-      const isReady = course.status === "ready";
+      const isReady = course.status === COURSE_STATUS.READY;
       const hasQuestions = (draft.questions?.length || 0) > 0;
       const hasAnswers = Object.keys(draft.answers || {}).length > 0;
 

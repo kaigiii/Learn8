@@ -5,6 +5,7 @@ export type QuestionResult = "correct" | "incorrect" | "skipped";
 export interface QuestionStageMeta {
   stageIndex: number;
   totalStages: number;
+  stageLabel?: string;
   topic: string;
   description?: string;
 }
@@ -17,7 +18,7 @@ export interface QuestionFeedbackMessages {
 
 export interface QuestionCommonActions {
   onSkip?: () => void;
-  onHintUse?: () => boolean;
+  onHintUse?: () => Promise<boolean>;
 }
 
 export interface QuestionSubmitResponse {

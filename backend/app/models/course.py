@@ -8,16 +8,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 from app.db.base import Base
-import datetime
-
-
-class CourseStatus:
-    DRAFT = "draft"
-    QUESTIONNAIRE_READY = "questionnaire_ready"
-    PROFILING = "profiling"
-    GENERATING = "generating"
-    READY = "ready"
-    ARCHIVED = "archived"
+from app.core.time import utc_now_naive
+from app.domain.statuses import CourseStatus, NodeStatus
 
 
 class CourseModel(Base):
@@ -32,10 +24,8 @@ class CourseModel(Base):
     profile_json = Column(JSON, nullable=True)
     draft_json = Column(JSON, nullable=True)
     syllabus_json = Column(JSON, nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    updated_at = Column(
-        DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow
-    )
+    created_at = Column(DateTime, default=utc_now_naive)
+    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive)
 
     user = relationship("UserModel", back_populates="courses")
     nodes = relationship(
@@ -77,10 +67,8 @@ class NodeModel(Base):
     course_id = Column(Integer, ForeignKey("courses.id", ondelete="CASCADE"))
     node_id = Column(String, index=True)
     title = Column(String)
-    status = Column(String, default="locked")
+    status = Column(String, default=NodeStatus.LOCKED)
     data = Column(JSON)
-    updated_at = Column(
-        DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow
-    )
+    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive)
 
     course = relationship("CourseModel", back_populates="nodes")

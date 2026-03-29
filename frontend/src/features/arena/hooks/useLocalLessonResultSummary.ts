@@ -2,6 +2,10 @@
 
 import { useMemo } from "react";
 import type { LessonSessionSummary } from "@/lib/apiTypes";
+import {
+  LESSON_SESSION_PHASE,
+  LESSON_SESSION_STATUS,
+} from "@/lib/domain/statuses";
 import { getAccuracy, getElapsedTime, getXpGained, type ArenaState } from "@/stores/session/useArenaStore";
 
 interface UseLocalLessonResultSummaryParams {
@@ -36,8 +40,8 @@ export function useLocalLessonResultSummary({
       sessionId: sessionId ?? 0,
       courseId: backendCourseId ? Number(backendCourseId) : null,
       nodeId,
-      status: "completed",
-      activePhase: "primary",
+      status: LESSON_SESSION_STATUS.COMPLETED,
+      activePhase: LESSON_SESSION_PHASE.PRIMARY,
       rewardEligible: arenaState.rewardEligible,
       totalStages: arenaState.totalStages,
       attemptedCount: arenaState.correctCount + arenaState.incorrectCount,

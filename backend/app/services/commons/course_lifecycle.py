@@ -1,6 +1,7 @@
 from fastapi import HTTPException
 
-from app.models.course import CourseModel, CourseStatus
+from app.domain.statuses import CourseStatus
+from app.models.course import CourseModel
 
 
 EDITABLE_DRAFT_STATUSES = {
