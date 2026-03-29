@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { refreshAuthenticatedProfile } from "@/lib/auth/profileSync";
 import useUserStore, {
   selectUserLevel,
   selectUserXp,
@@ -20,7 +21,6 @@ export function useLessonRewardAnimation({
   rewardKey,
   endSession,
 }: UseLessonRewardAnimationParams) {
-  const addXp = useUserStore((s) => s.addXp);
   const currentXp = useUserStore(selectUserXp);
   const currentLevel = useUserStore(selectUserLevel);
   const currentXpToNext = useUserStore(selectUserXpToNextLevel);
@@ -57,22 +57,31 @@ export function useLessonRewardAnimation({
 
     const snap = useUserStore.getState();
     prevUserRef.current = {
-      xp: snap.progression.xp,
-      level: snap.progression.level,
-      xpToNext: snap.progression.xpToNextLevel,
+      xp: snap.serverBacked.progression.xp,
+      level: snap.serverBacked.progression.level,
+      xpToNext: snap.serverBacked.progression.xpToNextLevel,
     };
 
-    endSession();
-    if (rewardAmount > 0) {
-      addXp(rewardAmount);
-    }
+    const applyReward = async () => {
+      endSession();
 
-    if (rewardStorageKey && typeof window !== "undefined") {
-      window.sessionStorage.setItem(rewardStorageKey, "1");
-    }
+      if (rewardAmount > 0) {
+        try {
+          await refreshAuthenticatedProfile();
+        } catch {
+          // Keep the existing snapshot if the profile refresh fails.
+        }
+      }
 
-    setRewarded(true);
-  }, [addXp, enabled, endSession, rewardAmount, rewarded, rewardStorageKey]);
+      if (rewardStorageKey && typeof window !== "undefined") {
+        window.sessionStorage.setItem(rewardStorageKey, "1");
+      }
+
+      setRewarded(true);
+    };
+
+    void applyReward();
+  }, [enabled, endSession, rewardAmount, rewarded, rewardStorageKey]);
 
   useEffect(() => {
     if (!rewarded || animStarted.current || !prevUserRef.current) {
@@ -82,11 +91,14 @@ export function useLessonRewardAnimation({
 
     const prev = prevUserRef.current;
     const post = useUserStore.getState();
-    const leveled = post.progression.level > prev.level;
+    const leveled = post.serverBacked.progression.level > prev.level;
     const startPct = prev.xpToNext > 0 ? (prev.xp / prev.xpToNext) * 100 : 0;
     const endPct =
-      post.progression.xpToNextLevel > 0
-        ? (post.progression.xp / post.progression.xpToNextLevel) * 100
+      post.serverBacked.progression.xpToNextLevel > 0
+        ? (
+            post.serverBacked.progression.xp /
+            post.serverBacked.progression.xpToNextLevel
+          ) * 100
         : 0;
 
     setDisplayLevel(prev.level);
@@ -102,7 +114,7 @@ export function useLessonRewardAnimation({
       const t3 = window.setTimeout(() => {
         setBarDuration(0);
         setXpBarWidth(0);
-        setDisplayLevel(post.progression.level);
+        setDisplayLevel(post.serverBacked.progression.level);
       }, 3600);
       const t4 = window.setTimeout(() => {
         setBarDuration(0.8);

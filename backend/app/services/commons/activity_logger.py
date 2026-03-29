@@ -15,26 +15,27 @@ activity_logger = logging.getLogger("activity")
 activity_logger.setLevel(logging.INFO)
 activity_logger.propagate = False  # Prevent duplicate logs
 
-# File handler with rotation (10MB per file, keep 5 backups)
-file_handler = RotatingFileHandler(
-    os.path.join(LOG_DIR, "activity.log"),
-    maxBytes=10 * 1024 * 1024,
-    backupCount=5,
-    encoding="utf-8",
-)
-file_handler.setFormatter(
-    logging.Formatter(
-        "%(asctime)s | %(levelname)s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
+if not activity_logger.handlers:
+    # File handler with rotation (10MB per file, keep 5 backups)
+    file_handler = RotatingFileHandler(
+        os.path.join(LOG_DIR, "activity.log"),
+        maxBytes=10 * 1024 * 1024,
+        backupCount=5,
+        encoding="utf-8",
     )
-)
-activity_logger.addHandler(file_handler)
+    file_handler.setFormatter(
+        logging.Formatter(
+            "%(asctime)s | %(levelname)s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
+        )
+    )
+    activity_logger.addHandler(file_handler)
 
-# Console handler for development
-console_handler = logging.StreamHandler()
-console_handler.setFormatter(
-    logging.Formatter("📋 %(asctime)s | %(message)s", datefmt="%H:%M:%S")
-)
-activity_logger.addHandler(console_handler)
+    # Console handler for development
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(
+        logging.Formatter("📋 %(asctime)s | %(message)s", datefmt="%H:%M:%S")
+    )
+    activity_logger.addHandler(console_handler)
 
 
 class ActivityLogger:
@@ -235,6 +236,19 @@ class ActivityLogger:
     ):
         activity_logger.info(
             f"CREDITS_DEDUCT | {ActivityLogger._format_user(user_id, user_email)} spent {amount} credits for '{reason}' | New balance: {new_balance}"
+        )
+
+    @staticmethod
+    def log_xp_award(
+        user_id: int,
+        user_email: str,
+        amount: int,
+        reason: str,
+        new_xp: int,
+        new_level: int,
+    ):
+        activity_logger.info(
+            f"XP_AWARD | {ActivityLogger._format_user(user_id, user_email)} gained {amount} XP for '{reason}' | XP: {new_xp} | Level: {new_level}"
         )
 
     # ==================== LLM ====================

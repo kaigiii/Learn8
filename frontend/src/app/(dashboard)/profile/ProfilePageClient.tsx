@@ -3,10 +3,11 @@
 import TopStatsBar from "@/components/layout/TopStatsBar";
 import DeepGlassCard from "@/components/ui/DeepGlassCard";
 import GameButton from "@/components/ui/GameButton";
+import type { UserLedgerEvent } from "@/lib/apiTypes";
 import { ProfileStatBox } from "@/features/profile/components/ProfileStatBox";
 import { ProfileToggle } from "@/features/profile/components/ProfileToggle";
 import { useProfileSettings } from "@/features/profile/hooks/useProfileSettings";
-import useUserStore from "@/stores/app/useUserStore";
+import useUserStore, { selectUserProgression } from "@/stores/app/useUserStore";
 
 export default function ProfilePageClient() {
   const {
@@ -17,6 +18,8 @@ export default function ProfilePageClient() {
     setForm,
     saving,
     toppingUpAmount,
+    ledgerLoading,
+    ledgerItems,
     error,
     setPreferences,
     handleSaveProfile,
@@ -24,7 +27,7 @@ export default function ProfilePageClient() {
     handleOpenStore,
     handleLogout,
   } = useProfileSettings(() => {});
-  const progression = useUserStore((state) => state.progression);
+  const progression = useUserStore(selectUserProgression);
 
   const displayName = authUser?.full_name?.trim() || form.full_name || "Learner";
   const profileLabel =
@@ -49,9 +52,9 @@ export default function ProfilePageClient() {
               </div>
               <div>
                 <p className="font-heading text-3xl font-extrabold text-brand-gray-700">
-                  {profileLabel}
+                  {displayName}
                 </p>
-                <p className="mt-1 text-sm text-brand-gray-500">{displayName}</p>
+                <p className="mt-1 text-sm text-brand-gray-500">{profileLabel}</p>
                 {authUser?.email && (
                   <p className="mt-1 text-xs text-brand-gray-400">
                     {authUser.email}
@@ -219,6 +222,33 @@ export default function ProfilePageClient() {
             <DeepGlassCard className="border border-white/70 bg-white/80 px-6 py-6 shadow-[0_20px_50px_rgba(31,41,55,0.10)]">
               <div className="mb-4">
                 <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-brand-teal">
+                  Activity
+                </p>
+                <h2 className="mt-2 font-heading text-2xl font-extrabold text-brand-gray-700">
+                  Recent Account Activity
+                </h2>
+              </div>
+
+              <div className="space-y-3">
+                {ledgerLoading ? (
+                  <div className="rounded-2xl border border-brand-gray-100 bg-brand-gray-50 px-4 py-4 text-sm text-brand-gray-500">
+                    Loading recent activity...
+                  </div>
+                ) : ledgerItems.length === 0 ? (
+                  <div className="rounded-2xl border border-brand-gray-100 bg-brand-gray-50 px-4 py-4 text-sm text-brand-gray-500">
+                    No credits or XP events yet.
+                  </div>
+                ) : (
+                  ledgerItems.map((item) => (
+                    <LedgerActivityRow key={item.id} item={item} />
+                  ))
+                )}
+              </div>
+            </DeepGlassCard>
+
+            <DeepGlassCard className="border border-white/70 bg-white/80 px-6 py-6 shadow-[0_20px_50px_rgba(31,41,55,0.10)]">
+              <div className="mb-4">
+                <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-brand-teal">
                   Preferences
                 </p>
                 <h2 className="mt-2 font-heading text-2xl font-extrabold text-brand-gray-700">
@@ -295,4 +325,57 @@ export default function ProfilePageClient() {
       </div>
     </div>
   );
+}
+
+function LedgerActivityRow({ item }: { item: UserLedgerEvent }) {
+  const eventLabel = getLedgerEventLabel(item.event_type);
+  const creditsText =
+    item.credits_delta === 0
+      ? null
+      : `${item.credits_delta > 0 ? "+" : ""}${item.credits_delta.toLocaleString()} credits`;
+  const xpText =
+    item.xp_delta === 0
+      ? null
+      : `+${item.xp_delta.toLocaleString()} XP`;
+  const timestamp = new Date(item.created_at).toLocaleString();
+
+  return (
+    <div className="rounded-2xl border border-brand-gray-100 bg-brand-gray-50/75 px-4 py-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-brand-gray-700">{eventLabel}</p>
+          <p className="mt-1 text-xs text-brand-gray-400">{timestamp}</p>
+        </div>
+        <div className="text-right">
+          {creditsText && (
+            <p
+              className={`text-sm font-semibold ${
+                item.credits_delta > 0 ? "text-brand-green" : "text-rose-500"
+              }`}
+            >
+              {creditsText}
+            </p>
+          )}
+          {xpText && <p className="text-sm font-semibold text-brand-teal">{xpText}</p>}
+        </div>
+      </div>
+      <p className="mt-2 text-xs text-brand-gray-500">
+        Balance: {item.credits_balance_after.toLocaleString()} credits, level{" "}
+        {item.level_after}, {item.xp_balance_after.toLocaleString()} XP
+      </p>
+    </div>
+  );
+}
+
+function getLedgerEventLabel(eventType: string) {
+  switch (eventType) {
+    case "credits_top_up":
+      return "Credits Added";
+    case "credits_spend":
+      return "Credits Spent";
+    case "lesson_completion_reward":
+      return "Lesson Reward";
+    default:
+      return eventType;
+  }
 }

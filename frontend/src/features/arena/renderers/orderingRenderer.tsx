@@ -14,8 +14,10 @@ export function renderOrderingStage({
       stage={stage}
       stageIndex={lesson.stageIdx}
       totalStages={lesson.totalStages}
+      stageLabel={lesson.stageLabel}
       topic={stage.topic}
-      onSubmit={(input) => void actions.onSubmitStage(stage, { order: input })}
+      onSubmit={(input) => actions.onSubmitStage(stage, { order: input })}
+      onContinue={actions.onContinue}
       onSkip={() => void actions.onSkipStage(stage)}
     />
   );

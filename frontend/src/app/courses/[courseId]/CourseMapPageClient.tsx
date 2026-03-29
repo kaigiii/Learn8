@@ -5,9 +5,10 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import TopStatsBar from "@/components/layout/TopStatsBar";
+import { NODE_STATUS } from "@/lib/domain/statuses";
 import { useDelayedVisibility } from "@/lib/ui/useDelayedVisibility";
 import { useCourseStore } from "@/stores/app/useCourseStore";
-import useUserStore from "@/stores/app/useUserStore";
+import useUserStore, { selectLastActiveNodeId } from "@/stores/app/useUserStore";
 import { CourseMapAssistantPanel } from "./components/CourseMapAssistantPanel";
 import { CourseMapBackground } from "./components/CourseMapBackground";
 import { useCourseMapData, type CourseMapNode } from "./hooks/useCourseMapData";
@@ -23,7 +24,7 @@ export default function CourseMapPageClient({
   });
   const currentCourseId = useCourseStore((state) => state.currentCourseId);
   const setLastActiveCourse = useUserStore((state) => state.setLastActiveCourse);
-  const lastActiveNodeId = useUserStore((state) => state.navigation.lastActiveNodeId);
+  const lastActiveNodeId = useUserStore(selectLastActiveNodeId);
 
   const {
     backendError,
@@ -101,7 +102,9 @@ export default function CourseMapPageClient({
                 const next = nodes[index + 1];
                 const mx = (node.x + next.x) / 2;
                 const my = (node.y + next.y) / 2;
-                const isActive = node.status !== "locked" || next.status !== "locked";
+                const isActive =
+                  node.status !== NODE_STATUS.LOCKED ||
+                  next.status !== NODE_STATUS.LOCKED;
 
                 return (
                   <path
@@ -145,7 +148,9 @@ function MapNodeCircle({
   courseId: string;
 }) {
   const router = useRouter();
-  const isClickable = node.status === "available" || node.status === "completed";
+  const isClickable =
+    node.status === NODE_STATUS.AVAILABLE ||
+    node.status === NODE_STATUS.COMPLETED;
   const targetHref = `/courses/${courseId}/nodes/${node.id}`;
 
   const content = (
@@ -162,7 +167,7 @@ function MapNodeCircle({
       whileHover={isClickable ? { scale: 1.1 } : {}}
       whileTap={isClickable ? { scale: 0.92 } : {}}
     >
-      {node.status === "available" && (
+      {node.status === NODE_STATUS.AVAILABLE && (
         <>
           <motion.div
             className="absolute h-[88px] w-[88px] rounded-full"
@@ -198,7 +203,7 @@ function MapNodeCircle({
         </>
       )}
 
-      {node.status === "completed" && (
+      {node.status === NODE_STATUS.COMPLETED && (
         <motion.div
           className="absolute h-[78px] w-[78px]"
           animate={{ rotate: [0, -360] }}
@@ -227,28 +232,28 @@ function MapNodeCircle({
       )}
 
       <div
-        className={`relative flex h-[64px] w-[64px] items-center justify-center rounded-full transition-all ${
-          node.status === "completed"
+          className={`relative flex h-[64px] w-[64px] items-center justify-center rounded-full transition-all ${
+          node.status === NODE_STATUS.COMPLETED
             ? "shadow-lg shadow-amber-300/30"
-            : node.status === "available"
+            : node.status === NODE_STATUS.AVAILABLE
             ? "shadow-lg shadow-teal-400/30"
             : "shadow-md"
         }`}
       >
         <div
           className={`absolute inset-0 rounded-full ${
-            node.status === "completed"
+            node.status === NODE_STATUS.COMPLETED
               ? "bg-gradient-to-br from-yellow-300 via-amber-400 to-yellow-500"
-              : node.status === "available"
+              : node.status === NODE_STATUS.AVAILABLE
               ? "bg-gradient-to-br from-[#7AC7C4] via-[#5fb3af] to-[#4da8a4]"
               : "bg-gradient-to-br from-[#e0ddd8] via-[#d4d0ca] to-[#c8c4be]"
           }`}
         />
         <div
           className={`absolute inset-[3px] rounded-full border-2 ${
-            node.status === "completed"
+            node.status === NODE_STATUS.COMPLETED
               ? "border-yellow-200/50"
-              : node.status === "available"
+              : node.status === NODE_STATUS.AVAILABLE
               ? "border-white/30"
               : "border-white/20"
           }`}
@@ -258,7 +263,7 @@ function MapNodeCircle({
             className="absolute -top-1 left-1/2 h-[40%] w-[70%] -translate-x-1/2 rounded-[50%]"
             style={{
               background:
-                node.status === "locked"
+                node.status === NODE_STATUS.LOCKED
                   ? "linear-gradient(180deg, rgba(255,255,255,0.25) 0%, transparent 100%)"
                   : "linear-gradient(180deg, rgba(255,255,255,0.35) 0%, transparent 100%)",
             }}
@@ -266,7 +271,7 @@ function MapNodeCircle({
         </div>
 
         <div className="relative z-10">
-          {node.status === "completed" ? (
+          {node.status === NODE_STATUS.COMPLETED ? (
             <svg
               viewBox="0 0 24 24"
               className="h-7 w-7 text-white drop-shadow-sm"
@@ -278,7 +283,7 @@ function MapNodeCircle({
             >
               <path d="M20 6L9 17l-5-5" />
             </svg>
-          ) : node.status === "available" ? (
+          ) : node.status === NODE_STATUS.AVAILABLE ? (
             <motion.div
               animate={{ scale: [1, 1.15, 1] }}
               transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
@@ -306,9 +311,9 @@ function MapNodeCircle({
 
       <span
         className={`max-w-[100px] text-center font-heading text-[11px] font-bold leading-tight drop-shadow-sm ${
-          node.status === "completed"
+          node.status === NODE_STATUS.COMPLETED
             ? "text-amber-700"
-            : node.status === "available"
+            : node.status === NODE_STATUS.AVAILABLE
             ? "text-teal-700"
             : "text-brand-gray-400"
         }`}

@@ -182,7 +182,7 @@ export default function LessonResultPageClient({
 
   return (
     <LessonResultView
-      resultSummary={resultSummary!}
+      resultSummary={resultSummary}
       accuracy={accuracy}
       xpGained={xpGained}
       showLevelUp={showLevelUp}

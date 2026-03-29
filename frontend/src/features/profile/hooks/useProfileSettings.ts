@@ -3,11 +3,19 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError, apiFetch } from "@/lib/apiClient";
-import { syncPersistedProfile } from "@/lib/auth/profileSync";
-import type { UserProfile } from "@/lib/apiTypes";
+import {
+  fetchAuthenticatedLedger,
+  syncPersistedProfile,
+  topUpAuthenticatedCredits,
+} from "@/lib/auth/profileSync";
+import type { UserLedgerEvent, UserProfile } from "@/lib/apiTypes";
 import { useAuthStore } from "@/stores/app/useAuthStore";
 import { useCourseStore } from "@/stores/app/useCourseStore";
-import useUserStore, { selectUserName, selectUserTitle } from "@/stores/app/useUserStore";
+import useUserStore, {
+  selectUserName,
+  selectUserPreferences,
+  selectUserTitle,
+} from "@/stores/app/useUserStore";
 
 export function useProfileSettings(onClose: () => void) {
   const router = useRouter();
@@ -16,7 +24,7 @@ export function useProfileSettings(onClose: () => void) {
   const setCurrentCourse = useCourseStore((s) => s.setCurrentCourse);
   const name = useUserStore(selectUserName);
   const title = useUserStore(selectUserTitle);
-  const preferences = useUserStore((s) => s.preferences);
+  const preferences = useUserStore(selectUserPreferences);
   const setPreferences = useUserStore((s) => s.setPreferences);
   const logout = useUserStore((s) => s.logout);
 
@@ -28,6 +36,8 @@ export function useProfileSettings(onClose: () => void) {
   });
   const [saving, setSaving] = useState(false);
   const [toppingUpAmount, setToppingUpAmount] = useState<number | null>(null);
+  const [ledgerLoading, setLedgerLoading] = useState(false);
+  const [ledgerItems, setLedgerItems] = useState<UserLedgerEvent[]>([]);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -40,6 +50,41 @@ export function useProfileSettings(onClose: () => void) {
         : "",
     });
   }, [authUser, name]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadLedger = async () => {
+      if (!authUser) {
+        setLedgerItems([]);
+        return;
+      }
+
+      setLedgerLoading(true);
+      try {
+        const response = await fetchAuthenticatedLedger(8, 0);
+        if (!cancelled) {
+          setLedgerItems(response.items);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(
+            err instanceof ApiError ? err.detail : "Failed to load recent account activity."
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLedgerLoading(false);
+        }
+      }
+    };
+
+    void loadLedger();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authUser]);
 
   const handleSaveProfile = async () => {
     setSaving(true);
@@ -68,11 +113,9 @@ export function useProfileSettings(onClose: () => void) {
     setToppingUpAmount(amount);
     setError("");
     try {
-      const profile = await apiFetch<UserProfile>(
-        `/auth/credits/top-up?amount=${amount}`,
-        { method: "POST" }
-      );
-      syncPersistedProfile(profile);
+      await topUpAuthenticatedCredits(amount);
+      const response = await fetchAuthenticatedLedger(8, 0);
+      setLedgerItems(response.items);
     } catch (err) {
       setError(err instanceof ApiError ? err.detail : "Failed to top up credits.");
     } finally {
@@ -101,6 +144,8 @@ export function useProfileSettings(onClose: () => void) {
     setForm,
     saving,
     toppingUpAmount,
+    ledgerLoading,
+    ledgerItems,
     error,
     setPreferences,
     handleSaveProfile,

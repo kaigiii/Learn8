@@ -1,15 +1,17 @@
 import logging
-import datetime
+from app.domain.statuses import JobStatus
 from app.db.session import SessionLocal
 from app.models.job import JobModel
 from app.models.user import UserModel
 from app.models.course import CourseModel, NodeModel
+from app.core.time import utc_now_naive
 from app.services.ai_agents.syllabus_agent import SyllabusAgent
 from app.services.commons.activity_logger import ActivityLogger
 from app.services.llm_clients.factory import LLMFactory
 from app.services.knowledge_base.rag_engine import RAGEngine
 from app.core.config import settings
-from app.services.workers.job_notifier import _notify_job_update
+from app.services.workers.job_notifier import _notify_job_update, _publish_job_notification
+from app.services.commons.user_economy import spend_user_credits
 from app.services.commons.course_lifecycle import (
     mark_syllabus_completed,
     mark_syllabus_failed,
@@ -20,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 def _is_cancelled(db, job_id: str) -> bool:
     job = db.query(JobModel).filter(JobModel.id == job_id).first()
-    return job is None or job.status == "CANCELLED"
+    return job is None or job.status == JobStatus.CANCELLED
 
 
 async def run_syllabus_generation_job(
@@ -40,10 +42,12 @@ async def run_syllabus_generation_job(
     db = SessionLocal()
     try:
         job = db.query(JobModel).filter(JobModel.id == job_id).first()
-        if not job or job.status == "CANCELLED":
+        if not job or job.status == JobStatus.CANCELLED:
             return
 
-        _notify_job_update(db, job, 5, "開始籌備課程藍圖...", status="PROCESSING")
+        _notify_job_update(
+            db, job, 5, "開始籌備課程藍圖...", status=JobStatus.PROCESSING
+        )
 
         user = db.query(UserModel).filter(UserModel.id == user_id).first()
         COST = settings.COST_SYLLABUS_GENERATION
@@ -80,7 +84,7 @@ async def run_syllabus_generation_job(
                 job,
                 prog if prog is not None else job.progress,
                 msg,
-                status="PROCESSING",
+                status=JobStatus.PROCESSING,
             )
 
         # 呼叫 LLM
@@ -108,15 +112,24 @@ async def run_syllabus_generation_job(
         c_model.title = syllabus.courseTitle
         c_model.topic = topic
         c_model.syllabus_json = syllabus.model_dump()
-        c_model.updated_at = datetime.datetime.utcnow()
+        c_model.updated_at = utc_now_naive()
         mark_syllabus_completed(c_model)
         db.query(NodeModel).filter(NodeModel.course_id == c_model.id).delete()
 
         # 扣點數 (非常重要: 成功才扣)
-        user.credits -= COST
-        db.add(user)
-        db.commit()
-        db.refresh(c_model)
+        spend_user_credits(
+            db,
+            user,
+            COST,
+            reason="syllabus_generation",
+            idempotency_scope="job:syllabus_generation_charge",
+            idempotency_key=job_id,
+            metadata={
+                "source": "syllabus_generation",
+                "job_id": job_id,
+                "course_id": c_model.id,
+            },
+        )
 
         # 寫入 NodeDB
         for unit in syllabus.units:
@@ -129,7 +142,13 @@ async def run_syllabus_generation_job(
                     data=node.model_dump(exclude={"status", "title", "id"}),
                 )
                 db.add(db_node)
+        job.progress = 100
+        job.message = "🎉 課程建立完成！"
+        job.status = JobStatus.COMPLETED
+        job.result_data = {"course_id": c_model.id, "topic": topic}
         db.commit()
+        db.refresh(c_model)
+        db.refresh(job)
 
         # 紀錄完成事件
         ActivityLogger.log_syllabus_generate_complete(
@@ -142,18 +161,7 @@ async def run_syllabus_generation_job(
             sum(len(u.nodes) for u in syllabus.units),
             [u.unitTitle for u in syllabus.units],
         )
-        ActivityLogger.log_credits_deduct(
-            user.id, user.email, COST, "syllabus_generation", user.credits
-        )
-
-        _notify_job_update(
-            db,
-            job,
-            100,
-            "🎉 課程建立完成！",
-            status="COMPLETED",
-            result_data={"course_id": c_model.id, "topic": topic},
-        )
+        _publish_job_notification(db, job)
 
     except Exception as e:
         logger.error(f"Syllabus generation job failed: {e}")
@@ -162,12 +170,17 @@ async def run_syllabus_generation_job(
             if course_id
             else None
         )
+        db.rollback()
         if failed_course:
             mark_syllabus_failed(failed_course)
-            db.commit()
-        _notify_job_update(
-            db, job, str(job.progress), f"生成失敗: {str(e)}", status="FAILED"
-        )
+        if job is not None:
+            job.progress = int(job.progress or 0)
+            job.message = f"生成失敗: {str(e)}"
+            job.status = JobStatus.FAILED
+        db.commit()
+        if job is not None:
+            db.refresh(job)
+            _publish_job_notification(db, job)
 
     finally:
         db.close()

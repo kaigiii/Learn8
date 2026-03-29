@@ -10,6 +10,9 @@ class UserModel(Base):
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
     credits = Column(Integer, default=50)
+    xp = Column(Integer, default=0, nullable=False)
+    level = Column(Integer, default=1, nullable=False)
+    xp_to_next_level = Column(Integer, default=100, nullable=False)
 
     # 個人資料欄位
     full_name = Column(String, nullable=True)
@@ -67,6 +70,12 @@ class UserModel(Base):
     )
     password_reset_tokens = relationship(
         "PasswordResetTokenModel",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    ledger_events = relationship(
+        "UserLedgerEventModel",
         back_populates="user",
         cascade="all, delete-orphan",
         passive_deletes=True,

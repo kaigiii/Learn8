@@ -6,8 +6,9 @@ from sqlalchemy.orm.attributes import flag_modified
 from fastapi.responses import JSONResponse
 
 from app.api.dependencies import get_db, get_current_user
+from app.domain.statuses import CourseStatus, JobStatus, JobType
 from app.models.user import UserModel
-from app.models.course import CourseModel, NodeModel, CourseStatus
+from app.models.course import CourseModel, NodeModel
 from app.models.job import JobModel
 from app.schemas.course_schema import CoursePath, RefineSyllabusRequest
 from app.services.workers.syllabus_worker import run_syllabus_generation_job
@@ -19,6 +20,7 @@ from app.services.commons.course_lifecycle import (
     ensure_course_can_generate_syllabus,
     mark_syllabus_started,
 )
+from app.services.commons.user_credits import has_sufficient_credits
 
 router = APIRouter()
 
@@ -68,7 +70,7 @@ async def generate_syllabus(
 
     # 點數檢查
     COST = settings.COST_SYLLABUS_GENERATION
-    if current_user.credits < COST:
+    if not has_sufficient_credits(current_user, COST):
         raise HTTPException(status_code=402, detail="Insufficient credits")
 
     course_folder_name = course.folder_name
@@ -103,8 +105,8 @@ async def generate_syllabus(
     new_job = JobModel(
         user_id=current_user.id,
         course_id=course.id,
-        job_type="SYLLABUS_GEN",
-        status="PENDING",
+        job_type=JobType.SYLLABUS_GENERATION,
+        status=JobStatus.PENDING,
         message="正在排隊準備生成大綱...",
         result_data={
             "course_id": course.id,
@@ -132,7 +134,7 @@ async def generate_syllabus(
 
     # 立刻回傳 202 Accepted 給前端
     return JSONResponse(
-        status_code=202, content={"job_id": new_job.id, "status": "PENDING"}
+        status_code=202, content={"job_id": new_job.id, "status": JobStatus.PENDING}
     )
 
 

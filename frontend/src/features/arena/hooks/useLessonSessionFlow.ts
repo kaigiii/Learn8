@@ -3,7 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ApiError, apiFetch } from "@/lib/apiClient";
+import {
+  ACTIVE_LESSON_SESSION_STATUSES,
+  JOB_TYPE,
+  LESSON_SESSION_PHASE,
+  LESSON_SESSION_STATUS,
+} from "@/lib/domain/statuses";
 import { ensureRetryableJob, fetchScopedActiveJob } from "@/lib/jobs/recovery";
+import { clearPendingLessonNavigation } from "@/lib/navigation/intents";
 import { watchJobStream } from "@/lib/jobs/stream";
 import type {
   CoursePath,
@@ -54,11 +61,21 @@ export function useLessonSessionFlow({
   const isFinalizingRef = useRef(false);
   const isNavigatingToResultRef = useRef(false);
 
-  const activePhase = lessonSession?.activePhase ?? "primary";
+  const activePhase = lessonSession?.activePhase ?? LESSON_SESSION_PHASE.PRIMARY;
   const isSessionInteractive =
     !!lessonSession &&
-    (lessonSession.status === "playing_primary" ||
-      lessonSession.status === "playing_remedial");
+    ACTIVE_LESSON_SESSION_STATUSES.includes(lessonSession.status as never);
+
+  const debugLessonFlow = useCallback((message: string, payload?: unknown) => {
+    if (process.env.NODE_ENV !== "development") {
+      return;
+    }
+    if (payload === undefined) {
+      console.info(`[LessonSessionFlow] ${message}`);
+      return;
+    }
+    console.info(`[LessonSessionFlow] ${message}`, payload);
+  }, []);
 
   const connectRemedialJob = useCallback(
     (jobId: string, sessionId: number) => {
@@ -78,6 +95,7 @@ export function useLessonSessionFlow({
           setPhaseTransitionMessage(data.message || "Generating remedial lesson...");
         },
         onCompleted: async () => {
+          debugLessonFlow("Remedial job completed", { jobId, sessionId });
           const session = await apiFetch<LessonSessionPayload>(
             `/lessons/sessions/${sessionId}`
           );
@@ -175,10 +193,10 @@ export function useLessonSessionFlow({
         setLessonSession(session);
         onSessionStarted(session);
 
-        if (session.status === "remedial_generating") {
+        if (session.status === LESSON_SESSION_STATUS.REMEDIAL_GENERATING) {
           const activeJob = await ensureRetryableJob(
             await fetchScopedActiveJob({
-              jobType: "REMEDIAL_GEN",
+              jobType: JOB_TYPE.REMEDIAL_GENERATION,
               sessionId: session.sessionId,
             })
           );
@@ -221,7 +239,19 @@ export function useLessonSessionFlow({
     }
     isFinalizingRef.current = true;
 
-    if (lessonSession.activePhase === "primary") {
+    const isPrimaryPhase =
+      lessonSession.activePhase === LESSON_SESSION_PHASE.PRIMARY &&
+      lessonSession.status !== LESSON_SESSION_STATUS.PLAYING_REMEDIAL;
+
+    debugLessonFlow("completeCurrentPhase invoked", {
+      sessionId: lessonSession.sessionId,
+      activePhase: lessonSession.activePhase,
+      status: lessonSession.status,
+      hintsUsed,
+      isPrimaryPhase,
+    });
+
+    if (isPrimaryPhase) {
       setPhaseTransitionError("");
       let phaseTransitionVisible = false;
       const delayedTransitionId = window.setTimeout(() => {
@@ -233,6 +263,9 @@ export function useLessonSessionFlow({
       }, 350);
 
       try {
+        debugLessonFlow("Calling complete-primary", {
+          sessionId: lessonSession.sessionId,
+        });
         const session = await apiFetch<LessonSessionPayload>(
           `/lessons/sessions/${lessonSession.sessionId}/complete-primary`,
           {
@@ -245,8 +278,14 @@ export function useLessonSessionFlow({
           return;
         }
         setLessonSession(session);
+        debugLessonFlow("complete-primary returned", {
+          sessionId: session.sessionId,
+          activePhase: session.activePhase,
+          status: session.status,
+          remedialJobId: session.remedialJobId,
+        });
 
-        if (session.status === "completed") {
+        if (session.status === LESSON_SESSION_STATUS.COMPLETED) {
           let summary: LessonSessionSummary | null = null;
           try {
             summary = await apiFetch<LessonSessionSummary>(
@@ -262,7 +301,10 @@ export function useLessonSessionFlow({
           return;
         }
 
-        if (session.status === "remedial_generating" && session.remedialJobId) {
+        if (
+          session.status === LESSON_SESSION_STATUS.REMEDIAL_GENERATING &&
+          session.remedialJobId
+        ) {
           if (!phaseTransitionVisible) {
             setPhaseTransitionLoading(true);
             setPhaseTransitionMessage("Generating your targeted remedial lesson...");
@@ -296,6 +338,9 @@ export function useLessonSessionFlow({
     setPhaseTransitionError("");
     setPhaseTransitionMessage("Finalising your remedial lesson...");
     try {
+      debugLessonFlow("Calling complete-remedial", {
+        sessionId: lessonSession.sessionId,
+      });
       const session = await apiFetch<LessonSessionPayload>(
         `/lessons/sessions/${lessonSession.sessionId}/complete-remedial`,
         {
@@ -307,6 +352,11 @@ export function useLessonSessionFlow({
         return;
       }
       setLessonSession(session);
+      debugLessonFlow("complete-remedial returned", {
+        sessionId: session.sessionId,
+        activePhase: session.activePhase,
+        status: session.status,
+      });
       let summary: LessonSessionSummary | null = null;
       try {
         summary = await apiFetch<LessonSessionSummary>(
@@ -317,6 +367,10 @@ export function useLessonSessionFlow({
       }
       navigateToResult(session.sessionId, summary);
     } catch (err) {
+      debugLessonFlow("completeCurrentPhase failed", {
+        sessionId: lessonSession.sessionId,
+        error: err instanceof Error ? err.message : String(err),
+      });
       setPhaseTransitionError(
         err instanceof ApiError
           ? err.detail
@@ -326,7 +380,7 @@ export function useLessonSessionFlow({
     } finally {
       setPhaseTransitionLoading(false);
     }
-  }, [connectRemedialJob, hintsUsed, lessonSession, navigateToResult]);
+  }, [connectRemedialJob, debugLessonFlow, hintsUsed, lessonSession, navigateToResult]);
 
   const retryPhaseTransition = useCallback(async () => {
     if (!lessonSession) {
@@ -335,9 +389,9 @@ export function useLessonSessionFlow({
 
     setPhaseTransitionError("");
 
-    if (lessonSession.status === "remedial_generating") {
+    if (lessonSession.status === LESSON_SESSION_STATUS.REMEDIAL_GENERATING) {
       const activeJob = await fetchScopedActiveJob({
-        jobType: "REMEDIAL_GEN",
+        jobType: JOB_TYPE.REMEDIAL_GENERATION,
         sessionId: lessonSession.sessionId,
       });
       if (activeJob.job_id) {
@@ -354,7 +408,7 @@ export function useLessonSessionFlow({
       );
       setLessonSession(refreshedSession);
 
-      if (refreshedSession.status === "playing_remedial") {
+      if (refreshedSession.status === LESSON_SESSION_STATUS.PLAYING_REMEDIAL) {
         onRemedialStagesReady();
         return;
       }
@@ -377,7 +431,7 @@ export function useLessonSessionFlow({
     setPhaseTransitionLoading(false);
     setSessionLoading(false);
 
-    window.sessionStorage.removeItem("learn8_pending_lesson");
+    clearPendingLessonNavigation();
     window.location.replace(targetHref);
   }, [backendCourseId]);
 

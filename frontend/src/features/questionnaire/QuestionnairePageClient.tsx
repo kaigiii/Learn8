@@ -7,6 +7,7 @@ import TopStatsBar from "@/components/layout/TopStatsBar";
 import DeepGlassCard from "@/components/ui/DeepGlassCard";
 import GameButton from "@/components/ui/GameButton";
 import { useQuestionnaireFlow } from "@/features/questionnaire/hooks/useQuestionnaireFlow";
+import { JOB_TYPE } from "@/lib/domain/statuses";
 import { getJobCancelLabel, getJobRetryLabel } from "@/lib/jobs/policy";
 
 export default function QuestionnairePageClient() {
@@ -51,7 +52,7 @@ export default function QuestionnairePageClient() {
               title={
                 step === "loading"
                   ? "Generating your personalised questionnaire..."
-                  : jobType === "QUESTIONNAIRE_GEN"
+                  : jobType === JOB_TYPE.QUESTIONNAIRE_GENERATION
                     ? "Generating your personalised questionnaire..."
                     : "Forging your personalised syllabus..."
               }

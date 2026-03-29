@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import type { LessonSessionSummary } from "@/lib/apiTypes";
 
 interface LessonResultViewProps {
-  resultSummary: LessonSessionSummary;
+  resultSummary: LessonSessionSummary | null;
   accuracy: number;
   xpGained: number;
   showLevelUp: boolean;
@@ -29,7 +29,24 @@ export function LessonResultView({
   barDuration,
   onBackToMap,
 }: LessonResultViewProps) {
-  const isRewardEligible = resultSummary.rewardEligible;
+  const safeSummary: LessonSessionSummary = resultSummary ?? {
+    sessionId: 0,
+    courseId: null,
+    nodeId: "",
+    status: "completed",
+    activePhase: "primary",
+    rewardEligible: false,
+    totalStages: 0,
+    attemptedCount: 0,
+    correctCount: 0,
+    incorrectCount: 0,
+    skippedCount: 0,
+    accuracy: 100,
+    elapsedSeconds: 0,
+    elapsedLabel: "0m 00s",
+    xpGained: 0,
+  };
+  const isRewardEligible = safeSummary.rewardEligible;
 
   return (
     <div className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden">
@@ -111,7 +128,7 @@ export function LessonResultView({
             <div className="flex-1 text-center">
               <div className="mb-1 text-xs font-medium text-white/50">Time:</div>
               <div className="font-heading text-2xl font-extrabold tabular-nums text-white sm:text-3xl">
-                {resultSummary.elapsedLabel ?? "0m 00s"}
+                {safeSummary.elapsedLabel ?? "0m 00s"}
               </div>
             </div>
             <div className="mx-2 h-12 w-px self-center bg-white/10" />

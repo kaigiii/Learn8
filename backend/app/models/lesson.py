@@ -10,7 +10,12 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 from app.db.base import Base
-import datetime
+from app.core.time import utc_now_naive
+from app.domain.statuses import (
+    LessonFailedStageStatus,
+    LessonSessionPhase,
+    LessonSessionStatus,
+)
 
 
 class LessonModel(Base):
@@ -31,7 +36,7 @@ class LessonModel(Base):
     node_id = Column(String, index=True)
     course_topic = Column(String, index=True)
     stage_json = Column(JSON)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now_naive)
 
     user = relationship("UserModel", back_populates="lessons")
     course = relationship("CourseModel")
@@ -53,14 +58,14 @@ class LessonAttempt(Base):
     course_topic = Column(String, index=True)
     stage_id = Column(String, index=True)
     component = Column(String, nullable=True)
-    phase = Column(String, nullable=True, default="primary")
+    phase = Column(String, nullable=True, default=LessonSessionPhase.PRIMARY)
     user_input = Column(String)
     is_correct = Column(String)  # 'true'/'false' 字串（若資料庫支援可改為 Boolean）
     user_input_json = Column(JSON, nullable=True)
     evaluation_json = Column(JSON, nullable=True)
     stage_snapshot_json = Column(JSON, nullable=True)
     is_correct_bool = Column(Boolean, nullable=True)
-    timestamp = Column(DateTime, default=datetime.datetime.utcnow)
+    timestamp = Column(DateTime, default=utc_now_naive)
 
     lesson_session = relationship("LessonSessionModel", back_populates="attempts")
     user = relationship("UserModel", back_populates="lesson_attempts")
@@ -76,18 +81,18 @@ class LessonSessionModel(Base):
     lesson_id = Column(Integer, ForeignKey("lessons.id", ondelete="SET NULL"), nullable=True, index=True)
     node_id = Column(String, nullable=False, index=True)
     course_topic = Column(String, nullable=False, index=True)
-    status = Column(String, nullable=False, default="playing_primary", index=True)
-    active_phase = Column(String, nullable=False, default="primary")
+    status = Column(
+        String, nullable=False, default=LessonSessionStatus.PLAYING_PRIMARY, index=True
+    )
+    active_phase = Column(String, nullable=False, default=LessonSessionPhase.PRIMARY)
     primary_stages_json = Column(JSON, nullable=False, default=list)
     remedial_stages_json = Column(JSON, nullable=True)
     hints_used_count = Column(Integer, nullable=False, default=0)
     reward_eligible = Column(Boolean, nullable=False, default=True)
-    started_at = Column(DateTime, default=datetime.datetime.utcnow)
+    started_at = Column(DateTime, default=utc_now_naive)
     completed_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    updated_at = Column(
-        DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow
-    )
+    created_at = Column(DateTime, default=utc_now_naive)
+    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive)
 
     user = relationship("UserModel", back_populates="lesson_sessions")
     course = relationship("CourseModel", back_populates="lesson_sessions")
@@ -125,15 +130,13 @@ class LessonFailedStageModel(Base):
     course_topic = Column(String, nullable=False, index=True)
     stage_id = Column(String, nullable=False, index=True)
     component = Column(String, nullable=True)
-    source_phase = Column(String, nullable=False, default="primary")
-    status = Column(String, nullable=False, default="pending", index=True)
+    source_phase = Column(String, nullable=False, default=LessonSessionPhase.PRIMARY)
+    status = Column(String, nullable=False, default=LessonFailedStageStatus.PENDING, index=True)
     stage_snapshot_json = Column(JSON, nullable=False)
     user_input_json = Column(JSON, nullable=True)
     evaluation_json = Column(JSON, nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    updated_at = Column(
-        DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow
-    )
+    created_at = Column(DateTime, default=utc_now_naive)
+    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive)
     resolved_at = Column(DateTime, nullable=True)
 
     lesson_session = relationship("LessonSessionModel", back_populates="failed_stages")
@@ -151,10 +154,8 @@ class LessonRemedialModel(Base):
     node_id = Column(String, index=True)
     course_topic = Column(String, index=True)
     stage_json = Column(JSON)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    updated_at = Column(
-        DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow
-    )
+    created_at = Column(DateTime, default=utc_now_naive)
+    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive)
 
     user = relationship("UserModel", back_populates="lesson_remedials")
     course = relationship("CourseModel", back_populates="lesson_remedials")

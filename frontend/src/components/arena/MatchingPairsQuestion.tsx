@@ -18,12 +18,14 @@ export interface MatchingPairsQuestionProps
   pairs: MatchPair[];
   shuffledRight: string[];
   matched: string[];
+  matchedPairs: Record<string, string>;
   selectedLeft: string | null;
   selectedRight: string | null;
   wrongPair: [string, string] | null;
   hintPair: string | null;
   hintUsed: boolean;
   allMatched: boolean;
+  feedback: "correct" | "incorrect" | null;
   onPickLeft: (word: string) => void;
   onPickRight: (word: string) => void;
   onHint: () => void;
@@ -34,17 +36,20 @@ export interface MatchingPairsQuestionProps
 export default function MatchingPairsQuestion({
   stageIndex,
   totalStages,
+  stageLabel,
   topic,
   question,
   pairs,
   shuffledRight,
   matched,
+  matchedPairs,
   selectedLeft,
   selectedRight,
   wrongPair,
   hintPair,
   hintUsed,
   allMatched,
+  feedback,
   onPickLeft,
   onPickRight,
   onHint,
@@ -57,6 +62,7 @@ export default function MatchingPairsQuestion({
         <QuestionStageHeader
           stageIndex={stageIndex}
           totalStages={totalStages}
+          stageLabel={stageLabel}
           topic={question || topic}
           accentClassName="bg-gradient-to-br from-brand-teal to-[#5fb3af] shadow-teal-300/30"
           accentTextClassName="text-brand-teal"
@@ -67,10 +73,12 @@ export default function MatchingPairsQuestion({
             pairs={pairs}
             shuffledRight={shuffledRight}
             matched={matched}
+            matchedPairs={matchedPairs}
             selectedLeft={selectedLeft}
             selectedRight={selectedRight}
             wrongPair={wrongPair}
             hintPair={hintPair}
+            feedback={feedback}
             onPickLeft={onPickLeft}
             onPickRight={onPickRight}
           />
@@ -119,20 +127,24 @@ function MatchGrid({
   pairs,
   shuffledRight,
   matched,
+  matchedPairs,
   selectedLeft,
   selectedRight,
   wrongPair,
   hintPair,
+  feedback,
   onPickLeft,
   onPickRight,
 }: {
   pairs: MatchPair[];
   shuffledRight: string[];
   matched: string[];
+  matchedPairs: Record<string, string>;
   selectedLeft: string | null;
   selectedRight: string | null;
   wrongPair: [string, string] | null;
   hintPair: string | null;
+  feedback: "correct" | "incorrect" | null;
   onPickLeft: (word: string) => void;
   onPickRight: (word: string) => void;
 }) {
@@ -150,10 +162,12 @@ function MatchGrid({
     const box = container.getBoundingClientRect();
     const nextLines: typeof lines = [];
 
-    for (const pair of pairs) {
-      if (!matched.includes(pair.left)) continue;
-      const leftElement = leftRefs.current.get(pair.left);
-      const rightElement = rightRefs.current.get(pair.right);
+    for (const [leftWord, rightWord] of Object.entries(matchedPairs)) {
+      if (selectedLeft === leftWord || selectedRight === rightWord) {
+        continue;
+      }
+      const leftElement = leftRefs.current.get(leftWord);
+      const rightElement = rightRefs.current.get(rightWord);
       if (!leftElement || !rightElement) continue;
 
       const leftBox = leftElement.getBoundingClientRect();
@@ -163,7 +177,7 @@ function MatchGrid({
         y1: leftBox.top + leftBox.height / 2 - box.top,
         x2: rightBox.left - box.left,
         y2: rightBox.top + rightBox.height / 2 - box.top,
-        color: "#58CC02",
+        color: feedback === "correct" ? "#58CC02" : "#7AC7C4",
       });
     }
 
@@ -185,7 +199,9 @@ function MatchGrid({
     }
 
     setLines(nextLines);
-  }, [matched, pairs, selectedLeft, selectedRight]);
+  }, [feedback, matchedPairs, selectedLeft, selectedRight]);
+
+  const assignedRights = new Set(Object.values(matchedPairs));
 
   return (
     <div ref={containerRef} className="relative mx-auto flex w-full gap-12">
@@ -208,6 +224,7 @@ function MatchGrid({
       <div className="flex flex-1 flex-col gap-5">
         {pairs.map((pair) => {
           const isMatched = matched.includes(pair.left);
+          const isAssigned = pair.left in matchedPairs;
           const isSelected = selectedLeft === pair.left;
           const isWrong = wrongPair?.[0] === pair.left;
           const isHint = hintPair === pair.left;
@@ -220,20 +237,22 @@ function MatchGrid({
               }}
               onClick={() => onPickLeft(pair.left)}
               className={`relative rounded-2xl border-2 border-b-4 px-8 py-6 text-center font-heading text-xl font-bold transition-all ${
-                isMatched
+                isMatched && feedback === "correct"
                   ? "border-brand-green bg-brand-green/10 text-brand-green"
                   : isWrong
                     ? "animate-shake border-red-400 bg-red-50 text-red-500"
+                    : isSelected
+                      ? "border-brand-teal bg-brand-teal/10 text-brand-teal shadow-md"
                     : isHint
                       ? "border-amber-400 bg-amber-50 text-amber-600"
-                      : isSelected
-                        ? "border-brand-teal bg-brand-teal/10 text-brand-teal shadow-md"
+                      : isAssigned
+                        ? "border-brand-teal bg-brand-teal/10 text-brand-teal"
                         : "border-brand-gray-200 bg-white text-brand-gray-700 hover:border-brand-teal/40"
               }`}
-              whileTap={isMatched ? {} : { scale: 0.95 }}
+              whileTap={isMatched && feedback === "correct" ? {} : { scale: 0.95 }}
             >
               {pair.left}
-              {isMatched && (
+              {isMatched && feedback === "correct" && (
                 <motion.span
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
@@ -259,6 +278,7 @@ function MatchGrid({
         {shuffledRight.map((word) => {
           const pair = pairs.find((item) => item.right === word);
           const isMatched = pair ? matched.includes(pair.left) : false;
+          const isAssigned = assignedRights.has(word);
           const isSelected = selectedRight === word;
           const isWrong = wrongPair?.[1] === word;
 
@@ -270,18 +290,20 @@ function MatchGrid({
               }}
               onClick={() => onPickRight(word)}
               className={`relative rounded-2xl border-2 border-b-4 px-8 py-6 text-center font-heading text-xl font-bold transition-all ${
-                isMatched
+                isMatched && feedback === "correct"
                   ? "border-brand-green bg-brand-green/10 text-brand-green"
                   : isWrong
                     ? "animate-shake border-red-400 bg-red-50 text-red-500"
                     : isSelected
                       ? "border-brand-teal bg-brand-teal/10 text-brand-teal shadow-md"
+                    : isAssigned
+                      ? "border-brand-teal bg-brand-teal/10 text-brand-teal"
                       : "border-brand-gray-200 bg-white text-brand-gray-700 hover:border-brand-teal/40"
               }`}
-              whileTap={isMatched ? {} : { scale: 0.95 }}
+              whileTap={isMatched && feedback === "correct" ? {} : { scale: 0.95 }}
             >
               {word}
-              {isMatched && (
+              {isMatched && feedback === "correct" && (
                 <motion.span
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}

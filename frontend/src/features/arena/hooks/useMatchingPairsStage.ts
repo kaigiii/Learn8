@@ -20,7 +20,7 @@ interface UseMatchingPairsStageParams {
   pairs: MatchPair[];
   enabled: boolean;
   onCorrectStageComplete: (matchedPairs: Record<string, string>) => void;
-  onHintUse: () => boolean;
+  onHintUse: () => Promise<boolean>;
 }
 
 export function useMatchingPairsStage({
@@ -29,6 +29,10 @@ export function useMatchingPairsStage({
   onCorrectStageComplete,
   onHintUse,
 }: UseMatchingPairsStageParams) {
+  const pairsKey = useMemo(
+    () => pairs.map((pair) => `${pair.left}::${pair.right}`).join("|"),
+    [pairs]
+  );
   const [selectedLeft, setSelectedLeft] = useState<string | null>(null);
   const [selectedRight, setSelectedRight] = useState<string | null>(null);
   const [matchedPairs, setMatchedPairs] = useState<Record<string, string>>({});
@@ -49,7 +53,7 @@ export function useMatchingPairsStage({
     setFeedback(null);
     setShowConfetti(false);
     setShuffledRight(enabled ? shuffle(pairs.map((p) => p.right)) : []);
-  }, [enabled, pairs]);
+  }, [enabled, pairsKey]);
 
   const matched = useMemo(
     () => Object.keys(matchedPairs),
@@ -63,15 +67,67 @@ export function useMatchingPairsStage({
 
   const pickLeft = useCallback(
     (word: string) => {
-      if (!enabled || matched.includes(word) || feedback) return;
+      if (!enabled || feedback) return;
+      if (matchedPairs[word]) {
+        setMatchedPairs((prev) => {
+          const next = { ...prev };
+          delete next[word];
+          return next;
+        });
+        setSelectedLeft(null);
+        setSelectedRight(null);
+        return;
+      }
+      if (selectedLeft === word) {
+        setSelectedLeft(null);
+        return;
+      }
+      if (selectedRight) {
+        setMatchedPairs((prev) => {
+          const nextEntries = Object.entries(prev).filter(
+            ([left, right]) => left !== word && right !== selectedRight
+          );
+          return {
+            ...Object.fromEntries(nextEntries),
+            [word]: selectedRight,
+          };
+        });
+        setSelectedRight(null);
+        setTimeout(() => {
+          setSelectedLeft(null);
+        }, 120);
+        return;
+      }
       setSelectedLeft(word);
     },
-    [enabled, feedback, matched]
+    [enabled, feedback, matchedPairs, selectedLeft, selectedRight]
   );
 
   const pickRight = useCallback(
     (word: string) => {
-      if (!enabled || feedback || !selectedLeft) return;
+      if (!enabled || feedback) return;
+      const linkedLeft = Object.entries(matchedPairs).find(
+        ([, right]) => right === word
+      )?.[0];
+      if (linkedLeft) {
+        setMatchedPairs((prev) => {
+          const next = { ...prev };
+          delete next[linkedLeft];
+          return next;
+        });
+        setSelectedLeft(null);
+        setSelectedRight(null);
+        return;
+      }
+      if (selectedRight === word) {
+        setSelectedRight(null);
+        return;
+      }
+      if (!selectedLeft) {
+        setSelectedRight(word);
+        return;
+      }
+
       setSelectedRight(word);
       setMatchedPairs((prev) => {
         const nextEntries = Object.entries(prev).filter(
@@ -87,7 +143,7 @@ export function useMatchingPairsStage({
         setSelectedRight(null);
       }, 120);
     },
-    [enabled, feedback, selectedLeft]
+    [enabled, feedback, matchedPairs, selectedLeft]
   );
 
   const handleCheck = useCallback(() => {
@@ -115,9 +171,9 @@ export function useMatchingPairsStage({
     setShowConfetti(false);
   }, []);
 
-  const handleHint = useCallback(() => {
+  const handleHint = useCallback(async () => {
     if (!enabled || hintUsed || allMatched) return;
-    const canAfford = onHintUse();
+    const canAfford = await onHintUse();
     if (!canAfford) return;
 
     const unmatched = pairs.filter((p) => !matched.includes(p.left));

@@ -14,6 +14,7 @@ export function renderFeynmanStage({
       key={`backend-feynman-${lesson.stageIdx}`}
       stageIndex={lesson.stageIdx}
       totalStages={lesson.totalStages}
+      stageLabel={lesson.stageLabel}
       topic={stage.topic}
       description={lesson.nodeDescription}
       prompt={String((stage.config.data as { prompt?: string }).prompt || stage.topic)}
@@ -45,6 +46,7 @@ export function renderUnsupportedStage({
       key={`backend-stage-${lesson.stageIdx}`}
       stageIndex={lesson.stageIdx}
       totalStages={lesson.totalStages}
+      stageLabel={lesson.stageLabel}
       topic={stage.topic}
       description={lesson.nodeDescription}
       prompt={String((stage.config.data as { prompt?: string }).prompt || stage.topic)}

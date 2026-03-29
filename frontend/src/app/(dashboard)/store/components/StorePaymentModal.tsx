@@ -2,10 +2,8 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { ApiError, apiFetch } from "@/lib/apiClient";
-import { syncPersistedProfile } from "@/lib/auth/profileSync";
-import type { UserProfile } from "@/lib/apiTypes";
-import useUserStore from "@/stores/app/useUserStore";
+import { ApiError } from "@/lib/apiClient";
+import { topUpAuthenticatedCredits } from "@/lib/auth/profileSync";
 import type { CreditStoreTier } from "../types";
 
 export function StorePaymentModal({
@@ -18,20 +16,13 @@ export function StorePaymentModal({
   const [processing, setProcessing] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
-  const addCredits = useUserStore((state) => state.addCredits);
 
   const handlePay = async () => {
     setProcessing(true);
     setError("");
     try {
       if (tier.credits > 0) {
-        const profile = await apiFetch<UserProfile>(
-          `/auth/credits/top-up?amount=${tier.credits}`,
-          { method: "POST" }
-        );
-        syncPersistedProfile(profile);
-      } else {
-        addCredits(0);
+        await topUpAuthenticatedCredits(tier.credits);
       }
       setDone(true);
     } catch (err) {

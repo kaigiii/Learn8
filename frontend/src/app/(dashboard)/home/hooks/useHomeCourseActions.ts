@@ -3,6 +3,8 @@
 import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError, apiFetch } from "@/lib/apiClient";
+import { COURSE_STATUS, type CourseStatus } from "@/lib/domain/statuses";
+import { rememberPendingQuestionnaireNavigation } from "@/lib/navigation/intents";
 import type { CourseListItem, DraftData } from "@/lib/apiTypes";
 import type { CourseModalState } from "../types";
 
@@ -72,7 +74,7 @@ export function useHomeCourseActions({
         body: JSON.stringify({
           title: name,
           topic: name,
-          status: "draft",
+          status: COURSE_STATUS.DRAFT,
         }),
       });
       setCourses((prev) => [
@@ -167,7 +169,7 @@ export function useHomeCourseActions({
           id?: number;
           courseTitle: string;
           topic?: string;
-          status?: string;
+          status?: CourseStatus;
         }>(`/courses/${courseModal.courseId}`, {
           method: "PATCH",
           body: JSON.stringify({ title: nextName }),
@@ -307,15 +309,7 @@ export function useHomeCourseActions({
           },
         }));
 
-        if (typeof window !== "undefined") {
-          window.sessionStorage.setItem(
-            "learn8_pending_questionnaire",
-            JSON.stringify({
-              courseId: course.id,
-              topic: trimmedTopic,
-            })
-          );
-        }
+        rememberPendingQuestionnaireNavigation(course.id, trimmedTopic);
 
         router.push(`/questionnaire?courseId=${course.id}`);
       } catch (err) {

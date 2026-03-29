@@ -2,6 +2,7 @@
 
 import ForgeStatus from "@/components/feedback/ForgeStatus";
 import GameButton from "@/components/ui/GameButton";
+import { LESSON_SESSION_PHASE } from "@/lib/domain/statuses";
 import { getJobCancelLabel, getJobRetryLabel } from "@/lib/jobs/policy";
 import { clampJobProgress } from "@/lib/jobs/presentation";
 
@@ -63,7 +64,7 @@ export function ArenaStatusPanel({
       error={phaseTransitionError || undefined}
       title={title}
       subtitle={
-        isWrapping && activePhase === "remedial"
+        isWrapping && activePhase === LESSON_SESSION_PHASE.REMEDIAL
           ? "Closing out your remedial run and preparing the result summary."
           : undefined
       }

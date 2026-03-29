@@ -18,14 +18,10 @@ export interface UserProgressionState {
   xp: number;
   level: number;
   xpToNextLevel: number;
-  streak: number;
-  longestStreak: number;
-  coursesCompleted: number;
 }
 
 export interface UserWalletState {
   credits: number;
-  localSpentCredits: number;
 }
 
 export interface UserNavigationState {
@@ -39,21 +35,31 @@ export interface UserOnboardingState {
   dailyGoal: string;
 }
 
-export interface UserState {
+export interface ServerBackedUserState {
   identity: UserIdentityState;
   progression: UserProgressionState;
   wallet: UserWalletState;
+}
+
+export interface ClientOnlyUserState {
   navigation: UserNavigationState;
   preferences: UserPreferences;
   onboarding: UserOnboardingState;
+  metrics: {
+    streak: number;
+    longestStreak: number;
+    coursesCompleted: number;
+  };
+}
+
+export interface UserState {
+  serverBacked: ServerBackedUserState;
+  clientOnly: ClientOnlyUserState;
 }
 
 export interface UserActions {
   setName: (name: string) => void;
   setTitle: (title: string) => void;
-  addXp: (amount: number) => void;
-  addCredits: (amount: number) => void;
-  spendCredits: (amount: number) => boolean;
   incrementStreak: () => void;
   resetStreak: () => void;
   incrementCoursesCompleted: () => void;
@@ -69,10 +75,6 @@ export interface UserActions {
   logout: () => void;
 }
 
-function xpForLevel(level: number): number {
-  return 100 + (level - 1) * 50;
-}
-
 function titleForLevel(level: number) {
   if (level >= 20) return "Grandmaster Scholar";
   if (level >= 15) return "Master Scholar";
@@ -82,40 +84,41 @@ function titleForLevel(level: number) {
   return "Novice Learner";
 }
 
-function getEffectiveCredits(wallet: UserWalletState) {
-  return Math.max(0, wallet.credits - wallet.localSpentCredits);
-}
-
 const INITIAL_STATE: UserState = {
-  identity: {
-    name: "Explorer",
-    title: "Novice Learner",
+  serverBacked: {
+    identity: {
+      name: "Explorer",
+      title: "Novice Learner",
+    },
+    progression: {
+      xp: 0,
+      level: 1,
+      xpToNextLevel: 100,
+    },
+    wallet: {
+      credits: 0,
+    },
   },
-  progression: {
-    xp: 0,
-    level: 1,
-    xpToNextLevel: xpForLevel(1),
-    streak: 0,
-    longestStreak: 0,
-    coursesCompleted: 0,
-  },
-  wallet: {
-    credits: 0,
-    localSpentCredits: 0,
-  },
-  navigation: {
-    lastActiveCourseId: null,
-    lastActiveNodeId: null,
-  },
-  preferences: {
-    soundOn: true,
-    darkGlass: true,
-    difficulty: 50,
-  },
-  onboarding: {
-    onboarded: false,
-    selectedTopics: [],
-    dailyGoal: "",
+  clientOnly: {
+    navigation: {
+      lastActiveCourseId: null,
+      lastActiveNodeId: null,
+    },
+    preferences: {
+      soundOn: true,
+      darkGlass: true,
+      difficulty: 50,
+    },
+    onboarding: {
+      onboarded: false,
+      selectedTopics: [],
+      dailyGoal: "",
+    },
+    metrics: {
+      streak: 0,
+      longestStreak: 0,
+      coursesCompleted: 0,
+    },
   },
 };
 
@@ -125,174 +128,207 @@ function migratePersistedState(persistedState: unknown): UserState {
   }
 
   const raw = persistedState as Record<string, unknown>;
+  const legacyIdentity = raw.identity as Partial<UserIdentityState> | undefined;
+  const legacyProgression = raw.progression as
+    | (Partial<UserProgressionState> & {
+        streak?: number;
+        longestStreak?: number;
+        coursesCompleted?: number;
+      })
+    | undefined;
+  const legacyWallet = raw.wallet as Partial<UserWalletState> | undefined;
+  const legacyNavigation = raw.navigation as Partial<UserNavigationState> | undefined;
+  const legacyPreferences = raw.preferences as Partial<UserPreferences> | undefined;
+  const legacyOnboarding = raw.onboarding as Partial<UserOnboardingState> | undefined;
+
+  const serverBacked = raw.serverBacked as Partial<ServerBackedUserState> | undefined;
+  const clientOnly = raw.clientOnly as Partial<ClientOnlyUserState> | undefined;
+
   return {
-    ...INITIAL_STATE,
-    ...raw,
-    identity: {
-      ...INITIAL_STATE.identity,
-      ...(raw.identity as Partial<UserIdentityState> | undefined),
+    serverBacked: {
+      identity: {
+        ...INITIAL_STATE.serverBacked.identity,
+        ...(legacyIdentity || {}),
+        ...((serverBacked?.identity as Partial<UserIdentityState> | undefined) || {}),
+      },
+      progression: {
+        ...INITIAL_STATE.serverBacked.progression,
+        ...(legacyProgression || {}),
+        ...((serverBacked?.progression as Partial<UserProgressionState> | undefined) || {}),
+      },
+      wallet: {
+        ...INITIAL_STATE.serverBacked.wallet,
+        ...(legacyWallet || {}),
+        ...((serverBacked?.wallet as Partial<UserWalletState> | undefined) || {}),
+      },
     },
-    progression: {
-      ...INITIAL_STATE.progression,
-      ...(raw.progression as Partial<UserProgressionState> | undefined),
-    },
-    wallet: {
-      ...INITIAL_STATE.wallet,
-      ...(raw.wallet as Partial<UserWalletState> | undefined),
-    },
-    navigation: {
-      ...INITIAL_STATE.navigation,
-      ...(raw.navigation as Partial<UserNavigationState> | undefined),
-    },
-    preferences: {
-      ...INITIAL_STATE.preferences,
-      ...(raw.preferences as Partial<UserPreferences> | undefined),
-    },
-    onboarding: {
-      ...INITIAL_STATE.onboarding,
-      ...(raw.onboarding as Partial<UserOnboardingState> | undefined),
+    clientOnly: {
+      navigation: {
+        ...INITIAL_STATE.clientOnly.navigation,
+        ...(legacyNavigation || {}),
+        ...((clientOnly?.navigation as Partial<UserNavigationState> | undefined) || {}),
+      },
+      preferences: {
+        ...INITIAL_STATE.clientOnly.preferences,
+        ...(legacyPreferences || {}),
+        ...((clientOnly?.preferences as Partial<UserPreferences> | undefined) || {}),
+      },
+      onboarding: {
+        ...INITIAL_STATE.clientOnly.onboarding,
+        ...(legacyOnboarding || {}),
+        ...((clientOnly?.onboarding as Partial<UserOnboardingState> | undefined) || {}),
+      },
+      metrics: {
+        ...INITIAL_STATE.clientOnly.metrics,
+        streak:
+          (clientOnly?.metrics as Partial<ClientOnlyUserState["metrics"]> | undefined)
+            ?.streak ??
+          legacyProgression?.streak ??
+          INITIAL_STATE.clientOnly.metrics.streak,
+        longestStreak:
+          (clientOnly?.metrics as Partial<ClientOnlyUserState["metrics"]> | undefined)
+            ?.longestStreak ??
+          legacyProgression?.longestStreak ??
+          INITIAL_STATE.clientOnly.metrics.longestStreak,
+        coursesCompleted:
+          (clientOnly?.metrics as Partial<ClientOnlyUserState["metrics"]> | undefined)
+            ?.coursesCompleted ??
+          legacyProgression?.coursesCompleted ??
+          INITIAL_STATE.clientOnly.metrics.coursesCompleted,
+      },
     },
   };
 }
 
 const useUserStore = create<UserState & UserActions>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       ...INITIAL_STATE,
 
       setName: (name) =>
         set((state) => ({
-          identity: { ...state.identity, name },
+          serverBacked: {
+            ...state.serverBacked,
+            identity: { ...state.serverBacked.identity, name },
+          },
         })),
 
       setTitle: (title) =>
         set((state) => ({
-          identity: { ...state.identity, title },
-        })),
-
-      addXp: (amount) => {
-        const state = get();
-        let newXp = state.progression.xp + amount;
-        let newLevel = state.progression.level;
-        let xpNeeded = state.progression.xpToNextLevel;
-
-        while (newXp >= xpNeeded) {
-          newXp -= xpNeeded;
-          newLevel += 1;
-          xpNeeded = xpForLevel(newLevel);
-        }
-
-        set((current) => ({
-          identity: {
-            ...current.identity,
-            title: titleForLevel(newLevel),
-          },
-          progression: {
-            ...current.progression,
-            xp: newXp,
-            level: newLevel,
-            xpToNextLevel: xpNeeded,
-          },
-        }));
-      },
-
-      addCredits: (amount) =>
-        set((state) => ({
-          wallet: {
-            credits: state.wallet.credits + amount,
-            localSpentCredits: state.wallet.localSpentCredits,
+          serverBacked: {
+            ...state.serverBacked,
+            identity: { ...state.serverBacked.identity, title },
           },
         })),
-
-      spendCredits: (amount) => {
-        const state = get();
-        if (getEffectiveCredits(state.wallet) < amount) {
-          return false;
-        }
-        set((current) => ({
-          wallet: {
-            ...current.wallet,
-            localSpentCredits: current.wallet.localSpentCredits + amount,
-          },
-        }));
-        return true;
-      },
 
       incrementStreak: () =>
         set((state) => ({
-          progression: {
-            ...state.progression,
-            streak: state.progression.streak + 1,
-            longestStreak: Math.max(
-              state.progression.longestStreak,
-              state.progression.streak + 1
-            ),
+          clientOnly: {
+            ...state.clientOnly,
+            metrics: {
+              ...state.clientOnly.metrics,
+              streak: state.clientOnly.metrics.streak + 1,
+              longestStreak: Math.max(
+                state.clientOnly.metrics.longestStreak,
+                state.clientOnly.metrics.streak + 1
+              ),
+            },
           },
         })),
 
       resetStreak: () =>
         set((state) => ({
-          progression: {
-            ...state.progression,
-            streak: 0,
+          clientOnly: {
+            ...state.clientOnly,
+            metrics: {
+              ...state.clientOnly.metrics,
+              streak: 0,
+            },
           },
         })),
 
       incrementCoursesCompleted: () =>
         set((state) => ({
-          progression: {
-            ...state.progression,
-            coursesCompleted: state.progression.coursesCompleted + 1,
+          clientOnly: {
+            ...state.clientOnly,
+            metrics: {
+              ...state.clientOnly.metrics,
+              coursesCompleted: state.clientOnly.metrics.coursesCompleted + 1,
+            },
           },
         })),
 
       setLastActiveCourse: (courseId) =>
         set((state) => ({
-          navigation: {
-            ...state.navigation,
-            lastActiveCourseId: courseId,
+          clientOnly: {
+            ...state.clientOnly,
+            navigation: {
+              ...state.clientOnly.navigation,
+              lastActiveCourseId: courseId,
+            },
           },
         })),
 
       setLastActiveNode: (nodeId) =>
         set((state) => ({
-          navigation: {
-            ...state.navigation,
-            lastActiveNodeId: nodeId,
+          clientOnly: {
+            ...state.clientOnly,
+            navigation: {
+              ...state.clientOnly.navigation,
+              lastActiveNodeId: nodeId,
+            },
           },
         })),
 
       setPreferences: (prefs) =>
         set((state) => ({
-          preferences: { ...state.preferences, ...prefs },
+          clientOnly: {
+            ...state.clientOnly,
+            preferences: { ...state.clientOnly.preferences, ...prefs },
+          },
         })),
 
       completeOnboarding: ({ name, topics, goal }) =>
         set((state) => ({
-          identity: {
-            ...state.identity,
-            name,
+          serverBacked: {
+            ...state.serverBacked,
+            identity: {
+              ...state.serverBacked.identity,
+              name,
+            },
           },
-          onboarding: {
-            onboarded: true,
-            selectedTopics: topics,
-            dailyGoal: goal,
+          clientOnly: {
+            ...state.clientOnly,
+            onboarding: {
+              onboarded: true,
+              selectedTopics: topics,
+              dailyGoal: goal,
+            },
           },
         })),
 
       syncFromProfile: (profile) =>
         set((state) => ({
-          identity: {
-            name:
-              profile.full_name?.trim() ||
-              profile.email.split("@")[0] ||
-              state.identity.name,
-            title: profile.job_title?.trim() || state.identity.title,
+          serverBacked: {
+            identity: {
+              name:
+                profile.full_name?.trim() ||
+                profile.email.split("@")[0] ||
+                state.serverBacked.identity.name,
+              title: profile.job_title?.trim() || titleForLevel(profile.level),
+            },
+            progression: {
+              xp: profile.xp,
+              level: profile.level,
+              xpToNextLevel: profile.xp_to_next_level,
+            },
+            wallet: {
+              credits: profile.credits,
+            },
           },
-          onboarding: deriveOnboardingStateFromProfile(profile),
-          wallet: {
-            credits: profile.credits,
-            localSpentCredits: 0,
+          clientOnly: {
+            ...state.clientOnly,
+            onboarding: deriveOnboardingStateFromProfile(profile),
           },
         })),
 
@@ -300,34 +336,46 @@ const useUserStore = create<UserState & UserActions>()(
     }),
     {
       name: "learn8-user",
-      version: 3,
+      version: 5,
       migrate: (persistedState) => migratePersistedState(persistedState),
     }
   )
 );
 
 export function selectUserName(state: UserState) {
-  return state.identity.name;
+  return state.serverBacked.identity.name;
 }
 
 export function selectUserTitle(state: UserState) {
-  return state.identity.title;
+  return state.serverBacked.identity.title;
 }
 
 export function selectUserXp(state: UserState) {
-  return state.progression.xp;
+  return state.serverBacked.progression.xp;
 }
 
 export function selectUserLevel(state: UserState) {
-  return state.progression.level;
+  return state.serverBacked.progression.level;
 }
 
 export function selectUserXpToNextLevel(state: UserState) {
-  return state.progression.xpToNextLevel;
+  return state.serverBacked.progression.xpToNextLevel;
 }
 
 export function selectAvailableCredits(state: UserState) {
-  return getEffectiveCredits(state.wallet);
+  return state.serverBacked.wallet.credits;
+}
+
+export function selectUserPreferences(state: UserState) {
+  return state.clientOnly.preferences;
+}
+
+export function selectLastActiveNodeId(state: UserState) {
+  return state.clientOnly.navigation.lastActiveNodeId;
+}
+
+export function selectUserProgression(state: UserState) {
+  return state.serverBacked.progression;
 }
 
 export default useUserStore;

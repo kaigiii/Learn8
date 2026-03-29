@@ -8,6 +8,25 @@ logger = logging.getLogger(__name__)
 MAX_JOB_MESSAGE_LENGTH = 255
 
 
+def _publish_job_notification(db: Session, job: JobModel):
+    payload = {
+        "job_id": job.id,
+        "status": job.status,
+        "progress": job.progress,
+        "message": job.message,
+    }
+
+    payload_str = json.dumps(payload)
+    try:
+        db.execute(
+            text("SELECT pg_notify('job_channel', :payload)"), {"payload": payload_str}
+        )
+        db.commit()
+    except Exception:
+        db.rollback()
+        logger.exception("Failed to publish PostgreSQL NOTIFY for job %s", job.id)
+
+
 def _notify_job_update(
     db: Session,
     job: JobModel,
@@ -31,24 +50,4 @@ def _notify_job_update(
 
     db.commit()
     db.refresh(job)
-
-    payload = {
-        "job_id": job.id,
-        "status": job.status,
-        "progress": job.progress,
-        "message": job.message,
-    }
-
-    # 使用 PostgreSQL LISTEN/NOTIFY
-    payload_str = json.dumps(payload)
-    try:
-        # 注意：SQLAlchemy execute 需要使用 text() 來處理原生 SQL 參數
-        db.execute(
-            text("SELECT pg_notify('job_channel', :payload)"), {"payload": payload_str}
-        )
-        db.commit()
-    except Exception:
-        # The job row has already been committed above. Notify failure should not
-        # poison the transaction or erase the actual job result from the database.
-        db.rollback()
-        logger.exception("Failed to publish PostgreSQL NOTIFY for job %s", job.id)
+    _publish_job_notification(db, job)

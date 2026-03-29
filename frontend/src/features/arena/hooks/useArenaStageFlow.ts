@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback } from "react";
-import { apiFetch } from "@/lib/apiClient";
+import { spendAuthenticatedCredits } from "@/lib/auth/profileSync";
+import { ApiError, apiFetch } from "@/lib/apiClient";
 import type {
   CoursePath,
   LessonSessionPayload,
@@ -18,7 +19,6 @@ interface UseArenaStageFlowParams {
   matchPairs: { left: string; right: string }[];
   stageIdx: number;
   totalStages: number;
-  spendCredits: (amount: number) => boolean;
   onCorrect: () => void;
   onIncorrect: () => void;
   onHintUsed: () => void;
@@ -34,7 +34,6 @@ export function useArenaStageFlow({
   matchPairs,
   stageIdx,
   totalStages,
-  spendCredits,
   onCorrect,
   onIncorrect,
   onHintUsed,
@@ -70,6 +69,19 @@ export function useArenaStageFlow({
     [backendCourse, isSessionInteractive, lessonSession, onCorrect, onIncorrect]
   );
 
+  const consumeHintCredits = useCallback(async () => {
+    try {
+      await spendAuthenticatedCredits(10);
+      onHintUsed();
+      return true;
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 402) {
+        return false;
+      }
+      throw error;
+    }
+  }, [onHintUsed]);
+
   const matchingStage = useMatchingPairsStage({
     pairs: matchPairs,
     enabled: backendStage?.component === "MatchingPairs",
@@ -90,13 +102,7 @@ export function useArenaStageFlow({
 
       matchingStage.markIncorrectFeedback();
     },
-    onHintUse: () => {
-      const canAfford = spendCredits(10);
-      if (canAfford) {
-        onHintUsed();
-      }
-      return canAfford;
-    },
+    onHintUse: consumeHintCredits,
   });
 
   const continueStage = useCallback(() => {
@@ -120,13 +126,7 @@ export function useArenaStageFlow({
     [continueStage, submitStage]
   );
 
-  const useHint = useCallback(() => {
-    const canAfford = spendCredits(10);
-    if (canAfford) {
-      onHintUsed();
-    }
-    return canAfford;
-  }, [onHintUsed, spendCredits]);
+  const useHint = useCallback(() => consumeHintCredits(), [consumeHintCredits]);
 
   return {
     matchingStage,

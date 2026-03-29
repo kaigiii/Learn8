@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { ApiError, apiFetch } from "@/lib/apiClient";
+import { LESSON_SESSION_PHASE } from "@/lib/domain/statuses";
 import type {
   LessonAssistantResponse,
   LessonSessionPayload,
@@ -84,7 +85,7 @@ export function ArenaChatPanel({
             nodeId,
             nodeTitle,
             nodeDescription,
-            activePhase: lessonSession?.activePhase ?? "primary",
+            activePhase: lessonSession?.activePhase ?? LESSON_SESSION_PHASE.PRIMARY,
             stageIndex: stageIdx,
             totalStages,
             currentStage,

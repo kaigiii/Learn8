@@ -17,6 +17,7 @@ import { useLessonGenerationFlow } from "./hooks/useLessonGenerationFlow";
 import { useLessonSessionFlow } from "./hooks/useLessonSessionFlow";
 import { useResolvedLessonRoute } from "./hooks/useResolvedLessonRoute";
 import { useDelayedVisibility } from "@/lib/ui/useDelayedVisibility";
+import { LESSON_SESSION_PHASE, LESSON_SESSION_STATUS } from "@/lib/domain/statuses";
 
 /* ═══════════════════ Page ═══════════════════ */
 
@@ -44,7 +45,6 @@ export default function LessonArenaPageClient({
   const arenaHintsUsed = useArenaStore((s) => s.hintsUsed);
 
   // User store
-  const spendCredits = useUserStore((s) => s.spendCredits);
   const setLastActiveNode = useUserStore((s) => s.setLastActiveNode);
 
   const [stageIdx, setStageIdx] = useState(0);
@@ -117,10 +117,23 @@ export default function LessonArenaPageClient({
       pairs: (data.pairs || []).map((pair) => ({ left: pair.left, right: pair.right })),
     };
   }, [backendStage]);
-  const totalStages = Math.max(activeStages.length, 1);
-  const progress = (stageIdx / totalStages) * 100;
+  const activeStageCount = Math.max(activeStages.length, 1);
+  const primaryStageCount = lessonSession?.primaryStages.length ?? backendStages.length;
+  const remedialStageCount = lessonSession?.remedialStages.length ?? 0;
+  const isRemedialPhase =
+    lessonSession?.activePhase === LESSON_SESSION_PHASE.REMEDIAL ||
+    lessonSession?.status === LESSON_SESSION_STATUS.PLAYING_REMEDIAL;
+  const displayStageOffset = isRemedialPhase ? primaryStageCount : 0;
+  const displayStageIdx = stageIdx + displayStageOffset;
+  const displayTotalStages = Math.max(primaryStageCount + remedialStageCount, activeStageCount);
+  const headerStageIdx = stageIdx;
+  const headerTotalStages = isRemedialPhase
+    ? Math.max(remedialStageCount, activeStageCount)
+    : Math.max(primaryStageCount, activeStageCount);
+  const headerStageLabel = isRemedialPhase ? "Remedial" : "Stage";
+  const progress = (displayStageIdx / displayTotalStages) * 100;
   const nodeDescription = backendNode?.description ?? "";
-  const matchPairs = backendMatchStage?.pairs ?? [];
+  const matchPairs = useMemo(() => backendMatchStage?.pairs ?? [], [backendMatchStage]);
 
   const { matchingStage, submitStage, continueStage, skipStage, useHint } =
     useArenaStageFlow({
@@ -130,8 +143,7 @@ export default function LessonArenaPageClient({
       backendStage,
       matchPairs,
       stageIdx,
-      totalStages,
-      spendCredits,
+      totalStages: activeStageCount,
       onCorrect: () => {
         arenaMarkCorrect();
         arenaTriggerConfetti();
@@ -282,8 +294,9 @@ export default function LessonArenaPageClient({
               <ArenaStageRenderer
                 stage={backendStage}
                 lesson={{
-                  stageIdx,
-                  totalStages,
+                  stageIdx: headerStageIdx,
+                  totalStages: headerTotalStages,
+                  stageLabel: headerStageLabel,
                   nodeDescription,
                   matchPairs,
                   matchQuestion: backendMatchStage?.question || backendStage.topic,
@@ -310,8 +323,8 @@ export default function LessonArenaPageClient({
             nodeDescription={nodeDescription}
             lessonSession={lessonSession}
             currentStage={backendStage}
-            stageIdx={stageIdx}
-            totalStages={totalStages}
+            stageIdx={displayStageIdx}
+            totalStages={displayTotalStages}
           />
         </div>
       </div>

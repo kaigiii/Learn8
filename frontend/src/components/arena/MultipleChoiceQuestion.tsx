@@ -22,8 +22,9 @@ export interface MultipleChoiceQuestionProps
   feedbackMsg: QuestionFeedbackMessages;
   onComplete: (selectedOptionId: string) => void;
   onError?: (selectedOptionId: string) => void;
+  onCorrectAdvance?: () => void;
   onWrongAdvance?: () => void;
-  onHintUse: () => boolean;
+  onHintUse: () => Promise<boolean>;
 }
 
 /* ═══════════════════ Owl ═══════════════════ */
@@ -51,6 +52,7 @@ function OwlMascotSmall() {
 export default function MultipleChoiceQuestion({
   stageIndex,
   totalStages,
+  stageLabel,
   topic,
   question,
   options,
@@ -58,6 +60,7 @@ export default function MultipleChoiceQuestion({
   feedbackMsg,
   onComplete,
   onError,
+  onCorrectAdvance,
   onWrongAdvance,
   onSkip,
   onHintUse,
@@ -78,9 +81,9 @@ export default function MultipleChoiceQuestion({
     }
   }, [selected, correctId, onComplete, onError, result, onWrongAdvance]);
 
-  const handleHint = useCallback(() => {
+  const handleHint = useCallback(async () => {
     if (hintUsed) return;
-    const canAfford = onHintUse();
+    const canAfford = await onHintUse();
     if (!canAfford) return;
     setHintUsed(true);
     // Eliminate two wrong options
@@ -95,6 +98,7 @@ export default function MultipleChoiceQuestion({
         <QuestionStageHeader
           stageIndex={stageIndex}
           totalStages={totalStages}
+          stageLabel={stageLabel}
           topic={topic}
           accentClassName="bg-gradient-to-br from-brand-teal to-[#5fb3af] shadow-teal-300/30"
           accentTextClassName="text-brand-teal"
@@ -170,7 +174,7 @@ export default function MultipleChoiceQuestion({
           <>
             <OwlMascotSmall />
             <button
-              onClick={handleHint}
+              onClick={() => void handleHint()}
               disabled={hintUsed || !!result}
               className={`mb-1 flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
                 hintUsed
@@ -183,7 +187,15 @@ export default function MultipleChoiceQuestion({
           </>
         }
         rightSlot={
-          result === "wrong" ? (
+          result === "correct" ? (
+            <GameButton
+              variant="primary"
+              onClick={() => onCorrectAdvance?.()}
+              className="min-w-[140px]"
+            >
+              CONTINUE
+            </GameButton>
+          ) : result === "wrong" ? (
             <GameButton
               variant="primary"
               onClick={() => onWrongAdvance?.()}

@@ -3,9 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ApiError, apiFetch } from "@/lib/apiClient";
+import { JOB_STATUS, JOB_TYPE } from "@/lib/domain/statuses";
 import { ensureRetryableJob, fetchScopedActiveJob } from "@/lib/jobs/recovery";
 import { getJobCopy } from "@/lib/jobs/policy";
-import { rememberCourseNavigation } from "@/lib/navigation/intents";
+import {
+  clearPendingQuestionnaireNavigation,
+  getPendingQuestionnaireNavigation,
+  rememberCourseNavigation,
+} from "@/lib/navigation/intents";
 import { watchJobStream } from "@/lib/jobs/stream";
 import type {
   CourseListItem,
@@ -16,7 +21,10 @@ import type {
 } from "@/lib/apiTypes";
 
 export type QuestionnaireStep = "loading" | "answering" | "forging";
-export type QuestionnaireJobType = "QUESTIONNAIRE_GEN" | "SYLLABUS_GEN" | null;
+export type QuestionnaireJobType =
+  | typeof JOB_TYPE.QUESTIONNAIRE_GENERATION
+  | typeof JOB_TYPE.SYLLABUS_GENERATION
+  | null;
 
 export function useQuestionnaireFlow() {
   const router = useRouter();
@@ -37,8 +45,7 @@ export function useQuestionnaireFlow() {
   const [canRetryGeneration, setCanRetryGeneration] = useState(false);
 
   const clearPendingQuestionnaire = useCallback(() => {
-    if (typeof window === "undefined") return;
-    window.sessionStorage.removeItem("learn8_pending_questionnaire");
+    clearPendingQuestionnaireNavigation();
   }, []);
 
   const resetQuestionnaireState = useCallback(() => {
@@ -62,15 +69,16 @@ export function useQuestionnaireFlow() {
       activeJobIdRef.current = jobId;
       setCanRetryGeneration(false);
       setStep("loading");
-      setJobType("QUESTIONNAIRE_GEN");
+      setJobType(JOB_TYPE.QUESTIONNAIRE_GENERATION);
       setJobProgress(0);
       setJobMessage(
-        getJobCopy("QUESTIONNAIRE_GEN", "PROCESSING").fallbackMessage
+        getJobCopy(JOB_TYPE.QUESTIONNAIRE_GENERATION, JOB_STATUS.PROCESSING)
+          .fallbackMessage
       );
 
       return watchJobStream(jobId, {
         onUpdate: (data) => {
-          setJobType("QUESTIONNAIRE_GEN");
+          setJobType(JOB_TYPE.QUESTIONNAIRE_GENERATION);
           setJobProgress(data.progress ?? 0);
           setJobMessage(
             data.message || "Generating your personalised questionnaire..."
@@ -121,7 +129,8 @@ export function useQuestionnaireFlow() {
           setCanRetryGeneration(true);
           setError(
             data.message ||
-              getJobCopy("QUESTIONNAIRE_GEN", "STALE").fallbackMessage
+              getJobCopy(JOB_TYPE.QUESTIONNAIRE_GENERATION, JOB_STATUS.STALE)
+                .fallbackMessage
           );
         },
         onError: () => {
@@ -141,13 +150,16 @@ export function useQuestionnaireFlow() {
       setStep("forging");
       activeJobIdRef.current = jobId;
       setCanRetryGeneration(false);
-      setJobType("SYLLABUS_GEN");
+      setJobType(JOB_TYPE.SYLLABUS_GENERATION);
       setJobProgress(0);
-      setJobMessage(getJobCopy("SYLLABUS_GEN", "PROCESSING").fallbackMessage);
+      setJobMessage(
+        getJobCopy(JOB_TYPE.SYLLABUS_GENERATION, JOB_STATUS.PROCESSING)
+          .fallbackMessage
+      );
 
       return watchJobStream(jobId, {
         onUpdate: (data) => {
-          setJobType("SYLLABUS_GEN");
+          setJobType(JOB_TYPE.SYLLABUS_GENERATION);
           setJobProgress(data.progress ?? 0);
           setJobMessage(data.message || "Forging your personalised syllabus...");
         },
@@ -198,7 +210,9 @@ export function useQuestionnaireFlow() {
           setCanRetryGeneration(true);
           setStep("answering");
           setError(
-            data.message || getJobCopy("SYLLABUS_GEN", "STALE").fallbackMessage
+            data.message ||
+              getJobCopy(JOB_TYPE.SYLLABUS_GENERATION, JOB_STATUS.STALE)
+                .fallbackMessage
           );
         },
         onError: () => {
@@ -218,21 +232,17 @@ export function useQuestionnaireFlow() {
 
     resetQuestionnaireState();
 
-    const raw = window.sessionStorage.getItem("learn8_pending_questionnaire");
     const courseIdFromQuery = searchParams.get("courseId");
 
     const start = async () => {
       try {
         let pendingCourseId: number | null = null;
         let pendingTopic = "";
+        const pending = getPendingQuestionnaireNavigation();
 
-        if (raw) {
-          const pending = JSON.parse(raw) as {
-            courseId?: number;
-            topic: string;
-          };
+        if (pending) {
           pendingCourseId = pending.courseId ?? null;
-          pendingTopic = pending.topic;
+          pendingTopic = pending.topic || "";
         } else if (courseIdFromQuery) {
           pendingCourseId = Number(courseIdFromQuery);
         }
@@ -264,12 +274,12 @@ export function useQuestionnaireFlow() {
 
         const syllabusJob = await ensureRetryableJob(
           await fetchScopedActiveJob({
-            jobType: "SYLLABUS_GEN",
+            jobType: JOB_TYPE.SYLLABUS_GENERATION,
             courseId: pendingCourseId,
           })
         );
         if (syllabusJob.job_id) {
-          setJobType("SYLLABUS_GEN");
+          setJobType(JOB_TYPE.SYLLABUS_GENERATION);
           connectSyllabusJob(String(syllabusJob.job_id), pendingCourseId);
           return;
         }
@@ -283,12 +293,12 @@ export function useQuestionnaireFlow() {
 
         const questionnaireJob = await ensureRetryableJob(
           await fetchScopedActiveJob({
-            jobType: "QUESTIONNAIRE_GEN",
+            jobType: JOB_TYPE.QUESTIONNAIRE_GENERATION,
             courseId: pendingCourseId,
           })
         );
         if (questionnaireJob.job_id) {
-          setJobType("QUESTIONNAIRE_GEN");
+          setJobType(JOB_TYPE.QUESTIONNAIRE_GENERATION);
           connectQuestionnaireJob(
             String(questionnaireJob.job_id),
             pendingCourseId,
@@ -306,7 +316,10 @@ export function useQuestionnaireFlow() {
           return;
         }
 
-        const ticket = await apiFetch<{ job_id: string; status: "PENDING" }>(
+        const ticket = await apiFetch<{
+          job_id: string;
+          status: typeof JOB_STATUS.PENDING;
+        }>(
           `/courses/${pendingCourseId}/questionnaire?topic=${encodeURIComponent(
             pendingTopic
           )}`,
@@ -334,7 +347,7 @@ export function useQuestionnaireFlow() {
     setStep("forging");
     setError("");
     setCanRetryGeneration(false);
-    setJobType("SYLLABUS_GEN");
+    setJobType(JOB_TYPE.SYLLABUS_GENERATION);
     setJobProgress(0);
     setJobMessage("Packaging your answers into a learner profile...");
 
@@ -381,7 +394,7 @@ export function useQuestionnaireFlow() {
       });
 
       const syllabusResult = await apiFetch<
-        { job_id: string; status: "PENDING" } | CoursePath
+        { job_id: string; status: typeof JOB_STATUS.PENDING } | CoursePath
       >(
         `/courses/generate-syllabus?topic=${encodeURIComponent(
           topic
@@ -465,7 +478,7 @@ export function useQuestionnaireFlow() {
         return;
       }
 
-      if (jobType === "QUESTIONNAIRE_GEN") {
+      if (jobType === JOB_TYPE.QUESTIONNAIRE_GENERATION) {
         connectQuestionnaireJob(resumableJob.job_id, courseId, topic);
         return;
       }

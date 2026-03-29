@@ -9,6 +9,16 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.core.config import settings
 from app.api.dependencies import get_db, get_current_user
+from app.domain.statuses import (
+    ACTIVE_JOB_STATUSES,
+    JobStatus,
+    JobType,
+    LessonFailedStageStatus,
+    LessonSessionStatus,
+    NodeStatus,
+    RETRYABLE_GENERATION_JOB_TYPES,
+    TERMINAL_JOB_STATUSES,
+)
 from app.models.job import JobModel
 from app.models.course import CourseModel
 from app.models.lesson import LessonFailedStageModel, LessonSessionModel
@@ -71,13 +81,13 @@ def _mark_stale_jobs(db: Session, user_id: int):
         db.query(JobModel)
         .filter(
             JobModel.user_id == user_id,
-            JobModel.status.in_(["PENDING", "PROCESSING"]),
+            JobModel.status.in_(ACTIVE_JOB_STATUSES),
             func.coalesce(JobModel.updated_at, JobModel.created_at) < cutoff,
         )
         .all()
     )
     for job in stale_jobs:
-        job.status = "STALE"
+        job.status = JobStatus.STALE
         job.message = "Job expired after backend restart or timeout."
     if stale_jobs:
         db.commit()
@@ -88,7 +98,7 @@ def _create_retry_job(db: Session, current_user_id: int, job: JobModel, metadata
         user_id=current_user_id,
         course_id=job.course_id,
         job_type=job.job_type,
-        status="PENDING",
+        status=JobStatus.PENDING,
         progress=0,
         message=f"Retrying {job.job_type}...",
         result_data=metadata,
@@ -116,7 +126,7 @@ async def stream_job_status(job_id: str):
             conn = await asyncpg.connect(db_url)
         except Exception as e:
             logger.error(f"SSE DB Connection failed: {e}")
-            yield f"data: {json.dumps({'status': 'FAILED', 'message': '推播伺服器連線失敗'})}\n\n"
+            yield f"data: {json.dumps({'status': JobStatus.FAILED, 'message': '推播伺服器連線失敗'})}\n\n"
             return
 
         queue = asyncio.Queue()
@@ -135,7 +145,7 @@ async def stream_job_status(job_id: str):
             )
 
             if not row:
-                yield f"data: {json.dumps({'status': 'FAILED', 'message': '找不到該任務 (Job not found)'})}\n\n"
+                yield f"data: {json.dumps({'status': JobStatus.FAILED, 'message': '找不到該任務 (Job not found)'})}\n\n"
                 return
 
             # 傳送初次狀態
@@ -153,12 +163,7 @@ async def stream_job_status(job_id: str):
             yield f"data: {json.dumps(initial_data)}\n\n"
 
             # 如果一查就發現已經做完了，直接中斷連線
-            if initial_data.get("status") in [
-                "COMPLETED",
-                "FAILED",
-                "CANCELLED",
-                "STALE",
-            ]:
+            if initial_data.get("status") in TERMINAL_JOB_STATUSES:
                 return
 
             # 開始進入掛起模式，等待 PostgreSQL 喚醒
@@ -207,12 +212,7 @@ async def stream_job_status(job_id: str):
                 )
                 yield f"data: {json.dumps(event_data)}\n\n"
 
-                if event_data.get("status") in [
-                    "COMPLETED",
-                    "FAILED",
-                    "CANCELLED",
-                    "STALE",
-                ]:
+                if event_data.get("status") in TERMINAL_JOB_STATUSES:
                     logger.info(
                         f"[SSE CLOSE] Stream for {job_id[:8]} terminating normally due to final status."
                     )
@@ -248,7 +248,7 @@ async def check_active_jobs(
         db.query(JobModel)
         .filter(
             JobModel.user_id == current_user.id,
-            JobModel.status.in_(["PENDING", "PROCESSING", "STALE"]),
+            JobModel.status.in_((*ACTIVE_JOB_STATUSES, JobStatus.STALE)),
         )
     )
 
@@ -256,7 +256,7 @@ async def check_active_jobs(
         active_job_query = active_job_query.filter(JobModel.job_type == job_type)
 
     active_jobs = active_job_query.order_by(
-        JobModel.status.in_(["PENDING", "PROCESSING"]).desc(),
+        JobModel.status.in_(ACTIVE_JOB_STATUSES).desc(),
         JobModel.created_at.desc(),
     ).all()
 
@@ -276,12 +276,10 @@ async def check_active_jobs(
     )
 
     if active_job:
-        retryable = active_job.status == "STALE" and active_job.job_type in [
-            "QUESTIONNAIRE_GEN",
-            "SYLLABUS_GEN",
-            "LESSON_GEN",
-            "REMEDIAL_GEN",
-        ]
+        retryable = (
+            active_job.status == JobStatus.STALE
+            and active_job.job_type in RETRYABLE_GENERATION_JOB_TYPES
+        )
         return {
             "job_id": active_job.id,
             "status": active_job.status,
@@ -309,7 +307,11 @@ async def cancel_job(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found.")
 
-    if job.status in ["COMPLETED", "FAILED", "CANCELLED"]:
+    if job.status in (
+        JobStatus.COMPLETED,
+        JobStatus.FAILED,
+        JobStatus.CANCELLED,
+    ):
         return {
             "job_id": job.id,
             "status": job.status,
@@ -321,7 +323,7 @@ async def cancel_job(
         job,
         job.progress or 0,
         "Generation cancelled by user.",
-        status="CANCELLED",
+        status=JobStatus.CANCELLED,
     )
     return {
         "job_id": job.id,
@@ -348,7 +350,7 @@ async def retry_job(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found.")
 
-    if job.status in ["PENDING", "PROCESSING"]:
+    if job.status in ACTIVE_JOB_STATUSES:
         return {
             "job_id": job.id,
             "status": job.status,
@@ -357,13 +359,13 @@ async def retry_job(
             "message": job.message,
         }
 
-    if job.status != "STALE":
+    if job.status != JobStatus.STALE:
         raise HTTPException(status_code=409, detail="Only stale jobs can be retried.")
 
     metadata = _normalize_job_result_data(job)
     file_service = FileService()
 
-    if job.job_type == "QUESTIONNAIRE_GEN":
+    if job.job_type == JobType.QUESTIONNAIRE_GENERATION:
         course_id = metadata.get("course_id")
         topic = metadata.get("topic")
         if not course_id or not topic:
@@ -391,7 +393,7 @@ async def retry_job(
             topic=topic,
             files_used=files_used,
         )
-    elif job.job_type == "SYLLABUS_GEN":
+    elif job.job_type == JobType.SYLLABUS_GENERATION:
         topic = metadata.get("topic")
         course_id = metadata.get("course_id")
         if not topic:
@@ -442,7 +444,7 @@ async def retry_job(
             files_used=files,
             regenerate=bool(course.syllabus_json),
         )
-    elif job.job_type == "LESSON_GEN":
+    elif job.job_type == JobType.LESSON_GENERATION:
         topic = metadata.get("topic")
         node_id = metadata.get("node_id")
         course_id = metadata.get("course_id")
@@ -479,7 +481,7 @@ async def retry_job(
             id=node_payload["id"],
             title=node_payload["title"],
             description=node_payload.get("description", ""),
-            status=node_payload.get("status", "locked"),
+            status=node_payload.get("status", NodeStatus.LOCKED),
         )
         new_job = _create_retry_job(db, current_user.id, job, metadata)
         background_tasks.add_task(
@@ -492,7 +494,7 @@ async def retry_job(
             course_folder_name,
             profile_summary,
         )
-    elif job.job_type == "REMEDIAL_GEN":
+    elif job.job_type == JobType.REMEDIAL_GENERATION:
         session_id = metadata.get("session_id")
         if not session_id:
             raise HTTPException(status_code=400, detail="Remedial retry metadata is incomplete.")
@@ -508,7 +510,12 @@ async def retry_job(
             db.query(LessonFailedStageModel)
             .filter(
                 LessonFailedStageModel.lesson_session_id == session_id,
-                LessonFailedStageModel.status.in_(["pending", "remedial_generated"]),
+                LessonFailedStageModel.status.in_(
+                    [
+                        LessonFailedStageStatus.PENDING,
+                        LessonFailedStageStatus.REMEDIAL_GENERATED,
+                    ]
+                ),
             )
             .order_by(LessonFailedStageModel.created_at.asc())
             .all()
@@ -523,7 +530,7 @@ async def retry_job(
         if not failed_stages:
             raise HTTPException(status_code=409, detail="No failed stages remain for remedial retry.")
 
-        session.status = "remedial_generating"
+        session.status = LessonSessionStatus.REMEDIAL_GENERATING
         db.commit()
         new_job = _create_retry_job(db, current_user.id, job, metadata)
         background_tasks.add_task(

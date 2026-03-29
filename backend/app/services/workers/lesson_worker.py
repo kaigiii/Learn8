@@ -1,20 +1,26 @@
 import logging
-import datetime
+from app.domain.statuses import (
+    JobStatus,
+    LessonFailedStageStatus,
+    LessonSessionPhase,
+    LessonSessionStatus,
+)
+from app.core.time import utc_now_naive
 from app.db.session import SessionLocal
 from app.models.job import JobModel
 from app.models.user import UserModel
-from app.services.commons.activity_logger import ActivityLogger
+from app.services.commons.user_economy import spend_user_credits
 from app.services.llm_clients.factory import LLMFactory
 from app.services.knowledge_base.rag_engine import RAGEngine
 from app.core.config import settings
-from app.services.workers.job_notifier import _notify_job_update
+from app.services.workers.job_notifier import _notify_job_update, _publish_job_notification
 
 logger = logging.getLogger(__name__)
 
 
 def _is_cancelled(db, job_id: str) -> bool:
     job = db.query(JobModel).filter(JobModel.id == job_id).first()
-    return job is None or job.status == "CANCELLED"
+    return job is None or job.status == JobStatus.CANCELLED
 
 
 async def run_lesson_generation_job(
@@ -33,10 +39,12 @@ async def run_lesson_generation_job(
     job = None
     try:
         job = db.query(JobModel).filter(JobModel.id == job_id).first()
-        if not job or job.status == "CANCELLED":
+        if not job or job.status == JobStatus.CANCELLED:
             return
 
-        _notify_job_update(db, job, 10, "準備生成單元課程內容...", status="PROCESSING")
+        _notify_job_update(
+            db, job, 10, "準備生成單元課程內容...", status=JobStatus.PROCESSING
+        )
 
         user = db.query(UserModel).filter(UserModel.id == user_id).first()
         COST = settings.COST_LESSON_GENERATION
@@ -89,7 +97,7 @@ async def run_lesson_generation_job(
 
         if existing_lesson:
             existing_lesson.stage_json = stages_json
-            existing_lesson.created_at = datetime.datetime.utcnow()
+            existing_lesson.created_at = utc_now_naive()
             db.add(existing_lesson)
         else:
             new_lesson = LessonModel(
@@ -102,29 +110,38 @@ async def run_lesson_generation_job(
             db.add(new_lesson)
 
         # 扣點數
-        user.credits -= COST
-        db.add(user)
-        db.commit()
-        ActivityLogger.log_credits_deduct(
-            user.id, user.email, COST, "lesson_generation", user.credits
-        )
-
-        _notify_job_update(
+        spend_user_credits(
             db,
-            job,
-            100,
-            "🎉 單元建立完成！",
-            status="COMPLETED",
-            result_data={"stages": stages_json},
+            user,
+            COST,
+            reason="lesson_generation",
+            idempotency_scope="job:lesson_generation_charge",
+            idempotency_key=job_id,
+            metadata={
+                "source": "lesson_generation",
+                "job_id": job_id,
+                "course_id": course_id,
+                "node_id": node.id,
+            },
         )
+        job.progress = 100
+        job.message = "🎉 單元建立完成！"
+        job.status = JobStatus.COMPLETED
+        job.result_data = {"stages": stages_json}
+        db.commit()
+        db.refresh(job)
+        _publish_job_notification(db, job)
 
     except Exception as e:
         logger.error(f"Lesson generation job failed: {e}")
         db.rollback()
         if job is not None:
-            _notify_job_update(
-                db, job, job.progress or 0, f"生成失敗: {str(e)}", status="FAILED"
-            )
+            job.progress = int(job.progress or 0)
+            job.message = f"生成失敗: {str(e)}"
+            job.status = JobStatus.FAILED
+            db.commit()
+            db.refresh(job)
+            _publish_job_notification(db, job)
 
     finally:
         db.close()
@@ -146,10 +163,12 @@ async def run_remedial_generation_job(
     job = None
     try:
         job = db.query(JobModel).filter(JobModel.id == job_id).first()
-        if not job or job.status == "CANCELLED":
+        if not job or job.status == JobStatus.CANCELLED:
             return
 
-        _notify_job_update(db, job, 10, "Analyzing failed stages...", status="PROCESSING")
+        _notify_job_update(
+            db, job, 10, "Analyzing failed stages...", status=JobStatus.PROCESSING
+        )
 
         provider = LLMFactory.create()
         rag_engine = RAGEngine(provider)
@@ -225,20 +244,20 @@ async def run_remedial_generation_job(
             )
             if session:
                 session.remedial_stages_json = stages_json
-                session.status = "playing_remedial"
-                session.active_phase = "remedial"
+                session.status = LessonSessionStatus.PLAYING_REMEDIAL
+                session.active_phase = LessonSessionPhase.REMEDIAL
                 db.add(session)
 
             failed_records = (
                 db.query(LessonFailedStageModel)
                 .filter(
                     LessonFailedStageModel.lesson_session_id == session_id,
-                    LessonFailedStageModel.status == "pending",
+                    LessonFailedStageModel.status == LessonFailedStageStatus.PENDING,
                 )
                 .all()
             )
             for record in failed_records:
-                record.status = "remedial_generated"
+                record.status = LessonFailedStageStatus.REMEDIAL_GENERATED
                 db.add(record)
         db.commit()
 
@@ -247,7 +266,7 @@ async def run_remedial_generation_job(
             job,
             100,
             "Remedial lesson is ready.",
-            status="COMPLETED",
+            status=JobStatus.COMPLETED,
             result_data={"stages": stages_json, "session_id": session_id},
         )
 
@@ -256,7 +275,11 @@ async def run_remedial_generation_job(
         db.rollback()
         if job is not None:
             _notify_job_update(
-                db, job, job.progress or 0, f"Remedial generation failed: {str(e)}", status="FAILED"
+                db,
+                job,
+                job.progress or 0,
+                f"Remedial generation failed: {str(e)}",
+                status=JobStatus.FAILED,
             )
 
     finally:
