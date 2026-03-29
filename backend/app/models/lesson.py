@@ -36,6 +36,7 @@ class LessonModel(Base):
     node_id = Column(String, index=True)
     course_topic = Column(String, index=True)
     stage_json = Column(JSON)
+    generation_metadata_json = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=utc_now_naive)
 
     user = relationship("UserModel", back_populates="lessons")

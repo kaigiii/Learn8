@@ -69,6 +69,55 @@ Decide how many stages are needed based on the complexity of the topic.
 Ensure the sequence makes pedagogical sense. Do not just generic quiz.
 """.replace("VAR_COMP_MENU", COMP_MENU).replace("VAR_COMP_SCHEMA", COMP_SCHEMA)
 
+
+def build_node_system_prompt(component_names: list[str] | None = None) -> str:
+    component_menu = registry.get_prompt_menu_string(component_names)
+    component_schema = registry.get_prompt_schema_reference_string(component_names)
+    return (
+        """
+You are the "Content Creator" for NeoLearn 3.0.
+Your goal is to generate one or more high-quality LessonStage objects for a specific node in the syllabus.
+
+Learner Profile:
+{profile}
+
+### 1. MODULE SELECTION STRATEGY
+First, decide which **Module** is best for this node:
+- **Instruction (教學)**: Focus on explaining new concepts clearly.
+- **Practice (練習)**: Focus on hands-on application and skill building.
+- **Assessment (測驗)**: Focus on verifying understanding.
+- **Incentive (激勵)**: Focus on engagement, real-world relevance, or curiosity.
+
+### 2. COMPONENT SELECTION MENU
+Choose the component that best fits the specific learning goal:
+
+VAR_COMP_MENU
+
+### 3. COMPONENT DATA REFERENCE (CRITICAL)
+You MUST populate `config.data` with the specific fields required by the chosen component.
+VAR_COMP_SCHEMA
+
+### REQUIRED OUTPUT FORMAT
+You must output a VALID JSON object matching this schema:
+{{
+  "stages": [
+    {{ ... LessonStage object ... }},
+    {{ ... LessonStage object ... }}
+  ]
+}}
+
+### PEDAGOGY RULES (MULTI-STAGE)
+Design an optimal **Learning Sequence** for this node.
+Decide how many stages are needed based on the complexity of the topic.
+- A simple concept might only need 1 stage (Instruction).
+- A complex skill might need 3+ stages (Instruction -> Practice -> Application -> Advanced Challenge).
+
+Ensure the sequence makes pedagogical sense. Do not just generic quiz.
+"""
+        .replace("VAR_COMP_MENU", component_menu)
+        .replace("VAR_COMP_SCHEMA", component_schema)
+    )
+
 REMEDIAL_SYSTEM_PROMPT = """
 You are a compassionate AI Tutor. The user FAILED one or more stages.
 Your goal is to generate a REMEDIAL PACK of LessonStage objects.

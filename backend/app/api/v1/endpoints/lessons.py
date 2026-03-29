@@ -30,12 +30,16 @@ from app.models.lesson import (
     LessonRemedialModel,
     LessonSessionModel,
 )
+from app.models.lesson_generation_preference import LessonGenerationPreferenceModel
 from app.models.user import UserModel
 from app.schemas.course_schema import LessonNode
 from app.schemas.lesson_schema import (
     FailedStageRecord,
     LessonComponentManifestItem,
     LessonComponentManifestResponse,
+    LessonGenerationPreferenceItem,
+    LessonGenerationPreferenceListResponse,
+    LessonGenerationPreferenceUpsertRequest,
     LessonAssistantRequest,
     LessonAssistantResponse,
     LessonSessionCompleteRequest,
@@ -89,6 +93,170 @@ def get_lesson_component_manifest():
 
     items.sort(key=lambda item: item.name)
     return LessonComponentManifestResponse(items=items)
+
+
+@router.get(
+    "/generation-preferences",
+    response_model=LessonGenerationPreferenceListResponse,
+)
+def list_lesson_generation_preferences(
+    course_id: int,
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    items = (
+        db.query(LessonGenerationPreferenceModel)
+        .filter(
+            LessonGenerationPreferenceModel.user_id == current_user.id,
+            LessonGenerationPreferenceModel.course_id == course_id,
+        )
+        .order_by(LessonGenerationPreferenceModel.node_id.asc().nullsfirst())
+        .all()
+    )
+    return LessonGenerationPreferenceListResponse(
+        items=[
+            LessonGenerationPreferenceItem(
+                id=item.id,
+                courseId=item.course_id,
+                nodeId=item.node_id,
+                allowedComponents=list(item.allowed_components_json or []),
+            )
+            for item in items
+        ]
+    )
+
+
+@router.put(
+    "/generation-preferences",
+    response_model=LessonGenerationPreferenceItem,
+)
+def upsert_lesson_generation_preference(
+    payload: LessonGenerationPreferenceUpsertRequest,
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    from app.core.component_loader import registry
+
+    course = (
+        db.query(CourseModel)
+        .filter(
+            CourseModel.id == payload.courseId,
+            CourseModel.user_id == current_user.id,
+        )
+        .first()
+    )
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    invalid_components = [
+        item
+        for item in payload.allowedComponents
+        if item not in registry.get_component_names()
+    ]
+    if invalid_components:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported components requested: {', '.join(invalid_components)}",
+        )
+
+    if payload.nodeId:
+        generated_lesson = (
+            db.query(LessonModel.id)
+            .filter(
+                LessonModel.user_id == current_user.id,
+                LessonModel.course_id == payload.courseId,
+                LessonModel.node_id == payload.nodeId,
+            )
+            .first()
+        )
+        if generated_lesson:
+            raise HTTPException(
+                status_code=409,
+                detail="This node already has generated lesson content. Its question types are locked.",
+            )
+
+        course_level_preference = (
+            db.query(LessonGenerationPreferenceModel)
+            .filter(
+                LessonGenerationPreferenceModel.user_id == current_user.id,
+                LessonGenerationPreferenceModel.course_id == payload.courseId,
+                LessonGenerationPreferenceModel.node_id.is_(None),
+            )
+            .first()
+        )
+        if course_level_preference:
+            course_allowed_components = set(
+                course_level_preference.allowed_components_json or []
+            )
+            disallowed_by_course = [
+                item
+                for item in payload.allowedComponents
+                if item not in course_allowed_components
+            ]
+            if disallowed_by_course:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "Node settings cannot enable components disabled by the course default: "
+                        + ", ".join(disallowed_by_course)
+                    ),
+                )
+
+    existing = (
+        db.query(LessonGenerationPreferenceModel)
+        .filter(
+            LessonGenerationPreferenceModel.user_id == current_user.id,
+            LessonGenerationPreferenceModel.course_id == payload.courseId,
+            LessonGenerationPreferenceModel.node_id == payload.nodeId,
+        )
+        .first()
+    )
+
+    if existing:
+        existing.allowed_components_json = list(payload.allowedComponents)
+        db.add(existing)
+        db.commit()
+        db.refresh(existing)
+        item = existing
+    else:
+        item = LessonGenerationPreferenceModel(
+            user_id=current_user.id,
+            course_id=payload.courseId,
+            node_id=payload.nodeId,
+            allowed_components_json=list(payload.allowedComponents),
+        )
+        db.add(item)
+        db.commit()
+        db.refresh(item)
+
+    return LessonGenerationPreferenceItem(
+        id=item.id,
+        courseId=item.course_id,
+        nodeId=item.node_id,
+        allowedComponents=list(item.allowed_components_json or []),
+    )
+
+
+@router.delete("/generation-preferences", status_code=204)
+def delete_lesson_generation_preference(
+    course_id: int,
+    node_id: str | None = None,
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    item = (
+        db.query(LessonGenerationPreferenceModel)
+        .filter(
+            LessonGenerationPreferenceModel.user_id == current_user.id,
+            LessonGenerationPreferenceModel.course_id == course_id,
+            LessonGenerationPreferenceModel.node_id == node_id,
+        )
+        .first()
+    )
+    if item:
+        db.delete(item)
+        db.commit()
+    return None
 
 
 def _coerce_stage_list(raw: Any) -> List[LessonStage]:
@@ -427,10 +595,34 @@ async def generate_lesson_from_node_endpoint(
     topic: str,
     background_tasks: BackgroundTasks,
     course_id: int | None = None,
+    allowed_components: str | None = None,
     current_user: UserModel = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    from app.core.component_loader import registry
+
+    parsed_allowed_components = [
+        item.strip() for item in (allowed_components or "").split(",") if item.strip()
+    ]
+    invalid_components = [
+        item
+        for item in parsed_allowed_components
+        if item not in registry.get_component_names()
+    ]
+    if invalid_components:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported components requested: {', '.join(invalid_components)}",
+        )
+    if allowed_components is not None and not parsed_allowed_components:
+        raise HTTPException(
+            status_code=400,
+            detail="At least one allowed component must be provided.",
+        )
+
     def _fetch_cached_lesson():
+        if parsed_allowed_components:
+            return None
         query = db.query(LessonModel).filter(
             LessonModel.node_id == node.id,
             LessonModel.course_topic == topic,
@@ -501,6 +693,7 @@ async def generate_lesson_from_node_endpoint(
             "course_id": course_id,
             "node_id": node.id,
             "topic": topic,
+            "allowed_components": parsed_allowed_components,
         },
     )
     db.add(new_job)
@@ -515,6 +708,7 @@ async def generate_lesson_from_node_endpoint(
         node.model_dump(),
         course_folder_name,
         profile_summary,
+        parsed_allowed_components or None,
     )
     return {"job_id": job_id, "status": JobStatus.PENDING}
 

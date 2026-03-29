@@ -1,7 +1,11 @@
 "use client";
 
 import { clearAllNavigationIntents } from "@/lib/navigation/intents";
-import type { LessonComponentManifestResponse } from "@/lib/apiTypes";
+import type {
+  LessonComponentManifestResponse,
+  LessonGenerationPreferenceItem,
+  LessonGenerationPreferenceListResponse,
+} from "@/lib/apiTypes";
 
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
@@ -111,4 +115,35 @@ export function createIdempotencyKey(scope: string) {
 
 export function fetchLessonComponentManifest() {
   return apiFetch<LessonComponentManifestResponse>("/lessons/components");
+}
+
+export function fetchLessonGenerationPreferences(courseId: number) {
+  return apiFetch<LessonGenerationPreferenceListResponse>(
+    `/lessons/generation-preferences?course_id=${courseId}`
+  );
+}
+
+export function saveLessonGenerationPreference(payload: {
+  courseId: number;
+  nodeId?: string | null;
+  allowedComponents: string[];
+}) {
+  return apiFetch<LessonGenerationPreferenceItem>("/lessons/generation-preferences", {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteLessonGenerationPreference(params: {
+  courseId: number;
+  nodeId?: string | null;
+}) {
+  const search = new URLSearchParams();
+  search.set("course_id", String(params.courseId));
+  if (params.nodeId) {
+    search.set("node_id", params.nodeId);
+  }
+  return apiFetch<void>(`/lessons/generation-preferences?${search.toString()}`, {
+    method: "DELETE",
+  });
 }

@@ -58,6 +58,12 @@ class CourseModel(Base):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
+    lesson_generation_preferences = relationship(
+        "LessonGenerationPreferenceModel",
+        back_populates="course",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
 
 class NodeModel(Base):

@@ -17,6 +17,7 @@ from app.services.commons.activity_logger import activity_logger
 from app.services.ai_agents.course_architect_prompts import (
     REFINE_SYLLABUS_PROMPT,
     NODE_SYSTEM_PROMPT,
+    build_node_system_prompt,
     REMEDIAL_SYSTEM_PROMPT,
     SYSTEM_PROMPT_FEYNMAN,
 )
@@ -79,6 +80,7 @@ class AIArchitectService:
         user_id: Optional[int] = None,
         course_folder: Optional[str] = None,
         profile: str = "General Learner",
+        allowed_components: Optional[List[str]] = None,
     ) -> List[LessonStage]:
 
         # 1. 取得 RAG 上下文
@@ -102,7 +104,7 @@ class AIArchitectService:
         messages = [
             (
                 "system",
-                NODE_SYSTEM_PROMPT.format(profile=profile)
+                build_node_system_prompt(allowed_components).format(profile=profile)
                 + f"\n\nVector Database Context:\n{rag_context}",
             ),
             (

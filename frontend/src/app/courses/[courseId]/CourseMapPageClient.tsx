@@ -2,7 +2,6 @@
 
 import React from "react";
 import { motion } from "framer-motion";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import TopStatsBar from "@/components/layout/TopStatsBar";
 import { NODE_STATUS } from "@/lib/domain/statuses";
@@ -11,6 +10,7 @@ import { useCourseStore } from "@/stores/app/useCourseStore";
 import useUserStore, { selectLastActiveNodeId } from "@/stores/app/useUserStore";
 import { CourseMapAssistantPanel } from "./components/CourseMapAssistantPanel";
 import { CourseMapBackground } from "./components/CourseMapBackground";
+import { CourseMapNodePanel } from "./components/CourseMapNodePanel";
 import { useCourseMapData, type CourseMapNode } from "./hooks/useCourseMapData";
 import { useResolvedCourseRoute } from "./hooks/useResolvedCourseRoute";
 
@@ -46,6 +46,30 @@ export default function CourseMapPageClient({
     lastActiveNodeId,
   });
   const showDelayedMapLoading = useDelayedVisibility(backendLoading, 220);
+  const [selectedNodeId, setSelectedNodeId] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (nodes.length === 0) {
+      return;
+    }
+
+    const preferredNodeId =
+      (lastActiveNodeId && nodes.find((node) => node.id === lastActiveNodeId)?.id) ||
+      nodes.find((node) => node.status === NODE_STATUS.AVAILABLE)?.id ||
+      nodes.find((node) => node.status === NODE_STATUS.COMPLETED)?.id ||
+      nodes[0]?.id ||
+      null;
+
+    setSelectedNodeId((prev) => {
+      if (prev && nodes.some((node) => node.id === prev)) {
+        return prev;
+      }
+      return preferredNodeId;
+    });
+  }, [lastActiveNodeId, nodes]);
+
+  const selectedNode =
+    nodes.find((node) => node.id === selectedNodeId) ?? null;
 
   if (!isBackendCourse) {
     return null;
@@ -121,17 +145,32 @@ export default function CourseMapPageClient({
             </svg>
 
             {nodes.map((node, index) => (
-              <MapNodeCircle key={node.id} node={node} index={index} courseId={courseId} />
+              <MapNodeCircle
+                key={node.id}
+                node={node}
+                index={index}
+                courseId={courseId}
+                isSelected={node.id === selectedNodeId}
+                onSelect={setSelectedNodeId}
+              />
             ))}
           </div>
         </div>
 
-        <div className="w-[340px] flex-shrink-0 pt-8">
-          <CourseMapAssistantPanel
-            coursePath={coursePath}
-            courseId={Number(courseId) || currentCourseId}
-            onCoursePathUpdated={setCoursePath}
-          />
+        <div className="w-[340px] flex-shrink-0 overflow-y-auto pt-8">
+          <div className="flex flex-col gap-5 pb-8">
+            <CourseMapNodePanel
+              courseId={courseId}
+              coursePath={coursePath}
+              selectedNode={selectedNode}
+            />
+            <CourseMapAssistantPanel
+              coursePath={coursePath}
+              courseId={Number(courseId) || currentCourseId}
+              onCoursePathUpdated={setCoursePath}
+              compact
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -142,28 +181,33 @@ function MapNodeCircle({
   node,
   index,
   courseId,
+  isSelected,
+  onSelect,
 }: {
   node: CourseMapNode;
   index: number;
   courseId: string;
+  isSelected: boolean;
+  onSelect: (nodeId: string) => void;
 }) {
   const router = useRouter();
   const isClickable =
     node.status === NODE_STATUS.AVAILABLE ||
     node.status === NODE_STATUS.COMPLETED;
-  const targetHref = `/courses/${courseId}/nodes/${node.id}`;
 
   const content = (
-    <motion.div
+    <motion.button
+      type="button"
       initial={{ opacity: 0, y: 20, scale: 0.8 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ delay: 0.15 * index, type: "spring", damping: 14 }}
-      className="flex cursor-pointer flex-col items-center gap-2"
+      className="flex cursor-pointer flex-col items-center gap-2 bg-transparent"
       onHoverStart={() => {
         if (isClickable) {
-          void router.prefetch(targetHref);
+          void router.prefetch(`/courses/${courseId}/nodes/${node.id}`);
         }
       }}
+      onClick={() => onSelect(node.id)}
       whileHover={isClickable ? { scale: 1.1 } : {}}
       whileTap={isClickable ? { scale: 0.92 } : {}}
     >
@@ -251,7 +295,9 @@ function MapNodeCircle({
         />
         <div
           className={`absolute inset-[3px] rounded-full border-2 ${
-            node.status === NODE_STATUS.COMPLETED
+            isSelected
+              ? "border-brand-teal/80"
+              : node.status === NODE_STATUS.COMPLETED
               ? "border-yellow-200/50"
               : node.status === NODE_STATUS.AVAILABLE
               ? "border-white/30"
@@ -320,7 +366,7 @@ function MapNodeCircle({
       >
         {node.title}
       </span>
-    </motion.div>
+    </motion.button>
   );
 
   return (
@@ -332,7 +378,7 @@ function MapNodeCircle({
         transform: "translate(-50%, -50%)",
       }}
     >
-      {isClickable ? <Link href={targetHref}>{content}</Link> : content}
+      {content}
     </div>
   );
 }

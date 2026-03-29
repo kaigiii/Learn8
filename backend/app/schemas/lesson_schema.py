@@ -239,3 +239,20 @@ class LessonComponentManifestItem(BaseModel):
 
 class LessonComponentManifestResponse(BaseModel):
     items: List[LessonComponentManifestItem] = Field(default_factory=list)
+
+
+class LessonGenerationPreferenceItem(BaseModel):
+    id: int
+    courseId: int
+    nodeId: Optional[str] = None
+    allowedComponents: List[str] = Field(default_factory=list)
+
+
+class LessonGenerationPreferenceListResponse(BaseModel):
+    items: List[LessonGenerationPreferenceItem] = Field(default_factory=list)
+
+
+class LessonGenerationPreferenceUpsertRequest(BaseModel):
+    courseId: int
+    nodeId: Optional[str] = None
+    allowedComponents: List[str] = Field(default_factory=list)

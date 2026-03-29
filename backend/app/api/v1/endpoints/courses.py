@@ -13,6 +13,7 @@ from app.domain.statuses import CourseStatus, JobStatus, JobType, NodeStatus
 from app.models.user import UserModel
 from app.models.course import CourseModel, NodeModel
 from app.models.job import JobModel
+from app.models.lesson import LessonModel
 from app.schemas.course_schema import (
     CoursePath,
     CourseCreateRequest,
@@ -124,6 +125,22 @@ def get_course_detail(
     path = CoursePath(**course.syllabus_json)
     path.id = course.id
     path.topic = course.topic
+
+    generated_node_ids = {
+        row[0]
+        for row in db.query(LessonModel.node_id)
+        .filter(
+            LessonModel.user_id == current_user.id,
+            LessonModel.course_id == course.id,
+        )
+        .distinct()
+        .all()
+    }
+
+    for unit in path.units:
+        for node in unit.nodes:
+            node.hasGeneratedLesson = node.id in generated_node_ids
+
     return path
 
 

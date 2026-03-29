@@ -15,10 +15,12 @@ export function CourseMapAssistantPanel({
   coursePath,
   courseId,
   onCoursePathUpdated,
+  compact = false,
 }: {
   coursePath: CoursePath | null;
   courseId: number | null;
   onCoursePathUpdated: (coursePath: CoursePath) => void;
+  compact?: boolean;
 }) {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -109,7 +111,7 @@ export function CourseMapAssistantPanel({
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: 0.3, type: "spring", damping: 18 }}
       className="flex flex-col overflow-hidden rounded-3xl border border-white/50 bg-white/60 shadow-lg shadow-teal-200/20 backdrop-blur-xl"
-      style={{ height: "78vh", minHeight: 560 }}
+      style={compact ? { minHeight: 420 } : { height: "78vh", minHeight: 560 }}
     >
       <div className="flex items-center gap-3 px-6 pt-6 pb-4">
         <div className="relative h-14 w-14 flex-shrink-0">
