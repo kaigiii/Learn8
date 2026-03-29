@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import GameButton from "@/components/ui/GameButton";
+import { JOB_STATUS } from "@/lib/domain/statuses";
 import { getJobCancelLabel, getJobCtaLabel, getJobRetryLabel } from "@/lib/jobs/policy";
 import { clampJobProgress, formatJobProgressLabel } from "@/lib/jobs/presentation";
 import type { ActiveJobResumeState } from "@/lib/jobs/recovery";
@@ -18,6 +19,7 @@ export function HomeActiveJobBanner({
   onRetry,
 }: HomeActiveJobBannerProps) {
   const progress = clampJobProgress(activeJob.progress);
+  const showResumeCta = activeJob.status !== JOB_STATUS.STALE;
 
   return (
     <div className="rounded-[28px] border border-white/60 bg-white/70 px-5 py-4 shadow-[0_12px_30px_rgba(122,199,196,0.10)] backdrop-blur-xl">
@@ -64,11 +66,13 @@ export function HomeActiveJobBanner({
           >
             {getJobCancelLabel()}
           </button>
-          <Link href={activeJob.resumeHref}>
-            <GameButton className="min-w-[220px]">
-              {getJobCtaLabel(activeJob.status)}
-            </GameButton>
-          </Link>
+          {showResumeCta && (
+            <Link href={activeJob.resumeHref}>
+              <GameButton className="min-w-[220px]">
+                {getJobCtaLabel(activeJob.status)}
+              </GameButton>
+            </Link>
+          )}
         </div>
       </div>
     </div>

@@ -97,11 +97,38 @@ export function HomeForgePanel({
                   <motion.div animate={isDragging ? { scale: 1.15, y: -4 } : { scale: 1, y: 0 }}>
                     <PortalIcon />
                   </motion.div>
-                  <p className="max-w-xs px-4 text-center text-sm text-brand-gray-500 md:text-base">
-                    {isDragging
-                      ? "Release to upload your PDF"
-                      : "Drop a PDF here or click this card to start a new course, then define your topic below."}
-                  </p>
+                  {courseFiles.length > 0 ? (
+                    <div className="flex flex-col items-center gap-2 px-4">
+                      {courseFiles.map((file) => (
+                        <div
+                          key={file}
+                          className="flex max-w-xs items-center justify-center gap-2"
+                        >
+                          <p className="text-center text-sm text-brand-gray-500 md:text-base">
+                            {removingFile === file ? "Removing..." : file}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              void onRemoveCourseFile(file);
+                            }}
+                            disabled={removingFile === file}
+                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-brand-gray-200 bg-white/70 text-sm font-bold text-brand-gray-500 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-500 disabled:cursor-not-allowed disabled:opacity-50"
+                            aria-label={`Remove ${file}`}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="max-w-xs px-4 text-center text-sm text-brand-gray-500 md:text-base">
+                      {isDragging
+                        ? "Release to upload your PDF"
+                        : "Drop a PDF here or click this card to start a new course, then define your topic below."}
+                    </p>
+                  )}
                 </>
               )}
             </motion.div>
@@ -109,40 +136,6 @@ export function HomeForgePanel({
         </motion.div>
 
         <div className="mt-4 space-y-3 rounded-2xl border border-[#9ecbd4]/18 bg-white/46 p-4 shadow-[0_12px_30px_rgba(97,163,184,0.10)] backdrop-blur-sm">
-          <div className="rounded-2xl border border-[#9ecbd4]/18 bg-white/62 px-4 py-3">
-            <p className="mb-3 text-sm font-semibold text-brand-gray-700">
-              Course Materials
-            </p>
-
-            {fileActionMessage && (
-              <p className="mb-3 text-xs font-semibold text-brand-teal">{fileActionMessage}</p>
-            )}
-
-            {courseFiles.length > 0 ? (
-              <div className="space-y-2">
-                {courseFiles.map((file) => (
-                  <div
-                    key={file}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-brand-gray-200 bg-white/80 px-3 py-2 text-sm text-brand-gray-600"
-                  >
-                    <span className="truncate">{file}</span>
-                    <button
-                      type="button"
-                      onClick={() => void onRemoveCourseFile(file)}
-                      disabled={removingFile === file}
-                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-brand-gray-500 transition hover:bg-rose-50 hover:text-rose-500 disabled:opacity-50"
-                      aria-label={`Remove ${file}`}
-                    >
-                      {removingFile === file ? "…" : "×"}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-brand-gray-400">No materials added yet.</p>
-            )}
-          </div>
-
           <div className="flex flex-col gap-4 md:flex-row md:items-start">
             <div className="min-w-0 flex-1">
               <input
