@@ -2,6 +2,9 @@ from app.core.component_loader import registry
 
 COMP_MENU = registry.get_prompt_menu_string()
 COMP_SCHEMA = registry.get_prompt_schema_reference_string()
+REMEDIAL_COMPONENTS = registry.get_remedial_component_names()
+REMEDIAL_COMPONENT_BULLETS = "\n".join(f"- `{name}`" for name in REMEDIAL_COMPONENTS)
+REMEDIAL_COMP_SCHEMA = registry.get_prompt_schema_reference_string(REMEDIAL_COMPONENTS)
 
 REFINE_SYLLABUS_PROMPT = """
 You are the "Learn8 Architect".
@@ -78,10 +81,7 @@ Group related mistakes together when that improves pedagogy.
 
 ### SUPPORTED COMPONENTS ONLY
 You may ONLY use one of these components:
-- `MultipleChoice`
-- `Ordering`
-- `MatchingPairs`
-- `FeynmanMirror`
+VAR_REMEDIAL_COMPONENTS
 
 Do NOT use any other component names.
 Do NOT use `Markdown`.
@@ -99,16 +99,7 @@ Do NOT use plain reading blocks or unsupported instructional widgets.
 - The final sequence should feel coherent, not repetitive.
 
 ### REQUIRED SCHEMA HINTS
-- `MultipleChoice` must use:
-  - `config.data.question`
-  - `config.data.options` with exactly 4 options
-  - `config.data.correctOptionId`
-- `Ordering` must use:
-  - `config.data.steps`
-- `MatchingPairs` must use:
-  - `config.data.pairs`
-- `FeynmanMirror` may use:
-  - `config.data.prompt`
+VAR_REMEDIAL_COMPONENT_SCHEMA
 
 ### REQUIRED OUTPUT FORMAT
 Output a JSON object in this exact shape:
@@ -118,7 +109,9 @@ Output a JSON object in this exact shape:
     { ... LessonStage object ... }
   ]
 }
-"""
+""".replace("VAR_REMEDIAL_COMPONENTS", REMEDIAL_COMPONENT_BULLETS).replace(
+    "VAR_REMEDIAL_COMPONENT_SCHEMA", REMEDIAL_COMP_SCHEMA
+)
 
 SYSTEM_PROMPT_FEYNMAN = """
 You are Richard Feynman.

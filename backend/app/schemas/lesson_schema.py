@@ -1,5 +1,5 @@
 from typing import Any, Optional, List, Union
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from enum import Enum
 
 
@@ -85,6 +85,15 @@ class LessonStage(BaseModel):
         if v not in registry.get_component_names():
             raise ValueError(f"Unsupported component: {v}")
         return v
+
+    @model_validator(mode="after")
+    def validate_component_config(self):
+        from app.core.component_loader import registry
+
+        errors = registry.validate_component_data(self.component, self.config.data)
+        if errors:
+            raise ValueError(" ".join(errors))
+        return self
 
 
 class SubmissionRequest(BaseModel):
@@ -182,3 +191,19 @@ class LessonAssistantRequest(BaseModel):
 
 class LessonAssistantResponse(BaseModel):
     answer: str
+
+
+class LessonComponentManifestItem(BaseModel):
+    name: str
+    frontendRegistryKey: str
+    module: str
+    description: str
+    allowedInRemedial: bool = False
+    requiredConfigDataFields: List[str] = Field(default_factory=list)
+    optionalConfigDataFields: List[str] = Field(default_factory=list)
+    submissionKeys: List[str] = Field(default_factory=list)
+    schemaRequirements: str = ""
+
+
+class LessonComponentManifestResponse(BaseModel):
+    items: List[LessonComponentManifestItem] = Field(default_factory=list)

@@ -20,6 +20,8 @@ downloads/
 eggs/
 .eggs/
 lib/
+!/frontend/src/lib/
+!/frontend/src/lib/**
 lib64/
 parts/
 sdist/
@@ -43,6 +45,7 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 .next/
+*.tsbuildinfo
 out/
 build/
 coverage/

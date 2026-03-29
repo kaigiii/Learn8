@@ -1,5 +1,13 @@
 name: MatchingPairs
+frontend_registry_key: MatchingPairs
 module: Practice
+allowed_in_remedial: true
+required_config_data_fields:
+  - pairs
+optional_config_data_fields:
+  - question
+submission_keys:
+  - matches
 description: If the goal is to match related concepts, terms, examples, or cause-effect pairs.
 schema_requirements: |
   config.data MUST contain:

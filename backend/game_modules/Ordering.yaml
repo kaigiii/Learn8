@@ -1,5 +1,12 @@
 name: Ordering
+frontend_registry_key: Ordering
 module: Practice
+allowed_in_remedial: true
+required_config_data_fields:
+  - steps
+optional_config_data_fields: []
+submission_keys:
+  - order
 description: If the goal is to order steps, phases, or events into the correct sequence.
 schema_requirements: |
   config.data MUST contain:
