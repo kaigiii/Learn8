@@ -308,6 +308,8 @@ def update_user_me(
         current_user.job_title = user_in.job_title
     if user_in.education_level is not None:
         current_user.education_level = user_in.education_level
+    if user_in.preferred_language is not None:
+        current_user.preferred_language = user_in.preferred_language
     if user_in.daily_learning_goal_minutes is not None:
         current_user.daily_learning_goal_minutes = user_in.daily_learning_goal_minutes
 

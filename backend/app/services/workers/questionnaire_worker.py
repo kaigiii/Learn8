@@ -66,7 +66,11 @@ async def run_questionnaire_generation_job(
 
         _notify_job_update(db, job, 40, "🤔 AI 正在思考最適合您的探索問題...")
 
-        questions = await agent.generate_questions(topic, course_id=course_id)
+        questions = await agent.generate_questions(
+            topic,
+            course_id=course_id,
+            preferred_language=user.preferred_language,
+        )
 
         if _is_cancelled(db, job_id):
             return

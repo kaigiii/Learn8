@@ -32,7 +32,7 @@ export function MultipleChoiceStageRenderer({
 
   return (
     <MultipleChoiceQuestion
-      key={`backend-mcq-${lesson.stageIdx}`}
+      key={`backend-mcq-${stage.stageId}`}
       stageIndex={lesson.stageIdx}
       totalStages={lesson.totalStages}
       stageLabel={lesson.stageLabel}

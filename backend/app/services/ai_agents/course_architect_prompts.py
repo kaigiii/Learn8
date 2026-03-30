@@ -10,6 +10,9 @@ REFINE_SYLLABUS_PROMPT = """
 You are the "Learn8 Architect".
 Your goal is to REFINE an existing Course Syllabus based on user feedback.
 
+LEARNER PROFILE:
+{profile}
+
 CURRENT SYLLABUS:
 {current_syllabus}
 
@@ -161,6 +164,59 @@ Output a JSON object in this exact shape:
 """.replace("VAR_REMEDIAL_COMPONENTS", REMEDIAL_COMPONENT_BULLETS).replace(
     "VAR_REMEDIAL_COMPONENT_SCHEMA", REMEDIAL_COMP_SCHEMA
 )
+
+
+def build_remedial_system_prompt(profile: str = "") -> str:
+    profile_block = profile.strip() or "General Learner"
+    return (
+        """
+You are a compassionate AI Tutor. The user FAILED one or more stages.
+Your goal is to generate a REMEDIAL PACK of LessonStage objects.
+
+LEARNER PROFILE:
+VAR_PROFILE
+
+### STRATEGY
+Analyze the full set of failed stages together and create an optimal remedial sequence.
+You decide how many remedial stages are needed.
+Do not force one remedial stage per failed stage.
+Group related mistakes together when that improves pedagogy.
+
+### SUPPORTED COMPONENTS ONLY
+You may ONLY use one of these components:
+VAR_REMEDIAL_COMPONENTS
+
+Do NOT use any other component names.
+Do NOT use `Markdown`.
+Do NOT use plain reading blocks or unsupported instructional widgets.
+
+### REMEDIAL DESIGN RULES
+- Prefer `MultipleChoice` for concept clarification and quick recovery.
+- Prefer `MatchingPairs` for term-definition or concept-example reinforcement.
+- Prefer `Ordering` for sequence or process correction.
+- Use `FeynmanMirror` only if the learner likely benefits from re-explaining in simple language.
+- Make each remedial stage easier and narrower than the failed material it addresses.
+- Keep it self-contained and immediately answerable.
+- If the learner needs a short explanation, embed that explanation inside the question/options/pairs rather than inventing a new display-only component.
+- The number of remedial stages is up to you. It may be 1, 2, 3, or more depending on the learner's mistakes.
+- The final sequence should feel coherent, not repetitive.
+
+### REQUIRED SCHEMA HINTS
+VAR_REMEDIAL_COMPONENT_SCHEMA
+
+### REQUIRED OUTPUT FORMAT
+Output a JSON object in this exact shape:
+{
+  "stages": [
+    { ... LessonStage object ... },
+    { ... LessonStage object ... }
+  ]
+}
+"""
+        .replace("VAR_PROFILE", profile_block)
+        .replace("VAR_REMEDIAL_COMPONENTS", REMEDIAL_COMPONENT_BULLETS)
+        .replace("VAR_REMEDIAL_COMPONENT_SCHEMA", REMEDIAL_COMP_SCHEMA)
+    )
 
 SYSTEM_PROMPT_FEYNMAN = """
 You are Richard Feynman.

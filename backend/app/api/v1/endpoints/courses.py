@@ -437,7 +437,10 @@ async def submit_course_questionnaire(
     ensure_course_can_submit_questionnaire(course)
 
     profile = await agent.summarize_responses(
-        request.topic, request.submission, request.questions
+        request.topic,
+        request.submission,
+        request.questions,
+        preferred_language=current_user.preferred_language,
     )
     course.profile_json = profile.model_dump()
     mark_questionnaire_completed(course)

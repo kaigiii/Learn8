@@ -32,7 +32,7 @@ export function FeynmanStageRenderer({
 
   return (
     <FeynmanQuestion
-      key={`backend-feynman-${lesson.stageIdx}`}
+      key={`backend-feynman-${stage.stageId}`}
       stageIndex={lesson.stageIdx}
       totalStages={lesson.totalStages}
       stageLabel={lesson.stageLabel}

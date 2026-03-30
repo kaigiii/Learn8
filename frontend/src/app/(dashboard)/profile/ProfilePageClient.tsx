@@ -144,6 +144,22 @@ export default function ProfilePageClient() {
               </label>
 
               <label className="block">
+                <span className="text-sm text-brand-gray-600">Preferred Language</span>
+                <input
+                  type="text"
+                  value={form.preferred_language}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      preferred_language: e.target.value,
+                    }))
+                  }
+                  placeholder="English, 繁體中文, 日本語..."
+                  className="mt-1.5 w-full rounded-2xl border border-brand-gray-200 bg-white/75 px-4 py-3 text-sm text-brand-gray-700 outline-none focus:border-brand-teal"
+                />
+              </label>
+
+              <label className="block">
                 <span className="text-sm text-brand-gray-600">Daily Goal (min)</span>
                 <input
                   type="number"

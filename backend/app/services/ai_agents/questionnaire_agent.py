@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 GENERATE_QUESTIONS_PROMPT = """You are an expert educational psychologist.
 Your task is to create a short, adaptive questionnaire (3-5 questions) for a student about to learn: "{topic}".
 The goal is to understand their learning style, background knowledge, and personality to tailor the course.
+Preferred response language: {preferred_language}
 
 Context from their uploaded materials:
 {context}
@@ -26,6 +27,7 @@ RULES:
 
 SUMMARIZE_PROFILE_PROMPT = """You are an expert curriculum designer.
 Analyze the following student responses to a pre-course questionnaire about "{topic}".
+Preferred response language: {preferred_language}
 
 Questions & Answers:
 {qa_pairs}
@@ -56,6 +58,7 @@ class QuestionnaireAgent:
         self,
         topic: str,
         course_id: int = None,
+        preferred_language: str | None = None,
     ) -> List[Question]:
 
         # 取得上下文以確保問題的關聯性
@@ -69,7 +72,11 @@ class QuestionnaireAgent:
         messages = [
             (
                 "system",
-                GENERATE_QUESTIONS_PROMPT.format(topic=topic, context=context_str),
+                GENERATE_QUESTIONS_PROMPT.format(
+                    topic=topic,
+                    context=context_str,
+                    preferred_language=preferred_language or "Follow the user's default language if available.",
+                ),
             ),
             ("user", "Generate the questionnaire."),
         ]
@@ -82,7 +89,11 @@ class QuestionnaireAgent:
             return []
 
     async def summarize_responses(
-        self, topic: str, submission: QuestionnaireSubmission, questions: List[Question]
+        self,
+        topic: str,
+        submission: QuestionnaireSubmission,
+        questions: List[Question],
+        preferred_language: str | None = None,
     ) -> LearnerProfile:
 
         # 將問題 ID 映射回完整文字
@@ -96,7 +107,15 @@ class QuestionnaireAgent:
         qa_str = "\n\n".join(qa_pairs)
 
         messages = [
-            ("system", SUMMARIZE_PROFILE_PROMPT.format(topic=topic, qa_pairs=qa_str)),
+            (
+                "system",
+                SUMMARIZE_PROFILE_PROMPT.format(
+                    topic=topic,
+                    qa_pairs=qa_str,
+                    preferred_language=preferred_language
+                    or "Follow the user's default language if available.",
+                ),
+            ),
             ("user", "Generate the learner profile."),
         ]
 

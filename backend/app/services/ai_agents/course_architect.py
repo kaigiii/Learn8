@@ -19,6 +19,7 @@ from app.services.ai_agents.course_architect_prompts import (
     NODE_SYSTEM_PROMPT,
     build_node_system_prompt,
     REMEDIAL_SYSTEM_PROMPT,
+    build_remedial_system_prompt,
     SYSTEM_PROMPT_FEYNMAN,
 )
 
@@ -42,6 +43,7 @@ class AIArchitectService:
         user_feedback: str,
         user_id: Optional[int] = None,
         course_folder: Optional[str] = None,
+        learner_profile_summary: str = "",
     ) -> Optional[CoursePath]:
         # 準備上下文檔案
         files = self.file_service.list_files(user_id, course_folder) if user_id else []
@@ -58,7 +60,9 @@ class AIArchitectService:
             (
                 "system",
                 REFINE_SYLLABUS_PROMPT.format(
-                    current_syllabus=current_json, user_feedback=user_feedback
+                    current_syllabus=current_json,
+                    user_feedback=user_feedback,
+                    profile=learner_profile_summary or "General Audience",
                 ),
             ),
             (
@@ -134,13 +138,16 @@ class AIArchitectService:
     # ...
 
     async def generate_remedial_stages(
-        self, failed_records: List[FailedStageRecord], topic: str = "General"
+        self,
+        failed_records: List[FailedStageRecord],
+        topic: str = "General",
+        learner_profile_summary: str = "",
     ) -> List[LessonStage]:
         if not failed_records:
             return []
 
         messages = [
-            ("system", REMEDIAL_SYSTEM_PROMPT),
+            ("system", build_remedial_system_prompt(learner_profile_summary)),
             (
                 "user",
                 "TOPIC: "

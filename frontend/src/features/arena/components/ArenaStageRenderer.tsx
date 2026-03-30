@@ -4,8 +4,8 @@ import { getArenaStagePlugin, renderUnsupportedStage } from "../renderers";
 import type { ArenaStageRenderContext } from "../renderers/types";
 
 export function ArenaStageRenderer(props: ArenaStageRenderContext) {
-  const renderer =
+  const Renderer =
     getArenaStagePlugin(props.stage.component)?.Renderer || renderUnsupportedStage;
 
-  return renderer(props);
+  return <Renderer key={`${props.stage.component}-${props.stage.stageId}`} {...props} />;
 }

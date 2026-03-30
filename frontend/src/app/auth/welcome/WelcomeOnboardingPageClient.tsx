@@ -40,6 +40,11 @@ const STEPS: Step[] = [
     mascotMsg: "We’ll tune the difficulty and pacing to fit your background.",
   },
   {
+    key: "language",
+    title: "What language do you prefer?",
+    mascotMsg: "We’ll use this as the default language when AI generates lessons and course content.",
+  },
+  {
     key: "goal",
     title: "Set your daily goal",
     mascotMsg: "How much time can you realistically spare each day?",
@@ -62,6 +67,15 @@ const GOALS = [
   { id: "intense", label: "30 min / day", desc: "Intense" },
 ];
 
+const PREFERRED_LANGUAGES = [
+  "English",
+  "繁體中文",
+  "简体中文",
+  "日本語",
+  "한국어",
+  "Español",
+];
+
 const slideVariants = {
   enter: (dir: number) => ({ x: dir > 0 ? 300 : -300, opacity: 0, scale: 0.95 }),
   center: { x: 0, opacity: 1, scale: 1 },
@@ -78,6 +92,7 @@ export default function WelcomeOnboardingPageClient() {
   const [name, setName] = useState("");
   const [jobTitle, setJobTitle] = useState("");
   const [educationLevel, setEducationLevel] = useState("");
+  const [preferredLanguage, setPreferredLanguage] = useState("");
   const [selectedGoal, setSelectedGoal] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -99,6 +114,7 @@ export default function WelcomeOnboardingPageClient() {
     setName(authUser.full_name ?? "");
     setJobTitle(authUser.job_title ?? "");
     setEducationLevel(authUser.education_level ?? "");
+    setPreferredLanguage(authUser.preferred_language ?? "");
     setSelectedGoal(goalMinutesToPreset(authUser.daily_learning_goal_minutes));
   }, [authUser]);
 
@@ -106,9 +122,10 @@ export default function WelcomeOnboardingPageClient() {
     if (step === 0) return name.trim().length > 0;
     if (step === 1) return jobTitle.trim().length > 0;
     if (step === 2) return educationLevel.trim().length > 0;
-    if (step === 3) return selectedGoal !== "";
+    if (step === 3) return preferredLanguage.trim().length > 0;
+    if (step === 4) return selectedGoal !== "";
     return false;
-  }, [step, name, jobTitle, educationLevel, selectedGoal]);
+  }, [step, name, jobTitle, educationLevel, preferredLanguage, selectedGoal]);
 
   const handleNext = async () => {
     setError("");
@@ -128,6 +145,7 @@ export default function WelcomeOnboardingPageClient() {
             full_name: name.trim(),
             job_title: jobTitle.trim(),
             education_level: educationLevel.trim(),
+            preferred_language: preferredLanguage.trim(),
             daily_learning_goal_minutes: presetToGoalMinutes(selectedGoal),
           }),
         });
@@ -231,6 +249,30 @@ export default function WelcomeOnboardingPageClient() {
                   )}
 
                   {step === 3 && (
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      {PREFERRED_LANGUAGES.map((language) => {
+                        const selected = preferredLanguage === language;
+                        return (
+                          <button
+                            key={language}
+                            type="button"
+                            onClick={() => setPreferredLanguage(language)}
+                            className={`rounded-2xl border px-5 py-5 text-left transition ${
+                              selected
+                                ? "border-brand-teal bg-brand-teal/10"
+                                : "border-white/50 bg-white/70 hover:border-brand-teal/40"
+                            }`}
+                          >
+                            <div className="font-semibold text-brand-gray-700">
+                              {language}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {step === 4 && (
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       {GOALS.map((goal) => {
                         const selected = selectedGoal === goal.id;

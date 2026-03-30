@@ -11,6 +11,7 @@ class SyllabusState(TypedDict):
     user_feedback: Optional[str]
     user_id: Optional[int]
     course_folder: Optional[str]
+    learner_profile_summary: Optional[str]
     architect_service: AIArchitectService  # Inject service into state
     history: List[Dict[str, str]]
     final_output: Optional[CoursePath]
@@ -35,6 +36,7 @@ async def refine_step(state: SyllabusState):
         user_feedback=state["user_feedback"],
         user_id=state.get("user_id"),
         course_folder=state.get("course_folder"),
+        learner_profile_summary=state.get("learner_profile_summary") or "",
     )
 
     if new_syllabus:

@@ -65,7 +65,7 @@ export function MatchingPairsStageRenderer({
   return (
     <>
       <MatchingPairsQuestion
-        key={`backend-match-${lesson.stageIdx}`}
+        key={`backend-match-${stage.stageId}`}
         stageIndex={lesson.stageIdx}
         totalStages={lesson.totalStages}
         stageLabel={lesson.stageLabel}

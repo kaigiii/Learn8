@@ -178,6 +178,7 @@ async def run_remedial_generation_job(
     course_id: int | None,
     failed_stages: list[dict],
     session_id: int | None = None,
+    learner_profile_summary: str = "",
 ):
     """
     在背景獨立執行補救課程生成的 Worker。
@@ -208,6 +209,7 @@ async def run_remedial_generation_job(
         remedial_stages = await architect_service.generate_remedial_stages(
             failed_records,
             topic=topic or "General Concept",
+            learner_profile_summary=learner_profile_summary,
         )
 
         if _is_cancelled(db, job_id):
