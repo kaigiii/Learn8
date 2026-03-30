@@ -108,7 +108,7 @@ export function useCourseMapData({
         hasGeneratedLesson: node.hasGeneratedLesson,
         unitTitle: node.unitTitle,
         x: X_PATTERN[index % X_PATTERN.length],
-        y: (count - 1 - index) * spacing + 60,
+        y: index * spacing + 60,
       }));
     };
 

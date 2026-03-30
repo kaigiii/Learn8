@@ -20,6 +20,7 @@ class UserModel(Base):
     avatar_url = Column(String, nullable=True)
     job_title = Column(String, nullable=True)  # 例如 "Full Stack Developer"
     education_level = Column(String, nullable=True)  # 例如 "Bachelor's Degree"
+    preferred_language = Column(String, nullable=True)
     daily_learning_goal_minutes = Column(Integer, default=30)
     failed_login_attempts = Column(Integer, default=0, nullable=False)
     locked_until = Column(DateTime(timezone=True), nullable=True)

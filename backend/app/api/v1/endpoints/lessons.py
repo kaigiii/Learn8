@@ -53,6 +53,7 @@ from app.schemas.lesson_schema import (
 )
 from app.services.ai_agents.course_architect import AIArchitectService, get_architect_service
 from app.services.commons.user_credits import has_sufficient_credits
+from app.services.commons.profile_context import build_generation_profile_context
 from app.services.commons.user_economy import (
     award_lesson_completion_xp,
 )
@@ -356,10 +357,16 @@ def _format_elapsed_label(elapsed_seconds: int) -> str:
 
 
 def _resolve_course_folder_and_profile(
-    db: Session, course_id: int | None, current_user_id: int
+    db: Session,
+    course_id: int | None,
+    current_user_id: int,
+    preferred_language: str | None = None,
 ) -> tuple[str | None, str]:
     if not course_id:
-        return None, ""
+        return (
+            None,
+            build_generation_profile_context(None, preferred_language, "General Learner"),
+        )
 
     course = (
         db.query(CourseModel)
@@ -367,12 +374,15 @@ def _resolve_course_folder_and_profile(
         .first()
     )
     if not course:
-        return None, ""
+        return (
+            None,
+            build_generation_profile_context(None, preferred_language, "General Learner"),
+        )
 
-    return course.folder_name, (
-        course.profile_json.get("summary", "")
-        if isinstance(course.profile_json, dict)
-        else ""
+    return course.folder_name, build_generation_profile_context(
+        course.profile_json.get("summary") if isinstance(course.profile_json, dict) else None,
+        preferred_language,
+        "General Learner",
     )
 
 
@@ -589,6 +599,67 @@ def _apply_course_node_completion(
     db.refresh(course_record)
 
 
+def _normalize_component_list(items: list[str] | None) -> list[str]:
+    seen: set[str] = set()
+    normalized: list[str] = []
+    for item in items or []:
+        name = str(item).strip()
+        if not name or name in seen:
+            continue
+        seen.add(name)
+        normalized.append(name)
+    return normalized
+
+
+def _resolve_effective_allowed_components(
+    db: Session,
+    user_id: int,
+    course_id: int | None,
+    node_id: str,
+    all_component_names: list[str],
+) -> list[str]:
+    if course_id is None:
+        return list(all_component_names)
+
+    course_preference = (
+        db.query(LessonGenerationPreferenceModel)
+        .filter(
+            LessonGenerationPreferenceModel.user_id == user_id,
+            LessonGenerationPreferenceModel.course_id == course_id,
+            LessonGenerationPreferenceModel.node_id.is_(None),
+        )
+        .order_by(LessonGenerationPreferenceModel.updated_at.desc())
+        .first()
+    )
+    course_allowed = (
+        _normalize_component_list(course_preference.allowed_components_json)
+        if course_preference
+        else list(all_component_names)
+    )
+
+    node_preference = (
+        db.query(LessonGenerationPreferenceModel)
+        .filter(
+            LessonGenerationPreferenceModel.user_id == user_id,
+            LessonGenerationPreferenceModel.course_id == course_id,
+            LessonGenerationPreferenceModel.node_id == node_id,
+        )
+        .order_by(LessonGenerationPreferenceModel.updated_at.desc())
+        .first()
+    )
+    if not node_preference:
+        return [name for name in course_allowed if name in all_component_names]
+
+    node_allowed = _normalize_component_list(node_preference.allowed_components_json)
+    # Defensively clamp node overrides so stale data cannot re-enable a course-disabled component.
+    course_allowed_set = set(course_allowed)
+    return [
+        name
+        for name in node_allowed
+        if name in all_component_names and name in course_allowed_set
+    ]
+
+
 @router.post("/generate-lesson-from-node")
 async def generate_lesson_from_node_endpoint(
     node: LessonNode,
@@ -620,9 +691,38 @@ async def generate_lesson_from_node_endpoint(
             detail="At least one allowed component must be provided.",
         )
 
+    all_component_names = registry.get_component_names()
+    effective_allowed_components = _resolve_effective_allowed_components(
+        db,
+        current_user.id,
+        course_id,
+        node.id,
+        all_component_names,
+    )
+
+    if not effective_allowed_components:
+        raise HTTPException(
+            status_code=409,
+            detail="No question types are enabled for this lesson.",
+        )
+
+    disallowed_requested_components = [
+        item for item in parsed_allowed_components if item not in effective_allowed_components
+    ]
+    if disallowed_requested_components:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Requested components are not enabled for this course/node: "
+                + ", ".join(disallowed_requested_components)
+            ),
+        )
+
+    resolved_allowed_components = (
+        parsed_allowed_components if parsed_allowed_components else effective_allowed_components
+    )
+
     def _fetch_cached_lesson():
-        if parsed_allowed_components:
-            return None
         query = db.query(LessonModel).filter(
             LessonModel.node_id == node.id,
             LessonModel.course_topic == topic,
@@ -635,6 +735,34 @@ async def generate_lesson_from_node_endpoint(
     cached_lesson = await run_in_threadpool(_fetch_cached_lesson)
 
     if cached_lesson:
+        cached_metadata = (
+            cached_lesson.generation_metadata_json
+            if isinstance(cached_lesson.generation_metadata_json, dict)
+            else {}
+        )
+        cached_allowed_components = _normalize_component_list(
+            cached_metadata.get("allowed_components")
+            if isinstance(cached_metadata, dict)
+            else []
+        )
+        if cached_allowed_components and (
+            set(cached_allowed_components) != set(resolved_allowed_components)
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "This node already has generated lesson content with locked question types. "
+                    "Enter the lesson instead of regenerating it."
+                ),
+            )
+        if not cached_allowed_components and parsed_allowed_components:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "This node already has generated lesson content and cannot be regenerated "
+                    "with a different question-type selection."
+                ),
+            )
         try:
             stages = _coerce_stage_list(cached_lesson.stage_json)
             if stages:
@@ -659,7 +787,11 @@ async def generate_lesson_from_node_endpoint(
         )
 
     course_folder_name = None
-    profile_summary = "General Learner"
+    profile_summary = build_generation_profile_context(
+        None,
+        current_user.preferred_language,
+        "General Learner",
+    )
     if course_id:
 
         def _fetch_course_lesson():
@@ -675,10 +807,13 @@ async def generate_lesson_from_node_endpoint(
         db_course = await run_in_threadpool(_fetch_course_lesson)
         if db_course:
             course_folder_name = db_course.folder_name
-            if db_course.profile_json:
-                profile_summary = db_course.profile_json.get(
-                    "summary", "General Learner"
-                )
+            profile_summary = build_generation_profile_context(
+                db_course.profile_json.get("summary")
+                if isinstance(db_course.profile_json, dict)
+                else None,
+                current_user.preferred_language,
+                "General Learner",
+            )
 
     job_id = str(uuid.uuid4())
     new_job = JobModel(
@@ -693,7 +828,7 @@ async def generate_lesson_from_node_endpoint(
             "course_id": course_id,
             "node_id": node.id,
             "topic": topic,
-            "allowed_components": parsed_allowed_components,
+            "allowed_components": resolved_allowed_components,
         },
     )
     db.add(new_job)
@@ -708,7 +843,7 @@ async def generate_lesson_from_node_endpoint(
         node.model_dump(),
         course_folder_name,
         profile_summary,
-        parsed_allowed_components or None,
+        resolved_allowed_components,
     )
     return {"job_id": job_id, "status": JobStatus.PENDING}
 
@@ -857,7 +992,7 @@ async def respond_to_lesson_question(
         else request.courseId
     )
     course_folder, learner_profile_summary = _resolve_course_folder_and_profile(
-        db, resolved_course_id, current_user.id
+        db, resolved_course_id, current_user.id, current_user.preferred_language
     )
 
     answer = await architect_service.answer_lesson_question(
@@ -1043,6 +1178,29 @@ async def complete_primary_lesson_session(
         db.refresh(session)
         return _build_session_payload(db, session)
 
+    learner_profile_summary = build_generation_profile_context(
+        None,
+        current_user.preferred_language,
+        "General Learner",
+    )
+    if session.course_id:
+        course = (
+            db.query(CourseModel)
+            .filter(
+                CourseModel.id == session.course_id,
+                CourseModel.user_id == current_user.id,
+            )
+            .first()
+        )
+        if course:
+            learner_profile_summary = build_generation_profile_context(
+                course.profile_json.get("summary")
+                if isinstance(course.profile_json, dict)
+                else None,
+                current_user.preferred_language,
+                "General Learner",
+            )
+
     job_id = str(uuid.uuid4())
     job = JobModel(
         id=job_id,
@@ -1057,6 +1215,7 @@ async def complete_primary_lesson_session(
             "course_id": session.course_id,
             "node_id": session.node_id,
             "topic": session.course_topic,
+            "learner_profile_summary": learner_profile_summary,
         },
     )
     db.add(job)
@@ -1072,6 +1231,7 @@ async def complete_primary_lesson_session(
         session.course_id,
         [_serialize_failed_record(record).model_dump() for record in failed_records],
         session.id,
+        learner_profile_summary,
     )
 
     db.refresh(session)
@@ -1145,7 +1305,18 @@ async def generate_remedial_stages_endpoint(
     architect_service: AIArchitectService = Depends(get_architect_service),
 ):
     failed_records = request.failedStages
+    resolved_course_id = request.courseId
     if request.sessionId and not failed_records:
+        session = (
+            db.query(LessonSessionModel)
+            .filter(
+                LessonSessionModel.id == request.sessionId,
+                LessonSessionModel.user_id == current_user.id,
+            )
+            .first()
+        )
+        if session and resolved_course_id is None:
+            resolved_course_id = session.course_id
         persisted_records = (
             db.query(LessonFailedStageModel)
             .filter(
@@ -1164,9 +1335,16 @@ async def generate_remedial_stages_endpoint(
     if not failed_records:
         return []
 
+    _, learner_profile_summary = _resolve_course_folder_and_profile(
+        db,
+        resolved_course_id,
+        current_user.id,
+        current_user.preferred_language,
+    )
     remedial_stages = await architect_service.generate_remedial_stages(
         failed_records,
         topic=request.topic or "General Concept",
+        learner_profile_summary=learner_profile_summary,
     )
     return remedial_stages
 
@@ -1179,7 +1357,18 @@ async def generate_remedial_stages_async_endpoint(
     db: Session = Depends(get_db),
 ):
     failed_records = request.failedStages
+    resolved_course_id = request.courseId
     if request.sessionId and not failed_records:
+        session = (
+            db.query(LessonSessionModel)
+            .filter(
+                LessonSessionModel.id == request.sessionId,
+                LessonSessionModel.user_id == current_user.id,
+            )
+            .first()
+        )
+        if session and resolved_course_id is None:
+            resolved_course_id = session.course_id
         persisted_records = (
             db.query(LessonFailedStageModel)
             .filter(
@@ -1198,6 +1387,13 @@ async def generate_remedial_stages_async_endpoint(
     if not failed_records:
         return {"status": JobStatus.COMPLETED, "result_data": {"stages": []}}
 
+    _, learner_profile_summary = _resolve_course_folder_and_profile(
+        db,
+        resolved_course_id,
+        current_user.id,
+        current_user.preferred_language,
+    )
+
     job_id = str(uuid.uuid4())
     new_job = JobModel(
         id=job_id,
@@ -1209,9 +1405,10 @@ async def generate_remedial_stages_async_endpoint(
         message="Waiting for remedial generation...",
         result_data={
             "session_id": request.sessionId,
-            "course_id": request.courseId,
+            "course_id": resolved_course_id,
             "node_id": request.nodeId,
             "topic": request.topic,
+            "learner_profile_summary": learner_profile_summary,
         },
     )
     db.add(new_job)
@@ -1223,8 +1420,9 @@ async def generate_remedial_stages_async_endpoint(
         current_user.id,
         request.topic,
         request.nodeId,
-        request.courseId,
+        resolved_course_id,
         [record.model_dump() for record in failed_records],
         request.sessionId,
+        learner_profile_summary,
     )
     return {"job_id": job_id, "status": JobStatus.PENDING}

@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentType } from "react";
 import type {
   LessonStage,
   LessonStageComponent,
@@ -29,7 +30,7 @@ export interface ArenaStageRenderContext {
   actions: ArenaStageActionHandlers;
 }
 
-export type StageRenderer = (props: ArenaStageRenderContext) => JSX.Element;
+export type StageRenderer = ComponentType<ArenaStageRenderContext>;
 
 export interface ArenaStagePluginCapabilities {
   supportsHint: boolean;

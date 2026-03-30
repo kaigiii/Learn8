@@ -37,6 +37,7 @@ from app.services.commons.course_lifecycle import (
     mark_questionnaire_started,
     mark_syllabus_started,
 )
+from app.services.commons.profile_context import build_generation_profile_context
 import logging
 
 logger = logging.getLogger(__name__)
@@ -402,7 +403,11 @@ async def retry_job(
             raise HTTPException(status_code=400, detail="Syllabus retry is missing course_id.")
 
         course_folder_name = None
-        profile_summary = None
+        profile_summary = build_generation_profile_context(
+            None,
+            current_user.preferred_language,
+            "General Audience",
+        )
         full_text_context = ""
         files = []
         course = (
@@ -415,7 +420,11 @@ async def retry_job(
         ensure_course_can_generate_syllabus(course, regenerate=bool(course.syllabus_json))
         course_folder_name = course.folder_name
         if course.profile_json:
-            profile_summary = course.profile_json.get("summary", "General Audience")
+            profile_summary = build_generation_profile_context(
+                course.profile_json.get("summary", "General Audience"),
+                current_user.preferred_language,
+                "General Audience",
+            )
         files = (
             file_service.list_files(current_user.id, course_folder_name)
             if course_folder_name
@@ -448,11 +457,16 @@ async def retry_job(
         topic = metadata.get("topic")
         node_id = metadata.get("node_id")
         course_id = metadata.get("course_id")
+        allowed_components = metadata.get("allowed_components")
         if not topic or not node_id:
             raise HTTPException(status_code=400, detail="Lesson retry metadata is incomplete.")
 
         course_folder_name = None
-        profile_summary = "General Learner"
+        profile_summary = build_generation_profile_context(
+            None,
+            current_user.preferred_language,
+            "General Learner",
+        )
         course = None
         if course_id:
             course = (
@@ -464,7 +478,11 @@ async def retry_job(
             raise HTTPException(status_code=404, detail="Course not found for lesson retry.")
         course_folder_name = course.folder_name
         if course.profile_json:
-            profile_summary = course.profile_json.get("summary", "General Learner")
+            profile_summary = build_generation_profile_context(
+                course.profile_json.get("summary", "General Learner"),
+                current_user.preferred_language,
+                "General Learner",
+            )
 
         node_payload = None
         for unit in course.syllabus_json.get("units", []):
@@ -493,9 +511,11 @@ async def retry_job(
             lesson_node.model_dump(),
             course_folder_name,
             profile_summary,
+            list(allowed_components) if isinstance(allowed_components, list) else None,
         )
     elif job.job_type == JobType.REMEDIAL_GENERATION:
         session_id = metadata.get("session_id")
+        learner_profile_summary = metadata.get("learner_profile_summary")
         if not session_id:
             raise HTTPException(status_code=400, detail="Remedial retry metadata is incomplete.")
         session = (
@@ -542,6 +562,7 @@ async def retry_job(
             session.course_id,
             failed_stages,
             session.id,
+            str(learner_profile_summary or ""),
         )
     else:
         raise HTTPException(status_code=400, detail="This job type is not retryable.")

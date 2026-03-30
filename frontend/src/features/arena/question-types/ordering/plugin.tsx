@@ -23,7 +23,7 @@ export function OrderingStageRenderer({
 }: ArenaStageRenderContext) {
   return (
     <OrderingQuestion
-      key={`backend-order-${lesson.stageIdx}`}
+      key={`backend-order-${stage.stageId}`}
       stage={stage}
       stageIndex={lesson.stageIdx}
       totalStages={lesson.totalStages}

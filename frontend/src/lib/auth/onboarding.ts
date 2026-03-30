@@ -5,6 +5,7 @@ import type { UserProfile } from "@/lib/apiTypes";
 export const ONBOARDING_REQUIRED_FIELDS = [
   "full_name",
   "education_level",
+  "preferred_language",
   "daily_learning_goal_minutes",
 ] as const;
 
@@ -13,6 +14,7 @@ export function isProfileOnboardingComplete(profile: UserProfile | null | undefi
   return Boolean(
     profile.full_name?.trim() &&
       profile.education_level?.trim() &&
+      profile.preferred_language?.trim() &&
       typeof profile.daily_learning_goal_minutes === "number" &&
       profile.daily_learning_goal_minutes > 0
   );

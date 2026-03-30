@@ -20,6 +20,7 @@ class UserUpdate(BaseModel):
     phone_number: Optional[str] = Field(default=None, max_length=40)
     job_title: Optional[str] = Field(default=None, max_length=120)
     education_level: Optional[str] = Field(default=None, max_length=120)
+    preferred_language: Optional[str] = Field(default=None, max_length=80)
     daily_learning_goal_minutes: Optional[int] = None
     # email/password 的更新可於日後視需求加入
 
@@ -56,6 +57,7 @@ class UserResponse(BaseModel):
     avatar_url: Optional[str] = None
     job_title: Optional[str] = None
     education_level: Optional[str] = None
+    preferred_language: Optional[str] = None
     daily_learning_goal_minutes: int = 30
 
 

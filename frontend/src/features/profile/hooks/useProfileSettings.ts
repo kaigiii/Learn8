@@ -32,6 +32,7 @@ export function useProfileSettings(onClose: () => void) {
     full_name: "",
     job_title: "",
     education_level: "",
+    preferred_language: "",
     daily_learning_goal_minutes: "",
   });
   const [saving, setSaving] = useState(false);
@@ -45,6 +46,7 @@ export function useProfileSettings(onClose: () => void) {
       full_name: authUser?.full_name || name,
       job_title: authUser?.job_title || "",
       education_level: authUser?.education_level || "",
+      preferred_language: authUser?.preferred_language || "",
       daily_learning_goal_minutes: authUser?.daily_learning_goal_minutes
         ? String(authUser.daily_learning_goal_minutes)
         : "",
@@ -96,6 +98,7 @@ export function useProfileSettings(onClose: () => void) {
           full_name: form.full_name.trim() || null,
           job_title: form.job_title.trim() || null,
           education_level: form.education_level.trim() || null,
+          preferred_language: form.preferred_language.trim() || null,
           daily_learning_goal_minutes: form.daily_learning_goal_minutes
             ? Number(form.daily_learning_goal_minutes)
             : null,

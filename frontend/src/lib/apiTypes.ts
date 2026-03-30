@@ -24,6 +24,7 @@ export interface UserProfile {
   avatar_url?: string | null;
   job_title?: string | null;
   education_level?: string | null;
+  preferred_language?: string | null;
   daily_learning_goal_minutes?: number;
 }
 

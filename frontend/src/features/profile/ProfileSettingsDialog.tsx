@@ -107,6 +107,10 @@ export default function ProfileSettingsDialog({ onClose }: ProfileSettingsDialog
                   label="Education"
                   value={authUser?.education_level || "Not set"}
                 />
+                <ProfileStatBox
+                  label="Language"
+                  value={authUser?.preferred_language || "Not set"}
+                />
               </div>
             </div>
 
@@ -151,6 +155,22 @@ export default function ProfileSettingsDialog({ onClose }: ProfileSettingsDialog
                         education_level: e.target.value,
                       }))
                     }
+                    className="mt-1 w-full rounded-xl border border-brand-gray-200 bg-white/70 px-3 py-2 text-sm text-brand-gray-700 outline-none focus:border-brand-teal"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-sm text-brand-gray-600">Preferred Language</span>
+                  <input
+                    type="text"
+                    value={form.preferred_language}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        preferred_language: e.target.value,
+                      }))
+                    }
+                    placeholder="English, 繁體中文, 日本語..."
                     className="mt-1 w-full rounded-xl border border-brand-gray-200 bg-white/70 px-3 py-2 text-sm text-brand-gray-700 outline-none focus:border-brand-teal"
                   />
                 </label>

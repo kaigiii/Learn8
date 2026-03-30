@@ -104,27 +104,32 @@ export function useLessonSessionFlow({
           }
           setLessonSession(session);
           onRemedialStagesReady();
+          isFinalizingRef.current = false;
           setPhaseTransitionLoading(false);
         },
         onFailed: (data) => {
+          isFinalizingRef.current = false;
           setPhaseTransitionLoading(false);
           setPhaseTransitionError(
             data.message || "Remedial generation stopped before it finished."
           );
         },
         onCancelled: (data) => {
+          isFinalizingRef.current = false;
           setPhaseTransitionLoading(false);
           setPhaseTransitionError(
             data.message || "Remedial generation was cancelled."
           );
         },
         onStale: (data) => {
+          isFinalizingRef.current = false;
           setPhaseTransitionLoading(false);
           setPhaseTransitionError(
             data.message || "Remedial generation stalled. Retry to continue."
           );
         },
         onError: () => {
+          isFinalizingRef.current = false;
           setPhaseTransitionLoading(false);
           setPhaseTransitionError(
             "Lost connection while generating remedial lesson. Retry after the backend is back."
@@ -305,6 +310,7 @@ export function useLessonSessionFlow({
           session.status === LESSON_SESSION_STATUS.REMEDIAL_GENERATING &&
           session.remedialJobId
         ) {
+          isFinalizingRef.current = false;
           if (!phaseTransitionVisible) {
             setPhaseTransitionLoading(true);
             setPhaseTransitionMessage("Generating your targeted remedial lesson...");

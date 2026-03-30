@@ -21,6 +21,7 @@ from app.services.commons.course_lifecycle import (
     mark_syllabus_started,
 )
 from app.services.commons.user_credits import has_sufficient_credits
+from app.services.commons.profile_context import build_generation_profile_context
 
 router = APIRouter()
 
@@ -77,6 +78,11 @@ async def generate_syllabus(
     profile_summary = None
     if course.profile_json:
         profile_summary = course.profile_json.get("summary", "General Audience")
+    profile_summary = build_generation_profile_context(
+        profile_summary,
+        current_user.preferred_language,
+        "General Audience",
+    )
 
     # 準備檔案上下文
     full_text_context = ""
@@ -147,6 +153,11 @@ async def refine_syllabus_endpoint(
 ):
     course_folder_name = None
     course = None
+    learner_profile_summary = build_generation_profile_context(
+        None,
+        current_user.preferred_language,
+        "General Audience",
+    )
     if request.courseId:
         def _fetch_refine_course():
             return (
@@ -161,6 +172,13 @@ async def refine_syllabus_endpoint(
         course = await run_in_threadpool(_fetch_refine_course)
         if course:
             course_folder_name = course.folder_name
+            learner_profile_summary = build_generation_profile_context(
+                course.profile_json.get("summary")
+                if isinstance(course.profile_json, dict)
+                else None,
+                current_user.preferred_language,
+                "General Audience",
+            )
 
     result = await syllabus_graph.ainvoke(
         {
@@ -170,6 +188,7 @@ async def refine_syllabus_endpoint(
             "history": request.history,
             "user_id": current_user.id,
             "course_folder": course_folder_name,
+            "learner_profile_summary": learner_profile_summary,
             "architect_service": architect_service,
         }
     )
