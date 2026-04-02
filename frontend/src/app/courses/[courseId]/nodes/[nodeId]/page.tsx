@@ -1,9 +1,9 @@
-import LessonArenaPageClient from "@/features/arena/LessonArenaPageClient";
+import LessonSessionPageClient from "@/features/lesson-session/LessonSessionPageClient";
 
 export default function CourseNodePage({
   params,
 }: {
   params: { courseId: string; nodeId: string };
 }) {
-  return <LessonArenaPageClient courseId={params.courseId} nodeId={params.nodeId} />;
+  return <LessonSessionPageClient courseId={params.courseId} nodeId={params.nodeId} />;
 }

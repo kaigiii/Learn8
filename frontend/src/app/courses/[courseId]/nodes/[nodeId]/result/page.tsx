@@ -1,4 +1,4 @@
-import LessonResultPageClient from "@/features/arena/LessonResultPageClient";
+import LessonResultPageClient from "@/features/lesson-session/LessonResultPageClient";
 
 export default function CourseNodeResultPage({
   params,

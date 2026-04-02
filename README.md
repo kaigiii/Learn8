@@ -166,13 +166,6 @@ npm install
 npm run dev
 ```
 
-若要啟動 duo socket server：
-
-```bash
-cd frontend
-npm run dev:server
-```
-
 前端預設 API：
 
 ```text
@@ -207,7 +200,7 @@ NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
 
 ### 目前保留在 `features/` 的模組
 
-- `src/features/arena/`: lesson player / stage renderer / remedial flow
+- `src/features/lesson-session/`: lesson player / stage renderer / remedial flow
 - `src/features/profile/`: shared profile settings dialog
 - `src/features/questionnaire/`: questionnaire flow hooks
 
@@ -237,9 +230,9 @@ NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
 
 ### 一張圖理解題型對齊
 
-- 前端題型 registry：`frontend/src/features/arena/question-types/**`
-- 前端 plugin 註冊中心：`frontend/src/features/arena/renderers/index.ts`
-- 前端型別契約：`frontend/src/features/arena/renderers/types.ts`
+- 前端題型 registry：`frontend/src/features/lesson-session/question-types/**`
+- 前端 plugin 註冊中心：`frontend/src/features/lesson-session/renderers/index.ts`
+- 前端型別契約：`frontend/src/features/lesson-session/renderers/types.ts`
 - 後端 component 定義來源：`backend/game_modules/*.yaml`
 - 後端 schema 驗證：`backend/app/schemas/lesson_schema.py`
 - 後端 submission evaluator registry：`backend/app/services/lesson_components/evaluators.py`
@@ -250,29 +243,29 @@ NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
 
 新增一個題型時，優先比照現有模組建立：
 
-- `frontend/src/features/arena/question-types/<your-type>/plugin.tsx`
+- `frontend/src/features/lesson-session/question-types/<your-type>/plugin.tsx`
 
 建議內容包含：
 
 1. `Parsed<YourType>StageData`
 2. `parse<YourType>Stage(stage)`
 3. `<YourType>StageRenderer`
-4. `createArenaStagePlugin(...)`
+4. `createLessonStagePlugin(...)`
 
 最小範例結構：
 
 ```tsx
 "use client";
 
-import { createArenaStagePlugin } from "../../renderers/types";
-import type { ArenaStageRenderContext } from "../../renderers/types";
+import { createLessonStagePlugin } from "../../renderers/types";
+import type { LessonStageRenderContext } from "../../renderers/types";
 
 export interface ParsedExampleStageData {
   prompt: string;
 }
 
 export function parseExampleStage(
-  stage: ArenaStageRenderContext["stage"]
+  stage: LessonStageRenderContext["stage"]
 ): ParsedExampleStageData {
   return {
     prompt: String((stage.config.data as { prompt?: string }).prompt || stage.topic),
@@ -283,7 +276,7 @@ export function ExampleStageRenderer({
   stage,
   lesson,
   actions,
-}: ArenaStageRenderContext) {
+}: LessonStageRenderContext) {
   const parsedStage = parseExampleStage(stage);
 
   return (
@@ -293,7 +286,7 @@ export function ExampleStageRenderer({
   );
 }
 
-export const examplePlugin = createArenaStagePlugin(
+export const examplePlugin = createLessonStagePlugin(
   "ExampleComponent",
   ExampleStageRenderer,
   {
@@ -308,7 +301,7 @@ export const examplePlugin = createArenaStagePlugin(
 );
 ```
 
-接著在 `frontend/src/features/arena/renderers/index.ts` 註冊：
+接著在 `frontend/src/features/lesson-session/renderers/index.ts` 註冊：
 
 - 匯入新 plugin
 - 加進 `stagePlugins`

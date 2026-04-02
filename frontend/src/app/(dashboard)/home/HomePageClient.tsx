@@ -14,7 +14,7 @@ import { HomeActiveJobBanner } from "./components/HomeActiveJobBanner";
 import { HomeBackground } from "./components/HomeBackground";
 import { HomeCourseModal } from "./components/HomeCourseModal";
 import { HomeCoursePanel } from "./components/HomeCoursePanel";
-import { HomeDuoPanel } from "./components/HomeDuoPanel";
+import { HomeArenaPanel } from "./components/HomeArenaPanel";
 import { HomeForgePanel } from "./components/HomeForgePanel";
 import { HomeLibrarySection, type HomeLibraryItem } from "./components/HomeLibrarySection";
 import { useActiveJobResume } from "./hooks/useActiveJobResume";
@@ -267,7 +267,7 @@ export default function HomePage() {
             onRemoveCourseFile={(file) => handleRemoveCourseFile(file)}
           />
 
-          <HomeDuoPanel />
+          <HomeArenaPanel />
         </div>
 
         <HomeLibrarySection
