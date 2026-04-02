@@ -11,12 +11,12 @@
   display: none;             /* Chrome/Safari/Opera */
 }
 
-/* ── Hidden scrollbar for arena game areas (scroll still works) ── */
-.arena-scroll {
+/* ── Hidden scrollbar for lesson session areas (scroll still works) ── */
+.lesson-session-scroll {
   -ms-overflow-style: none;  /* IE/Edge */
   scrollbar-width: none;     /* Firefox */
 }
-.arena-scroll::-webkit-scrollbar {
+.lesson-session-scroll::-webkit-scrollbar {
   display: none;             /* Chrome/Safari/Opera */
 }
 
