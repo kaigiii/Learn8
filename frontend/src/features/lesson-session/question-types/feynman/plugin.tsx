@@ -37,6 +37,8 @@ export function FeynmanStageRenderer({
       totalStages={lesson.totalStages}
       stageLabel={lesson.stageLabel}
       topic={stage.topic}
+      difficulty={stage.difficulty}
+      recommendedDurationMinutes={stage.recommendedDurationMinutes}
       description={lesson.nodeDescription}
       prompt={parsedStage.prompt}
       sampleAnswer={parsedStage.sampleAnswer}

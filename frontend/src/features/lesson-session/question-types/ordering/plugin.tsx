@@ -29,6 +29,8 @@ export function OrderingStageRenderer({
       totalStages={lesson.totalStages}
       stageLabel={lesson.stageLabel}
       topic={stage.topic}
+      difficulty={stage.difficulty}
+      recommendedDurationMinutes={stage.recommendedDurationMinutes}
       onSubmit={(input) => actions.submitStage(stage, { order: input })}
       onContinue={actions.continueStage}
       onSkip={() => void actions.skipStage(stage)}

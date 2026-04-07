@@ -38,6 +38,8 @@ export default function MatchingPairsQuestion({
   totalStages,
   stageLabel,
   topic,
+  difficulty,
+  recommendedDurationMinutes,
   question,
   pairs,
   shuffledRightIds,
@@ -64,6 +66,8 @@ export default function MatchingPairsQuestion({
           totalStages={totalStages}
           stageLabel={stageLabel}
           topic={question || topic}
+          difficulty={difficulty}
+          recommendedDurationMinutes={recommendedDurationMinutes}
           accentClassName="bg-gradient-to-br from-brand-teal to-[#5fb3af] shadow-teal-300/30"
           accentTextClassName="text-brand-teal"
         />

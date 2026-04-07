@@ -63,6 +63,16 @@ You must output a VALID JSON object matching this schema:
   ]
 }}
 
+### STAGE METADATA REQUIREMENTS
+Every LessonStage MUST include:
+- `difficulty`: one of `"low"`, `"medium"`, or `"high"`
+- `recommendedDurationMinutes`: an integer number of minutes, usually between 3 and 20
+
+Choose values that realistically match the cognitive load of the stage.
+- `low`: quick recall, simple recognition, straightforward explanation
+- `medium`: multi-step thinking, moderate application, some comparison
+- `high`: deeper reasoning, transfer, synthesis, or more effortful explanation
+
 ### PEDAGOGY RULES (MULTI-STAGE)
 Design an optimal **Learning Sequence** for this node.
 Decide how many stages are needed based on the complexity of the topic.
@@ -161,6 +171,13 @@ Output a JSON object in this exact shape:
     { ... LessonStage object ... }
   ]
 }
+
+### STAGE METADATA REQUIREMENTS
+Every LessonStage MUST include:
+- `difficulty`: one of `"low"`, `"medium"`, or `"high"`
+- `recommendedDurationMinutes`: an integer number of minutes, usually between 2 and 12
+
+Remedial stages should usually skew easier and shorter than the original failed content.
 """.replace("VAR_REMEDIAL_COMPONENTS", REMEDIAL_COMPONENT_BULLETS).replace(
     "VAR_REMEDIAL_COMPONENT_SCHEMA", REMEDIAL_COMP_SCHEMA
 )
@@ -212,6 +229,13 @@ Output a JSON object in this exact shape:
     { ... LessonStage object ... }
   ]
 }
+
+### STAGE METADATA REQUIREMENTS
+Every LessonStage MUST include:
+- `difficulty`: one of `"low"`, `"medium"`, or `"high"`
+- `recommendedDurationMinutes`: an integer number of minutes, usually between 2 and 12
+
+Remedial stages should usually skew easier and shorter than the original failed content.
 """
         .replace("VAR_PROFILE", profile_block)
         .replace("VAR_REMEDIAL_COMPONENTS", REMEDIAL_COMPONENT_BULLETS)

@@ -37,6 +37,8 @@ export function MultipleChoiceStageRenderer({
       totalStages={lesson.totalStages}
       stageLabel={lesson.stageLabel}
       topic={stage.topic}
+      difficulty={stage.difficulty}
+      recommendedDurationMinutes={stage.recommendedDurationMinutes}
       description={lesson.nodeDescription}
       question={parsedStage.question}
       options={parsedStage.options}

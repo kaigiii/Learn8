@@ -54,6 +54,8 @@ export default function MultipleChoiceQuestion({
   totalStages,
   stageLabel,
   topic,
+  difficulty,
+  recommendedDurationMinutes,
   question,
   options,
   correctId,
@@ -100,6 +102,8 @@ export default function MultipleChoiceQuestion({
           totalStages={totalStages}
           stageLabel={stageLabel}
           topic={topic}
+          difficulty={difficulty}
+          recommendedDurationMinutes={recommendedDurationMinutes}
           accentClassName="bg-gradient-to-br from-brand-teal to-[#5fb3af] shadow-teal-300/30"
           accentTextClassName="text-brand-teal"
         />

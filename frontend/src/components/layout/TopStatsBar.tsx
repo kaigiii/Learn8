@@ -9,6 +9,7 @@ import useUserStore, { selectAvailableCredits } from "@/stores/app/useUserStore"
 interface TopStatsBarProps {
   backHref?: string;
   pageTitle?: string;
+  showBackLogo?: boolean;
   navLinks?: Array<{
     href: string;
     label: string;
@@ -24,6 +25,7 @@ interface TopStatsBarProps {
 export default function TopStatsBar({
   backHref,
   pageTitle,
+  showBackLogo = true,
   navLinks = [],
   quickLinks = [],
 }: TopStatsBarProps = {}) {
@@ -56,7 +58,7 @@ export default function TopStatsBar({
                   <path d="M15 18l-6-6 6-6" />
                 </svg>
               </Link>
-              <OwlLogoSmall />
+              {showBackLogo ? <OwlLogoSmall /> : null}
               <span className="font-heading text-xl font-extrabold text-brand-gray-700">
                 {pageTitle}
               </span>
