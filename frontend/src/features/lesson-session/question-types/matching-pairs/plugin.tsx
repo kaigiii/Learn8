@@ -70,6 +70,8 @@ export function MatchingPairsStageRenderer({
         totalStages={lesson.totalStages}
         stageLabel={lesson.stageLabel}
         topic={stage.topic}
+        difficulty={stage.difficulty}
+        recommendedDurationMinutes={stage.recommendedDurationMinutes}
         question={question}
         pairs={pairs}
         shuffledRightIds={matchingStage.shuffledRightIds}

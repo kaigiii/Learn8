@@ -23,6 +23,12 @@ class ValidationType(str, Enum):
     Logic = "logic"
 
 
+class LessonDifficulty(str, Enum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+
+
 def parse_data_field(v: Any) -> Any:
     # 輔助函式：處理 LLM 回傳的字串化 JSON
     if v is None:
@@ -73,6 +79,8 @@ class LessonStage(BaseModel):
     module: ModuleType
     skin: SkinType
     component: str  # 接受任意字串，透過 registry 驗證
+    difficulty: Optional[LessonDifficulty] = None
+    recommendedDurationMinutes: Optional[int] = None
     validation: Validation
     feedback: Feedback
     config: GenericConfig
@@ -85,6 +93,40 @@ class LessonStage(BaseModel):
         if v not in registry.get_component_names():
             raise ValueError(f"Unsupported component: {v}")
         return v
+
+    @field_validator("difficulty", mode="before")
+    @classmethod
+    def validate_difficulty(cls, value: Any) -> Any:
+        if value is None:
+            return None
+        if isinstance(value, LessonDifficulty):
+            return value
+        normalized = str(value).strip().lower()
+        mapping = {
+            "low": LessonDifficulty.LOW,
+            "medium": LessonDifficulty.MEDIUM,
+            "mid": LessonDifficulty.MEDIUM,
+            "high": LessonDifficulty.HIGH,
+            "低": LessonDifficulty.LOW,
+            "中": LessonDifficulty.MEDIUM,
+            "高": LessonDifficulty.HIGH,
+        }
+        return mapping.get(normalized, value)
+
+    @field_validator("recommendedDurationMinutes", mode="before")
+    @classmethod
+    def validate_recommended_duration_minutes(cls, value: Any) -> Any:
+        if value is None or value == "":
+            return None
+        if isinstance(value, bool):
+            return None
+        if isinstance(value, (int, float)):
+            return max(1, int(value))
+        if isinstance(value, str):
+            digits = "".join(ch for ch in value if ch.isdigit())
+            if digits:
+                return max(1, int(digits))
+        return value
 
     @model_validator(mode="after")
     def validate_component_config(self):

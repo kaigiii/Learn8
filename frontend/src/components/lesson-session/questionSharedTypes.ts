@@ -8,6 +8,8 @@ export interface QuestionStageMeta {
   stageLabel?: string;
   topic: string;
   description?: string;
+  difficulty?: "low" | "medium" | "high" | null;
+  recommendedDurationMinutes?: number | null;
 }
 
 export interface QuestionFeedbackMessages {

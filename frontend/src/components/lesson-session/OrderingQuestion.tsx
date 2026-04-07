@@ -35,6 +35,8 @@ export default function OrderingQuestion({
   stageIndex,
   totalStages,
   stageLabel,
+  difficulty,
+  recommendedDurationMinutes,
   onSubmit,
   onContinue,
   onSkip,
@@ -87,6 +89,8 @@ export default function OrderingQuestion({
           totalStages={totalStages}
           stageLabel={stageLabel}
           topic={stage.topic}
+          difficulty={difficulty}
+          recommendedDurationMinutes={recommendedDurationMinutes}
           accentClassName="bg-gradient-to-br from-brand-teal to-[#5fb3af] shadow-teal-300/30"
           accentTextClassName="text-brand-teal"
         />

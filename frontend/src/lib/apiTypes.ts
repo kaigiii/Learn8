@@ -85,6 +85,8 @@ export interface LessonStage {
   module: "Instruction" | "Practice" | "Assessment" | "Incentive";
   component: "MultipleChoice" | "Ordering" | "MatchingPairs" | "FeynmanMirror";
   skin: "Scientific" | "Classic" | "Code";
+  difficulty?: "low" | "medium" | "high" | null;
+  recommendedDurationMinutes?: number | null;
   config: {
     data: Record<string, unknown>;
     initialState: Record<string, unknown>;

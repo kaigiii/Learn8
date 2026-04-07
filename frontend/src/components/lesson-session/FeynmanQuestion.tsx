@@ -54,6 +54,8 @@ export default function FeynmanQuestion({
   totalStages,
   stageLabel,
   topic,
+  difficulty,
+  recommendedDurationMinutes,
   prompt,
   sampleAnswer,
   feedbackMsg,
@@ -105,6 +107,8 @@ export default function FeynmanQuestion({
           totalStages={totalStages}
           stageLabel={stageLabel}
           topic={topic}
+          difficulty={difficulty}
+          recommendedDurationMinutes={recommendedDurationMinutes}
           accentClassName="bg-gradient-to-br from-purple-500 to-purple-600 shadow-purple-300/30"
           accentTextClassName="text-purple-500"
           subtitle="— Teach Back"

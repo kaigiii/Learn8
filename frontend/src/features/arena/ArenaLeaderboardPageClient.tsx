@@ -1,8 +1,6 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-
 import TopStatsBar from "@/components/layout/TopStatsBar";
 import DeepGlassCard from "@/components/ui/DeepGlassCard";
 import {
@@ -154,10 +152,7 @@ export default function ArenaLeaderboardPageClient() {
       <TopStatsBar
         backHref="/home"
         pageTitle="Arena Leaderboard"
-        navLinks={[
-          { href: "/home", label: "Home" },
-          { href: "/arena/leaderboard", label: "Leaderboard", active: true },
-        ]}
+        showBackLogo={false}
       />
       <main className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-8 md:px-8">
         <DeepGlassCard className="px-6 py-6 md:px-8 md:py-8">
@@ -186,12 +181,6 @@ export default function ArenaLeaderboardPageClient() {
                 label="Global"
                 onClick={() => setTab("global")}
               />
-              <Link
-                href="/home"
-                className="rounded-2xl border border-white/70 bg-white/65 px-4 py-3 text-sm font-semibold text-brand-gray-700 transition hover:bg-white/80"
-              >
-                Back to Home
-              </Link>
             </div>
           </div>
         </DeepGlassCard>

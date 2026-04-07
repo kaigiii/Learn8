@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -8,21 +7,19 @@ import DeepGlassCard from "@/components/ui/DeepGlassCard";
 import GameButton from "@/components/ui/GameButton";
 import {
   createArenaRoom,
-  fetchArenaLeaderboard,
   fetchArenaProfile,
   fetchArenaPublicCourses,
   fetchArenaSeason,
   joinArenaCompetitiveQueue,
   joinArenaRoom,
 } from "@/lib/arena/api";
-import type { ArenaLeaderboardEntry, ArenaProfile, ArenaPublicCourse, ArenaSeasonSummary } from "@/lib/apiTypes";
+import type { ArenaProfile, ArenaPublicCourse, ArenaSeasonSummary } from "@/lib/apiTypes";
 
 export function HomeArenaPanel() {
   const router = useRouter();
   const [courses, setCourses] = useState<ArenaPublicCourse[]>([]);
   const [season, setSeason] = useState<ArenaSeasonSummary | null>(null);
   const [profile, setProfile] = useState<ArenaProfile | null>(null);
-  const [leaderboard, setLeaderboard] = useState<ArenaLeaderboardEntry[]>([]);
   const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
   const [roomCode, setRoomCode] = useState("");
   const [loading, setLoading] = useState(true);
@@ -34,11 +31,10 @@ export function HomeArenaPanel() {
     setLoading(true);
     void (async () => {
       try {
-        const [nextCourses, nextSeason, nextProfile, nextLeaderboard] = await Promise.all([
+        const [nextCourses, nextSeason, nextProfile] = await Promise.all([
           fetchArenaPublicCourses(),
           fetchArenaSeason(),
           fetchArenaProfile(),
-          fetchArenaLeaderboard(3),
         ]);
         if (cancelled) {
           return;
@@ -46,7 +42,6 @@ export function HomeArenaPanel() {
         setCourses(nextCourses);
         setSeason(nextSeason);
         setProfile(nextProfile);
-        setLeaderboard(nextLeaderboard.items);
         setSelectedCourseId((current) => current ?? nextCourses[0]?.id ?? null);
       } catch (err) {
         if (!cancelled) {
@@ -195,38 +190,6 @@ export function HomeArenaPanel() {
             >
               Join
             </GameButton>
-          </div>
-        </div>
-
-        <div className="mt-4 rounded-2xl border border-[#9ecbd4]/18 bg-white/46 p-4 shadow-[0_12px_30px_rgba(97,163,184,0.10)] backdrop-blur-sm">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-teal">
-              Top Rank Snapshot
-            </p>
-            <Link href="/arena/leaderboard" className="text-xs font-semibold text-brand-teal hover:underline">
-              View leaderboard
-            </Link>
-          </div>
-          <div className="space-y-2">
-            {leaderboard.map((entry, index) => (
-              <div
-                key={entry.userId}
-                className="flex items-center justify-between rounded-xl border border-white/70 bg-white/72 px-3 py-2"
-              >
-                <div>
-                  <p className="text-sm font-semibold text-brand-gray-700">
-                    #{index + 1} {entry.displayName}
-                  </p>
-                  <p className="text-[11px] uppercase tracking-[0.16em] text-brand-teal">
-                    {entry.rankTier}
-                  </p>
-                </div>
-                <p className="font-heading text-lg font-bold text-brand-gray-700">{entry.rating}</p>
-              </div>
-            ))}
-            {leaderboard.length === 0 && !loading ? (
-              <p className="text-xs text-brand-gray-500">Leaderboard data will appear after competition matches are recorded.</p>
-            ) : null}
           </div>
         </div>
 

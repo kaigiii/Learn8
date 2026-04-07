@@ -16,6 +16,8 @@ export function renderUnsupportedStage({
       totalStages={lesson.totalStages}
       stageLabel={lesson.stageLabel}
       topic={stage.topic}
+      difficulty={stage.difficulty}
+      recommendedDurationMinutes={stage.recommendedDurationMinutes}
       description={lesson.nodeDescription}
       prompt={String((stage.config.data as { prompt?: string }).prompt || stage.topic)}
       sampleAnswer={String((stage.config.data as { sampleAnswer?: string }).sampleAnswer || "")}

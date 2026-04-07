@@ -7,6 +7,8 @@ interface QuestionStageHeaderProps {
   totalStages: number;
   stageLabel?: string;
   topic: string;
+  difficulty?: "low" | "medium" | "high" | null;
+  recommendedDurationMinutes?: number | null;
   accentClassName: string;
   accentTextClassName: string;
   subtitle?: string;
@@ -17,10 +19,19 @@ export function QuestionStageHeader({
   totalStages,
   stageLabel = "Stage",
   topic,
+  difficulty,
+  recommendedDurationMinutes,
   accentClassName,
   accentTextClassName,
   subtitle,
 }: QuestionStageHeaderProps) {
+  const difficultyLabel =
+    difficulty === "high" ? "高" : difficulty === "medium" ? "中" : difficulty === "low" ? "低" : null;
+  const durationLabel =
+    typeof recommendedDurationMinutes === "number" && Number.isFinite(recommendedDurationMinutes)
+      ? `${recommendedDurationMinutes} 分鐘`
+      : null;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: -10 }}
@@ -44,6 +55,20 @@ export function QuestionStageHeader({
         <h2 className="font-heading text-lg font-bold leading-snug text-brand-gray-700">
           {topic}
         </h2>
+        {difficultyLabel || durationLabel ? (
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            {difficultyLabel ? (
+              <span className="rounded-full border border-white/80 bg-white/72 px-2.5 py-1 text-[11px] font-bold tracking-[0.14em] text-brand-gray-600">
+                難易度 {difficultyLabel}
+              </span>
+            ) : null}
+            {durationLabel ? (
+              <span className="rounded-full border border-white/80 bg-white/72 px-2.5 py-1 text-[11px] font-bold tracking-[0.08em] text-brand-gray-600">
+                建議 {durationLabel}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </motion.div>
   );
