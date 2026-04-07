@@ -83,20 +83,23 @@ class AIArchitectService:
         topic: str,
         user_id: Optional[int] = None,
         course_folder: Optional[str] = None,
+        course_id: Optional[int] = None,
         profile: str = "General Learner",
         allowed_components: Optional[List[str]] = None,
+        media_catalog: str | None = None,
+        include_full_files: bool = False,
     ) -> List[LessonStage]:
 
         # 1. 取得 RAG 上下文
-        context_chunks = await self.rag_engine.query_context(topic)
+        context_chunks = await self.rag_engine.query_context(topic, course_id=course_id)
         rag_context = (
             "\n\n".join(context_chunks)
             if context_chunks
             else "No specific database context found."
         )
 
-        # 2. 綁定本地專案檔案
-        if user_id:
+        # 2. 綁定本地專案檔案 (僅在需要時開啟，避免 lesson generation 過度膨脹)
+        if include_full_files and user_id:
             files = self.file_service.list_files(user_id, course_folder)
             if files:
                 full_paths = [
@@ -109,7 +112,20 @@ class AIArchitectService:
             (
                 "system",
                 build_node_system_prompt(allowed_components).format(profile=profile)
-                + f"\n\nVector Database Context:\n{rag_context}",
+                + f"\n\nVector Database Context:\n{rag_context}"
+                + (
+                    (
+                        "\n\nUse the media catalog ONLY for `ExplainerMedia` stages. "
+                        "If you want to show an image, you MUST set `mediaType` to `image` "
+                        "and provide `mediaIndex` from the catalog. "
+                        "Do NOT provide mediaUrl or fabricate URLs. "
+                        "Do NOT embed image data."
+                        "\n\n"
+                        + media_catalog
+                    )
+                    if media_catalog
+                    else ""
+                ),
             ),
             (
                 "user",
@@ -243,14 +259,7 @@ class AIArchitectService:
             else "No additional vector context found for this lesson."
         )
 
-        if user_id and course_folder:
-            files = self.file_service.list_files(user_id, course_folder)
-            if files:
-                full_paths = [
-                    self.file_service.get_upload_dir(user_id, course_folder) + "/" + f
-                    for f in files
-                ]
-                self.provider.bind_files(full_paths)
+        # 課中問答只用 RAG，不再綁定全文檔案
 
         stage_summary = current_stage.model_dump() if current_stage else None
         recent_conversation = conversation[-6:] if conversation else []

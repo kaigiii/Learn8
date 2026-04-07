@@ -83,7 +83,7 @@ export interface LessonStage {
   stageId: string;
   topic: string;
   module: "Instruction" | "Practice" | "Assessment" | "Incentive";
-  component: "MultipleChoice" | "Ordering" | "MatchingPairs" | "FeynmanMirror";
+  component: "MultipleChoice" | "Ordering" | "MatchingPairs" | "FeynmanMirror" | "ExplainerMedia";
   skin: "Scientific" | "Classic" | "Code";
   difficulty?: "low" | "medium" | "high" | null;
   recommendedDurationMinutes?: number | null;

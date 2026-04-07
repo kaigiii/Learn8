@@ -87,3 +87,9 @@ class UserModel(Base):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
+    media_assets = relationship(
+        "CourseMediaAssetModel",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )

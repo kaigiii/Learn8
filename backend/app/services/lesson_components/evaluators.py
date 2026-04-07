@@ -172,7 +172,28 @@ async def evaluate_feynman(
     )
 
 
+async def evaluate_explainer_media(
+    stage: LessonStage,
+    user_input: Any,
+    _context_topic: str,
+    _architect_service: Any,
+):
+    normalized_input = (
+        user_input
+        if isinstance(user_input, dict)
+        else {"acknowledged": bool(user_input)}
+    )
+    evaluation = {"acknowledged": True}
+    return (
+        "correct",
+        stage.feedback.success,
+        normalized_input,
+        evaluation,
+    )
+
+
 evaluator_registry.register("MultipleChoice", evaluate_multiple_choice)
 evaluator_registry.register("Ordering", evaluate_ordering)
 evaluator_registry.register("MatchingPairs", evaluate_matching_pairs)
 evaluator_registry.register("FeynmanMirror", evaluate_feynman)
+evaluator_registry.register("ExplainerMedia", evaluate_explainer_media)

@@ -20,6 +20,11 @@ from app.services.commons.lesson_persistence import (
     sync_remedial_stages,
     sync_session_stages,
 )
+from app.services.commons.media_catalog import (
+    build_media_catalog,
+    build_media_index_map,
+    format_media_catalog,
+)
 from app.services.workers.job_notifier import _notify_job_update, _publish_job_notification
 
 logger = logging.getLogger(__name__)
@@ -68,6 +73,7 @@ async def run_lesson_generation_job(
         _notify_job_update(db, job, 30, "🧠 AI 正在為您撰寫個人化講義...")
 
         from app.schemas.course_schema import LessonNode
+        from app.models.course_media_asset import CourseMediaAssetModel
 
         node = LessonNode(**node_data)
         resolved_allowed_components = (
@@ -76,13 +82,34 @@ async def run_lesson_generation_job(
             else component_registry.get_component_names()
         )
 
+        media_catalog = None
+        media_index_map = {}
+        if course_id is not None:
+            assets = (
+                db.query(CourseMediaAssetModel)
+                .filter(CourseMediaAssetModel.course_id == course_id)
+                .order_by(
+                    CourseMediaAssetModel.source_filename.asc(),
+                    CourseMediaAssetModel.page_number.asc().nullslast(),
+                    CourseMediaAssetModel.asset_index.asc().nullslast(),
+                    CourseMediaAssetModel.id.asc(),
+                )
+                .all()
+            )
+            if assets:
+                catalog_items = build_media_catalog(assets)
+                media_catalog = format_media_catalog(catalog_items)
+                media_index_map = build_media_index_map(catalog_items)
+
         stages = await architect_service.generate_lesson_from_node(
             node,
             topic,
             user_id=user.id,
             course_folder=course_folder_name,
+            course_id=course_id,
             profile=profile_summary,
             allowed_components=allowed_components,
+            media_catalog=media_catalog,
         )
 
         if _is_cancelled(db, job_id):
@@ -90,6 +117,42 @@ async def run_lesson_generation_job(
 
         if not stages:
             raise Exception("未能成功生成課程內容。")
+
+        if stages:
+            for stage in stages:
+                if stage.component != "ExplainerMedia":
+                    continue
+                data = stage.config.data if isinstance(stage.config.data, dict) else {}
+                media_type = str(data.get("mediaType") or "none").lower()
+                raw_index = data.get("mediaIndex") or data.get("media_index")
+
+                if media_type == "image":
+                    try:
+                        index = int(raw_index)
+                    except (TypeError, ValueError):
+                        data["mediaType"] = "none"
+                        data.pop("mediaIndex", None)
+                        data.pop("media_index", None)
+                        data.pop("mediaDescription", None)
+                        data.pop("mediaUrl", None)
+                        stage.config.data = data
+                        continue
+
+                    selected = media_index_map.get(index)
+                    if not selected:
+                        data["mediaType"] = "none"
+                        data.pop("mediaIndex", None)
+                        data.pop("media_index", None)
+                        data.pop("mediaDescription", None)
+                        data.pop("mediaUrl", None)
+                        stage.config.data = data
+                        continue
+
+                    data["mediaType"] = "image"
+                    data["mediaIndex"] = index
+                    data["mediaDescription"] = selected.description or data.get("mediaDescription")
+                    data["mediaUrl"] = selected.asset_url or data.get("mediaUrl")
+                    stage.config.data = data
 
         _notify_job_update(db, job, 80, "✅ 內容準備完成，正在儲存到資料庫...")
 
