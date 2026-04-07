@@ -1,5 +1,50 @@
 # Learn8 Arena 完整產品與系統設計
 
+## 目前實作狀態
+
+目前 repo 已經不是純設計稿，Arena 已落地出一個可運作的基礎版本，包含：
+
+- `PublicCourse` 與 `ArenaQuestionPool` 資料模型
+- private room / room code / lobby / match / result 基礎流程
+- season / leaderboard / profile 基礎查詢
+- `/admin/arena` 管理者 UI
+- Arena admin API 與題池編輯能力
+
+但本地啟動時有一個很重要的前提：
+
+- 必須先跑 Alembic migration，否則 Arena 相關 tables 不會存在
+
+典型錯誤訊號：
+
+- `relation "public_courses" does not exist`
+- `relation "arena_ratings" does not exist`
+
+對應處理方式：
+
+```bash
+cd backend
+python3.12 -m alembic upgrade head
+```
+
+如果需要鎖定 Arena 管理台帳號，請在 `backend/.env` 設定：
+
+```text
+ARENA_ADMIN_EMAILS=user1@example.com,user2@example.com
+```
+
+### 目前仍待完成
+
+以下仍是 Arena 往正式完成態前，最重要但尚未完全落地的部分：
+
+- `2 至 8 人即時競賽`
+  目前 competitive queue 仍以 1v1 為主，私人房雖支援多人，但正式多人 competitive 體驗仍未完整打通
+- `更完整的房間與對戰 UI`
+  房間大廳、對戰畫面、賽後頁已有基礎版本，但 rank badge、連勝提示、分享、rematch 體驗仍可再補強
+- `反作弊與營運觀測`
+  現在已有 anomaly review、低完成率懲罰、presence / disconnect 事件、健康摘要與自我修復，但更正式的 anti-cheat、告警與背景補償流程仍可再深化
+- `season 獎勵與榮譽體系`
+  season 基礎管理與 season honor badge / title / placement 已完成，但獎勵發放與更完整的 season 結算規則仍未完成
+
 ## 文件定位
 
 這份文件定義 Learn8 未來多人對戰產品 `Arena` 的完成態設計。
@@ -13,9 +58,7 @@ Arena 的目標不是只做一個答題小遊戲，而是成為 Learn8 產品中
 - 官方主題即時對戰
 - 2 至 8 人同場競技
 - 排名與玩家強度體系
-- 多模式玩法
-- 完整對戰歷史與賽後分析
-- 與 Learn8 主學習流程深度整合
+- 完整對戰歷史與賽後統計
 - 企業級可維護架構
 
 ---
@@ -57,7 +100,7 @@ Arena 是一個建立在 Learn8 官方內容之上的多人學習競技平台。
 - 讓使用者透過競技提高投入感
 - 讓官方主題內容有更多使用場景
 - 讓玩家透過 rank 看見自己的強度變化
-- 讓賽後結果能回流到 Learn8 學習系統
+- 讓知識競賽本身成為一個可反覆遊玩的產品體驗
 
 Arena 必須同時滿足三種層面：
 
@@ -118,20 +161,20 @@ Arena 不應直接拿 lesson 原始 stage 毫無處理地上場。
 
 ## 核心模式設計
 
-Arena 不是單模式功能，而是一個多模式競技平台。
+Arena 的核心其實不是多模式集合，而是一個明確的即時知識競賽產品。
+它的完成態應更接近「知識王」這類同步答題競賽，而不是 lesson 補救系統的延伸。
 
 ## 1. 私人房間模式
 
 ### 定義
 
-由房主建立房間，玩家可透過房號、邀請或連結加入。
+由房主建立房間，玩家可透過房號或連結加入。
 
 ### 核心能力
 
 - 建立房間
 - 產生唯一房號
 - 私密房 / 可見房
-- 邀請指定玩家
 - 房主選模式、主題、回合數、題目配置
 - 成員 ready
 - 房主開始
@@ -151,11 +194,27 @@ Arena 不是單模式功能，而是一個多模式競技平台。
 
 ---
 
-## 2. 即時主題對戰模式
+## 2. 即時主題競賽模式
 
 ### 定義
 
-玩家在一個官方主題下進行即時同步回合制對戰。
+玩家在官方主題下進行即時同步回合制競賽。
+這就是 Arena 的核心模式，同時涵蓋：
+
+- 一般玩家理解的「即時主題對戰」
+- 產品入口上的「快速配對」
+- 系統結算上的「排位對戰」
+
+也就是說，快速配對、排位對戰、即時主題對戰本質上是同一套東西：
+
+- 即時
+- 同題
+- 同步倒數
+- 伺服器權威結算
+- 依結果更新排名
+
+技術命名上若看到 `live_theme`、`quick_match`、`ranked` 這類舊字眼，應視為歷史命名或相容別名；
+正式實作應統一收斂到單一核心模式 `competitive`。
 
 ### 核心規則
 
@@ -176,120 +235,6 @@ Arena 不是單模式功能，而是一個多模式競技平台。
 ### 支援人數
 
 - 2 至 8 人
-
----
-
-## 3. 快速配對模式
-
-### 定義
-
-玩家不建立房間，直接由系統根據主題、區域、玩家強度與在線狀況配對對手。
-
-### 核心能力
-
-- 依 rank 區間配對
-- 支援 1v1、多人混戰、隊伍制
-- 配對等待保護
-- 避免重複配到同一批玩家
-- 支援取消配對與回到大廳
-
-### 目標
-
-- 降低進入門檻
-- 提升 Arena 日活與留存
-
----
-
-## 4. 排位對戰模式
-
-### 定義
-
-以正式 rank 變化為核心的競技模式。
-
-### 核心能力
-
-- 使用 rank / rating 進行配對
-- 比賽結果影響玩家 rating
-- 顯示 rank 升降
-- 顯示保級 / 升階狀態
-- 顯示近期表現與勝率
-
-### 特性
-
-- 更重視公平配對
-- 更重視反作弊
-- 對中途離開與斷線有更嚴格處理
-
----
-
-## 5. 非同步挑戰模式
-
-### 定義
-
-玩家向另一位玩家發出挑戰，雙方不需同時在線，系統以相同題組比較結果。
-
-### 核心能力
-
-- 發送挑戰
-- 接受 / 拒絕 / 過期
-- 題組固定
-- 成績比對
-- 挑戰紀錄
-
-### 產品價值
-
-- 降低同時在線門檻
-- 強化社交互動
-- 適合低併發時期
-
----
-
-## 6. 生存模式
-
-### 定義
-
-多人對戰中，錯誤或反應過慢的玩家逐步淘汰，直到留下最後勝者。
-
-### 核心能力
-
-- 4 至 8 人
-- 淘汰規則
-- 安全區 / 危險區顯示
-- 緊湊倒數
-- 最終存活者勝利
-
----
-
-## 7. 團隊對戰模式
-
-### 定義
-
-玩家可組成隊伍進行 2v2、3v3、4v4 主題對戰。
-
-### 核心能力
-
-- 組隊
-- 隊伍總分
-- 個人分與隊伍分雙顯示
-- 隊友狀態同步
-- 團隊排名
-
----
-
-## 8. 活動賽 / 教室賽 / 錦標賽
-
-### 定義
-
-由管理者、講師或老師建立正式賽事與活動。
-
-### 核心能力
-
-- 活動建立
-- 參賽名單
-- 分組賽 / 淘汰賽 / 積分賽
-- 指定官方主題
-- 活動排行榜
-- 獎勵與成就
 
 ---
 
@@ -380,22 +325,22 @@ Arena 必須有正式的 rank 呈現與玩家強度體系。
 - 打贏高 rating 對手，應獲得更多分數
 - 打輸低 rating 對手，應扣更多分數
 - 多人混戰時，名次越高加分越多
-- 非同步模式與 casual 模式可不影響主 rank
+- 私人房可不影響主 rank，正式配對競賽則應影響主 rank
 
-## 4. 模式與 rank 關係
+## 4. 入口與 rank 關係
 
 建議分成兩層：
 
 - `Ranked`
 - `Casual`
 
-### Ranked
+### 即時主題競賽 / 配對入口
 
 - 影響主 rating
 - 影響 rank 顯示
 - 進入正式排行榜
 
-### Casual
+### 私人房
 
 - 不影響主 rating
 - 記錄歷史與表現
@@ -425,9 +370,11 @@ Arena 的完成態體驗應包含以下主要頁面與流程。
 
 ## 1. Arena 首頁
 
-首頁應提供：
+Arena 入口已整合進 Learn8 首頁 `/home`，不再維持獨立 `/arena` 首頁。
 
-- 進入快速配對
+首頁整合區應提供：
+
+- 進入即時競賽
 - 建立房間
 - 輸入房號加入
 - 查看 rank
@@ -445,11 +392,8 @@ Arena 的完成態體驗應包含以下主要頁面與流程。
 - 參賽成員列表
 - 玩家 rank 顯示
 - ready 狀態
-- 模式選擇
 - 主題選擇
 - 回合設定
-- 隊伍分配
-- 邀請入口
 
 ## 3. 對戰畫面
 
@@ -476,15 +420,14 @@ Arena 的完成態體驗應包含以下主要頁面與流程。
 - 對戰統計
 - 正確率
 - 平均反應時間
-- 各主題知識點表現
-- 錯誤題目回顧
-- 推薦 lesson
 - rematch
 - 分享結果
 
-## 5. 個人 Arena Profile
+## 5. 個人競技身份區
 
-每位玩家應有 Arena 個人檔案頁：
+Arena 個人競技身份應整合進現有 `/profile`，而不是拆獨立 Arena profile 頁。
+
+應呈現：
 
 - 當前 rank
 - rating
@@ -498,16 +441,16 @@ Arena 的完成態體驗應包含以下主要頁面與流程。
 
 ---
 
-## 與 Learn8 主學習流程整合
+## 與 Learn8 主產品關係
 
-Arena 不應與主學習流程割裂，必須深度整合。
+Arena 應與 Learn8 主產品協調，但不是 remedial 系統的一部分。
+它的角色更像是官方知識內容的競技化消費場景。
 
 ## 整合目標
 
 - 對戰內容來自官方課程
-- 對戰結果反映使用者真實學習狀態
-- 賽後弱點可導回 lesson / remedial
 - 官方主題能透過競技被反覆使用
+- 玩家可在 Learn8 產品內看到自己的 Arena 競技身份與表現
 
 ## 建議整合點
 
@@ -520,15 +463,7 @@ Arena 不應與主學習流程割裂，必須深度整合。
 - node
 - knowledge tags
 
-### 2. 賽後補強
-
-賽後應能推薦：
-
-- 對應 lesson
-- 對應 remedial
-- 相關練習包
-
-### 3. 學習成長回流
+### 2. 學習成長回流
 
 Arena 應影響：
 
@@ -536,7 +471,7 @@ Arena 應影響：
 - 主題建議排序
 - 學習路徑推薦
 
-### 4. 經濟與獎勵
+### 3. 經濟與獎勵
 
 Arena 可與現有經濟系統整合：
 
@@ -555,15 +490,16 @@ Arena 可與現有經濟系統整合：
 ## 大流程
 
 1. 玩家進入 Arena
-2. 玩家選擇快速配對、建立房間或加入房間
+   主要從 `/home` 進入
+2. 玩家選擇即時競賽、建立房間或加入房間
 3. 系統建立 room / match context
-4. 玩家確定模式與主題
+4. 玩家確定主題與比賽設定
 5. 系統組裝題組與比賽規則
 6. 玩家進入對戰
 7. 系統逐回合同步題目、倒數、鎖答、揭曉
 8. 系統結算分數、名次、rating
 9. 顯示賽後摘要
-10. 導向 rematch、分享或返回 Learn8 lesson
+10. 導向 rematch、分享或返回 `/home`
 
 ## 回合流程
 
@@ -590,7 +526,7 @@ Arena 必須採用企業級、權責清晰、可觀測的設計。
 - 所有比賽事件可追蹤
 - 所有結果具備冪等性
 - 可支援重連、恢復、審計
-- 可支援多模式擴展
+- 單一核心模式可持續擴充規則與營運能力
 
 ### 不採用的方式
 
@@ -602,7 +538,7 @@ Arena 必須採用企業級、權責清晰、可觀測的設計。
 
 ### 正式設計
 
-- 多人系統放入 `backend/app/arena/` 邏輯邊界
+- 多人系統放入 `backend/app/services/arena/` 邏輯邊界
 - 前端只負責畫面與事件呈現
 - 即時層由正式 gateway 控制
 - 所有關鍵狀態入庫
@@ -628,43 +564,29 @@ backend/app/
   models/
     public_course.py
     arena_room.py
-    arena_room_player.py
-    arena_invite.py
     arena_match.py
-    arena_match_player.py
     arena_round.py
-    arena_answer.py
     arena_rating.py
-    arena_rank_history.py
     arena_season.py
-    arena_season_reward.py
-    arena_player_profile.py
-    arena_player_topic_rating.py
+    arena_question_pool.py
+    arena_event.py
+    arena_queue.py
   schemas/
     arena_schema.py
     arena_room_schema.py
     arena_match_schema.py
-    arena_rank_schema.py
+    arena_competitive_schema.py
     arena_admin_schema.py
+    arena_resume_schema.py
   services/
     arena/
       room_service.py
-      invite_service.py
-      matchmaking_service.py
-      queue_service.py
+      competitive_service.py
       topic_catalog_service.py
       question_pool_service.py
-      round_engine.py
-      scoring_service.py
-      rating_service.py
       rank_service.py
-      standings_service.py
-      summary_service.py
-      reward_service.py
-      presence_service.py
-      session_recovery_service.py
-      anti_cheat_service.py
-      moderation_service.py
+      rating_service.py
+      round_engine.py
       realtime_gateway.py
       telemetry_service.py
       admin_service.py
@@ -676,44 +598,36 @@ backend/app/
 frontend/src/
   app/
     (dashboard)/
+      home/
+        page.tsx
+      profile/
+        page.tsx
       arena/
         page.tsx
-        room/create/page.tsx
-        room/[roomCode]/page.tsx
+        leaderboard/page.tsx
+        queue/page.tsx
         lobby/[roomCode]/page.tsx
         match/[matchId]/page.tsx
         result/[matchId]/page.tsx
-        profile/page.tsx
-        leaderboard/page.tsx
-        history/page.tsx
-        ranked/page.tsx
-        seasons/[seasonId]/page.tsx
   features/
     arena/
-      ArenaHomePageClient.tsx
       ArenaLobbyPageClient.tsx
       ArenaMatchPageClient.tsx
       ArenaResultPageClient.tsx
-      ArenaProfilePageClient.tsx
       ArenaLeaderboardPageClient.tsx
+      ArenaQueuePageClient.tsx
+      ArenaAdminPageClient.tsx
       components/
       hooks/
-      realtime/
-      rank/
-      leaderboard/
-      history/
   lib/
     arena/
       api.ts
       realtimeClient.ts
-      eventTypes.ts
       rankPresentation.ts
-      modePresentation.ts
   stores/
     arena/
       useArenaLobbyStore.ts
       useArenaMatchStore.ts
-      useArenaProfileStore.ts
 ```
 
 ---
@@ -748,7 +662,8 @@ frontend/src/
 - 官方主題管理
 - 對戰池啟用/停用
 - 賽季管理
-- 風控與封鎖
+- 玩家比賽紀錄
+- 異常對戰檢視
 
 ## `room_service.py`
 
@@ -756,18 +671,18 @@ frontend/src/
 
 - 房間建立
 - 房主控制
-- 房號與邀請
+- 房號管理
 - 成員管理
 - 房間狀態轉換
 
-## `matchmaking_service.py`
+## `competitive_service.py`
 
 負責：
 
 - 即時配對
 - rank 區間配對
-- 多模式配對策略
 - 重複對手保護
+- 等待時間放寬配對區間
 
 ## `question_pool_service.py`
 
@@ -790,15 +705,6 @@ frontend/src/
 
 這是 Arena 的核心引擎。
 
-## `scoring_service.py`
-
-負責：
-
-- 回合得分
-- 名次得分
-- 模式差異計分
-- 平手規則
-
 ## `rating_service.py`
 
 負責：
@@ -806,15 +712,8 @@ frontend/src/
 - rating 計算
 - rank 升降
 - 主題 rating 更新
-- 保級 / 升階規則
-
-## `summary_service.py`
-
-負責：
-
-- 賽後資料整合
-- 錯題與弱點分析
-- 推薦內容回傳
+- 中離 / 低完成率懲罰
+- upset / expected outcome 調整
 
 ## `anti_cheat_service.py`
 
@@ -857,18 +756,7 @@ frontend/src/
 
 - room membership
 - ready state
-- team
 - join timestamp
-
-## `arena_invite`
-
-儲存：
-
-- inviter
-- invitee
-- room
-- status
-- expiry
 
 ## `arena_match`
 
@@ -879,7 +767,6 @@ frontend/src/
 - mode
 - topic
 - rules snapshot
-- player count
 - start/end time
 - final standings
 
@@ -919,7 +806,7 @@ frontend/src/
 
 - 玩家主 rating
 - 當前 rank
-- ranked mode 狀態
+- 累積勝敗與 ranked 場次
 
 ## `arena_player_topic_rating`
 
@@ -960,7 +847,6 @@ Arena 即時通訊應採用正式事件契約。
 - `room.player_left`
 - `room.player_ready_changed`
 - `room.host_changed`
-- `invite.created`
 - `match.started`
 - `round.started`
 - `round.tick`
@@ -1026,7 +912,6 @@ Arena 正式版應具備營運後台能力。
 - 查看異常對戰
 - 查詢玩家比賽紀錄
 - 處理檢舉與懲罰
-- 控制活動賽設定
 
 ---
 
@@ -1035,12 +920,11 @@ Arena 正式版應具備營運後台能力。
 當 Arena 完成時，使用者能夠：
 
 - 看到自己的正式 rank 與 rating
-- 建立私人房間邀請朋友
+- 建立私人房間與朋友對戰
 - 參加官方主題即時對戰
 - 在 2 至 8 人中競爭排名
-- 參與快速配對、排位、團隊、生存、活動賽
-- 在賽後看到 rating 升降、主題強弱、錯題與推薦內容
-- 把競技結果回流到 Learn8 的學習路徑
+- 透過配對入口直接進入正式排位競賽
+- 在賽後看到 rating 升降、主題強弱與統計摘要
 
 而工程上，Arena 會是一套：
 

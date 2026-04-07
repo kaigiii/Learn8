@@ -43,7 +43,7 @@ function redirectToLoginOnUnauthorized() {
   }
 }
 
-function getAuthToken() {
+export function getAuthToken() {
   if (typeof window === "undefined") {
     return null;
   }

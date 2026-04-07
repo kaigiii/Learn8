@@ -3,6 +3,7 @@
 import React, { useRef, useEffect, useLayoutEffect, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import TopStatsBar from "@/components/layout/TopStatsBar";
+import { fetchArenaPublicCourses } from "@/lib/arena/api";
 import { COURSE_STATUS } from "@/lib/domain/statuses";
 import {
   clearRecentCourseNavigation,
@@ -15,6 +16,7 @@ import { HomeBackground } from "./components/HomeBackground";
 import { HomeCourseModal } from "./components/HomeCourseModal";
 import { HomeCoursePanel } from "./components/HomeCoursePanel";
 import { HomeArenaPanel } from "./components/HomeArenaPanel";
+import { HomeArenaTopicsSection } from "./components/HomeArenaTopicsSection";
 import { HomeForgePanel } from "./components/HomeForgePanel";
 import { HomeLibrarySection, type HomeLibraryItem } from "./components/HomeLibrarySection";
 import { useActiveJobResume } from "./hooks/useActiveJobResume";
@@ -23,6 +25,7 @@ import { useHomeDashboardData } from "./hooks/useHomeDashboardData";
 import { useHomeCourseActions } from "./hooks/useHomeCourseActions";
 import { useCourseFiles } from "./hooks/useCourseFiles";
 import type { CourseModalState } from "./types";
+import type { ArenaPublicCourse } from "@/lib/apiTypes";
 
 /* ═══════════════════ Page ═══════════════════ */
 
@@ -59,6 +62,7 @@ export default function HomePage() {
     courses,
   });
   const [topic, setTopic] = useState("");
+  const [arenaCourses, setArenaCourses] = useState<ArenaPublicCourse[]>([]);
   const {
     fileInputRef,
     isDragging,
@@ -96,6 +100,25 @@ export default function HomePage() {
       router.replace("/auth/login");
     }
   }, [authHydrated, router, token]);
+
+  useEffect(() => {
+    if (!token) {
+      return;
+    }
+
+    let cancelled = false;
+    void fetchArenaPublicCourses()
+      .then((items) => {
+        if (!cancelled) {
+          setArenaCourses(items);
+        }
+      })
+      .catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -208,7 +231,7 @@ export default function HomePage() {
 
   return (
     <div className="relative overflow-hidden" style={{ zoom: 1.05 }}>
-      <TopStatsBar />
+      <TopStatsBar quickLinks={[{ href: "/arena/leaderboard", label: "Leaderboard" }]} />
 
       <HomeBackground />
 
@@ -269,6 +292,8 @@ export default function HomePage() {
 
           <HomeArenaPanel />
         </div>
+
+        <HomeArenaTopicsSection courses={arenaCourses} />
 
         <HomeLibrarySection
           scrollRef={scrollRef}

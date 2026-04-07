@@ -1,9 +1,12 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
+
 import TopStatsBar from "@/components/layout/TopStatsBar";
 import DeepGlassCard from "@/components/ui/DeepGlassCard";
 import GameButton from "@/components/ui/GameButton";
-import type { UserLedgerEvent } from "@/lib/apiTypes";
+import { fetchArenaProfile, fetchArenaRankHistory } from "@/lib/arena/api";
+import type { ArenaProfile, ArenaRankHistoryEntry, UserLedgerEvent } from "@/lib/apiTypes";
 import { ProfileStatBox } from "@/features/profile/components/ProfileStatBox";
 import { ProfileToggle } from "@/features/profile/components/ProfileToggle";
 import { useProfileSettings } from "@/features/profile/hooks/useProfileSettings";
@@ -28,6 +31,10 @@ export default function ProfilePageClient() {
     handleLogout,
   } = useProfileSettings(() => {});
   const progression = useUserStore(selectUserProgression);
+  const [arenaProfile, setArenaProfile] = useState<ArenaProfile | null>(null);
+  const [arenaHistory, setArenaHistory] = useState<ArenaRankHistoryEntry[]>([]);
+  const [arenaLoading, setArenaLoading] = useState(true);
+  const [arenaError, setArenaError] = useState<string | null>(null);
 
   const displayName = authUser?.full_name?.trim() || form.full_name || "Learner";
   const profileLabel =
@@ -36,6 +43,48 @@ export default function ProfilePageClient() {
     title ||
     "Learner";
   const initial = displayName.slice(0, 1).toUpperCase() || "P";
+  const arenaTopTopics = useMemo(
+    () => [...(arenaProfile?.topicRatings ?? [])].sort((left, right) => right.rating - left.rating).slice(0, 4),
+    [arenaProfile?.topicRatings]
+  );
+  const arenaRecentMomentum = useMemo(
+    () => arenaHistory.slice(0, 5).reduce((sum, entry) => sum + entry.ratingDelta, 0),
+    [arenaHistory]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    setArenaLoading(true);
+    setArenaError(null);
+
+    void (async () => {
+      try {
+        const [nextArenaProfile, nextArenaHistory] = await Promise.all([
+          fetchArenaProfile(),
+          fetchArenaRankHistory(8),
+        ]);
+        if (cancelled) {
+          return;
+        }
+        setArenaProfile(nextArenaProfile);
+        setArenaHistory(nextArenaHistory.items);
+      } catch (error) {
+        if (!cancelled) {
+          setArenaError(
+            error instanceof Error ? error.message : "Failed to load Arena competitive profile."
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setArenaLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-[#edf7fb] via-[#c9e6f2] to-[#a3d5e8]">
@@ -84,6 +133,219 @@ export default function ProfilePageClient() {
                     : "Not set"
                 }
               />
+            </div>
+          </div>
+        </DeepGlassCard>
+
+        <DeepGlassCard className="border border-white/70 bg-white/82 px-6 py-6 shadow-[0_24px_60px_rgba(31,41,55,0.12)]">
+          <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-brand-teal">
+                Arena
+              </p>
+              <h2 className="mt-2 font-heading text-2xl font-extrabold text-brand-gray-700">
+                Competitive Identity
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-brand-gray-500">
+                Your real-time competition snapshot lives here, including rating, ladder momentum,
+                strongest topics, and recent ranked movement.
+              </p>
+            </div>
+
+            <div className="rounded-3xl border border-[#f5d77a]/55 bg-gradient-to-br from-[#fff7d8] via-white to-[#f6fbfc] px-5 py-4 shadow-[0_18px_36px_rgba(244,184,0,0.14)]">
+              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-brand-gray-400">
+                Active Season
+              </p>
+              <p className="mt-2 font-heading text-2xl font-extrabold text-brand-gray-700">
+                {arenaProfile?.activeSeason ?? "No active season"}
+              </p>
+              <p className="mt-1 text-xs text-brand-gray-500">
+                {arenaLoading
+                  ? "Loading Arena season status..."
+                  : arenaProfile
+                    ? `${arenaProfile.rankTier} ladder currently active`
+                    : "Season data will appear after your first Arena sync."}
+              </p>
+            </div>
+          </div>
+
+          {arenaError ? (
+            <div className="mt-5 rounded-2xl border border-rose-200 bg-rose-50/80 px-4 py-3 text-sm text-rose-600">
+              {arenaError}
+            </div>
+          ) : null}
+
+          <div className="mt-6 grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">
+            <div className="space-y-6">
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                <ProfileStatBox
+                  label="Arena Rating"
+                  value={arenaLoading ? "..." : String(arenaProfile?.rating ?? 0)}
+                />
+                <ProfileStatBox
+                  label="Rank Tier"
+                  value={arenaLoading ? "..." : arenaProfile?.rankTier ?? "Unranked"}
+                />
+                <ProfileStatBox
+                  label="Best Tier"
+                  value={arenaLoading ? "..." : arenaProfile?.bestRankTier ?? "Unranked"}
+                />
+                <ProfileStatBox
+                  label="Win Rate"
+                  value={arenaLoading ? "..." : `${(arenaProfile?.winRate ?? 0).toFixed(1)}%`}
+                />
+                <ProfileStatBox
+                  label="Ranked Matches"
+                  value={arenaLoading ? "..." : String(arenaProfile?.rankedMatches ?? 0)}
+                />
+                <ProfileStatBox
+                  label="Recent Momentum"
+                  value={
+                    arenaLoading
+                      ? "..."
+                      : `${arenaRecentMomentum > 0 ? "+" : ""}${arenaRecentMomentum}`
+                  }
+                />
+              </div>
+
+              <div className="rounded-[28px] border border-white/70 bg-white/68 p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-teal">
+                      Season Honors
+                    </p>
+                    <h3 className="mt-2 font-heading text-xl font-bold text-brand-gray-700">
+                      Current season identity
+                    </h3>
+                  </div>
+                  <span className="rounded-full bg-brand-teal/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.14em] text-brand-teal">
+                    {arenaLoading
+                      ? "..."
+                      : arenaProfile?.seasonPlacement
+                        ? `#${arenaProfile.seasonPlacement}`
+                        : "Unranked"}
+                  </span>
+                </div>
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                  <ArenaMetricPill
+                    label="Season Badge"
+                    value={arenaLoading ? "..." : arenaProfile?.seasonBadge ?? "None"}
+                  />
+                  <ArenaMetricPill
+                    label="Season Title"
+                    value={arenaLoading ? "..." : arenaProfile?.seasonTitle ?? "Contender"}
+                  />
+                  <ArenaMetricPill
+                    label="Percentile"
+                    value={
+                      arenaLoading
+                        ? "..."
+                        : arenaProfile?.seasonPercentile != null
+                          ? `${arenaProfile.seasonPercentile.toFixed(1)}%`
+                          : "-"
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-[28px] border border-white/70 bg-white/68 p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-teal">
+                      Match Summary
+                    </p>
+                    <h3 className="mt-2 font-heading text-xl font-bold text-brand-gray-700">
+                      Competitive record
+                    </h3>
+                  </div>
+                  <span className="rounded-full bg-brand-teal/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.14em] text-brand-teal">
+                    {arenaLoading ? "..." : `${arenaProfile?.rankedMatches ?? 0} matches`}
+                  </span>
+                </div>
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                  <ArenaMetricPill
+                    label="Wins"
+                    value={arenaLoading ? "..." : String(arenaProfile?.wins ?? 0)}
+                  />
+                  <ArenaMetricPill
+                    label="Losses"
+                    value={arenaLoading ? "..." : String(arenaProfile?.losses ?? 0)}
+                  />
+                  <ArenaMetricPill
+                    label="Draws"
+                    value={arenaLoading ? "..." : String(arenaProfile?.draws ?? 0)}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr] xl:grid-cols-1">
+              <div className="rounded-[28px] border border-white/70 bg-white/68 p-5">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-teal">
+                  Strongest Topics
+                </p>
+                <h3 className="mt-2 font-heading text-xl font-bold text-brand-gray-700">
+                  Topic strengths
+                </h3>
+                <div className="mt-4 space-y-3">
+                  {arenaLoading ? (
+                    <p className="text-sm text-brand-gray-500">Loading Arena topic ratings...</p>
+                  ) : arenaTopTopics.length === 0 ? (
+                    <p className="text-sm text-brand-gray-500">
+                      Topic ratings will appear after a few Arena matches.
+                    </p>
+                  ) : (
+                    arenaTopTopics.map((topic) => (
+                      <div
+                        key={topic.publicCourseId}
+                        className="rounded-2xl border border-white/70 bg-white/76 px-4 py-3"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold text-brand-gray-700">
+                              {topic.title}
+                            </p>
+                            <p className="mt-1 text-[11px] uppercase tracking-[0.16em] text-brand-teal">
+                              {topic.rankTier}
+                            </p>
+                          </div>
+                          <p className="font-heading text-xl font-bold text-brand-gray-700">
+                            {topic.rating}
+                          </p>
+                        </div>
+                        <p className="mt-2 text-xs text-brand-gray-500">{topic.topic}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-[28px] border border-white/70 bg-white/68 p-5">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-teal">
+                  Rank History
+                </p>
+                <h3 className="mt-2 font-heading text-xl font-bold text-brand-gray-700">
+                  Recent ladder movement
+                </h3>
+                <div className="mt-4 space-y-3">
+                  {arenaLoading ? (
+                    <p className="text-sm text-brand-gray-500">Loading rating history...</p>
+                  ) : arenaHistory.length === 0 ? (
+                    <p className="text-sm text-brand-gray-500">
+                      Your ladder history will appear after ranked matches are recorded.
+                    </p>
+                  ) : (
+                    arenaHistory.map((entry, index) => (
+                      <ArenaHistoryRow
+                        key={`${entry.matchId ?? "entry"}-${entry.createdAt}-${index}`}
+                        entry={entry}
+                      />
+                    ))
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </DeepGlassCard>
@@ -379,6 +641,51 @@ function LedgerActivityRow({ item }: { item: UserLedgerEvent }) {
         Balance: {item.credits_balance_after.toLocaleString()} credits, level{" "}
         {item.level_after}, {item.xp_balance_after.toLocaleString()} XP
       </p>
+    </div>
+  );
+}
+
+function ArenaMetricPill({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-white/70 bg-white/78 px-4 py-3">
+      <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-brand-gray-400">
+        {label}
+      </p>
+      <p className="mt-2 font-heading text-2xl font-bold text-brand-gray-700">{value}</p>
+    </div>
+  );
+}
+
+function ArenaHistoryRow({ entry }: { entry: ArenaRankHistoryEntry }) {
+  const timestamp = new Date(entry.createdAt).toLocaleString();
+  const deltaText = `${entry.ratingDelta > 0 ? "+" : ""}${entry.ratingDelta}`;
+
+  return (
+    <div className="rounded-2xl border border-white/70 bg-white/76 px-4 py-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-brand-gray-700">
+            {entry.rankTierBefore} to {entry.rankTierAfter}
+          </p>
+          <p className="mt-1 text-xs text-brand-gray-400">{timestamp}</p>
+        </div>
+        <div className="text-right">
+          <p
+            className={`text-sm font-semibold ${
+              entry.ratingDelta > 0
+                ? "text-brand-green"
+                : entry.ratingDelta < 0
+                  ? "text-rose-500"
+                  : "text-brand-gray-500"
+            }`}
+          >
+            {deltaText}
+          </p>
+          <p className="mt-1 text-xs text-brand-gray-500">
+            {entry.ratingBefore} to {entry.ratingAfter}
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

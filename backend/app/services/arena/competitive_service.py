@@ -1,0 +1,313 @@
+from __future__ import annotations
+
+from datetime import timedelta
+
+from fastapi import HTTPException
+from sqlalchemy.orm import Session
+
+from app.core.time import utc_now_naive
+from app.domain.arena_modes import ArenaMode, RANKED_ARENA_MODES
+from app.domain.arena_statuses import ArenaMatchStatus, ArenaQueueStatus
+from app.models.arena_match import ArenaMatchModel, ArenaMatchPlayerModel
+from app.models.arena_queue import ArenaQueueEntryModel
+from app.models.arena_rating import ArenaRatingModel
+from app.models.public_course import PublicCourseModel
+from app.models.user import UserModel
+from app.services.arena.topic_catalog_service import TopicCatalogService
+
+
+class CompetitiveService:
+    BASE_RATING_WINDOW = 150
+    RATING_WINDOW_EXPANSION = 75
+    RATING_WINDOW_STEP_SECONDS = 20
+    MAX_RATING_WINDOW = 450
+    RECENT_REMATCH_LOOKBACK = 3
+    REMATCH_RELAX_AFTER_SECONDS = 75
+
+    def __init__(self, topic_catalog_service: TopicCatalogService | None = None):
+        self.topic_catalog_service = topic_catalog_service or TopicCatalogService()
+
+    def join_queue(
+        self,
+        db: Session,
+        current_user: UserModel,
+        *,
+        public_course_id: int,
+        round_count: int,
+        round_time_seconds: int,
+    ) -> ArenaQueueEntryModel:
+        public_course = self.topic_catalog_service.get_enabled_public_course(db, public_course_id)
+        if not public_course:
+            raise HTTPException(status_code=404, detail="Arena public course not found")
+
+        self._expire_stale_entries(db)
+        existing = self._get_active_entry_for_user(db, current_user.id)
+        if existing:
+            if existing.public_course_id != public_course_id:
+                raise HTTPException(
+                    status_code=409,
+                    detail="You already have an active Arena competition queue entry for another topic",
+                )
+            return existing
+
+        opponent = self._find_waiting_opponent(db, current_user.id, public_course_id)
+        queue_entry = ArenaQueueEntryModel(
+            user_id=current_user.id,
+            public_course_id=public_course_id,
+            mode=ArenaMode.COMPETITIVE,
+            status=ArenaQueueStatus.WAITING,
+            expires_at=utc_now_naive() + timedelta(minutes=3),
+        )
+        db.add(queue_entry)
+        db.flush()
+
+        if opponent:
+            match = self._create_competitive_match(
+                db,
+                public_course=public_course,
+                first_user_id=opponent.user_id,
+                second_user_id=current_user.id,
+                round_count=round_count,
+                round_time_seconds=round_time_seconds,
+            )
+            opponent.status = ArenaQueueStatus.MATCHED
+            opponent.matched_user_id = current_user.id
+            opponent.match_id = match.id
+            opponent.expires_at = None
+
+            queue_entry.status = ArenaQueueStatus.MATCHED
+            queue_entry.matched_user_id = opponent.user_id
+            queue_entry.match_id = match.id
+            queue_entry.expires_at = None
+
+            db.add(opponent)
+            db.add(queue_entry)
+
+        db.commit()
+        db.refresh(queue_entry)
+        return queue_entry
+
+    def get_current_entry(self, db: Session, current_user: UserModel) -> ArenaQueueEntryModel | None:
+        self._expire_stale_entries(db)
+        return self._get_active_entry_for_user(db, current_user.id)
+
+    def cancel_current_entry(self, db: Session, current_user: UserModel) -> None:
+        entry = self.get_current_entry(db, current_user)
+        if entry is None:
+            return
+        if entry.status != ArenaQueueStatus.WAITING:
+            raise HTTPException(status_code=409, detail="Matched Arena competition entries cannot be cancelled")
+
+        entry.status = ArenaQueueStatus.CANCELLED
+        entry.expires_at = None
+        db.add(entry)
+        db.commit()
+
+    def serialize_entry(self, entry: ArenaQueueEntryModel) -> dict:
+        course = entry.public_course
+        return {
+            "queueId": entry.id,
+            "status": entry.status,
+            "publicCourseId": entry.public_course_id,
+            "publicCourseTitle": course.title if course else "Unknown",
+            "mode": entry.mode,
+            "queuedAt": entry.created_at.isoformat(),
+            "expiresAt": entry.expires_at.isoformat() if entry.expires_at else None,
+            "matchId": entry.match_id,
+            "matchedUserId": entry.matched_user_id,
+        }
+
+    def _get_active_entry_for_user(self, db: Session, user_id: int) -> ArenaQueueEntryModel | None:
+        return (
+            db.query(ArenaQueueEntryModel)
+            .filter(
+                ArenaQueueEntryModel.user_id == user_id,
+                ArenaQueueEntryModel.status.in_((ArenaQueueStatus.WAITING, ArenaQueueStatus.MATCHED)),
+            )
+            .order_by(ArenaQueueEntryModel.created_at.desc())
+            .first()
+        )
+
+    def _find_waiting_opponent(
+        self,
+        db: Session,
+        current_user_id: int,
+        public_course_id: int,
+    ) -> ArenaQueueEntryModel | None:
+        candidates = (
+            db.query(ArenaQueueEntryModel)
+            .filter(
+                ArenaQueueEntryModel.user_id != current_user_id,
+                ArenaQueueEntryModel.public_course_id == public_course_id,
+                ArenaQueueEntryModel.mode == ArenaMode.COMPETITIVE,
+                ArenaQueueEntryModel.status == ArenaQueueStatus.WAITING,
+            )
+            .order_by(ArenaQueueEntryModel.created_at.asc())
+            .all()
+        )
+        if not candidates:
+            return None
+
+        now = utc_now_naive()
+        current_user_rating = self._get_player_rating_value(db, current_user_id)
+        recent_opponent_ids = self._get_recent_opponent_ids(db, current_user_id)
+
+        eligible_candidates: list[tuple[int, ArenaQueueEntryModel]] = []
+        rematch_fallback_candidates: list[tuple[int, ArenaQueueEntryModel]] = []
+
+        for candidate in candidates:
+            candidate_rating = self._get_player_rating_value(db, candidate.user_id)
+            rating_gap = abs(current_user_rating - candidate_rating)
+            allowed_gap = self._compute_allowed_rating_gap(candidate, now=now)
+            if rating_gap > allowed_gap:
+                continue
+
+            target_list = (
+                rematch_fallback_candidates
+                if candidate.user_id in recent_opponent_ids
+                else eligible_candidates
+            )
+            target_list.append((rating_gap, candidate))
+
+        if eligible_candidates:
+            eligible_candidates.sort(key=lambda item: (item[0], item[1].created_at, item[1].id))
+            return eligible_candidates[0][1]
+
+        if rematch_fallback_candidates:
+            long_waiting = [
+                item
+                for item in rematch_fallback_candidates
+                if self._queued_seconds(item[1], now=now) >= self.REMATCH_RELAX_AFTER_SECONDS
+            ]
+            if long_waiting:
+                long_waiting.sort(key=lambda item: (item[0], item[1].created_at, item[1].id))
+                return long_waiting[0][1]
+
+        return None
+
+    def _create_competitive_match(
+        self,
+        db: Session,
+        *,
+        public_course: PublicCourseModel,
+        first_user_id: int,
+        second_user_id: int,
+        round_count: int,
+        round_time_seconds: int,
+    ) -> ArenaMatchModel:
+        match = ArenaMatchModel(
+            room_id=None,
+            public_course_id=public_course.id,
+            mode=ArenaMode.COMPETITIVE,
+            status=ArenaMatchStatus.IN_PROGRESS,
+            room_snapshot_json={
+                "room_code": None,
+                "host_user_id": None,
+                "player_ids": [first_user_id, second_user_id],
+                "public_course_id": public_course.id,
+                "queue_mode": True,
+            },
+            rules_snapshot_json={
+                "round_count": round_count,
+                "round_time_seconds": round_time_seconds,
+                "max_players": 2,
+                "mode": ArenaMode.COMPETITIVE,
+            },
+            started_at=utc_now_naive(),
+        )
+        db.add(match)
+        db.flush()
+
+        db.add_all(
+            [
+                ArenaMatchPlayerModel(match_id=match.id, user_id=first_user_id),
+                ArenaMatchPlayerModel(match_id=match.id, user_id=second_user_id),
+            ]
+        )
+        db.flush()
+        return match
+
+    def _get_player_rating_value(self, db: Session, user_id: int) -> int:
+        rating = (
+            db.query(ArenaRatingModel.rating)
+            .filter(ArenaRatingModel.user_id == user_id)
+            .scalar()
+        )
+        return int(rating) if rating is not None else 1000
+
+    def _compute_allowed_rating_gap(
+        self,
+        queue_entry: ArenaQueueEntryModel,
+        *,
+        now,
+    ) -> int:
+        waited_seconds = self._queued_seconds(queue_entry, now=now)
+        steps = waited_seconds // self.RATING_WINDOW_STEP_SECONDS
+        return min(
+            self.BASE_RATING_WINDOW + (steps * self.RATING_WINDOW_EXPANSION),
+            self.MAX_RATING_WINDOW,
+        )
+
+    def _queued_seconds(self, queue_entry: ArenaQueueEntryModel, *, now) -> int:
+        return max(0, int((now - queue_entry.created_at).total_seconds()))
+
+    def _get_recent_opponent_ids(self, db: Session, user_id: int) -> set[int]:
+        recent_matches = (
+            db.query(ArenaMatchModel)
+            .join(ArenaMatchPlayerModel, ArenaMatchPlayerModel.match_id == ArenaMatchModel.id)
+            .filter(
+                ArenaMatchPlayerModel.user_id == user_id,
+                ArenaMatchModel.mode.in_(RANKED_ARENA_MODES),
+            )
+            .order_by(ArenaMatchModel.started_at.desc(), ArenaMatchModel.id.desc())
+            .limit(self.RECENT_REMATCH_LOOKBACK)
+            .all()
+        )
+        if not recent_matches:
+            return set()
+
+        match_ids = [match.id for match in recent_matches]
+        other_players = (
+            db.query(ArenaMatchPlayerModel)
+            .filter(
+                ArenaMatchPlayerModel.match_id.in_(match_ids),
+                ArenaMatchPlayerModel.user_id != user_id,
+            )
+            .all()
+        )
+        return {player.user_id for player in other_players}
+
+    def _expire_stale_entries(self, db: Session) -> None:
+        now = utc_now_naive()
+        stale_entries = (
+            db.query(ArenaQueueEntryModel)
+            .filter(
+                ArenaQueueEntryModel.status == ArenaQueueStatus.WAITING,
+                ArenaQueueEntryModel.expires_at.is_not(None),
+                ArenaQueueEntryModel.expires_at < now,
+            )
+            .all()
+        )
+        matched_entries = (
+            db.query(ArenaQueueEntryModel)
+            .outerjoin(ArenaMatchModel, ArenaMatchModel.id == ArenaQueueEntryModel.match_id)
+            .filter(
+                ArenaQueueEntryModel.status == ArenaQueueStatus.MATCHED,
+                (ArenaQueueEntryModel.match_id.is_(None))
+                | (ArenaMatchModel.id.is_(None))
+                | (ArenaMatchModel.status.in_((ArenaMatchStatus.FINISHED, ArenaMatchStatus.CANCELLED))),
+            )
+            .all()
+        )
+        if not stale_entries and not matched_entries:
+            return
+
+        for entry in stale_entries:
+            entry.status = ArenaQueueStatus.EXPIRED
+            entry.expires_at = None
+            db.add(entry)
+        for entry in matched_entries:
+            entry.status = ArenaQueueStatus.EXPIRED
+            entry.expires_at = None
+            db.add(entry)
+        db.commit()

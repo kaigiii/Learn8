@@ -15,6 +15,7 @@ class LedgerEventType:
     CREDITS_TOP_UP = "credits_top_up"
     CREDITS_SPEND = "credits_spend"
     LESSON_COMPLETION_REWARD = "lesson_completion_reward"
+    ARENA_MATCH_REWARD = "arena_match_reward"
 
 
 @dataclass(slots=True)
