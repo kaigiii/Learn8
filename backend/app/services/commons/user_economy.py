@@ -118,6 +118,51 @@ def award_lesson_completion_xp(
     return result
 
 
+def award_arena_match_reward(
+    db: Session,
+    user: UserModel,
+    *,
+    match_id: int,
+    placement: int,
+    xp_amount: int,
+    credits_amount: int = 0,
+    mode: str,
+    public_course_id: int | None = None,
+) -> LedgerApplyResult:
+    result = apply_user_ledger_event(
+        db,
+        user.id,
+        LedgerEventType.ARENA_MATCH_REWARD,
+        xp_delta=int(xp_amount or 0),
+        credits_delta=int(credits_amount or 0),
+        event_key=build_user_event_key("arena_match_reward", f"{match_id}:{user.id}"),
+        metadata={
+            "source": "arena_match_reward",
+            "match_id": match_id,
+            "placement": placement,
+            "mode": mode,
+            "public_course_id": public_course_id,
+        },
+    )
+    if result.applied:
+        ActivityLogger.log_xp_award(
+            result.user.id,
+            result.user.email,
+            result.event.xp_delta,
+            "arena_match",
+            result.user.xp,
+            result.user.level,
+        )
+        if result.event.credits_delta > 0:
+            ActivityLogger.log_credits_top_up(
+                result.user.id,
+                result.user.email,
+                result.event.credits_delta,
+                result.user.credits,
+            )
+    return result
+
+
 def list_user_ledger_events(
     db: Session,
     user_id: int,

@@ -72,6 +72,55 @@ Learn8 是一個 AI 驅動的學習平台，把 `course draft -> file upload / R
 - Google Gemini
 - PostgreSQL `LISTEN/NOTIFY` + SSE
 
+## 先安裝什麼
+
+第一次在本機跑這個 repo，建議先準備下面幾樣：
+
+- `Python 3.12`
+- `Node.js 18.17+`，建議直接用 Node 20 LTS
+- `npm`
+- `PostgreSQL 14+`
+
+選配但推薦：
+
+- `uv`
+  用來管理 Python 工具與執行環境會比較順，但目前不是必要依賴
+- `Docker` / `Docker Compose`
+  如果你想直接用容器把前後端與依賴一起拉起來
+
+### 為什麼需要這些
+
+- `Python 3.12`
+  後端 README、migration、seed script 都是以 `python3.12` 為基準
+- `Node.js`
+  前端是 Next.js 14，需要現代版 Node
+- `PostgreSQL`
+  Learn8 和 Arena 的資料都落在 PostgreSQL，沒有它後端無法正常工作
+- `uv`
+  你剛剛的執行環境已經有用到，但 repo 目前還是以 `requirements.txt` 為主，不強制使用 `uv`
+
+### 建議版本
+
+- Python: `3.12.x`
+- Node.js: `20.x`
+- npm: 跟 Node 一起安裝即可
+- PostgreSQL: `14`、`15`、`16` 都可以
+
+### 快速檢查
+
+```bash
+python3.12 --version
+node --version
+npm --version
+psql --version
+```
+
+如果你也有裝 `uv`：
+
+```bash
+uv --version
+```
+
 ## 本地啟動
 
 ### Docker
@@ -104,6 +153,124 @@ python3.12 -m uvicorn app.main:app --reload --port 8000
 
 - `.env` 已填入 `GOOGLE_API_KEY`
 - `DATABASE_URL` 指向可用的 PostgreSQL
+- 如果要限制 Arena 管理台，只允許特定帳號，請設定 `ARENA_ADMIN_EMAILS=user1@example.com,user2@example.com`
+
+如果你偏好用 `uv`，也可以這樣做：
+
+```bash
+cd backend
+uv venv
+source .venv/bin/activate
+uv pip install -r requirements.txt -r requirements-dev.txt
+cp .env.example .env
+python3.12 -m alembic upgrade head
+python3.12 -m uvicorn app.main:app --reload --port 8000
+```
+
+#### Arena 本地初始化
+
+Arena 現在已經依賴額外的 PostgreSQL tables。
+如果你拉了最新程式碼但還沒跑 migration，就會看到這類錯誤：
+
+- `relation "public_courses" does not exist`
+- `relation "arena_ratings" does not exist`
+
+這不是 API route 壞掉，而是資料庫 schema 還停在 Arena migration 之前。
+
+請在 `backend/` 目錄執行：
+
+```bash
+python3.12 -m alembic upgrade head
+```
+
+如果想確認 Arena migration 是否已進資料庫，可用：
+
+```bash
+python3.12 -m alembic current
+python3.12 -m alembic history --verbose
+```
+
+你應該至少看到 Arena foundation migration：
+
+```text
+9d3c1a4b7ef2_add_arena_foundation.py
+```
+
+完成後再啟動後端：
+
+```bash
+python3.12 -m uvicorn app.main:app --reload --port 8000
+```
+
+#### Arena Admin
+
+Arena 管理台路徑：
+
+```text
+/admin/arena
+```
+
+目前它可管理：
+
+- `PublicCourse`
+- `ArenaQuestionPool`
+- `ArenaSeason`
+- Arena 題目與選項內容
+- 玩家比賽紀錄與異常對戰檢視
+- Arena 系統健康摘要
+
+Arena 玩家端目前已整合進主產品介面，主要入口是：
+
+- `/home`
+  這裡可以直接選官方主題、加入即時競賽、建立私人房、輸入房號加入、查看排行榜摘要與公開主題
+- `/profile`
+  這裡會顯示 Arena 競技身份，包含 rating、rank tier、勝率、主題強度、近期 rank 變化，以及 season badge / title / placement
+- `/arena/leaderboard`
+  獨立排行榜頁，提供 season / global 與 rank / win rate / matches 等分類檢視
+
+Arena 玩家端的核心模式目前分成兩種：
+
+- `私人房間`
+- `即時競賽隊列`
+
+即時競賽隊列會在相同官方主題下等待對手，成功配對後直接建立正式競賽 match。
+舊的 `/arena` 首頁已被收斂，現在會直接導回 `/home`。
+
+目前 Arena 也已具備：
+
+- SSE 重連與狀態恢復
+- room / match presence heartbeat
+- `player.disconnected` / `player.reconnected` 事件
+- 溫和型風控標記，例如 low completion、disconnect instability、suspicious latency pattern
+- 管理台健康摘要，用來觀察 queue 壓力、stale matches 與異常活動
+
+對應權限規則：
+
+- 若 `ARENA_ADMIN_EMAILS` 為空，已登入使用者都可進入管理 API
+- 若 `ARENA_ADMIN_EMAILS` 有值，只有 email 在 allowlist 內的帳號可使用
+
+#### Arena Demo Data
+
+如果你想快速把 Arena 畫面跑起來，而不是手動在 `/admin/arena` 一筆一筆建立內容，可以直接執行 demo seed：
+
+```bash
+cd backend
+python3.12 -m scripts.seed_arena_demo
+```
+
+這個腳本會：
+
+- 建立或更新 3 個可用的 `PublicCourse`
+- 為每個主題建立可直接開房的 `ArenaQuestionPool`
+- 建立一個 active season
+- 幫現有使用者補 Arena rating / topic rating / rank history demo 資料
+
+如果你剛拉下最新版本，記得重新執行 migration，因為 Arena 新增了競賽配對隊列表：
+
+```bash
+cd backend
+python3.12 -m alembic upgrade head
+```
 
 #### Backend Tests
 
@@ -165,6 +332,8 @@ cd frontend
 npm install
 npm run dev
 ```
+
+前端如果你還沒裝 Node，建議直接裝 Node 20 LTS 再執行上述指令。
 
 前端預設 API：
 

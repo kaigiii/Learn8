@@ -9,9 +9,24 @@ import useUserStore, { selectAvailableCredits } from "@/stores/app/useUserStore"
 interface TopStatsBarProps {
   backHref?: string;
   pageTitle?: string;
+  navLinks?: Array<{
+    href: string;
+    label: string;
+    active?: boolean;
+  }>;
+  quickLinks?: Array<{
+    href: string;
+    label: string;
+    active?: boolean;
+  }>;
 }
 
-export default function TopStatsBar({ backHref, pageTitle }: TopStatsBarProps = {}) {
+export default function TopStatsBar({
+  backHref,
+  pageTitle,
+  navLinks = [],
+  quickLinks = [],
+}: TopStatsBarProps = {}) {
   const [profileOpen, setProfileOpen] = useState(false);
   const authUser = useAuthStore((s) => s.user);
   const availableCredits = useUserStore(selectAvailableCredits);
@@ -27,9 +42,9 @@ export default function TopStatsBar({ backHref, pageTitle }: TopStatsBarProps = 
 
   return (
     <>
-      <nav className="sticky top-0 z-50 flex items-center justify-between px-4 md:px-8 py-3 bg-white/70 backdrop-blur-lg border-b border-white/40 shadow-sm">
+      <nav className="sticky top-0 z-50 flex items-center justify-between gap-3 px-4 py-3 md:px-8 bg-white/70 backdrop-blur-lg border-b border-white/40 shadow-sm">
         {/* Left: back arrow or avatar + logo */}
-        <div className="flex items-center gap-3 relative">
+        <div className="flex min-w-0 items-center gap-3 relative">
           {backHref ? (
             /* Back arrow mode (e.g. store, map) */
             <>
@@ -45,6 +60,23 @@ export default function TopStatsBar({ backHref, pageTitle }: TopStatsBarProps = 
               <span className="font-heading text-xl font-extrabold text-brand-gray-700">
                 {pageTitle}
               </span>
+              {navLinks.length > 0 ? (
+                <div className="ml-2 hidden items-center gap-2 md:flex">
+                  {navLinks.map((link) => (
+                    <Link
+                      key={`${link.href}-${link.label}`}
+                      href={link.href}
+                      className={`rounded-full px-3 py-2 text-[11px] font-bold uppercase tracking-[0.16em] transition ${
+                        link.active
+                          ? "bg-brand-teal/12 text-brand-teal ring-1 ring-brand-teal/20"
+                          : "bg-white/70 text-brand-gray-600 hover:bg-white"
+                      }`}
+                    >
+                      {link.label}
+                    </Link>
+                  ))}
+                </div>
+              ) : null}
             </>
           ) : (
             /* Default avatar + logo mode */
@@ -67,6 +99,40 @@ export default function TopStatsBar({ backHref, pageTitle }: TopStatsBarProps = 
 
         {/* Right: stats */}
         <div className="flex items-center gap-4 md:gap-6">
+          {quickLinks.length > 0 ? (
+            <div className="flex items-center gap-2">
+              {quickLinks.map((link) => (
+                <Link
+                  key={`${link.href}-${link.label}-quick`}
+                  href={link.href}
+                  className={`rounded-full px-3 py-2 text-[11px] font-bold uppercase tracking-[0.16em] transition ${
+                    link.active
+                      ? "bg-brand-teal/12 text-brand-teal ring-1 ring-brand-teal/20"
+                      : "bg-white/70 text-brand-gray-600 hover:bg-white"
+                  }`}
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </div>
+          ) : null}
+          {navLinks.length > 0 ? (
+            <div className="flex items-center gap-2 md:hidden">
+              {navLinks.map((link) => (
+                <Link
+                  key={`${link.href}-${link.label}-mobile`}
+                  href={link.href}
+                  className={`rounded-full px-3 py-2 text-[11px] font-bold uppercase tracking-[0.16em] transition ${
+                    link.active
+                      ? "bg-brand-teal/12 text-brand-teal ring-1 ring-brand-teal/20"
+                      : "bg-white/70 text-brand-gray-600 hover:bg-white"
+                  }`}
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </div>
+          ) : null}
           {/* Streak */}
           <div className="flex items-center gap-1.5">
             <span className="text-lg">⏱️</span>

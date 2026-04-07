@@ -1,6 +1,6 @@
 # Learn8 Backend Docs
 
-這份文件以目前 `backend/app/` 與 `backend/alembic/` 的實作為準，整理 Learn8 後端的架構、資料模型、核心流程、AI / RAG 能力、背景任務、帳務 / XP 系統、測試策略與維運注意事項。
+這份文件以目前 `backend/app/` 與 `backend/alembic/` 的實作為準，整理 Learn8 後端的架構、資料模型、核心流程、AI / RAG 能力、背景任務、帳務 / XP 系統、Arena 多人競技子系統、測試策略與維運注意事項。
 
 這份文件的目標不是只列檔名，而是讓你在三種情境都能直接使用：
 
@@ -91,6 +91,7 @@ Learn8 後端目前負責以下責任：
 
 - 使用者認證、登入、安全限制、密碼重設
 - 使用者 profile、credits、XP、level、ledger
+- Arena 官方主題、題池、私人房、即時競賽、排行榜、season、管理台資料
 - course draft CRUD
 - course file 管理
 - 文件解析、切 chunk、RAG ingest
@@ -162,6 +163,7 @@ backend/
     models/
     schemas/
     services/
+      arena/
       ai_agents/
       commons/
       knowledge_base/
@@ -218,6 +220,36 @@ flowchart TD
 ```
 
 ### 分層責任
+
+### Arena Subsystem Snapshot
+
+Arena 現在已經是後端中的正式子系統，不再只是計劃稿。
+它目前主要落在這些模組：
+
+- `backend/app/api/v1/endpoints/arena.py`
+  玩家端 Arena API，包含 public courses、queue、room、match、presence、stream
+- `backend/app/api/v1/endpoints/arena_rank.py`
+  profile、leaderboard、season leaderboard、rank history
+- `backend/app/api/v1/endpoints/arena_admin.py`
+  官方主題、題池、season、ops review、system health
+- `backend/app/services/arena/`
+  核心商業邏輯，包含 `room_service.py`、`competitive_service.py`、`round_engine.py`、`rating_service.py`、`rank_service.py`、`presence_service.py`、`telemetry_service.py`
+- `backend/app/models/arena_*`
+  Arena rooms / matches / rounds / answers / ratings / seasons / events / queues
+
+Arena 目前的技術特徵：
+
+- 後端權威 match / round 狀態
+- PostgreSQL 持久化所有關鍵資料
+- `LISTEN/NOTIFY` + SSE 做即時事件串流
+- presence heartbeat + `player.disconnected` / `player.reconnected`
+- 溫和型風控與 anomaly review
+- admin health snapshot 與部分自我修復
+
+Arena 本地開發前置：
+
+- 必須先跑 Alembic migration，否則 `public_courses`、`arena_ratings`、`arena_matches` 等表不會存在
+- 若要快速準備資料，可執行 `python3.12 -m scripts.seed_arena_demo`
 
 #### `api/`
 

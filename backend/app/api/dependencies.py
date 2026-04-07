@@ -1,5 +1,5 @@
 from typing import Generator, Annotated
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, Header, HTTPException, Query, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
 from sqlalchemy.orm import Session
@@ -18,9 +18,7 @@ def get_db() -> Generator:
         db.close()
 
 
-async def get_current_user(
-    token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)
-) -> UserModel:
+def _resolve_current_user_from_token(token: str, db: Session) -> UserModel:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -40,3 +38,51 @@ async def get_current_user(
     if user is None:
         raise credentials_exception
     return user
+
+
+async def get_current_user(
+    token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)
+) -> UserModel:
+    return _resolve_current_user_from_token(token, db)
+
+
+async def get_current_user_for_stream(
+    db: Session = Depends(get_db),
+    access_token: str | None = Query(default=None),
+    authorization: str | None = Header(default=None),
+) -> UserModel:
+    token = access_token
+    if not token and authorization:
+        scheme, _, value = authorization.partition(" ")
+        if scheme.lower() == "bearer" and value:
+            token = value
+
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return _resolve_current_user_from_token(token, db)
+
+
+def get_current_arena_admin(
+    current_user: UserModel = Depends(get_current_user),
+) -> UserModel:
+    allowed_emails = {
+        email.strip().lower()
+        for email in settings.ARENA_ADMIN_EMAILS.split(",")
+        if email.strip()
+    }
+
+    if not allowed_emails:
+        return current_user
+
+    if (current_user.email or "").strip().lower() not in allowed_emails:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Arena admin access is required",
+        )
+
+    return current_user

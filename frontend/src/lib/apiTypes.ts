@@ -224,6 +224,349 @@ export interface LessonGenerationPreferenceListResponse {
   items: LessonGenerationPreferenceItem[];
 }
 
+export interface ArenaPublicCourse {
+  id: number;
+  slug: string;
+  title: string;
+  topic: string;
+  description?: string | null;
+  difficulty: string;
+  tags: string[];
+}
+
+export interface ArenaCompetitiveQueueState {
+  queueId: number;
+  status: string;
+  publicCourseId: number;
+  publicCourseTitle: string;
+  mode: string;
+  queuedAt: string;
+  expiresAt?: string | null;
+  matchId?: number | null;
+  matchedUserId?: number | null;
+}
+
+export interface ArenaAdminPublicCourse extends ArenaPublicCourse {
+  isPublished: boolean;
+  isArenaEnabled: boolean;
+}
+
+export interface ArenaAdminPublicCourseUpsertRequest {
+  slug: string;
+  title: string;
+  topic: string;
+  description?: string | null;
+  difficulty: string;
+  isPublished: boolean;
+  isArenaEnabled: boolean;
+  tags: string[];
+}
+
+export interface ArenaAdminQuestionPoolItem {
+  id: number;
+  questionKey: string;
+  prompt: string;
+  options: Array<Record<string, unknown>>;
+  correctOptionId: string;
+  difficulty: string;
+  knowledgeTags: string[];
+  explanation?: string | null;
+  sourceUnitId?: string | null;
+  sourceNodeId?: string | null;
+  isActive: boolean;
+}
+
+export interface ArenaAdminQuestionPool {
+  id: number;
+  publicCourseId: number;
+  slug: string;
+  title: string;
+  description?: string | null;
+  isActive: boolean;
+  version: number;
+  items: ArenaAdminQuestionPoolItem[];
+}
+
+export interface ArenaAdminQuestionPoolItemUpsertRequest {
+  questionKey: string;
+  prompt: string;
+  options: Array<Record<string, unknown>>;
+  correctOptionId: string;
+  difficulty: string;
+  knowledgeTags: string[];
+  explanation?: string | null;
+  sourceUnitId?: string | null;
+  sourceNodeId?: string | null;
+  isActive: boolean;
+}
+
+export interface ArenaAdminQuestionPoolUpsertRequest {
+  publicCourseId: number;
+  slug: string;
+  title: string;
+  description?: string | null;
+  isActive: boolean;
+  version: number;
+  items: ArenaAdminQuestionPoolItemUpsertRequest[];
+}
+
+export interface ArenaAdminSeason {
+  id: number;
+  name: string;
+  status: string;
+  isActive: boolean;
+  startedAt?: string | null;
+  endedAt?: string | null;
+  leaderboardConfig: Record<string, unknown>;
+  rewardConfig: Record<string, unknown>;
+}
+
+export interface ArenaAdminSeasonUpsertRequest {
+  name: string;
+  status: string;
+  isActive: boolean;
+  startedAt?: string | null;
+  endedAt?: string | null;
+  leaderboardConfig: Record<string, unknown>;
+  rewardConfig: Record<string, unknown>;
+}
+
+export interface ArenaAdminPlayerMatchRecord {
+  matchId: number;
+  userId: number;
+  displayName: string;
+  email: string;
+  publicCourseTitle: string;
+  mode: string;
+  status: string;
+  finalRank?: number | null;
+  score: number;
+  correctCount: number;
+  incorrectCount: number;
+  ratingDelta: number;
+  startedAt?: string | null;
+  endedAt?: string | null;
+}
+
+export interface ArenaAdminMatchReview {
+  matchId: number;
+  publicCourseTitle: string;
+  mode: string;
+  status: string;
+  playerCount: number;
+  roundCount: number;
+  answerCount: number;
+  timedOutCount: number;
+  anomalyFlags: string[];
+  startedAt?: string | null;
+  endedAt?: string | null;
+}
+
+export interface ArenaAdminHealthSnapshot {
+  waitingQueueCount: number;
+  matchedQueueCount: number;
+  inProgressMatchCount: number;
+  staleMatchCount: number;
+  abandonmentCount: number;
+  suspiciousLatencyCount: number;
+  disconnectInstabilityCount: number;
+  alertFlags: string[];
+  generatedAt: string;
+}
+
+export interface ArenaSeasonSummary {
+  id: number;
+  name: string;
+  status: string;
+  isActive: boolean;
+  startedAt?: string | null;
+  endedAt?: string | null;
+}
+
+export interface ArenaRoomPlayer {
+  userId: number;
+  displayName: string;
+  isHost: boolean;
+  isReady: boolean;
+  team?: string | null;
+  joinedAt: string;
+  connectionState?: string | null;
+}
+
+export interface ArenaRoom {
+  roomCode: string;
+  hostUserId: number;
+  publicCourseId: number;
+  publicCourseTitle: string;
+  mode: string;
+  visibility: string;
+  status: string;
+  maxPlayers: number;
+  roundCount: number;
+  roundTimeSeconds: number;
+  playerCount: number;
+  canStart: boolean;
+  players: ArenaRoomPlayer[];
+  latestMatchId?: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ArenaQuestionOption {
+  id: string;
+  text: string;
+}
+
+export interface ArenaQuestionView {
+  questionId: string;
+  prompt: string;
+  options: ArenaQuestionOption[];
+  difficulty?: string | null;
+  knowledgeTags: string[];
+}
+
+export interface ArenaStandingEntry {
+  userId: number;
+  displayName: string;
+  score: number;
+  correctCount: number;
+  incorrectCount: number;
+  answeredCount: number;
+  averageResponseMs?: number | null;
+  rank: number;
+  accuracy?: number | null;
+  xpGained?: number | null;
+  creditsGained?: number | null;
+  ratingDelta?: number | null;
+  ratingBefore?: number | null;
+  ratingAfter?: number | null;
+  rankTierBefore?: string | null;
+  rankTierAfter?: string | null;
+}
+
+export interface ArenaRoundState {
+  roundId: number;
+  roundIndex: number;
+  status: string;
+  timerSeconds: number;
+  startedAt?: string | null;
+  deadlineAt?: string | null;
+  revealedAnswer?: Record<string, unknown> | null;
+  question: ArenaQuestionView;
+  submittedPlayerIds: number[];
+  hasSubmitted: boolean;
+}
+
+export interface ArenaPresenceState {
+  userId: number;
+  connectionState: string;
+  lastSeenAt?: string | null;
+  disconnectedAt?: string | null;
+  disconnectCount: number;
+  suspectedAbandonment: boolean;
+}
+
+export interface ArenaMatchState {
+  matchId: number;
+  roomCode?: string | null;
+  status: string;
+  mode: string;
+  publicCourseId: number;
+  publicCourseTitle: string;
+  totalRounds: number;
+  currentRoundIndex: number;
+  activeRound?: ArenaRoundState | null;
+  standings: ArenaStandingEntry[];
+  currentPlayerResult?: ArenaStandingEntry | null;
+  presenceStates: ArenaPresenceState[];
+  startedAt?: string | null;
+  endedAt?: string | null;
+}
+
+export interface ArenaAnswerSubmitResponse {
+  accepted: boolean;
+  alreadySubmitted: boolean;
+  roundClosed: boolean;
+  matchFinished: boolean;
+  state: ArenaMatchState;
+}
+
+export interface ArenaProfileTopicRating {
+  publicCourseId: number;
+  title: string;
+  topic: string;
+  rating: number;
+  rankTier: string;
+}
+
+export interface ArenaProfile {
+  userId: number;
+  displayName: string;
+  rating: number;
+  rankTier: string;
+  bestRankTier: string;
+  wins: number;
+  losses: number;
+  draws: number;
+  rankedMatches: number;
+  winRate: number;
+  activeSeason?: string | null;
+  seasonPlacement?: number | null;
+  seasonPercentile?: number | null;
+  seasonBadge?: string | null;
+  seasonTitle?: string | null;
+  topicRatings: ArenaProfileTopicRating[];
+}
+
+export interface ArenaLeaderboardEntry {
+  userId: number;
+  displayName: string;
+  rating: number;
+  rankTier: string;
+  wins: number;
+  losses: number;
+  rankedMatches: number;
+  seasonPlacement?: number | null;
+  seasonPercentile?: number | null;
+  seasonBadge?: string | null;
+  seasonTitle?: string | null;
+}
+
+export interface ArenaLeaderboardResponse {
+  items: ArenaLeaderboardEntry[];
+}
+
+export interface ArenaRankHistoryEntry {
+  matchId?: number | null;
+  seasonId?: number | null;
+  ratingBefore: number;
+  ratingAfter: number;
+  ratingDelta: number;
+  rankTierBefore: string;
+  rankTierAfter: string;
+  createdAt: string;
+}
+
+export interface ArenaRankHistoryResponse {
+  items: ArenaRankHistoryEntry[];
+}
+
+export interface ArenaEventEnvelope {
+  cursor: number;
+  eventId: string;
+  streamType: string;
+  roomCode?: string | null;
+  matchId?: number | null;
+  eventType: string;
+  version: number;
+  payload: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface ArenaEventListResponse {
+  items: ArenaEventEnvelope[];
+}
+
 export interface Question {
   id: string;
   text: string;
