@@ -14,6 +14,12 @@ from app.services.commons.user_economy import spend_user_credits
 from app.services.llm_clients.factory import LLMFactory
 from app.services.knowledge_base.rag_engine import RAGEngine
 from app.core.config import settings
+from app.services.commons.lesson_persistence import (
+    summarize_stages,
+    sync_lesson_stages,
+    sync_remedial_stages,
+    sync_session_stages,
+)
 from app.services.workers.job_notifier import _notify_job_update, _publish_job_notification
 
 logger = logging.getLogger(__name__)
@@ -90,7 +96,6 @@ async def run_lesson_generation_job(
         # 寫入資料庫
         from app.models.lesson import LessonModel
 
-        stages_json = [s.model_dump() for s in stages]
         generation_metadata = {
             "allowed_components": resolved_allowed_components,
             "source": "lesson_generation",
@@ -111,20 +116,38 @@ async def run_lesson_generation_job(
         existing_lesson = existing_lesson_query.order_by(LessonModel.created_at.desc()).first()
 
         if existing_lesson:
-            existing_lesson.stage_json = stages_json
             existing_lesson.generation_metadata_json = generation_metadata
+            existing_lesson.status = "generated"
+            existing_lesson.schema_version = 2
+            existing_lesson.generator_provider = settings.LLM_PROVIDER
+            existing_lesson.generator_model = (
+                settings.GEMINI_MODEL
+                if settings.LLM_PROVIDER == "google"
+                else settings.LMSTUDIO_MODEL
+            )
             existing_lesson.created_at = utc_now_naive()
             db.add(existing_lesson)
+            db.flush()
+            sync_lesson_stages(db, lesson=existing_lesson, stages=stages)
         else:
             new_lesson = LessonModel(
                 node_id=node.id,
                 course_topic=topic,
-                stage_json=stages_json,
+                status="generated",
+                schema_version=2,
+                generator_provider=settings.LLM_PROVIDER,
+                generator_model=(
+                    settings.GEMINI_MODEL
+                    if settings.LLM_PROVIDER == "google"
+                    else settings.LMSTUDIO_MODEL
+                ),
                 generation_metadata_json=generation_metadata,
                 user_id=user.id,
                 course_id=course_id,
             )
             db.add(new_lesson)
+            db.flush()
+            sync_lesson_stages(db, lesson=new_lesson, stages=stages)
 
         # 扣點數
         spend_user_credits(
@@ -145,7 +168,7 @@ async def run_lesson_generation_job(
         job.message = "🎉 單元建立完成！"
         job.status = JobStatus.COMPLETED
         job.result_data = {
-            "stages": stages_json,
+            "stages": [s.model_dump() for s in stages],
             "allowed_components": resolved_allowed_components,
             "node_id": node.id,
             "course_id": course_id,
@@ -229,6 +252,9 @@ async def run_remedial_generation_job(
                 "isRemedial": True,
             }
             stages_json.append(stage_payload)
+        remedial_stage_count, remedial_question_count, remedial_estimated_minutes = summarize_stages(
+            remedial_stages
+        )
 
         from app.models.lesson import (
             LessonFailedStageModel,
@@ -247,9 +273,13 @@ async def run_remedial_generation_job(
             .first()
         )
         if remedial_record:
-            remedial_record.stage_json = stages_json
             remedial_record.lesson_session_id = session_id
+            remedial_record.stage_count = remedial_stage_count
+            remedial_record.question_count = remedial_question_count
+            remedial_record.estimated_duration_minutes = remedial_estimated_minutes
+            remedial_record.schema_version = 2
             db.add(remedial_record)
+            db.flush()
         else:
             remedial_record = LessonRemedialModel(
                 user_id=user_id,
@@ -257,9 +287,15 @@ async def run_remedial_generation_job(
                 lesson_session_id=session_id,
                 node_id=node_id,
                 course_topic=topic,
-                stage_json=stages_json,
+                stage_count=remedial_stage_count,
+                question_count=remedial_question_count,
+                estimated_duration_minutes=remedial_estimated_minutes,
+                schema_version=2,
             )
             db.add(remedial_record)
+            db.flush()
+
+        sync_remedial_stages(db, remedial=remedial_record, stages=remedial_stages)
 
         if session_id:
             session = (
@@ -268,10 +304,21 @@ async def run_remedial_generation_job(
                 .first()
             )
             if session:
-                session.remedial_stages_json = stages_json
                 session.status = LessonSessionStatus.PLAYING_REMEDIAL
                 session.active_phase = LessonSessionPhase.REMEDIAL
+                session.schema_version = 2
                 db.add(session)
+                db.flush()
+                remedial_stage_by_uid = {
+                    item.stage_uid: item for item in (remedial_record.stages or [])
+                }
+                sync_session_stages(
+                    db,
+                    session=session,
+                    stages=remedial_stages,
+                    phase=LessonSessionPhase.REMEDIAL,
+                    remedial_stage_by_uid=remedial_stage_by_uid,
+                )
 
             failed_records = (
                 db.query(LessonFailedStageModel)

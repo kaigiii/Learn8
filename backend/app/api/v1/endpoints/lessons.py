@@ -29,6 +29,8 @@ from app.models.lesson import (
     LessonModel,
     LessonRemedialModel,
     LessonSessionModel,
+    LessonSessionStageModel,
+    LessonStageModel,
 )
 from app.models.lesson_generation_preference import LessonGenerationPreferenceModel
 from app.models.user import UserModel
@@ -53,6 +55,7 @@ from app.schemas.lesson_schema import (
 )
 from app.services.ai_agents.course_architect import AIArchitectService, get_architect_service
 from app.services.commons.user_credits import has_sufficient_credits
+from app.services.commons.lesson_persistence import count_stage_items, sync_session_stages
 from app.services.commons.profile_context import build_generation_profile_context
 from app.services.commons.user_economy import (
     award_lesson_completion_xp,
@@ -66,8 +69,6 @@ from app.services.workers.lesson_worker import (
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
-
-LESSON_STAGE_LIST_ADAPTER = TypeAdapter(List[LessonStage])
 
 
 @router.get("/components", response_model=LessonComponentManifestResponse)
@@ -260,19 +261,41 @@ def delete_lesson_generation_preference(
     return None
 
 
-def _coerce_stage_list(raw: Any) -> List[LessonStage]:
-    if isinstance(raw, list):
-        return LESSON_STAGE_LIST_ADAPTER.validate_python(raw)
-    if isinstance(raw, dict):
-        return [TypeAdapter(LessonStage).validate_python(raw)]
-    return []
-
-
 def _serialize_failed_record(record: LessonFailedStageModel) -> FailedStageRecord:
     return FailedStageRecord(
         failedStage=TypeAdapter(LessonStage).validate_python(record.stage_snapshot_json),
         userInput=record.user_input_json,
     )
+
+
+def _stage_models_to_schema(stage_models: list[LessonSessionStageModel]) -> list[LessonStage]:
+    return [
+        TypeAdapter(LessonStage).validate_python(item.stage_snapshot_json)
+        for item in stage_models
+        if isinstance(item.stage_snapshot_json, dict)
+    ]
+
+
+def _lesson_stage_models_to_schema(stage_models: list[LessonStageModel]) -> list[LessonStage]:
+    return [
+        TypeAdapter(LessonStage).validate_python(item.stage_snapshot_json)
+        for item in stage_models
+        if isinstance(item.stage_snapshot_json, dict)
+    ]
+
+
+def _resolve_session_stage_lists(session: LessonSessionModel) -> tuple[list[LessonStage], list[LessonStage]]:
+    session_stage_models = list(session.session_stages or [])
+    if session_stage_models:
+        primary_models = [
+            item for item in session_stage_models if item.phase == LessonSessionPhase.PRIMARY
+        ]
+        remedial_models = [
+            item for item in session_stage_models if item.phase == LessonSessionPhase.REMEDIAL
+        ]
+        return _stage_models_to_schema(primary_models), _stage_models_to_schema(remedial_models)
+
+    return [], []
 
 
 def _build_session_payload(
@@ -281,8 +304,7 @@ def _build_session_payload(
     remedial_job_id: str | None = None,
     resumed_session: bool = False,
 ) -> LessonSessionPayload:
-    primary_stages = _coerce_stage_list(session.primary_stages_json)
-    remedial_stages = _coerce_stage_list(session.remedial_stages_json)
+    primary_stages, remedial_stages = _resolve_session_stage_lists(session)
     active_stages = (
         remedial_stages
         if session.active_phase == LessonSessionPhase.REMEDIAL
@@ -413,9 +435,10 @@ def _build_session_summary_payload(
     completed_at = session.completed_at or utc_now_naive()
     started_at = session.started_at or completed_at
     elapsed_seconds = max(0, int((completed_at - started_at).total_seconds()))
-    total_stages = len(_coerce_stage_list(session.primary_stages_json)) + len(
-        _coerce_stage_list(session.remedial_stages_json)
-    )
+    primary_stages, remedial_stages = _resolve_session_stage_lists(session)
+    total_stages = len(primary_stages) + len(remedial_stages)
+    if session.total_stage_count:
+        total_stages = int(session.total_stage_count)
 
     xp_gained = (
         _compute_session_xp(accuracy, session.hints_used_count or 0)
@@ -491,10 +514,11 @@ def _is_course_node_already_completed(
 def _find_stage_in_session(
     session: LessonSessionModel, stage_id: str
 ) -> tuple[LessonStage, str] | tuple[None, None]:
-    for stage in _coerce_stage_list(session.primary_stages_json):
+    primary_stages, remedial_stages = _resolve_session_stage_lists(session)
+    for stage in primary_stages:
         if stage.stageId == stage_id:
             return stage, LessonSessionPhase.PRIMARY
-    for stage in _coerce_stage_list(session.remedial_stages_json):
+    for stage in remedial_stages:
         if stage.stageId == stage_id:
             return stage, LessonSessionPhase.REMEDIAL
     return None, None
@@ -764,7 +788,11 @@ async def generate_lesson_from_node_endpoint(
                 ),
             )
         try:
-            stages = _coerce_stage_list(cached_lesson.stage_json)
+            ordered_stage_models = sorted(
+                list(cached_lesson.stages or []),
+                key=lambda item: (item.stage_order, item.id),
+            )
+            stages = _lesson_stage_models_to_schema(ordered_stage_models)
             if stages:
                 return {
                     "status": JobStatus.COMPLETED,
@@ -867,7 +895,7 @@ async def start_lesson_session(
     )
     if existing_session:
         if existing_session.status == LessonSessionStatus.REMEDIAL_GENERATING:
-            remedial_stages = _coerce_stage_list(existing_session.remedial_stages_json)
+            _, remedial_stages = _resolve_session_stage_lists(existing_session)
             if remedial_stages:
                 existing_session.status = LessonSessionStatus.PLAYING_REMEDIAL
                 existing_session.active_phase = LessonSessionPhase.REMEDIAL
@@ -896,17 +924,25 @@ async def start_lesson_session(
 
         return _build_session_payload(db, existing_session, resumed_session=True)
 
-    cached_lesson = (
-        db.query(LessonModel)
-        .filter(
-            LessonModel.user_id == current_user.id,
+    lesson_query = db.query(LessonModel).filter(
+        LessonModel.user_id == current_user.id,
+        LessonModel.node_id == request.nodeId,
+    )
+    if request.lessonId is not None:
+        lesson_query = lesson_query.filter(LessonModel.id == request.lessonId)
+    else:
+        lesson_query = lesson_query.filter(
             LessonModel.course_id == request.courseId,
-            LessonModel.node_id == request.nodeId,
             LessonModel.course_topic == request.topic,
         )
-        .order_by(LessonModel.created_at.desc())
-        .first()
-    )
+
+    cached_lesson = lesson_query.order_by(LessonModel.created_at.desc()).first()
+    if not cached_lesson:
+        raise HTTPException(status_code=404, detail="Generated lesson not found")
+
+    primary_stages = _lesson_stage_models_to_schema(list(cached_lesson.stages or []))
+    if not primary_stages:
+        raise HTTPException(status_code=409, detail="Generated lesson has no canonical stages")
 
     session = LessonSessionModel(
         user_id=current_user.id,
@@ -919,9 +955,22 @@ async def start_lesson_session(
         reward_eligible=not _is_course_node_already_completed(
             db, request.courseId, request.nodeId, current_user.id
         ),
-        primary_stages_json=[stage.model_dump() for stage in request.primaryStages],
+        schema_version=2,
     )
     db.add(session)
+    db.flush()
+    lesson_stage_by_uid: dict[str, LessonStageModel] = {}
+    if cached_lesson:
+        lesson_stage_by_uid = {
+            item.stage_uid: item for item in (cached_lesson.stages or [])
+        }
+    sync_session_stages(
+        db,
+        session=session,
+        stages=primary_stages,
+        phase=LessonSessionPhase.PRIMARY,
+        lesson_stage_by_uid=lesson_stage_by_uid,
+    )
     db.commit()
     db.refresh(session)
     return _build_session_payload(db, session)
@@ -1052,6 +1101,16 @@ async def submit_answer(
     if not stage:
         raise HTTPException(status_code=404, detail="Stage not found in lesson session")
 
+    session_stage = (
+        db.query(LessonSessionStageModel)
+        .filter(
+            LessonSessionStageModel.lesson_session_id == session.id,
+            LessonSessionStageModel.stage_uid == submission.stageId,
+        )
+        .first()
+    )
+    lesson_stage_id = session_stage.lesson_stage_id if session_stage else None
+
     result, message, normalized_input, evaluation = await _evaluate_submission(
         stage,
         submission.userInput,
@@ -1062,13 +1121,18 @@ async def submit_answer(
 
     attempt = LessonAttempt(
         lesson_session_id=session.id,
+        lesson_session_stage_id=session_stage.id if session_stage else None,
+        lesson_stage_id=lesson_stage_id,
         user_id=current_user.id,
         course_id=session.course_id,
         node_id=session.node_id,
         course_topic=session.course_topic,
         stage_id=stage.stageId,
+        stage_order=session_stage.stage_order if session_stage else None,
         component=stage.component,
         phase=phase,
+        attempt_number=1,
+        result=result,
         user_input=str(normalized_input),
         user_input_json=normalized_input,
         evaluation_json=evaluation,
@@ -1077,6 +1141,13 @@ async def submit_answer(
         is_correct_bool=is_correct,
     )
     db.add(attempt)
+    if session_stage:
+        session_stage.status = "completed" if result != "incorrect" else "failed"
+        if session_stage.started_at is None:
+            session_stage.started_at = utc_now_naive()
+        session_stage.completed_at = utc_now_naive()
+        session_stage.updated_at = utc_now_naive()
+        db.add(session_stage)
 
     recorded_failure = False
     if phase == LessonSessionPhase.PRIMARY and result == "incorrect":
@@ -1084,6 +1155,9 @@ async def submit_answer(
             db.query(LessonFailedStageModel)
             .filter(
                 LessonFailedStageModel.lesson_session_id == session.id,
+                LessonFailedStageModel.lesson_session_stage_id == (
+                    session_stage.id if session_stage else None
+                ),
                 LessonFailedStageModel.stage_id == stage.stageId,
                 LessonFailedStageModel.status.in_(
                     [
@@ -1095,6 +1169,25 @@ async def submit_answer(
             .first()
         )
         if existing_failed_stage:
+            existing_failed_stage.lesson_session_stage_id = (
+                session_stage.id if session_stage else None
+            )
+            existing_failed_stage.lesson_stage_id = lesson_stage_id
+            existing_failed_stage.stage_order = (
+                session_stage.stage_order if session_stage else None
+            )
+            existing_failed_stage.component = stage.component
+            existing_failed_stage.module = (
+                stage.module.value if hasattr(stage.module, "value") else str(stage.module)
+            )
+            existing_failed_stage.difficulty = (
+                stage.difficulty.value if getattr(stage, "difficulty", None) else None
+            )
+            existing_failed_stage.recommended_duration_minutes = (
+                stage.recommendedDurationMinutes
+            )
+            existing_failed_stage.item_count = count_stage_items(stage)
+            existing_failed_stage.stage_snapshot_json = stage.model_dump()
             existing_failed_stage.user_input_json = normalized_input
             existing_failed_stage.evaluation_json = evaluation
             existing_failed_stage.updated_at = utc_now_naive()
@@ -1102,12 +1195,19 @@ async def submit_answer(
             db.add(
                 LessonFailedStageModel(
                     lesson_session_id=session.id,
+                    lesson_session_stage_id=session_stage.id if session_stage else None,
+                    lesson_stage_id=lesson_stage_id,
                     user_id=current_user.id,
                     course_id=session.course_id,
                     node_id=session.node_id,
                     course_topic=session.course_topic,
                     stage_id=stage.stageId,
+                    stage_order=session_stage.stage_order if session_stage else None,
                     component=stage.component,
+                    module=stage.module.value if hasattr(stage.module, "value") else str(stage.module),
+                    difficulty=stage.difficulty.value if getattr(stage, "difficulty", None) else None,
+                    recommended_duration_minutes=stage.recommendedDurationMinutes,
+                    item_count=count_stage_items(stage),
                     source_phase=phase,
                     status=LessonFailedStageStatus.PENDING,
                     stage_snapshot_json=stage.model_dump(),

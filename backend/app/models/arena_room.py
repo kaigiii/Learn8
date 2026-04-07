@@ -21,6 +21,7 @@ class ArenaRoomModel(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     room_code = Column(String(12), nullable=False, index=True)
+    season_id = Column(Integer, ForeignKey("arena_seasons.id", ondelete="SET NULL"), nullable=True, index=True)
     host_user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     public_course_id = Column(Integer, ForeignKey("public_courses.id", ondelete="RESTRICT"), nullable=False, index=True)
     mode = Column(String, nullable=False, default=ArenaMode.PRIVATE_ROOM, index=True)
@@ -50,12 +51,18 @@ class ArenaRoomPlayerModel(Base):
     __table_args__ = (
         UniqueConstraint("room_id", "user_id", name="uq_arena_room_players_room_user"),
         Index("ix_arena_room_players_room_ready", "room_id", "is_ready"),
+        Index("ix_arena_room_players_room_connection", "room_id", "connection_state"),
     )
 
     id = Column(Integer, primary_key=True, index=True)
     room_id = Column(Integer, ForeignKey("arena_rooms.id", ondelete="CASCADE"), nullable=False, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     is_ready = Column(Boolean, nullable=False, default=False)
+    connection_state = Column(String, nullable=False, default="connected", index=True)
+    disconnect_count = Column(Integer, nullable=False, default=0)
+    last_seen_at = Column(DateTime, nullable=True)
+    disconnected_at = Column(DateTime, nullable=True)
+    reconnected_at = Column(DateTime, nullable=True)
     team = Column(String, nullable=True)
     joined_at = Column(DateTime, default=utc_now_naive)
     updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive)

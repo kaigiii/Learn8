@@ -15,8 +15,19 @@ class ArenaRoundModel(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     match_id = Column(Integer, ForeignKey("arena_matches.id", ondelete="CASCADE"), nullable=False, index=True)
+    question_pool_item_id = Column(
+        Integer,
+        ForeignKey("arena_question_pool_items.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     round_index = Column(Integer, nullable=False)
     status = Column(String, nullable=False, default=ArenaRoundStatus.PENDING, index=True)
+    question_key = Column(String, nullable=True, index=True)
+    difficulty = Column(String, nullable=True, index=True)
+    question_count = Column(Integer, nullable=False, default=1)
+    answered_count = Column(Integer, nullable=False, default=0)
+    correct_count = Column(Integer, nullable=False, default=0)
     question_snapshot_json = Column(JSON, nullable=False, default=dict)
     timer_seconds = Column(Integer, nullable=False, default=30)
     revealed_answer_json = Column(JSON, nullable=True)
@@ -46,6 +57,7 @@ class ArenaAnswerModel(Base):
     match_id = Column(Integer, ForeignKey("arena_matches.id", ondelete="CASCADE"), nullable=False, index=True)
     round_id = Column(Integer, ForeignKey("arena_rounds.id", ondelete="CASCADE"), nullable=False, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    selected_option_id = Column(String, nullable=True, index=True)
     answer_payload_json = Column(JSON, nullable=False, default=dict)
     is_correct = Column(Boolean, nullable=False, default=False)
     score_awarded = Column(Integer, nullable=False, default=0)

@@ -656,7 +656,8 @@ python3 -m compileall backend/app
 輸出：
 
 - `LessonStage[]`
-- 寫入 `lessons.stage_json`
+- 寫入 `lessons`
+- canonical stage records 寫入 `lesson_stages`
 - 若 cache 合法，後端優先回傳 cache
 
 ### Answer Submission / Evaluation
@@ -696,8 +697,41 @@ python3 -m compileall backend/app
 輸出：
 
 - remedial `LessonStage[]`
-- 寫入 `lesson_remedials`
-- session 切換到 remedial phase
+- remedial metadata 寫入 `lesson_remedials`
+- canonical remedial stage records 寫入 `lesson_remedial_stages`
+- session 透過 `lesson_session_stages` 切換到 remedial phase
+
+### Lesson Canonical Data Model
+
+目前 lesson 資料流已改成「內容表」與「session 表」分開：
+
+```text
+lessons
+  -> lesson_stages
+
+lesson_remedials
+  -> lesson_remedial_stages
+
+lesson_sessions
+  -> lesson_session_stages
+  -> lesson_attempts
+  -> lesson_failed_stages
+```
+
+白話理解：
+
+- `lessons` / `lesson_stages`
+  保存某個 node 的正式主教學內容
+- `lesson_remedials` / `lesson_remedial_stages`
+  保存某次補救教學生成出的正式內容
+- `lesson_sessions` / `lesson_session_stages`
+  保存某位使用者這一次實際遊玩的編排與進度
+
+也就是說：
+
+- 主教學和補救教學各自持久化
+- session 不再自己成為內容真相來源
+- 前端啟動 session 時，後端會從 canonical stage records 組裝 playable session
 
 ## SSE Jobs
 

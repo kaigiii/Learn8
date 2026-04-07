@@ -568,8 +568,8 @@ User
 
 用途：
 
-- 保存某個 node 的 primary lesson stage list
-- 作為 lesson generation cache
+- 保存某個 node 的 primary lesson metadata
+- 作為 lesson generation cache 與 canonical lesson container
 
 重要欄位：
 
@@ -577,30 +577,79 @@ User
 - `course_id`
 - `node_id`
 - `course_topic`
-- `stage_json`
+- `status`
+- `stage_count`
+- `question_count`
+- `estimated_duration_minutes`
+- `schema_version`
 
-### 7.6 `LessonSessionModel`
+### 7.6 `LessonStageModel`
+
+檔案：[lesson.py](/Users/kaigiii/Coding/Learn8/backend/app/models/lesson.py)
+
+用途：
+
+- 保存 primary lesson 的 canonical stage records
+- 成為 lesson session 建立時的正式來源
+
+重要欄位：
+
+- `lesson_id`
+- `stage_uid`
+- `stage_order`
+- `module`
+- `component`
+- `difficulty`
+- `recommended_duration_minutes`
+- `item_count`
+- `stage_snapshot_json`
+
+### 7.7 `LessonSessionModel`
 
 檔案：[lesson.py](/Users/kaigiii/Coding/Learn8/backend/app/models/lesson.py)
 
 用途：
 
 - 管理一次 lesson / remedial playthrough
-- 保存 primary / remedial stage state
+- 保存 session 級狀態與 reward / completion
 - 作為 reward 與 completion 的核心單位
 
 重要欄位：
 
 - `status`
 - `active_phase`
-- `primary_stages_json`
-- `remedial_stages_json`
+- `active_stage_order`
+- `total_stage_count`
+- `primary_stage_count`
+- `remedial_stage_count`
+- `schema_version`
 - `hints_used_count`
 - `reward_eligible`
 - `started_at`
 - `completed_at`
 
-### 7.7 `LessonAttempt`
+### 7.8 `LessonSessionStageModel`
+
+檔案：[lesson.py](/Users/kaigiii/Coding/Learn8/backend/app/models/lesson.py)
+
+用途：
+
+- 保存某次 session 實際遊玩的 stage 編排
+- 以 `phase` 區分 primary / remedial
+- 關聯 primary lesson stage 或 remedial stage，而不是自己當內容真相來源
+
+重要欄位：
+
+- `lesson_session_id`
+- `lesson_stage_id`
+- `lesson_remedial_stage_id`
+- `stage_uid`
+- `stage_order`
+- `phase`
+- `status`
+- `stage_snapshot_json`
+
+### 7.9 `LessonAttempt`
 
 檔案：[lesson.py](/Users/kaigiii/Coding/Learn8/backend/app/models/lesson.py)
 
@@ -611,7 +660,10 @@ User
 重要欄位：
 
 - `lesson_session_id`
+- `lesson_session_stage_id`
+- `lesson_stage_id`
 - `stage_id`
+- `stage_order`
 - `component`
 - `phase`
 - `user_input_json`
@@ -625,7 +677,7 @@ User
 - 真正流程語意不是單純 `correct / incorrect bool`
 - 還包含 `skipped`
 
-### 7.8 `LessonFailedStageModel`
+### 7.10 `LessonFailedStageModel`
 
 檔案：[lesson.py](/Users/kaigiii/Coding/Learn8/backend/app/models/lesson.py)
 
@@ -636,7 +688,14 @@ User
 重要欄位：
 
 - `lesson_session_id`
+- `lesson_session_stage_id`
+- `lesson_stage_id`
 - `stage_id`
+- `stage_order`
+- `module`
+- `difficulty`
+- `recommended_duration_minutes`
+- `item_count`
 - `source_phase`
 - `status`
 - `stage_snapshot_json`
@@ -644,15 +703,46 @@ User
 - `evaluation_json`
 - `resolved_at`
 
-### 7.9 `LessonRemedialModel`
+### 7.11 `LessonRemedialModel`
 
 檔案：[lesson.py](/Users/kaigiii/Coding/Learn8/backend/app/models/lesson.py)
 
 用途：
 
-- 保存 AI 生成出的 remedial lesson pack
+- 保存 AI 生成出的 remedial metadata
 
-### 7.10 `JobModel`
+重要欄位：
+
+- `lesson_session_id`
+- `node_id`
+- `course_topic`
+- `stage_count`
+- `question_count`
+- `estimated_duration_minutes`
+- `schema_version`
+
+### 7.12 `LessonRemedialStageModel`
+
+檔案：[lesson.py](/Users/kaigiii/Coding/Learn8/backend/app/models/lesson.py)
+
+用途：
+
+- 保存 remedial 的 canonical stage records
+- 與 primary lesson stages 分開持久化，再由 session 組裝
+
+重要欄位：
+
+- `lesson_remedial_id`
+- `stage_uid`
+- `stage_order`
+- `module`
+- `component`
+- `difficulty`
+- `recommended_duration_minutes`
+- `item_count`
+- `stage_snapshot_json`
+
+### 7.13 `JobModel`
 
 檔案：[job.py](/Users/kaigiii/Coding/Learn8/backend/app/models/job.py)
 
@@ -880,11 +970,12 @@ lesson session 是目前後端最重要的流程狀態機之一。
 ### Primary Flow
 
 1. lesson stages 已生成
-2. 建立 `lesson_session`
-3. `status = playing_primary`
-4. 使用者逐題提交答案
-5. `incorrect` 會進 failed queue
-6. `skipped` 只記 attempt，不進 queue
+2. 前端以 `lessonId / nodeId` 啟動 session
+3. 後端從 canonical `lesson_stages` 建立 `lesson_session` 與 `lesson_session_stages`
+4. `status = playing_primary`
+5. 使用者逐題提交答案
+6. `incorrect` 會進 failed queue
+7. `skipped` 只記 attempt，不進 queue
 
 ### Primary Completion
 
@@ -896,11 +987,12 @@ lesson session 是目前後端最重要的流程狀態機之一。
 ### Remedial Flow
 
 1. 建立 `REMEDIAL_GEN` job
-2. worker 產生 remedial stages
-3. session 切到 `playing_remedial`
-4. 使用者完成 remedial
-5. failed records 標記 `resolved`
-6. session 才真正 `completed`
+2. worker 產生 remedial metadata 與 canonical `lesson_remedial_stages`
+3. session 透過 `lesson_session_stages(phase=remedial)` 組裝補救階段
+4. session 切到 `playing_remedial`
+5. 使用者完成 remedial
+6. failed records 標記 `resolved`
+7. session 才真正 `completed`
 
 ### Reward
 

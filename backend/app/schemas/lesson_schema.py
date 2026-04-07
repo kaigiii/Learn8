@@ -184,10 +184,10 @@ class FailedStageRecord(BaseModel):
 
 
 class LessonSessionStartRequest(BaseModel):
+    lessonId: Optional[int] = None
     courseId: int
     nodeId: str
     topic: str
-    primaryStages: List[LessonStage]
 
 
 class LessonSessionPayload(BaseModel):

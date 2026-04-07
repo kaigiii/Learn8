@@ -87,12 +87,19 @@ class RoundEngine:
             public_course,
             round_count=round_count,
         )
+        match.round_count = len(questions)
+        match.player_count = len(match.players)
+        match.completed_round_count = 0
+        db.add(match)
 
         for index, question in enumerate(questions):
             round_model = ArenaRoundModel(
                 match_id=match.id,
                 round_index=index,
                 status=ArenaRoundStatus.ACTIVE if index == 0 else ArenaRoundStatus.PENDING,
+                question_key=str(question.get("question_id") or ""),
+                difficulty=str(question.get("difficulty") or "") or None,
+                question_count=max(1, len(list(question.get("options") or []))),
                 question_snapshot_json=question,
                 timer_seconds=timer_seconds,
             )
@@ -176,6 +183,11 @@ class RoundEngine:
         standings = self._build_standings(match, rounds)
         if not isinstance(match.standings_json, list):
             match.standings_json = self.rating_service.settle_match(db, match, standings)
+        match.completed_round_count = max(int(match.completed_round_count or 0), len(rounds))
+        if isinstance(match.standings_json, list) and match.standings_json:
+            top_row = match.standings_json[0]
+            top_user_id = top_row.get("userId")
+            match.winner_user_id = int(top_user_id) if top_user_id is not None else None
         match.status = ArenaMatchStatus.FINISHED
         match.ended_at = match.ended_at or utc_now_naive()
         db.add(match)
@@ -210,6 +222,7 @@ class RoundEngine:
                     match_id=match.id,
                     round_id=round_model.id,
                     user_id=player.user_id,
+                    selected_option_id=None,
                     answer_payload_json={"selectedOptionId": None, "timedOut": True},
                     is_correct=False,
                     score_awarded=0,
@@ -220,6 +233,19 @@ class RoundEngine:
         db.flush()
 
         question = round_model.question_snapshot_json if isinstance(round_model.question_snapshot_json, dict) else {}
+        round_model.answered_count = (
+            db.query(ArenaAnswerModel)
+            .filter(ArenaAnswerModel.round_id == round_model.id)
+            .count()
+        )
+        round_model.correct_count = (
+            db.query(ArenaAnswerModel)
+            .filter(
+                ArenaAnswerModel.round_id == round_model.id,
+                ArenaAnswerModel.is_correct.is_(True),
+            )
+            .count()
+        )
         round_model.status = ArenaRoundStatus.CLOSED
         round_model.closed_at = utc_now_naive()
         round_model.revealed_answer_json = {
@@ -227,6 +253,8 @@ class RoundEngine:
             "explanation": question.get("explanation") or "",
         }
         db.add(round_model)
+        match.completed_round_count = max(int(match.completed_round_count or 0), round_model.round_index + 1)
+        db.add(match)
         self.realtime_gateway.publish_event(
             db,
             stream_type="match",
@@ -269,13 +297,15 @@ class RoundEngine:
                 },
             )
         else:
+            final_standings = self._build_standings(match, self._get_rounds(db, match.id))
             match.status = ArenaMatchStatus.FINISHED
             match.ended_at = utc_now_naive()
-            match.standings_json = self.rating_service.settle_match(
-                db,
-                match,
-                self._build_standings(match, self._get_rounds(db, match.id)),
-            )
+            match.completed_round_count = max(int(match.completed_round_count or 0), len(all_rounds))
+            match.standings_json = self.rating_service.settle_match(db, match, final_standings)
+            if isinstance(match.standings_json, list) and match.standings_json:
+                top_row = match.standings_json[0]
+                top_user_id = top_row.get("userId")
+                match.winner_user_id = int(top_user_id) if top_user_id is not None else None
             db.add(match)
             self.realtime_gateway.publish_event(
                 db,
@@ -487,6 +517,7 @@ class RoundEngine:
                     round_id=round_model.id,
                     user_id=current_user.id,
                     answer_payload_json={"selectedOptionId": selected_option_id},
+                    selected_option_id=selected_option_id,
                     is_correct=is_correct,
                     score_awarded=score_awarded,
                     response_time_ms=response_time_ms,
@@ -494,6 +525,20 @@ class RoundEngine:
                 )
             )
             db.flush()
+            round_model.answered_count = (
+                db.query(ArenaAnswerModel)
+                .filter(ArenaAnswerModel.round_id == round_model.id)
+                .count()
+            )
+            round_model.correct_count = (
+                db.query(ArenaAnswerModel)
+                .filter(
+                    ArenaAnswerModel.round_id == round_model.id,
+                    ArenaAnswerModel.is_correct.is_(True),
+                )
+                .count()
+            )
+            db.add(round_model)
         except IntegrityError:
             db.rollback()
             refreshed_match = self.get_match(db, match.id)
