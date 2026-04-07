@@ -1,4 +1,4 @@
-from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, JSON, String, UniqueConstraint
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Index, Integer, JSON, String, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from app.core.time import utc_now_naive
@@ -14,9 +14,14 @@ class ArenaMatchModel(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     room_id = Column(Integer, ForeignKey("arena_rooms.id", ondelete="SET NULL"), nullable=True, index=True)
+    season_id = Column(Integer, ForeignKey("arena_seasons.id", ondelete="SET NULL"), nullable=True, index=True)
     public_course_id = Column(Integer, ForeignKey("public_courses.id", ondelete="RESTRICT"), nullable=False, index=True)
     mode = Column(String, nullable=False, index=True)
     status = Column(String, nullable=False, default=ArenaMatchStatus.PENDING, index=True)
+    winner_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    player_count = Column(Integer, nullable=False, default=0)
+    round_count = Column(Integer, nullable=False, default=0)
+    completed_round_count = Column(Integer, nullable=False, default=0)
     room_snapshot_json = Column(JSON, nullable=False, default=dict)
     rules_snapshot_json = Column(JSON, nullable=False, default=dict)
     standings_json = Column(JSON, nullable=True)
@@ -49,9 +54,17 @@ class ArenaMatchPlayerModel(Base):
     incorrect_count = Column(Integer, nullable=False, default=0)
     avg_response_ms = Column(Integer, nullable=True)
     rating_delta = Column(Integer, nullable=False, default=0)
+    connection_state = Column(String, nullable=False, default="connected", index=True)
+    disconnect_count = Column(Integer, nullable=False, default=0)
+    last_seen_at = Column(DateTime, nullable=True)
+    disconnected_at = Column(DateTime, nullable=True)
+    reconnected_at = Column(DateTime, nullable=True)
+    suspected_abandonment = Column(Boolean, nullable=False, default=False, index=True)
+    suspicious_low_latency_count = Column(Integer, nullable=False, default=0)
+    low_latency_streak = Column(Integer, nullable=False, default=0)
+    last_answer_response_ms = Column(Integer, nullable=True)
     metadata_json = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=utc_now_naive)
 
     match = relationship("ArenaMatchModel", back_populates="players")
     user = relationship("UserModel")
-

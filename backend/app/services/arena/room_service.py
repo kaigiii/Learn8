@@ -11,6 +11,7 @@ from app.models.arena_match import ArenaMatchModel, ArenaMatchPlayerModel
 from app.models.arena_room import ArenaRoomModel, ArenaRoomPlayerModel
 from app.models.user import UserModel
 from app.services.arena.presence_service import PresenceService
+from app.services.arena.rank_service import RankService
 from app.services.arena.realtime_gateway import RealtimeGateway
 from app.services.arena.topic_catalog_service import TopicCatalogService
 
@@ -20,6 +21,7 @@ class RoomService:
         self.topic_catalog_service = topic_catalog_service or TopicCatalogService()
         self.realtime_gateway = RealtimeGateway()
         self.presence_service = PresenceService(self.realtime_gateway)
+        self.rank_service = RankService()
 
     def _generate_room_code(self, db: Session, length: int = 6) -> str:
         alphabet = string.ascii_uppercase + string.digits
@@ -75,8 +77,10 @@ class RoomService:
             raise HTTPException(status_code=404, detail="Arena public course not found")
 
         normalized_mode = normalize_arena_mode(mode)
+        active_season = self.rank_service.get_active_season(db)
         room = ArenaRoomModel(
             room_code=self._generate_room_code(db),
+            season_id=active_season.id if active_season else None,
             host_user_id=current_user.id,
             public_course_id=public_course_id,
             mode=normalized_mode,
@@ -93,6 +97,8 @@ class RoomService:
                 room_id=room.id,
                 user_id=current_user.id,
                 is_ready=False,
+                connection_state="connected",
+                last_seen_at=utc_now_naive(),
             )
         )
         db.commit()
@@ -127,6 +133,8 @@ class RoomService:
                 room_id=room.id,
                 user_id=current_user.id,
                 is_ready=False,
+                connection_state="connected",
+                last_seen_at=utc_now_naive(),
             )
         )
         db.commit()
@@ -259,9 +267,13 @@ class RoomService:
         }
         match = ArenaMatchModel(
             room_id=room.id,
+            season_id=room.season_id,
             public_course_id=room.public_course_id,
             mode=room.mode,
             status=ArenaMatchStatus.IN_PROGRESS,
+            player_count=len(room.players),
+            round_count=room.round_count,
+            completed_round_count=0,
             room_snapshot_json=room_snapshot,
             rules_snapshot_json=rules_snapshot,
             started_at=utc_now_naive(),
@@ -274,6 +286,14 @@ class RoomService:
                 ArenaMatchPlayerModel(
                     match_id=match.id,
                     user_id=player.user_id,
+                    connection_state=player.connection_state or "connected",
+                    disconnect_count=player.disconnect_count or 0,
+                    last_seen_at=player.last_seen_at,
+                    disconnected_at=player.disconnected_at,
+                    reconnected_at=player.reconnected_at,
+                    suspected_abandonment=False,
+                    suspicious_low_latency_count=0,
+                    low_latency_streak=0,
                 )
             )
 

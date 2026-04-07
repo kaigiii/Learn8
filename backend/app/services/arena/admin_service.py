@@ -307,8 +307,8 @@ class AdminService:
         }
 
     def _serialize_match_review(self, match: ArenaMatchModel, rounds: list[ArenaRoundModel]) -> dict:
-        player_count = len(match.players)
-        round_count = len(rounds)
+        player_count = int(match.player_count or len(match.players))
+        round_count = int(match.round_count or len(rounds))
         answer_count = sum(len(round_model.answers) for round_model in rounds)
         timed_out_count = sum(
             1
@@ -340,10 +340,9 @@ class AdminService:
                     low_completion_present = True
 
         for match_player in match.players:
-            metadata = match_player.metadata_json if isinstance(match_player.metadata_json, dict) else {}
-            if int(metadata.get("suspicious_low_latency_count") or 0) > 0:
+            if int(match_player.suspicious_low_latency_count or 0) > 0:
                 suspicious_latency_present = True
-            if int(metadata.get("disconnect_count") or 0) >= 2 or bool(metadata.get("suspected_abandonment")):
+            if int(match_player.disconnect_count or 0) >= 2 or bool(match_player.suspected_abandonment):
                 repeated_disconnect_present = True
 
         if (

@@ -186,6 +186,14 @@ def _create_waiting_queue_entry(db_session, user_id: int, public_course_id: int)
 def test_room_service_create_join_ready_and_start_flow(db_session, user):
     public_course = _create_public_course(db_session)
     second_user = _create_user(db_session, "player2@learn8.ai", "Player Two")
+    season = ArenaSeasonModel(
+        name="Season One",
+        status="active",
+        is_active=True,
+        started_at=utc_now_naive(),
+    )
+    db_session.add(season)
+    db_session.commit()
     room_service = RoomService()
 
     room = room_service.create_room(
@@ -202,9 +210,16 @@ def test_room_service_create_join_ready_and_start_flow(db_session, user):
     assert room.host_user_id == user.id
     assert len(room.players) == 1
     assert room.room_code
+    assert room.season_id == season.id
+    host_room_player = next(player for player in room.players if player.user_id == user.id)
+    assert host_room_player.connection_state == "connected"
+    assert host_room_player.last_seen_at is not None
 
     joined_room = room_service.join_room(db_session, second_user, room.room_code)
     assert len(joined_room.players) == 2
+    joined_room_player = next(player for player in joined_room.players if player.user_id == second_user.id)
+    assert joined_room_player.connection_state == "connected"
+    assert joined_room_player.last_seen_at is not None
 
     ready_room = room_service.set_ready(
         db_session,
@@ -217,6 +232,18 @@ def test_room_service_create_join_ready_and_start_flow(db_session, user):
     match = room_service.start_room_match(db_session, user, room.room_code)
     assert match.room_id == room.id
     assert match.status == "in_progress"
+    assert match.season_id == season.id
+    assert match.player_count == 2
+    assert match.round_count == 5
+    assert match.completed_round_count == 0
+
+    match_players = (
+        db_session.query(ArenaMatchPlayerModel)
+        .filter(ArenaMatchPlayerModel.match_id == match.id)
+        .all()
+    )
+    assert len(match_players) == 2
+    assert all(player.connection_state == "connected" for player in match_players)
 
     refreshed_room = room_service.get_room_by_code(db_session, room.room_code)
     assert refreshed_room.status == "in_match"
@@ -678,6 +705,16 @@ def test_round_engine_initializes_rounds_and_advances_match(db_session, user):
     room_service.set_ready(db_session, second_user, room.room_code, is_ready=True)
     match = room_service.start_room_match(db_session, user, room.room_code)
     round_engine.initialize_match_rounds(db_session, match.id)
+    rounds = (
+        db_session.query(ArenaRoundModel)
+        .filter(ArenaRoundModel.match_id == match.id)
+        .order_by(ArenaRoundModel.round_index.asc())
+        .all()
+    )
+    assert len(rounds) == 2
+    assert all(round_item.question_key in {"q1", "q2"} for round_item in rounds)
+    assert all(round_item.question_count == 4 for round_item in rounds)
+    assert all(round_item.difficulty == "easy" for round_item in rounds)
 
     state = round_engine.get_match_state(db_session, match.id, user)
     assert state["status"] == "in_progress"
@@ -743,6 +780,28 @@ def test_round_engine_initializes_rounds_and_advances_match(db_session, user):
     assert final_submit["state"]["activeRound"] is None
     assert final_submit["state"]["standings"][0]["userId"] == user.id
     assert final_submit["state"]["standings"][0]["score"] > final_submit["state"]["standings"][1]["score"]
+
+    refreshed_match = db_session.query(ArenaMatchModel).filter(ArenaMatchModel.id == match.id).first()
+    assert refreshed_match is not None
+    assert refreshed_match.completed_round_count == 2
+    assert refreshed_match.winner_user_id == user.id
+
+    closed_rounds = (
+        db_session.query(ArenaRoundModel)
+        .filter(ArenaRoundModel.match_id == match.id)
+        .order_by(ArenaRoundModel.round_index.asc())
+        .all()
+    )
+    assert all(round_item.answered_count == 2 for round_item in closed_rounds)
+    assert sum(round_item.correct_count for round_item in closed_rounds) >= 2
+
+    stored_answers = (
+        db_session.query(ArenaAnswerModel)
+        .filter(ArenaAnswerModel.match_id == match.id)
+        .all()
+    )
+    assert len(stored_answers) == 4
+    assert all(answer.selected_option_id is not None for answer in stored_answers)
 
 
 def test_round_engine_duplicate_answer_is_idempotent(db_session, user):
@@ -992,10 +1051,8 @@ def test_presence_service_emits_disconnect_and_reconnect_events(db_session, user
 
     presence_service.touch_match_presence(db_session, match, user)
     player = next(player for player in match.players if player.user_id == user.id)
-    metadata = dict(player.metadata_json or {})
-    metadata["last_seen_at"] = (utc_now_naive() - timedelta(seconds=20)).isoformat()
-    metadata["connection_state"] = "connected"
-    player.metadata_json = metadata
+    player.last_seen_at = utc_now_naive() - timedelta(seconds=20)
+    player.connection_state = "connected"
     db_session.add(player)
     db_session.flush()
 
@@ -1004,6 +1061,18 @@ def test_presence_service_emits_disconnect_and_reconnect_events(db_session, user
 
     events = gateway.list_events(db_session, match_id=match.id)
     assert any(event.event_type == "player.disconnected" for event in events)
+    disconnected_player = (
+        db_session.query(ArenaMatchPlayerModel)
+        .filter(
+            ArenaMatchPlayerModel.match_id == match.id,
+            ArenaMatchPlayerModel.user_id == user.id,
+        )
+        .first()
+    )
+    assert disconnected_player is not None
+    assert disconnected_player.connection_state == "disconnected"
+    assert disconnected_player.disconnect_count == 1
+    assert disconnected_player.disconnected_at is not None
 
     refreshed_match = db_session.query(ArenaMatchModel).filter(ArenaMatchModel.id == match.id).first()
     assert refreshed_match is not None
@@ -1012,11 +1081,30 @@ def test_presence_service_emits_disconnect_and_reconnect_events(db_session, user
 
     events = gateway.list_events(db_session, match_id=match.id)
     assert any(event.event_type == "player.reconnected" for event in events)
+    reconnected_player = (
+        db_session.query(ArenaMatchPlayerModel)
+        .filter(
+            ArenaMatchPlayerModel.match_id == match.id,
+            ArenaMatchPlayerModel.user_id == user.id,
+        )
+        .first()
+    )
+    assert reconnected_player is not None
+    assert reconnected_player.connection_state == "connected"
+    assert reconnected_player.reconnected_at is not None
 
 
 def test_competitive_service_expires_matched_entries_for_finished_match(db_session, user):
     public_course = _create_public_course(db_session)
     opponent = _create_user(db_session, "queue@learn8.ai", "Queue Player")
+    season = ArenaSeasonModel(
+        name="Ranked Season",
+        status="active",
+        is_active=True,
+        started_at=utc_now_naive(),
+    )
+    db_session.add(season)
+    db_session.commit()
     service = CompetitiveService()
 
     service.join_queue(
@@ -1035,8 +1123,13 @@ def test_competitive_service_expires_matched_entries_for_finished_match(db_sessi
     )
 
     assert matched_entry.match_id is not None
+    assert matched_entry.match_found_at is not None
+    assert matched_entry.season_id == season.id
     match = db_session.query(ArenaMatchModel).filter(ArenaMatchModel.id == matched_entry.match_id).first()
     assert match is not None
+    assert match.season_id == season.id
+    assert match.player_count == 2
+    assert match.round_count == 5
     match.status = ArenaMatchStatus.FINISHED
     db_session.add(match)
     db_session.commit()
@@ -1045,6 +1138,7 @@ def test_competitive_service_expires_matched_entries_for_finished_match(db_sessi
     refreshed_entry = db_session.query(ArenaQueueEntryModel).filter(ArenaQueueEntryModel.id == matched_entry.id).first()
     assert refreshed_entry is not None
     assert refreshed_entry.status == "expired"
+    assert refreshed_entry.closed_at is not None
 
 
 def test_round_engine_recovers_stale_match_without_active_round(db_session, user):
@@ -1119,10 +1213,25 @@ def test_telemetry_service_reports_health_snapshot(db_session, user):
     public_course = _create_public_course(db_session)
     telemetry_service = TelemetryService()
     _create_waiting_queue_entry(db_session, user.id, public_course.id)
+    flagged_match = _create_competitive_match(db_session, public_course.id, [user.id])
+    flagged_player = (
+        db_session.query(ArenaMatchPlayerModel)
+        .filter(ArenaMatchPlayerModel.match_id == flagged_match.id, ArenaMatchPlayerModel.user_id == user.id)
+        .first()
+    )
+    assert flagged_player is not None
+    flagged_player.suspected_abandonment = True
+    flagged_player.suspicious_low_latency_count = 2
+    flagged_player.disconnect_count = 3
+    db_session.add(flagged_player)
+    db_session.commit()
 
     snapshot = telemetry_service.build_admin_health_snapshot(db_session)
 
     assert snapshot["waitingQueueCount"] >= 1
+    assert snapshot["abandonmentCount"] >= 1
+    assert snapshot["suspiciousLatencyCount"] >= 1
+    assert snapshot["disconnectInstabilityCount"] >= 1
     assert "generatedAt" in snapshot
 
 

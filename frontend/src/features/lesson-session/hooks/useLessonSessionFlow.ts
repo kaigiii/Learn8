@@ -189,7 +189,6 @@ export function useLessonSessionFlow({
               backendCourse?.courseTitle ||
               backendNode?.title ||
               "Lesson",
-            primaryStages: backendStages,
           }),
         });
         if (isExitingRef.current) {

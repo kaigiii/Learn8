@@ -13,6 +13,7 @@ from app.models.arena_queue import ArenaQueueEntryModel
 from app.models.arena_rating import ArenaRatingModel
 from app.models.public_course import PublicCourseModel
 from app.models.user import UserModel
+from app.services.arena.rank_service import RankService
 from app.services.arena.topic_catalog_service import TopicCatalogService
 
 
@@ -26,6 +27,7 @@ class CompetitiveService:
 
     def __init__(self, topic_catalog_service: TopicCatalogService | None = None):
         self.topic_catalog_service = topic_catalog_service or TopicCatalogService()
+        self.rank_service = RankService()
 
     def join_queue(
         self,
@@ -51,8 +53,10 @@ class CompetitiveService:
             return existing
 
         opponent = self._find_waiting_opponent(db, current_user.id, public_course_id)
+        active_season = self.rank_service.get_active_season(db)
         queue_entry = ArenaQueueEntryModel(
             user_id=current_user.id,
+            season_id=active_season.id if active_season else None,
             public_course_id=public_course_id,
             mode=ArenaMode.COMPETITIVE,
             status=ArenaQueueStatus.WAITING,
@@ -73,11 +77,13 @@ class CompetitiveService:
             opponent.status = ArenaQueueStatus.MATCHED
             opponent.matched_user_id = current_user.id
             opponent.match_id = match.id
+            opponent.match_found_at = utc_now_naive()
             opponent.expires_at = None
 
             queue_entry.status = ArenaQueueStatus.MATCHED
             queue_entry.matched_user_id = opponent.user_id
             queue_entry.match_id = match.id
+            queue_entry.match_found_at = opponent.match_found_at
             queue_entry.expires_at = None
 
             db.add(opponent)
@@ -100,6 +106,7 @@ class CompetitiveService:
 
         entry.status = ArenaQueueStatus.CANCELLED
         entry.expires_at = None
+        entry.closed_at = utc_now_naive()
         db.add(entry)
         db.commit()
 
@@ -195,11 +202,16 @@ class CompetitiveService:
         round_count: int,
         round_time_seconds: int,
     ) -> ArenaMatchModel:
+        active_season = self.rank_service.get_active_season(db)
         match = ArenaMatchModel(
             room_id=None,
+            season_id=active_season.id if active_season else None,
             public_course_id=public_course.id,
             mode=ArenaMode.COMPETITIVE,
             status=ArenaMatchStatus.IN_PROGRESS,
+            player_count=2,
+            round_count=round_count,
+            completed_round_count=0,
             room_snapshot_json={
                 "room_code": None,
                 "host_user_id": None,
@@ -220,8 +232,18 @@ class CompetitiveService:
 
         db.add_all(
             [
-                ArenaMatchPlayerModel(match_id=match.id, user_id=first_user_id),
-                ArenaMatchPlayerModel(match_id=match.id, user_id=second_user_id),
+                ArenaMatchPlayerModel(
+                    match_id=match.id,
+                    user_id=first_user_id,
+                    connection_state="connected",
+                    last_seen_at=match.started_at,
+                ),
+                ArenaMatchPlayerModel(
+                    match_id=match.id,
+                    user_id=second_user_id,
+                    connection_state="connected",
+                    last_seen_at=match.started_at,
+                ),
             ]
         )
         db.flush()
@@ -305,9 +327,11 @@ class CompetitiveService:
         for entry in stale_entries:
             entry.status = ArenaQueueStatus.EXPIRED
             entry.expires_at = None
+            entry.closed_at = now
             db.add(entry)
         for entry in matched_entries:
             entry.status = ArenaQueueStatus.EXPIRED
             entry.expires_at = None
+            entry.closed_at = now
             db.add(entry)
         db.commit()

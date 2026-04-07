@@ -36,7 +36,11 @@ class TelemetryService:
 
         suspicious_player_rows = (
             db.query(ArenaMatchPlayerModel)
-            .filter(ArenaMatchPlayerModel.metadata_json.is_not(None))
+            .filter(
+                (ArenaMatchPlayerModel.suspected_abandonment.is_(True))
+                | (ArenaMatchPlayerModel.suspicious_low_latency_count > 0)
+                | (ArenaMatchPlayerModel.disconnect_count >= 2)
+            )
             .all()
         )
 
@@ -44,12 +48,11 @@ class TelemetryService:
         suspicious_latency_count = 0
         disconnect_instability_count = 0
         for row in suspicious_player_rows:
-            metadata = row.metadata_json if isinstance(row.metadata_json, dict) else {}
-            if bool(metadata.get("suspected_abandonment")):
+            if bool(row.suspected_abandonment):
                 abandonment_count += 1
-            if int(metadata.get("suspicious_low_latency_count") or 0) > 0:
+            if int(row.suspicious_low_latency_count or 0) > 0:
                 suspicious_latency_count += 1
-            if int(metadata.get("disconnect_count") or 0) >= 2:
+            if int(row.disconnect_count or 0) >= 2:
                 disconnect_instability_count += 1
 
         alert_flags: list[str] = []
