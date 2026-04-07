@@ -2,6 +2,7 @@
 
 import type { LessonStage, LessonStageComponent } from "@/lib/apiTypes";
 import { feynmanPlugin } from "../question-types/feynman/plugin";
+import { explainerMediaPlugin } from "../question-types/explainer-media/plugin";
 import { matchingPairsPlugin } from "../question-types/matching-pairs/plugin";
 import { multipleChoicePlugin } from "../question-types/multiple-choice/plugin";
 import { orderingPlugin } from "../question-types/ordering/plugin";
@@ -13,6 +14,7 @@ const stagePlugins = [
   orderingPlugin,
   feynmanPlugin,
   matchingPairsPlugin,
+  explainerMediaPlugin,
 ] as const satisfies readonly LessonStagePlugin[];
 
 export const lessonStagePluginRegistry: LessonStagePluginRegistry = Object.fromEntries(

@@ -64,6 +64,12 @@ class CourseModel(Base):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
+    media_assets = relationship(
+        "CourseMediaAssetModel",
+        back_populates="course",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
 
 class NodeModel(Base):

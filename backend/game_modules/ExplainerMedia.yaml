@@ -1,0 +1,34 @@
+name: ExplainerMedia
+frontend_registry_key: ExplainerMedia
+module: Instruction
+allowed_in_remedial: false
+required_config_data_fields:
+  - title
+  - explanation
+optional_config_data_fields:
+  - bullets
+  - mediaType
+  - mediaSvg
+  - mediaDescription
+  - mediaUrl
+  - mediaIndex
+submission_keys:
+  - acknowledged
+description: If the goal is to explain a concept clearly using text and optional media support.
+schema_requirements: |
+  config.data MUST contain:
+  - title: A short title for the concept.
+  - explanation: A concise teaching paragraph (1-4 short paragraphs).
+
+  Optional fields:
+  - bullets: A list of short key takeaways.
+  - mediaType: "svg" | "image" | "none"
+  - mediaSvg: A simple SVG string (only when mediaType = "svg").
+  - mediaDescription: A short textual description of the image (only when mediaType = "image").
+  - mediaUrl: OPTIONAL internal image URL. Do NOT fabricate or include external URLs.
+  - mediaIndex: OPTIONAL index from the provided image catalog.
+
+  IMPORTANT:
+  - Do NOT embed or paste any image data (no base64).
+  - Do NOT fabricate or include any URLs.
+  - If mediaType = "image", you MUST provide mediaIndex from the provided catalog.

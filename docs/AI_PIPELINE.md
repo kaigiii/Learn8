@@ -169,3 +169,55 @@ lesson_sessions
 4. worker 推送狀態到 PostgreSQL `LISTEN/NOTIFY`
 5. 前端訂閱 `/api/v1/jobs/{job_id}/stream`
 6. 前端可用 `/api/v1/jobs/active` 做 resume / retry / stale recovery
+
+## 讀全文 vs 只用 RAG（實際行為對照）
+
+目前資料來源分成三類：
+
+### A. 讀全文（從 uploads 讀檔）
+
+這類流程會直接讀取完整檔案文字，塞進 prompt。
+
+- **Syllabus Generation**
+  - 來源：`backend/app/api/v1/endpoints/syllabus.py`
+  - 行為：逐檔案讀取內容，組成 `full_text_context`
+  - 進入：`run_syllabus_generation_job` → `SyllabusAgent.run(context=full_text_context)`
+  - 用途：用整份課程資料生成 CoursePath
+
+- **Syllabus Generation（jobs API 版本）**
+  - 來源：`backend/app/api/v1/endpoints/jobs.py`
+  - 行為：同樣組 `full_text_context` 後交給 worker
+
+### B. 讀全文（bind_files 注入）
+
+這類流程會呼叫 `provider.bind_files(...)`，把整份檔案注入 LLM。
+
+- **Syllabus Refinement**
+  - 來源：`backend/app/services/ai_agents/course_architect.py`
+  - 行為：`refine_course_syllabus` 使用 `bind_files`
+
+### C. 只用 Chroma / RAG（不綁全文）
+
+這類流程只做向量檢索，不注入全文。
+
+- **Lesson Generation**
+  - 來源：`generate_lesson_from_node`
+  - 行為：`rag_engine.query_context(topic, course_id=...)`
+  - 已改為 **不綁全文**
+
+- **Lesson Chat Tutor**
+  - 來源：`answer_lesson_question`
+  - 行為：只做 `rag_engine.query_context(...)`
+  - 已改為 **不綁全文**
+
+- **Questionnaire Generation**
+  - 來源：`QuestionnaireAgent.generate_questions`
+  - 行為：只做 `rag_engine.query_context(...)`
+
+- **Feynman Grading**
+  - 來源：`grade_feynman_attempt`
+  - 行為：只做 `rag_engine.query_context(...)`
+
+- **Remedial Generation**
+  - 來源：`generate_remedial_stages`
+  - 行為：不使用全文，只吃 failed stages + prompt

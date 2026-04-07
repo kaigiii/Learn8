@@ -12,6 +12,7 @@ from app.services.llm_clients.base_provider import BaseLLMProvider
 from app.services.commons.activity_logger import activity_logger
 from app.core.exceptions import RAGIndexingError, LLMGenerationError
 from langchain_core.messages import SystemMessage, HumanMessage
+from app.services.commons.media_catalog import refresh_course_media_assets
 
 
 class TextSplitterService:
@@ -93,6 +94,21 @@ class RAGEngine:
                     f"Unsupported document or empty content for {file.filename}. Skipping RAG ingestion."
                 )
                 return 0
+
+            if course_id is not None and user_id is not None:
+                from app.db.session import SessionLocal
+
+                db = SessionLocal()
+                try:
+                    refresh_course_media_assets(
+                        db,
+                        course_id=course_id,
+                        user_id=user_id,
+                        source_filename=file.filename,
+                        markdown=content,
+                    )
+                finally:
+                    db.close()
 
             splits = self._text_splitter.split_document(
                 content, file.filename, course_id=course_id
