@@ -2,11 +2,6 @@
 
 Learn8 是一個 AI 驅動的學習平台，把 `course draft -> file upload / RAG -> questionnaire -> learner profile -> syllabus -> lesson -> remedial` 串成一條完整學習流程。
 
-目前 repo 只有兩個主要程式碼根目錄：
-
-- `frontend/`: Next.js 前端
-- `backend/`: FastAPI 後端
-
 ## 文件導覽
 
 如果你想快速找到不同深度的資訊，建議這樣讀：
@@ -44,10 +39,10 @@ Learn8 是一個 AI 驅動的學習平台，把 `course draft -> file upload / R
 如果你現在是帶著具體任務進來，可以直接跳這些區塊：
 
 - 本地開發：看 `本地啟動`
-- 後端測試與 AI 開關：看 `Backend Tests`
-- 前端分層：看 `前端架構`
-- 後端分層：看 `後端架構`
-- AI / RAG 流程：看 `AI Pipeline`
+- 測試與 AI 開關：看 `docs/TESTING.md`
+- 前端分層：看 `docs/FRONTEND_ARCHITECTURE.md`
+- 後端分層：看 `docs/BACKEND_ARCHITECTURE.md`
+- AI / RAG 流程：看 `docs/AI_PIPELINE.md`
 
 ## 技術棧
 
@@ -74,74 +69,27 @@ Learn8 是一個 AI 驅動的學習平台，把 `course draft -> file upload / R
 
 ## 先安裝什麼
 
-第一次在本機跑這個 repo，建議先準備下面幾樣：
-
 - `Python 3.12`
-- `Node.js 18.17+`，建議直接用 Node 20 LTS
-- `npm`
+- `Node.js 20`
 - `PostgreSQL 14+`
-
-選配但推薦：
-
-- `uv`
-  用來管理 Python 工具與執行環境會比較順，但目前不是必要依賴
-- `Docker` / `Docker Compose`
-  如果你想直接用容器把前後端與依賴一起拉起來
-
-### 為什麼需要這些
-
-- `Python 3.12`
-  後端 README、migration、seed script 都是以 `python3.12` 為基準
-- `Node.js`
-  前端是 Next.js 14，需要現代版 Node
-- `PostgreSQL`
-  Learn8 和 Arena 的資料都落在 PostgreSQL，沒有它後端無法正常工作
-- `uv`
-  你剛剛的執行環境已經有用到，但 repo 目前還是以 `requirements.txt` 為主，不強制使用 `uv`
-
-### 建議版本
-
-- Python: `3.12.x`
-- Node.js: `20.x`
-- npm: 跟 Node 一起安裝即可
-- PostgreSQL: `14`、`15`、`16` 都可以
-
-### 快速檢查
-
-```bash
-python3.12 --version
-node --version
-npm --version
-psql --version
-```
-
-如果你也有裝 `uv`：
-
-```bash
-uv --version
-```
+- (選用) `Docker` / `Docker Compose`
 
 ## 本地啟動
 
-### Docker
+### Docker（最快）
 
 ```bash
 cp backend/.env.example backend/.env
-docker-compose up --build
+docker compose up --build
 ```
 
-啟動後：
+### 手動（開發）
 
-- Frontend: `http://localhost:3000`
-- Backend API docs: `http://localhost:8000/docs`
-
-### 手動開發
-
-#### Backend
+Backend：
 
 ```bash
 cd backend
-python -m venv venv
+python3.12 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
@@ -149,183 +97,7 @@ python3.12 -m alembic upgrade head
 python3.12 -m uvicorn app.main:app --reload --port 8000
 ```
 
-請確認：
-
-- `.env` 已填入 `GOOGLE_API_KEY`
-- `DATABASE_URL` 指向可用的 PostgreSQL
-- 如果要限制 Arena 管理台，只允許特定帳號，請設定 `ARENA_ADMIN_EMAILS=user1@example.com,user2@example.com`
-
-如果你偏好用 `uv`，也可以這樣做：
-
-```bash
-cd backend
-uv venv
-source .venv/bin/activate
-uv pip install -r requirements.txt -r requirements-dev.txt
-cp .env.example .env
-python3.12 -m alembic upgrade head
-python3.12 -m uvicorn app.main:app --reload --port 8000
-```
-
-#### Arena 本地初始化
-
-Arena 現在已經依賴額外的 PostgreSQL tables。
-如果你拉了最新程式碼但還沒跑 migration，就會看到這類錯誤：
-
-- `relation "public_courses" does not exist`
-- `relation "arena_ratings" does not exist`
-
-這不是 API route 壞掉，而是資料庫 schema 還停在 Arena migration 之前。
-
-請在 `backend/` 目錄執行：
-
-```bash
-python3.12 -m alembic upgrade head
-```
-
-如果想確認 Arena migration 是否已進資料庫，可用：
-
-```bash
-python3.12 -m alembic current
-python3.12 -m alembic history --verbose
-```
-
-你應該至少看到 Arena foundation migration：
-
-```text
-9d3c1a4b7ef2_add_arena_foundation.py
-```
-
-完成後再啟動後端：
-
-```bash
-python3.12 -m uvicorn app.main:app --reload --port 8000
-```
-
-#### Arena Admin
-
-Arena 管理台路徑：
-
-```text
-/admin/arena
-```
-
-目前它可管理：
-
-- `PublicCourse`
-- `ArenaQuestionPool`
-- `ArenaSeason`
-- Arena 題目與選項內容
-- 玩家比賽紀錄與異常對戰檢視
-- Arena 系統健康摘要
-
-Arena 玩家端目前已整合進主產品介面，主要入口是：
-
-- `/home`
-  這裡可以直接選官方主題、加入即時競賽、建立私人房、輸入房號加入、查看排行榜摘要與公開主題
-- `/profile`
-  這裡會顯示 Arena 競技身份，包含 rating、rank tier、勝率、主題強度、近期 rank 變化，以及 season badge / title / placement
-- `/arena/leaderboard`
-  獨立排行榜頁，提供 season / global 與 rank / win rate / matches 等分類檢視
-
-Arena 玩家端的核心模式目前分成兩種：
-
-- `私人房間`
-- `即時競賽隊列`
-
-即時競賽隊列會在相同官方主題下等待對手，成功配對後直接建立正式競賽 match。
-舊的 `/arena` 首頁已被收斂，現在會直接導回 `/home`。
-
-目前 Arena 也已具備：
-
-- SSE 重連與狀態恢復
-- room / match presence heartbeat
-- `player.disconnected` / `player.reconnected` 事件
-- 溫和型風控標記，例如 low completion、disconnect instability、suspicious latency pattern
-- 管理台健康摘要，用來觀察 queue 壓力、stale matches 與異常活動
-
-對應權限規則：
-
-- 若 `ARENA_ADMIN_EMAILS` 為空，已登入使用者都可進入管理 API
-- 若 `ARENA_ADMIN_EMAILS` 有值，只有 email 在 allowlist 內的帳號可使用
-
-#### Arena Demo Data
-
-如果你想快速把 Arena 畫面跑起來，而不是手動在 `/admin/arena` 一筆一筆建立內容，可以直接執行 demo seed：
-
-```bash
-cd backend
-python3.12 -m scripts.seed_arena_demo
-```
-
-這個腳本會：
-
-- 建立或更新 3 個可用的 `PublicCourse`
-- 為每個主題建立可直接開房的 `ArenaQuestionPool`
-- 建立一個 active season
-- 幫現有使用者補 Arena rating / topic rating / rank history demo 資料
-
-如果你剛拉下最新版本，記得重新執行 migration，因為 Arena 新增了競賽配對隊列表：
-
-```bash
-cd backend
-python3.12 -m alembic upgrade head
-```
-
-#### Backend Tests
-
-預設測試模式不會呼叫真實 AI，避免在本地開發或 CI 中持續消耗 token。
-建議把這套規則當成團隊預設：
-
-- 本機日常開發：跑 non-AI tests
-- PR / CI：只跑 non-AI tests
-- 只有在你要驗證 provider 串接、prompt smoke、或真實外部行為時，才手動跑 AI tests
-
-```bash
-cd backend
-pip install -r requirements.txt -r requirements-dev.txt
-python3.12 -m pytest tests -q
-```
-
-如果你想手動跑會真的呼叫 AI provider 的 smoke tests：
-
-```bash
-cd backend
-LEARN8_RUN_AI_TESTS=1 python3.12 -m pytest tests -m ai -q
-```
-
-測試策略：
-
-- 一般測試：使用 fake LLM / fake RAG，不耗 token
-- `@pytest.mark.ai`：只有你明確開啟時才會跑真 AI
-- 適合放進 CI 的預設模式：`python3.12 -m pytest tests -q`
-- 測試從 `backend/pytest.ini` 讀取 marker 規則
-- `LEARN8_RUN_AI_TESTS` 沒開時，AI smoke tests 會自動 skip
-
-CI 目前也遵守同一規則：
-
-- backend CI：只跑不耗 token 的 pytest
-- frontend CI：跑 TypeScript type check
-- 真 AI smoke tests：預設不進 CI
-
-常用情境對照：
-
-- 想確認本地改動沒壞後端核心行為：`python3.12 -m pytest tests -q`
-- 想只看某一個檔案：`python3.12 -m pytest tests/test_user_ledger.py -q`
-- 想驗證真 AI provider 仍可用：`LEARN8_RUN_AI_TESTS=1 python3.12 -m pytest tests -m ai -q`
-- 想看 CI 會跑什麼：查看 [ci.yml](/Users/kaigiii/Coding/Learn8/.github/workflows/ci.yml)
-
-如果你的 Python 環境是系統管理型環境，`pip install` 可能會被拒絕。這時建議優先使用虛擬環境：
-
-```bash
-cd backend
-python3.12 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt -r requirements-dev.txt
-python3.12 -m pytest tests -q
-```
-
-#### Frontend
+Frontend：
 
 ```bash
 cd frontend
@@ -333,456 +105,45 @@ npm install
 npm run dev
 ```
 
-前端如果你還沒裝 Node，建議直接裝 Node 20 LTS 再執行上述指令。
+啟動後：
 
-前端預設 API：
+- Frontend: `http://localhost:3000`
+- Backend API docs: `http://localhost:8000/docs`
 
-```text
-http://localhost:8000/api/v1
-```
+環境變數補充：
 
-如需覆蓋：
-
-```bash
-NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
-```
+- `.env` 需填 `GOOGLE_API_KEY` 與 `DATABASE_URL`
+- 前端 API 預設 `http://localhost:8000/api/v1`
 
 ## 前端架構
 
-前端目前採用這個分層：
+前端分層與主要模組位置的快速導覽：
 
-- `src/app/`: route-owned page modules
-- `src/components/`: shared UI
-- `src/features/`: 跨 route 的完整業務模組
-- `src/lib/`: auth / jobs / navigation / API helpers
-- `src/stores/app/`: app-global state
-- `src/stores/session/`: flow/session state
-
-### 目前主要 page modules
-
-- `src/app/(dashboard)/home/`
-- `src/app/(dashboard)/store/`
-- `src/app/auth/login/`
-- `src/app/auth/welcome/`
-- `src/app/courses/[courseId]/`
-- `src/app/questionnaire/`
-
-### 目前保留在 `features/` 的模組
-
-- `src/features/lesson-session/`: lesson player / stage renderer / remedial flow
-- `src/features/profile/`: shared profile settings dialog
-- `src/features/questionnaire/`: questionnaire flow hooks
+- `docs/FRONTEND_ARCHITECTURE.md`
 
 ## 後端架構
 
-後端主幹在 `backend/app/`：
+後端分層、主要 API 模組與責任邊界的總覽：
 
-- `api/`: route 與依賴注入
-- `core/`: config / security / shared exceptions
-- `db/`: SQLAlchemy base / session / registry
-- `models/`: `user.py`, `course.py`, `lesson.py`, `job.py`
-- `schemas/`: auth / course / questionnaire / lesson schemas
-- `services/`: ai agents / workers / RAG / commons / workflows
+- `docs/BACKEND_ARCHITECTURE.md`
 
-目前實際 endpoint 模組：
+## 新增題型
 
-- `auth.py`
-- `courses.py`
-- `syllabus.py`
-- `lessons.py`
-- `jobs.py`
+新增前後端題型的完整流程、對齊與驗證清單：
 
-## 新增題型模板
-
-目前 Learn8 的 lesson 題型已經做成「前後端雙 registry」結構。
-如果你要新增一個新的 `LessonStage.component`，建議直接照下面模板做，不要再回到零散修改模式。
-
-### 一張圖理解題型對齊
-
-- 前端題型 registry：`frontend/src/features/lesson-session/question-types/**`
-- 前端 plugin 註冊中心：`frontend/src/features/lesson-session/renderers/index.ts`
-- 前端型別契約：`frontend/src/features/lesson-session/renderers/types.ts`
-- 後端 component 定義來源：`backend/game_modules/*.yaml`
-- 後端 schema 驗證：`backend/app/schemas/lesson_schema.py`
-- 後端 submission evaluator registry：`backend/app/services/lesson_components/evaluators.py`
-- 後端 component manifest API：`GET /api/v1/lessons/components`
-- AI component prompt 來源：`backend/app/services/ai_agents/course_architect_prompts.py`
-
-### 前端新增題型
-
-新增一個題型時，優先比照現有模組建立：
-
-- `frontend/src/features/lesson-session/question-types/<your-type>/plugin.tsx`
-
-建議內容包含：
-
-1. `Parsed<YourType>StageData`
-2. `parse<YourType>Stage(stage)`
-3. `<YourType>StageRenderer`
-4. `createLessonStagePlugin(...)`
-
-最小範例結構：
-
-```tsx
-"use client";
-
-import { createLessonStagePlugin } from "../../renderers/types";
-import type { LessonStageRenderContext } from "../../renderers/types";
-
-export interface ParsedExampleStageData {
-  prompt: string;
-}
-
-export function parseExampleStage(
-  stage: LessonStageRenderContext["stage"]
-): ParsedExampleStageData {
-  return {
-    prompt: String((stage.config.data as { prompt?: string }).prompt || stage.topic),
-  };
-}
-
-export function ExampleStageRenderer({
-  stage,
-  lesson,
-  actions,
-}: LessonStageRenderContext) {
-  const parsedStage = parseExampleStage(stage);
-
-  return (
-    <div>
-      {parsedStage.prompt}
-    </div>
-  );
-}
-
-export const examplePlugin = createLessonStagePlugin(
-  "ExampleComponent",
-  ExampleStageRenderer,
-  {
-    displayName: "Example Component",
-    capabilities: {
-      supportsHint: false,
-      supportsSkip: true,
-      usesFeedbackOverlay: false,
-    },
-  },
-  parseExampleStage
-);
-```
-
-接著在 `frontend/src/features/lesson-session/renderers/index.ts` 註冊：
-
-- 匯入新 plugin
-- 加進 `stagePlugins`
-
-### 後端新增題型
-
-後端至少要同步做四件事。
-
-#### 1. 註冊 component YAML
-
-新增：
-
-- `backend/game_modules/<YourType>.yaml`
-
-建議欄位：
-
-- `name`
-- `frontend_registry_key`
-- `module`
-- `allowed_in_remedial`
-- `required_config_data_fields`
-- `optional_config_data_fields`
-- `submission_keys`
-- `description`
-- `schema_requirements`
-
-最小範例：
-
-```yaml
-name: ExampleComponent
-frontend_registry_key: ExampleComponent
-module: Practice
-allowed_in_remedial: true
-required_config_data_fields:
-  - prompt
-optional_config_data_fields: []
-submission_keys:
-  - answer
-description: If the goal is to ...
-schema_requirements: |
-  config.data MUST contain:
-  - prompt: A single prompt string.
-```
-
-#### 2. 補 submission evaluator
-
-新增 evaluator 到：
-
-- `backend/app/services/lesson_components/evaluators.py`
-
-並註冊到：
-
-- `evaluator_registry.register("ExampleComponent", evaluate_example_component)`
-
-這一步是後端真正知道如何判題的地方。
-
-#### 3. 確認 schema 驗證可接受你的 `config.data`
-
-目前 `LessonStage` 會透過 `backend/app/schemas/lesson_schema.py` 與 component registry 檢查：
-
-- component 名稱是否合法
-- `config.data` 是否缺少必要欄位
-
-所以通常只要 YAML 定義完整，這層就會自動接上。
-
-#### 4. 確認 AI prompt 可以安全使用這個題型
-
-如果新題型要參與 lesson generation 或 remedial generation，請確認：
-
-- `backend/app/services/ai_agents/course_architect_prompts.py`
-
-是否應該允許它出現在 remedial。
-
-現在 remedial 可用題型是從 YAML registry 動態生成，所以大多數情況只要設定：
-
-- `allowed_in_remedial: true`
-
-就會一起進 prompt。
-
-### 前後端一致性 checklist
-
-新增題型後，至少確認以下項目都成立：
-
-- 前端 plugin `component` 名稱和 backend YAML `name` 一致
-- 前端 plugin `component` 名稱和 backend YAML `frontend_registry_key` 一致
-- 前端 `parseStage` 讀取的欄位，存在於 backend `required_config_data_fields` / `optional_config_data_fields`
-- 後端 evaluator 接受的 submission key，和 frontend `submitStage(...)` payload 一致
-- 如需進 remedial，`allowed_in_remedial` 設定正確
-- `GET /api/v1/lessons/components` 可以看見新題型
-
-### 驗證指令
-
-前端：
-
-```bash
-cd frontend
-npm run build
-```
-
-後端：
-
-```bash
-cd backend
-python3 -m pytest tests -q
-```
-
-如果你只是要先確認 schema / import 沒壞，也可以先跑：
-
-```bash
-python3 -m compileall backend/app
-```
+- `docs/QUESTION_TYPES.md`
 
 ## AI Pipeline
 
-### Questionnaire Generation
+AI 生成流程與資料落地方式的實作對齊摘要：
 
-用途：
-
-- 依 `topic + course context` 生成探索型問卷
-
-輸入：
-
-- `topic`
-- `course_id`
-- course files / RAG context
-
-輸出：
-
-- `questions`
-- job `result_data.questions`
-
-### Questionnaire Submission / Learner Profile
-
-用途：
-
-- 將問卷答案摘要成 learner profile
-
-輸入：
-
-- `questions`
-- `submission`
-- `topic`
-
-輸出：
-
-- learner profile summary
-- 寫回 `courses.profile_json`
-
-### Syllabus Generation
-
-用途：
-
-- 依 topic、learner profile、course context 生成 `CoursePath`
-
-輸入：
-
-- `topic`
-- `course_id`
-- `profile_summary`
-- course file full-text context
-- RAG context
-
-輸出：
-
-- `CoursePath`
-- 寫入 `courses.syllabus_json`
-- 扁平化 node 狀態寫入 `nodes`
-
-### Lesson Generation
-
-用途：
-
-- 為單一 node 生成 `LessonStage[]`
-
-輸入：
-
-- `topic`
-- `LessonNode`
-- learner profile
-- course / file / RAG context
-- component registry prompt menu
-
-輸出：
-
-- `LessonStage[]`
-- 寫入 `lessons`
-- canonical stage records 寫入 `lesson_stages`
-- 若 cache 合法，後端優先回傳 cache
-
-### Answer Submission / Evaluation
-
-用途：
-
-- 對每一題提交做標準化與判定
-
-輸入：
-
-- `sessionId`
-- `stageId`
-- `userInput`
-- `context_topic`
-
-輸出：
-
-- `SubmissionResponse`
-- `result`: `correct | incorrect | skipped`
-- `message`
-- `evaluation`
-
-### Remedial Generation
-
-用途：
-
-- 將同一 lesson session 中的 failed stages 打包成補救教學
-
-輸入：
-
-- `topic`
-- `sessionId`
-- `nodeId`
-- `courseId`
-- `failedStages[]`
-
-輸出：
-
-- remedial `LessonStage[]`
-- remedial metadata 寫入 `lesson_remedials`
-- canonical remedial stage records 寫入 `lesson_remedial_stages`
-- session 透過 `lesson_session_stages` 切換到 remedial phase
-
-### Lesson Canonical Data Model
-
-目前 lesson 資料流已改成「內容表」與「session 表」分開：
-
-```text
-lessons
-  -> lesson_stages
-
-lesson_remedials
-  -> lesson_remedial_stages
-
-lesson_sessions
-  -> lesson_session_stages
-  -> lesson_attempts
-  -> lesson_failed_stages
-```
-
-白話理解：
-
-- `lessons` / `lesson_stages`
-  保存某個 node 的正式主教學內容
-- `lesson_remedials` / `lesson_remedial_stages`
-  保存某次補救教學生成出的正式內容
-- `lesson_sessions` / `lesson_session_stages`
-  保存某位使用者這一次實際遊玩的編排與進度
-
-也就是說：
-
-- 主教學和補救教學各自持久化
-- session 不再自己成為內容真相來源
-- 前端啟動 session 時，後端會從 canonical stage records 組裝 playable session
-
-## SSE Jobs
-
-目前以下流程都走 background job + SSE：
-
-- questionnaire generation
-- syllabus generation
-- lesson generation
-- remedial generation
-
-通用模式：
-
-1. API 建立 `generation_jobs`
-2. 回傳 `job_id`
-3. 背景 worker 執行 AI / RAG 工作
-4. worker 推送狀態到 PostgreSQL `LISTEN/NOTIFY`
-5. 前端訂閱 `/api/v1/jobs/{job_id}/stream`
-6. 前端可用 `/api/v1/jobs/active` 做 resume / retry / stale recovery
-
-## 目錄結構
-
-```text
-Learn8/
-├── backend/
-│   ├── alembic/
-│   ├── app/
-│   ├── game_modules/
-│   ├── chroma_db/
-│   ├── uploads/
-│   └── logs/
-├── frontend/
-│   ├── server/
-│   └── src/
-│       ├── app/
-│       ├── components/
-│       ├── features/
-│       ├── lib/
-│       └── stores/
-└── docker-compose.yml
-```
-
-## 注意事項
-
-- `frontend/` 是目前使用中的前端
-- backend 的 job streaming 依賴 PostgreSQL `LISTEN/NOTIFY`
-- backend schema 變更目前正式依賴 Alembic，不再使用啟動時自動 `create_all()`
-- credits / XP / level 目前以 backend 為權威狀態，前端只做同步與展示
-- backend ledger 與 `Idempotency-Key` 已接上 top-up / spend / reward 流程，重試請盡量沿用同一 request key
-- backend 測試預設不呼叫真實 AI；要耗 token 的 smoke tests 必須手動開 `LEARN8_RUN_AI_TESTS=1`
-- 前端 upload UI 目前只開放 PDF，但 backend parser 能力比 UI 更寬
+- `docs/AI_PIPELINE.md`
 
 ## 相關文件
 
 - [BACKEND_DOCS.md](BACKEND_DOCS.md)
+- `docs/QUESTION_TYPES.md`
+- `docs/TESTING.md`
+- `docs/AI_PIPELINE.md`
+- `docs/FRONTEND_ARCHITECTURE.md`
+- `docs/BACKEND_ARCHITECTURE.md`
