@@ -1,6 +1,5 @@
 name: FeynmanMirror
 frontend_registry_key: FeynmanMirror
-module: Assessment
 allowed_in_remedial: true
 required_config_data_fields: []
 optional_config_data_fields:

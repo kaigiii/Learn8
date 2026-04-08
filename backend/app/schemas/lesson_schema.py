@@ -4,13 +4,6 @@ from enum import Enum
 
 
 # --- 列舉型別 (Enums) ---
-class ModuleType(str, Enum):
-    Instruction = "Instruction"
-    Practice = "Practice"
-    Assessment = "Assessment"
-    Incentive = "Incentive"
-
-
 class SkinType(str, Enum):
     Scientific = "Scientific"
     Classic = "Classic"
@@ -76,7 +69,6 @@ class Feedback(BaseModel):
 class LessonStage(BaseModel):
     stageId: str
     topic: str
-    module: ModuleType
     skin: SkinType
     component: str  # 接受任意字串，透過 registry 驗證
     difficulty: Optional[LessonDifficulty] = None
@@ -270,7 +262,6 @@ class LessonAssistantResponse(BaseModel):
 class LessonComponentManifestItem(BaseModel):
     name: str
     frontendRegistryKey: str
-    module: str
     description: str
     allowedInRemedial: bool = False
     requiredConfigDataFields: List[str] = Field(default_factory=list)

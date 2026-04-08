@@ -1,6 +1,5 @@
 name: MatchingPairs
 frontend_registry_key: MatchingPairs
-module: Practice
 allowed_in_remedial: true
 required_config_data_fields:
   - pairs

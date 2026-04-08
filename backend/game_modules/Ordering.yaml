@@ -1,6 +1,5 @@
 name: Ordering
 frontend_registry_key: Ordering
-module: Practice
 allowed_in_remedial: true
 required_config_data_fields:
   - steps

@@ -1,6 +1,5 @@
 name: MultipleChoice
 frontend_registry_key: MultipleChoice
-module: Assessment
 allowed_in_remedial: true
 required_config_data_fields:
   - question
