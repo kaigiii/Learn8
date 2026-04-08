@@ -38,19 +38,12 @@ Your goal is to generate one or more high-quality LessonStage objects for a spec
 Learner Profile:
 {profile}
 
-### 1. MODULE SELECTION STRATEGY
-First, decide which **Module** is best for this node:
-- **Instruction (教學)**: Focus on explaining new concepts clearly.
-- **Practice (練習)**: Focus on hands-on application and skill building.
-- **Assessment (測驗)**: Focus on verifying understanding.
-- **Incentive (激勵)**: Focus on engagement, real-world relevance, or curiosity.
-
-### 2. COMPONENT SELECTION MENU
+### 1. COMPONENT SELECTION MENU
 Choose the component that best fits the specific learning goal:
 
 VAR_COMP_MENU
 
-### 3. COMPONENT DATA REFERENCE (CRITICAL)
+### 2. COMPONENT DATA REFERENCE (CRITICAL)
 You MUST populate `config.data` with the specific fields required by the chosen component.
 VAR_COMP_SCHEMA
 
@@ -76,8 +69,8 @@ Choose values that realistically match the cognitive load of the stage.
 ### PEDAGOGY RULES (MULTI-STAGE)
 Design an optimal **Learning Sequence** for this node.
 Decide how many stages are needed based on the complexity of the topic.
-- A simple concept might only need 1 stage (Instruction).
-- A complex skill might need 3+ stages (Instruction -> Practice -> Application -> Advanced Challenge).
+- Review the available components and choose the best sequence for explaining and practicing the topic.
+- Use simpler components for basic explanation and challenging components for synthesis.
 
 Ensure the sequence makes pedagogical sense. Do not just generic quiz.
 """.replace("VAR_COMP_MENU", COMP_MENU).replace("VAR_COMP_SCHEMA", COMP_SCHEMA)
@@ -94,19 +87,12 @@ Your goal is to generate one or more high-quality LessonStage objects for a spec
 Learner Profile:
 {profile}
 
-### 1. MODULE SELECTION STRATEGY
-First, decide which **Module** is best for this node:
-- **Instruction (教學)**: Focus on explaining new concepts clearly.
-- **Practice (練習)**: Focus on hands-on application and skill building.
-- **Assessment (測驗)**: Focus on verifying understanding.
-- **Incentive (激勵)**: Focus on engagement, real-world relevance, or curiosity.
-
-### 2. COMPONENT SELECTION MENU
+### 1. COMPONENT SELECTION MENU
 Choose the component that best fits the specific learning goal:
 
 VAR_COMP_MENU
 
-### 3. COMPONENT DATA REFERENCE (CRITICAL)
+### 2. COMPONENT DATA REFERENCE (CRITICAL)
 You MUST populate `config.data` with the specific fields required by the chosen component.
 VAR_COMP_SCHEMA
 
@@ -122,8 +108,8 @@ You must output a VALID JSON object matching this schema:
 ### PEDAGOGY RULES (MULTI-STAGE)
 Design an optimal **Learning Sequence** for this node.
 Decide how many stages are needed based on the complexity of the topic.
-- A simple concept might only need 1 stage (Instruction).
-- A complex skill might need 3+ stages (Instruction -> Practice -> Application -> Advanced Challenge).
+- Review the available components and choose the best sequence for explaining and practicing the topic.
+- Use simpler components for basic explanation and challenging components for synthesis.
 
 Ensure the sequence makes pedagogical sense. Do not just generic quiz.
 """

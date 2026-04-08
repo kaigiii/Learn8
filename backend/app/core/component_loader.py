@@ -83,31 +83,16 @@ class ComponentRegistryLoader:
         根據載入的 YAML 檔案動態生成 'COMPONENT SELECTION MENU' 提示字串，
         並依照模組類別進行分組。
         """
-        categories = {
-            "Instruction": [],
-            "Practice": [],
-            "Assessment": [],
-            "Incentive": [],
-        }
-
         allowed_names = set(component_names or self.components.keys())
+        prompt_parts = []
+        
         for name, data in self.components.items():
             if name not in allowed_names:
                 continue
-            mod = data.get("module", "Instruction")
             desc = data.get("description", "")
-            if mod in categories:
-                categories[mod].append(
-                    f"- If the goal is to **{desc.lower().replace('if the goal is to ', '')}**: Use `{name}`."
-                )
-
-        # 建立最終的提示字串 (Prompt String)
-        prompt_parts = []
-        for cat, items in categories.items():
-            if items:
-                prompt_parts.append(f"**{cat}**")
-                prompt_parts.extend(items)
-                prompt_parts.append("")
+            prompt_parts.append(
+                f"- If the goal is to **{desc.lower().replace('if the goal is to ', '')}**: Use `{name}`."
+            )
 
         return "\n".join(prompt_parts)
 

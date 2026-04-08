@@ -1,6 +1,5 @@
 name: ExplainerMedia
 frontend_registry_key: ExplainerMedia
-module: Instruction
 allowed_in_remedial: false
 required_config_data_fields:
   - title

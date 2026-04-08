@@ -8,7 +8,6 @@ from app.schemas.lesson_schema import (
     GenericConfig,
     LessonSessionStartRequest,
     LessonStage,
-    ModuleType,
     SkinType,
     Validation,
     ValidationType,
@@ -37,7 +36,6 @@ def _build_stage(stage_id: str, prompt: str) -> LessonStage:
     return LessonStage(
         stageId=stage_id,
         topic="Python Basics",
-        module=ModuleType.Practice,
         skin=SkinType.Classic,
         component="MultipleChoice",
         difficulty="medium",

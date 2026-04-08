@@ -82,7 +82,6 @@ export interface CourseListItem {
 export interface LessonStage {
   stageId: string;
   topic: string;
-  module: "Instruction" | "Practice" | "Assessment" | "Incentive";
   component: "MultipleChoice" | "Ordering" | "MatchingPairs" | "FeynmanMirror" | "ExplainerMedia";
   skin: "Scientific" | "Classic" | "Code";
   difficulty?: "low" | "medium" | "high" | null;
@@ -198,7 +197,6 @@ export interface LessonAssistantResponse {
 export interface LessonComponentManifestItem {
   name: LessonStageComponent | string;
   frontendRegistryKey: LessonStageComponent | string;
-  module: LessonStage["module"] | string;
   description: string;
   allowedInRemedial: boolean;
   requiredConfigDataFields: string[];

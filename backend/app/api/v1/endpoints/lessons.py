@@ -83,7 +83,6 @@ def get_lesson_component_manifest():
                 name=component_name,
                 frontendRegistryKey=registry.get_frontend_registry_key(component_name)
                 or component_name,
-                module=str(component.get("module") or ""),
                 description=str(component.get("description") or ""),
                 allowedInRemedial=bool(component.get("allowed_in_remedial", False)),
                 requiredConfigDataFields=registry.get_required_data_fields(component_name),
@@ -1177,9 +1176,6 @@ async def submit_answer(
                 session_stage.stage_order if session_stage else None
             )
             existing_failed_stage.component = stage.component
-            existing_failed_stage.module = (
-                stage.module.value if hasattr(stage.module, "value") else str(stage.module)
-            )
             existing_failed_stage.difficulty = (
                 stage.difficulty.value if getattr(stage, "difficulty", None) else None
             )
@@ -1204,7 +1200,6 @@ async def submit_answer(
                     stage_id=stage.stageId,
                     stage_order=session_stage.stage_order if session_stage else None,
                     component=stage.component,
-                    module=stage.module.value if hasattr(stage.module, "value") else str(stage.module),
                     difficulty=stage.difficulty.value if getattr(stage, "difficulty", None) else None,
                     recommended_duration_minutes=stage.recommendedDurationMinutes,
                     item_count=count_stage_items(stage),
