@@ -1,9 +1,11 @@
 import random
 import string
+from datetime import timedelta
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session, selectinload
 
+from app.core.config import settings
 from app.core.time import utc_now_naive
 from app.domain.arena_modes import normalize_arena_mode
 from app.domain.arena_statuses import ArenaMatchStatus, ArenaRoomStatus
@@ -38,7 +40,68 @@ class RoomService:
             selectinload(ArenaRoomModel.public_course),
         )
 
-    def get_room_by_code(self, db: Session, room_code: str) -> ArenaRoomModel | None:
+    def _latest_room_activity_at(self, room: ArenaRoomModel):
+        latest = room.updated_at or room.created_at or utc_now_naive()
+        for player in room.players:
+            for candidate in (player.last_seen_at, player.updated_at, player.joined_at):
+                if candidate and candidate > latest:
+                    latest = candidate
+        return latest
+
+    def _close_idle_lobby_rooms(self, db: Session) -> int:
+        idle_minutes = int(getattr(settings, "ARENA_ROOM_IDLE_CLOSE_MINUTES", 0) or 0)
+        if idle_minutes <= 0:
+            return 0
+
+        now = utc_now_naive()
+        cutoff = now - timedelta(minutes=idle_minutes)
+        candidate_rooms = (
+            self._base_room_query(db)
+            .filter(
+                ArenaRoomModel.status == ArenaRoomStatus.LOBBY,
+                ArenaRoomModel.closed_at.is_(None),
+            )
+            .all()
+        )
+
+        if not candidate_rooms:
+            return 0
+
+        closed_rooms: list[ArenaRoomModel] = []
+        for room in candidate_rooms:
+            latest_activity_at = self._latest_room_activity_at(room)
+            if latest_activity_at > cutoff:
+                continue
+            room.status = ArenaRoomStatus.CLOSED
+            room.closed_at = now
+            db.add(room)
+            closed_rooms.append(room)
+
+        if not closed_rooms:
+            return 0
+
+        for room in closed_rooms:
+            self.realtime_gateway.publish_event(
+                db,
+                stream_type="room",
+                room_code=room.room_code,
+                match_id=room.latest_match_id,
+                event_type="room.closed_idle",
+                payload={
+                    "roomCode": room.room_code,
+                    "status": ArenaRoomStatus.CLOSED,
+                    "reason": "idle_timeout",
+                    "idleCloseMinutes": idle_minutes,
+                },
+            )
+        db.commit()
+        return len(closed_rooms)
+
+    def get_room_by_code(
+        self, db: Session, room_code: str, *, cleanup_idle: bool = True
+    ) -> ArenaRoomModel | None:
+        if cleanup_idle:
+            self._close_idle_lobby_rooms(db)
         return (
             self._base_room_query(db)
             .filter(ArenaRoomModel.room_code == room_code.upper())
@@ -46,6 +109,7 @@ class RoomService:
         )
 
     def get_active_room_for_user(self, db: Session, user_id: int) -> ArenaRoomModel | None:
+        self._close_idle_lobby_rooms(db)
         room_player = (
             db.query(ArenaRoomPlayerModel)
             .join(ArenaRoomModel, ArenaRoomModel.id == ArenaRoomPlayerModel.room_id)
@@ -58,7 +122,7 @@ class RoomService:
         )
         if not room_player:
             return None
-        return self.get_room_by_code(db, room_player.room.room_code)
+        return self.get_room_by_code(db, room_player.room.room_code, cleanup_idle=False)
 
     def create_room(
         self,
@@ -102,10 +166,10 @@ class RoomService:
             )
         )
         db.commit()
-        room = self.get_room_by_code(db, room.room_code)
+        room = self.get_room_by_code(db, room.room_code, cleanup_idle=False)
         self.presence_service.touch_room_presence(db, room, current_user)
         db.commit()
-        room = self.get_room_by_code(db, room.room_code)
+        room = self.get_room_by_code(db, room.room_code, cleanup_idle=False)
         self.realtime_gateway.publish_event(
             db,
             stream_type="room",
@@ -114,7 +178,7 @@ class RoomService:
             payload=self.serialize_room(room),
         )
         db.commit()
-        room = self.get_room_by_code(db, room.room_code)
+        room = self.get_room_by_code(db, room.room_code, cleanup_idle=False)
         return room
 
     def join_room(self, db: Session, current_user: UserModel, room_code: str) -> ArenaRoomModel:
@@ -138,10 +202,10 @@ class RoomService:
             )
         )
         db.commit()
-        room = self.get_room_by_code(db, room.room_code)
+        room = self.get_room_by_code(db, room.room_code, cleanup_idle=False)
         self.presence_service.touch_room_presence(db, room, current_user)
         db.commit()
-        room = self.get_room_by_code(db, room.room_code)
+        room = self.get_room_by_code(db, room.room_code, cleanup_idle=False)
         self.realtime_gateway.publish_event(
             db,
             stream_type="room",
@@ -155,7 +219,7 @@ class RoomService:
             },
         )
         db.commit()
-        room = self.get_room_by_code(db, room.room_code)
+        room = self.get_room_by_code(db, room.room_code, cleanup_idle=False)
         return room
 
     def leave_room(self, db: Session, current_user: UserModel, room_code: str) -> None:
@@ -185,7 +249,7 @@ class RoomService:
             room.host_user_id = remaining_players[0].user_id
 
         db.commit()
-        room = self.get_room_by_code(db, original_room_code)
+        room = self.get_room_by_code(db, original_room_code, cleanup_idle=False)
         self.realtime_gateway.publish_event(
             db,
             stream_type="room",
@@ -216,10 +280,10 @@ class RoomService:
         player.is_ready = is_ready
         db.add(player)
         db.commit()
-        room = self.get_room_by_code(db, room.room_code)
+        room = self.get_room_by_code(db, room.room_code, cleanup_idle=False)
         self.presence_service.touch_room_presence(db, room, current_user)
         db.commit()
-        room = self.get_room_by_code(db, room.room_code)
+        room = self.get_room_by_code(db, room.room_code, cleanup_idle=False)
         self.realtime_gateway.publish_event(
             db,
             stream_type="room",
@@ -233,7 +297,7 @@ class RoomService:
             },
         )
         db.commit()
-        room = self.get_room_by_code(db, room.room_code)
+        room = self.get_room_by_code(db, room.room_code, cleanup_idle=False)
         return room
 
     def can_start_room(self, room: ArenaRoomModel) -> bool:
@@ -302,7 +366,7 @@ class RoomService:
         db.add(room)
         db.commit()
         db.refresh(match)
-        room = self.get_room_by_code(db, room.room_code)
+        room = self.get_room_by_code(db, room.room_code, cleanup_idle=False)
         if room:
             self.presence_service.touch_room_presence(db, room, current_user)
             db.commit()

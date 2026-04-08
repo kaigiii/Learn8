@@ -6,6 +6,7 @@ from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
+from app.core.config import settings
 from app.core.time import utc_now_naive
 from app.domain.arena_statuses import ArenaMatchStatus, ArenaRoundStatus, ArenaRoomStatus
 from app.models.arena_match import ArenaMatchModel, ArenaMatchPlayerModel
@@ -21,7 +22,7 @@ from app.services.arena.scoring_service import ScoringService
 
 
 class RoundEngine:
-    STALE_MATCH_FINALIZE_SECONDS = 900
+    STALE_MATCH_FINALIZE_SECONDS = settings.ARENA_MATCH_STALE_FINALIZE_SECONDS
 
     def __init__(
         self,

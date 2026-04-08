@@ -8,6 +8,7 @@ class Settings(BaseSettings):
 
     PROJECT_NAME: str = "Learn8"
     API_V1_STR: str = "/api/v1"
+    CORS_ALLOW_ORIGINS: str = "*"
 
     # Security
     SECRET_KEY: str = "supersecretkey123"
@@ -18,7 +19,12 @@ class Settings(BaseSettings):
     AUTH_MAX_RESET_REQUESTS_PER_HOUR: int = 3
     AUTH_RESET_TOKEN_TTL_MINUTES: int = 30
     AUTH_DEBUG_EXPOSE_RESET_TOKEN: bool = False
+    AUTH_ENABLE_DEV_LOGIN: bool = False
+    AUTH_DEV_LOGIN_EMAIL: str = "dev@learn8.ai"
+    AUTH_DEV_LOGIN_PASSWORD: str = "dev_password"
     ARENA_ADMIN_EMAILS: str = ""
+    ARENA_ROOM_IDLE_CLOSE_MINUTES: int = 15
+    JOB_STALE_TIMEOUT_MINUTES: int = 10
 
     # Database
     DATABASE_URL: str  # Required to be set in .env
@@ -41,6 +47,8 @@ class Settings(BaseSettings):
 
     # Workflow Settings
     SYLLABUS_CONCURRENCY_LIMIT: int = 3
+    ARENA_QUEUE_EXPIRE_MINUTES: int = 3
+    ARENA_MATCH_STALE_FINALIZE_SECONDS: int = 900
 
     # Document Processing & Vision
     PDF_PARSE_STRATEGY: str = "hybrid"  # basic | vision | hybrid
