@@ -43,7 +43,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-STALE_JOB_TIMEOUT = timedelta(minutes=10)
+STALE_JOB_TIMEOUT = timedelta(minutes=settings.JOB_STALE_TIMEOUT_MINUTES)
 
 
 def _normalize_job_result_data(job: JobModel) -> dict:

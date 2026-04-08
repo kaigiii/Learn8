@@ -238,11 +238,18 @@ def reset_password(request: PasswordResetConfirm, db: Session = Depends(get_db))
 
 @router.post("/dev-login", response_model=Token)
 def dev_login(db: Session = Depends(get_db)):
-    dev_email = "dev@learn8.ai"
+    if not settings.AUTH_ENABLE_DEV_LOGIN:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Endpoint not found",
+        )
+
+    dev_email = settings.AUTH_DEV_LOGIN_EMAIL.strip().lower()
+    dev_password = settings.AUTH_DEV_LOGIN_PASSWORD
     db_user = db.query(UserModel).filter(UserModel.email == dev_email).first()
 
     if not db_user:
-        hashed_password = get_password_hash("dev_password")
+        hashed_password = get_password_hash(dev_password)
         db_user = UserModel(email=dev_email, hashed_password=hashed_password)
         db.add(db_user)
         db.commit()

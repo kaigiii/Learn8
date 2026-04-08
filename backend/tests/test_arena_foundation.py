@@ -2,9 +2,10 @@ from datetime import timedelta
 
 from fastapi import HTTPException
 
+from app.core.config import settings
 from app.core.time import utc_now_naive
 from app.domain.arena_modes import ArenaMode
-from app.domain.arena_statuses import ArenaMatchStatus
+from app.domain.arena_statuses import ArenaMatchStatus, ArenaRoomStatus
 from app.models.arena_match import ArenaMatchModel, ArenaMatchPlayerModel
 from app.models.arena_question_pool import ArenaQuestionPoolItemModel, ArenaQuestionPoolModel
 from app.models.arena_queue import ArenaQueueEntryModel
@@ -296,6 +297,85 @@ def test_room_service_closes_room_when_last_player_leaves(db_session, user):
     assert refreshed_room.status == "closed"
     assert refreshed_room.closed_at is not None
     assert len(refreshed_room.players) == 0
+
+
+def test_room_service_auto_closes_idle_lobby_rooms(db_session, user):
+    public_course = _create_public_course(db_session)
+    room_service = RoomService()
+    original_idle_minutes = settings.ARENA_ROOM_IDLE_CLOSE_MINUTES
+    settings.ARENA_ROOM_IDLE_CLOSE_MINUTES = 15
+    try:
+        room = room_service.create_room(
+            db_session,
+            user,
+            public_course_id=public_course.id,
+            mode="private_room",
+            visibility="private",
+            max_players=4,
+            round_count=5,
+            round_time_seconds=30,
+        )
+
+        stale_at = utc_now_naive() - timedelta(minutes=20)
+        room.status = ArenaRoomStatus.LOBBY
+        room.updated_at = stale_at
+        for player in room.players:
+            player.last_seen_at = stale_at
+            player.updated_at = stale_at
+            player.joined_at = stale_at
+            db_session.add(player)
+        db_session.add(room)
+        db_session.commit()
+
+        active_room = room_service.get_active_room_for_user(db_session, user.id)
+        assert active_room is None
+
+        refreshed_room = room_service.get_room_by_code(
+            db_session, room.room_code, cleanup_idle=False
+        )
+        assert refreshed_room is not None
+        assert refreshed_room.status == ArenaRoomStatus.CLOSED
+        assert refreshed_room.closed_at is not None
+    finally:
+        settings.ARENA_ROOM_IDLE_CLOSE_MINUTES = original_idle_minutes
+
+
+def test_room_service_keeps_lobby_open_when_presence_is_recent(db_session, user):
+    public_course = _create_public_course(db_session)
+    room_service = RoomService()
+    original_idle_minutes = settings.ARENA_ROOM_IDLE_CLOSE_MINUTES
+    settings.ARENA_ROOM_IDLE_CLOSE_MINUTES = 15
+    try:
+        room = room_service.create_room(
+            db_session,
+            user,
+            public_course_id=public_course.id,
+            mode="private_room",
+            visibility="private",
+            max_players=4,
+            round_count=5,
+            round_time_seconds=30,
+        )
+
+        room.updated_at = utc_now_naive() - timedelta(minutes=30)
+        for player in room.players:
+            player.last_seen_at = utc_now_naive() - timedelta(minutes=1)
+            db_session.add(player)
+        db_session.add(room)
+        db_session.commit()
+
+        active_room = room_service.get_active_room_for_user(db_session, user.id)
+        assert active_room is not None
+        assert active_room.status == ArenaRoomStatus.LOBBY
+
+        refreshed_room = room_service.get_room_by_code(
+            db_session, room.room_code, cleanup_idle=False
+        )
+        assert refreshed_room is not None
+        assert refreshed_room.status == ArenaRoomStatus.LOBBY
+        assert refreshed_room.closed_at is None
+    finally:
+        settings.ARENA_ROOM_IDLE_CLOSE_MINUTES = original_idle_minutes
 
 
 def test_room_service_prevents_start_before_all_non_hosts_ready(db_session, user):

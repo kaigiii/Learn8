@@ -5,6 +5,7 @@ from datetime import timedelta
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.time import utc_now_naive
 from app.domain.arena_modes import ArenaMode, RANKED_ARENA_MODES
 from app.domain.arena_statuses import ArenaMatchStatus, ArenaQueueStatus
@@ -60,7 +61,8 @@ class CompetitiveService:
             public_course_id=public_course_id,
             mode=ArenaMode.COMPETITIVE,
             status=ArenaQueueStatus.WAITING,
-            expires_at=utc_now_naive() + timedelta(minutes=3),
+            expires_at=utc_now_naive()
+            + timedelta(minutes=settings.ARENA_QUEUE_EXPIRE_MINUTES),
         )
         db.add(queue_entry)
         db.flush()
