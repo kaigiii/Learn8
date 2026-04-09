@@ -87,6 +87,9 @@ async def run_syllabus_generation_job(
                 status=JobStatus.PROCESSING,
             )
 
+        from app.services.jobs.job_registry import JobRegistry
+        JobRegistry.heartbeat(db, job)
+
         # 呼叫 LLM
         syllabus = await agent.run(
             topic,
