@@ -75,24 +75,6 @@ def _job_matches_scope(
     return True
 
 
-def _mark_stale_jobs(db: Session, user_id: int):
-    cutoff = datetime.now(timezone.utc) - STALE_JOB_TIMEOUT
-
-    stale_jobs = (
-        db.query(JobModel)
-        .filter(
-            JobModel.user_id == user_id,
-            JobModel.status.in_(ACTIVE_JOB_STATUSES),
-            func.coalesce(JobModel.updated_at, JobModel.created_at) < cutoff,
-        )
-        .all()
-    )
-    for job in stale_jobs:
-        job.status = JobStatus.STALE
-        job.message = "Job expired after backend restart or timeout."
-    if stale_jobs:
-        db.commit()
-
 
 def _create_retry_job(db: Session, current_user_id: int, job: JobModel, metadata: dict) -> JobModel:
     new_job = JobModel(
@@ -243,8 +225,6 @@ async def check_active_jobs(
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    _mark_stale_jobs(db, current_user.id)
-
     active_job_query = (
         db.query(JobModel)
         .filter(
@@ -340,8 +320,6 @@ async def retry_job(
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    _mark_stale_jobs(db, current_user.id)
-
     job = (
         db.query(JobModel)
         .filter(JobModel.id == job_id, JobModel.user_id == current_user.id)
