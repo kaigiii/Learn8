@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import GameButton from "@/components/ui/GameButton";
 import type { MatchPair } from "@/features/lesson-session/hooks/useMatchingPairsStage";
@@ -339,20 +340,13 @@ function MatchGrid({
 
 function OwlMascot() {
   return (
-    <svg viewBox="0 0 80 80" className="h-14 w-14 flex-shrink-0" fill="none">
-      <ellipse cx="40" cy="52" rx="22" ry="20" fill="#E8A855" />
-      <ellipse cx="40" cy="54" rx="16" ry="14" fill="#F5DEB3" />
-      <circle cx="32" cy="40" r="9" fill="white" />
-      <circle cx="48" cy="40" r="9" fill="white" />
-      <circle cx="33" cy="40" r="5" fill="#2D2D2D" />
-      <circle cx="47" cy="40" r="5" fill="#2D2D2D" />
-      <circle cx="34.5" cy="38.5" r="1.8" fill="white" />
-      <circle cx="48.5" cy="38.5" r="1.8" fill="white" />
-      <polygon points="40,44 37,48 43,48" fill="#E8734A" />
-      <polygon points="22,30 26,38 18,36" fill="#D4943D" />
-      <polygon points="58,30 54,38 62,36" fill="#D4943D" />
-      <ellipse cx="33" cy="72" rx="5" ry="3" fill="#E8734A" />
-      <ellipse cx="47" cy="72" rx="5" ry="3" fill="#E8734A" />
-    </svg>
+    <Image
+      src="/full_icon.ico"
+      alt="Lesson mascot"
+      width={56}
+      height={56}
+      className="h-14 w-14 flex-shrink-0 object-contain"
+      priority
+    />
   );
 }

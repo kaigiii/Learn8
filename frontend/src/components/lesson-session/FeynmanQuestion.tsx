@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import GameButton from "@/components/ui/GameButton";
@@ -30,19 +31,14 @@ export interface FeynmanQuestionProps
 
 function OwlTeacher() {
   return (
-    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-amber-300 to-amber-500 flex items-center justify-center shadow-lg flex-shrink-0">
-      <svg viewBox="0 0 40 40" className="w-10 h-10" fill="none">
-        <ellipse cx="20" cy="24" rx="12" ry="10" fill="#C47F17" />
-        <circle cx="15" cy="20" r="5" fill="white" />
-        <circle cx="25" cy="20" r="5" fill="white" />
-        <circle cx="15" cy="20" r="2.5" fill="#2D2D2D" />
-        <circle cx="25" cy="20" r="2.5" fill="#2D2D2D" />
-        <circle cx="16" cy="19" r="1" fill="white" />
-        <circle cx="26" cy="19" r="1" fill="white" />
-        <polygon points="20,22 18,25 22,25" fill="#FF9500" />
-        <polygon points="10,16 8,8 15,14" fill="#C47F17" />
-        <polygon points="30,16 32,8 25,14" fill="#C47F17" />
-      </svg>
+    <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-full shadow-lg">
+      <Image
+        src="/homeicon.ico"
+        alt="Professor avatar"
+        width={64}
+        height={64}
+        className="h-full w-full object-cover"
+      />
     </div>
   );
 }
@@ -123,7 +119,7 @@ export default function FeynmanQuestion({
         >
           <OwlTeacher />
           <div className="flex-1 rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200/60 shadow-sm px-5 py-4">
-            <p className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-1">🦉 Professor Owl asks:</p>
+            <p className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-1">Professor Owl asks:</p>
             <p className="text-base font-semibold text-brand-gray-700 leading-relaxed">{prompt}</p>
           </div>
         </motion.div>
@@ -219,7 +215,7 @@ export default function FeynmanQuestion({
               >
                 <OwlTeacher />
                 <div className="flex-1 rounded-2xl bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200/60 shadow-sm px-5 py-4">
-                  <p className="text-xs font-bold text-green-600 uppercase tracking-wider mb-2">🦉 Professor Owl&apos;s feedback:</p>
+                  <p className="text-xs font-bold text-green-600 uppercase tracking-wider mb-2">Professor Owl&apos;s feedback:</p>
                   <p className="text-sm text-brand-gray-700 leading-relaxed">
                     {serverFeedback || (submissionResult === "correct" ? feedbackMsg.success : feedbackMsg.error)}
                   </p>
