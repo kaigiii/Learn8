@@ -10,15 +10,56 @@ import type {
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
+const GENERIC_FETCH_ERROR_FRAGMENTS = [
+  "failed to fetch",
+  "fetch failed",
+  "network request failed",
+  "network error",
+  "load failed",
+  "networkerror when attempting to fetch resource",
+];
+
+function isGenericFetchErrorMessage(message: string | null | undefined) {
+  const normalized = (message ?? "").trim().toLowerCase();
+  if (!normalized) {
+    return false;
+  }
+
+  return GENERIC_FETCH_ERROR_FRAGMENTS.some((fragment) =>
+    normalized.includes(fragment)
+  );
+}
+
+function normalizeErrorDetail(detail: string | null | undefined, fallback: string) {
+  const normalized = (detail ?? "").trim();
+  if (!normalized || isGenericFetchErrorMessage(normalized)) {
+    return fallback;
+  }
+  return normalized;
+}
+
 export class ApiError extends Error {
   status: number;
   detail: string;
 
   constructor(status: number, detail: string) {
-    super(detail);
+    const normalizedDetail = normalizeErrorDetail(detail, "Request failed. Please try again.");
+    super(normalizedDetail);
     this.status = status;
-    this.detail = detail;
+    this.detail = normalizedDetail;
   }
+}
+
+export function resolveErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof ApiError) {
+    return normalizeErrorDetail(error.detail, fallback);
+  }
+
+  if (error instanceof Error) {
+    return normalizeErrorDetail(error.message, fallback);
+  }
+
+  return fallback;
 }
 
 function clearPersistedSession() {
@@ -73,10 +114,18 @@ export async function apiFetch<T>(
     headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...init,
+      headers,
+    });
+  } catch (error) {
+    throw new ApiError(
+      0,
+      resolveErrorMessage(error, "Unable to connect to server. Please try again.")
+    );
+  }
 
   if (!response.ok) {
     let detail = response.statusText;
@@ -86,6 +135,13 @@ export async function apiFetch<T>(
     } catch {
       // ignore parse failure
     }
+
+    detail = normalizeErrorDetail(
+      detail,
+      response.status >= 500
+        ? "Server error. Please try again."
+        : "Request failed. Please try again."
+    );
 
     if (response.status === 401) {
       redirectToLoginOnUnauthorized();

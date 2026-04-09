@@ -16,7 +16,7 @@ export default function ArenaResultPageClient({ matchId }: { matchId: number }) 
   const result = match?.currentPlayerResult ?? null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#edf7fb] via-[#c9e6f2] to-[#a3d5e8]">
+    <div className="min-h-screen app-shared-bg">
       <TopStatsBar backHref="/home" pageTitle="Arena Result" />
       <main className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8 md:px-8">
         <DeepGlassCard className="px-6 py-6 md:px-8 md:py-8">

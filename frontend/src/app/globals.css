@@ -31,6 +31,15 @@ body {
 
 /* Custom utility classes */
 @layer utilities {
+  .app-shared-bg {
+    background-color: #d9ecf6;
+    background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.1)), url("/MainBg.png");
+    background-position: center;
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+  }
+
   .text-shadow-sm {
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
   }

@@ -161,7 +161,7 @@ export default function LessonSessionPageClient({
 
   if (!isBackendLesson) {
     return (
-      <div className="relative min-h-screen bg-gradient-to-br from-[#edf7fb] via-[#c9e6f2] to-[#a3d5e8]">
+      <div className="relative min-h-screen app-shared-bg">
         <TopProgressBar progress={0} />
         <div className="mx-auto flex min-h-[calc(100vh-12px)] max-w-3xl items-center justify-center px-6">
           <div className="rounded-3xl border border-amber-200 bg-white/80 px-6 py-5 text-sm text-brand-gray-700 shadow-lg backdrop-blur">
@@ -174,7 +174,7 @@ export default function LessonSessionPageClient({
 
   if (shouldRenderImmersiveStatus) {
     return (
-      <div className="relative min-h-dvh overflow-hidden bg-gradient-to-br from-[#edf7fb] via-[#c9e6f2] to-[#a3d5e8]">
+      <div className="relative min-h-dvh overflow-hidden app-shared-bg">
         <main className="relative z-10 flex min-h-dvh flex-1 flex-col">
           <div className="flex flex-1 flex-col">
             {shouldRenderStatusPanel ? (
@@ -252,7 +252,7 @@ export default function LessonSessionPageClient({
   }
 
   return (
-    <div className="relative min-h-screen max-h-screen overflow-hidden bg-gradient-to-br from-[#edf7fb] via-[#c9e6f2] to-[#a3d5e8] flex flex-col">
+    <div className="relative min-h-screen max-h-screen overflow-hidden app-shared-bg flex flex-col">
       {/* ─── Top Nav ─── */}
       <div className="flex items-center gap-3 px-8 pt-4 pb-1">
         <button

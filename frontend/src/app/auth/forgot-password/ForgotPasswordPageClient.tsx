@@ -50,7 +50,7 @@ export default function ForgotPasswordPageClient() {
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-[#edf7fb] via-[#c9e6f2] to-[#a3d5e8] px-4 py-10">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden app-shared-bg px-4 py-10">
       <div className="w-full max-w-md rounded-3xl border border-white/70 bg-white/88 p-8 shadow-[0_24px_60px_rgba(31,41,55,0.14)] backdrop-blur-xl">
         <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-brand-teal">
           Account Recovery

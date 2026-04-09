@@ -100,7 +100,7 @@ export default function QuestionnairePageClient() {
 
   if (isGenerationStep) {
     return (
-      <div className="relative min-h-dvh overflow-hidden bg-gradient-to-br from-[#edf7fb] via-[#c9e6f2] to-[#a3d5e8]">
+      <div className="relative min-h-dvh overflow-hidden app-shared-bg">
         <main className="relative z-10 flex min-h-dvh flex-1 flex-col">
           <div className="flex flex-1 flex-col">
             <ForgeStatus
@@ -145,7 +145,7 @@ export default function QuestionnairePageClient() {
   }
 
   return (
-    <div className="relative min-h-screen bg-gradient-to-br from-[#edf7fb] via-[#c9e6f2] to-[#a3d5e8]">
+    <div className="relative min-h-screen app-shared-bg">
       <TopStatsBar backHref="/home" pageTitle="Questionnaire" />
 
       <div className="relative z-10 mx-auto max-w-6xl px-4 py-8 md:px-8">

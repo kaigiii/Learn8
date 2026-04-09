@@ -10,6 +10,7 @@ import {
   cancelCurrentArenaCompetitiveQueue,
   fetchCurrentArenaCompetitiveQueue,
 } from "@/lib/arena/api";
+import { resolveErrorMessage } from "@/lib/apiClient";
 import { useRequireAuthRedirect } from "@/lib/auth/useRequireAuthRedirect";
 import type { ArenaCompetitiveQueueState } from "@/lib/apiTypes";
 
@@ -39,7 +40,7 @@ export default function ArenaQueuePageClient() {
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load competition queue");
+          setError(resolveErrorMessage(err, "Unable to load competition queue right now."));
         }
       } finally {
         if (!cancelled) {
@@ -66,13 +67,13 @@ export default function ArenaQueuePageClient() {
       await cancelCurrentArenaCompetitiveQueue();
       router.push("/home");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to cancel queue");
+      setError(resolveErrorMessage(err, "Unable to cancel queue right now."));
       setBusy(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#edf7fb] via-[#c9e6f2] to-[#a3d5e8]">
+    <div className="min-h-screen app-shared-bg">
       <TopStatsBar backHref="/home" pageTitle="Arena Queue" />
       <main className="mx-auto flex max-w-4xl flex-col gap-6 px-4 py-8 md:px-8">
         <DeepGlassCard className="px-6 py-6 md:px-8 md:py-8">

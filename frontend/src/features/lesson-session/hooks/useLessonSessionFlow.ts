@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { ApiError, apiFetch } from "@/lib/apiClient";
+import { ApiError, apiFetch, resolveErrorMessage } from "@/lib/apiClient";
 import {
   ACTIVE_LESSON_SESSION_STATUSES,
   JOB_TYPE,
@@ -374,7 +374,7 @@ export function useLessonSessionFlow({
     } catch (err) {
       debugLessonFlow("completeCurrentPhase failed", {
         sessionId: lessonSession.sessionId,
-        error: err instanceof Error ? err.message : String(err),
+        error: resolveErrorMessage(err, "Unknown lesson session error."),
       });
       setPhaseTransitionError(
         err instanceof ApiError

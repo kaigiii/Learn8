@@ -15,6 +15,10 @@ interface HomePublicTopicsSectionProps {
 export function HomePublicTopicsSection({ courses }: HomePublicTopicsSectionProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  if (courses.length === 0) {
+    return null;
+  }
+
   const scrollLibrary = (dir: "left" | "right") => {
     scrollRef.current?.scrollBy({
       left: dir === "right" ? 260 : -260,
@@ -95,11 +99,6 @@ export function HomePublicTopicsSection({ courses }: HomePublicTopicsSectionProp
         })}
 
 
-        {courses.length === 0 && (
-          <div className="rounded-2xl border border-white/60 bg-white/60 px-5 py-8 text-sm text-brand-gray-500 w-full">
-            Public topics will appear here once they are published.
-          </div>
-        )}
       </div>
     </section>
   );

@@ -121,7 +121,7 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
   }, [activeRound, authUser?.id, match, presenceByUserId]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#edf7fb] via-[#c9e6f2] to-[#a3d5e8]">
+    <div className="min-h-screen app-shared-bg">
       <TopStatsBar backHref="/home" pageTitle="Arena Match" />
       <main className="mx-auto grid max-w-7xl gap-6 px-4 py-8 md:px-8 xl:grid-cols-[1.15fr_0.85fr]">
         <DeepGlassCard className="px-6 py-6 md:px-8 md:py-8">
