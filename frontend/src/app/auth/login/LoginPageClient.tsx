@@ -3,6 +3,7 @@
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { FcGoogle } from "react-icons/fc";
 import { FaFacebook, FaApple } from "react-icons/fa";
 import { ApiError, apiFetch } from "@/lib/apiClient";
@@ -177,11 +178,25 @@ export default function LoginPageClient() {
 
       <main className="relative z-10 flex flex-1 items-center justify-center px-4 py-10 gap-8 flex-wrap lg:flex-nowrap max-w-7xl mx-auto w-full">
         <section className="flex flex-col items-start max-w-md shrink-0">
-          <div className="flex items-center gap-2 mb-6">
-            <OwlIcon className="h-10 w-10 text-brand-teal" />
-            <span className="font-heading text-2xl font-extrabold text-brand-gray-700">
-              Learn8
-            </span>
+          <div className="mb-6 flex items-center gap-4">
+            <div className="h-14 w-14 overflow-hidden rounded-full border border-white/85 bg-white shadow-md">
+              <Image
+                src="/homeicon.ico"
+                alt="Learn8 icon"
+                width={56}
+                height={56}
+                priority
+                className="h-full w-full object-cover"
+              />
+            </div>
+            <Image
+              src="/logs.png"
+              alt="Learn8"
+              width={250}
+              height={100}
+              priority
+              className="h-14 w-auto object-contain"
+            />
           </div>
 
           <h1 className="font-heading text-4xl md:text-[2.6rem] leading-tight font-extrabold text-brand-gray-700 mb-3">
@@ -500,22 +515,16 @@ function ParticleField() {
   );
 }
 
-function OwlIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none">
-      <circle cx="12" cy="12" r="10" fill="currentColor" opacity="0.12" />
-      <path d="M7 16V9.5A5 5 0 0 1 12 4.5a5 5 0 0 1 5 5V16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      <circle cx="9.5" cy="11" r="1.5" fill="currentColor" />
-      <circle cx="14.5" cy="11" r="1.5" fill="currentColor" />
-      <path d="M12 12.8l-1.2 2h2.4l-1.2-2Z" fill="currentColor" />
-    </svg>
-  );
-}
-
 function MascotOwl() {
   return (
     <div className="flex h-48 w-48 items-center justify-center rounded-full bg-white/50 shadow-inner">
-      <OwlIcon className="h-24 w-24 text-brand-teal" />
+      <Image
+        src="/full_icon.ico"
+        alt="Learn8 mascot"
+        width={198}
+        height={198}
+        className="h-48 w-48 object-contain"
+      />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { ProfileStatBox } from "./components/ProfileStatBox";
 import { ProfileToggle } from "./components/ProfileToggle";
@@ -15,15 +16,7 @@ export default function ProfileSettingsDialog({ onClose }: ProfileSettingsDialog
     authUser,
     title,
     preferences,
-    form,
-    setForm,
-    saving,
-    toppingUpAmount,
-    error,
     setPreferences,
-    handleSaveProfile,
-    handleQuickTopUp,
-    handleOpenStore,
     handleLogout,
   } = useProfileSettings(onClose);
 
@@ -49,293 +42,142 @@ export default function ProfileSettingsDialog({ onClose }: ProfileSettingsDialog
 
         {/* Modal card */}
         <motion.div
-          className="relative z-10 w-full max-w-sm mx-4"
+          className="relative z-10 mx-4 w-full max-w-2xl"
           initial={{ scale: 0.9, opacity: 0, y: 30 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.9, opacity: 0, y: 30 }}
           transition={{ type: "spring", damping: 25, stiffness: 300 }}
         >
-          {/* Floating avatar – overlaps top edge */}
-          <div className="flex justify-center -mb-12 relative z-20">
-            <div className="relative">
-              <div className="h-24 w-24 rounded-full bg-[#e8ddd0] border-4 border-white shadow-lg flex items-center justify-center overflow-hidden">
-                <OwlAvatar />
-              </div>
-              {/* Edit badge */}
-              <button className="absolute bottom-0 right-0 h-7 w-7 rounded-full bg-white shadow-md border border-brand-gray-100 flex items-center justify-center hover:bg-brand-gray-50 transition">
-                <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 text-brand-gray-500" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z" />
-                </svg>
-              </button>
-            </div>
-          </div>
+          <div className="relative max-h-[86vh] overflow-y-auto rounded-[32px] border border-white/60 bg-white/90 shadow-[0_30px_70px_rgba(15,23,42,0.24)] backdrop-blur-xl">
+            <button
+              onClick={onClose}
+              className="absolute right-4 top-4 z-20 flex h-9 w-9 items-center justify-center rounded-full border border-brand-gray-200 bg-white/90 text-brand-gray-500 transition hover:text-brand-gray-700"
+              aria-label="Close profile dialog"
+            >
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 6L6 18" />
+                <path d="M6 6l12 12" />
+              </svg>
+            </button>
 
-          {/* Glass card body */}
-          <div className="rounded-2xl border border-white/40 bg-white/80 backdrop-blur-xl shadow-2xl ring-1 ring-white/20 overflow-hidden pt-14 pb-5 px-6">
-            {/* Name & title */}
-            <div className="text-center mb-5">
-              <h2 className="font-heading text-xl font-extrabold text-brand-gray-700">
-                {authUser?.job_title?.trim() || title}
-              </h2>
-              <p className="text-sm text-brand-gray-400 mt-0.5">
-                {authUser?.full_name?.trim() || form.full_name || "Learner"}
-              </p>
-              {authUser?.email && (
-                <p className="text-xs text-brand-gray-400 mt-1">{authUser.email}</p>
-              )}
-            </div>
-
-            {/* ── Stats Grid ── */}
-            <div className="mb-5">
-              <h3 className="font-heading font-bold text-brand-gray-600 text-sm mb-2.5">
-                Account Snapshot
-              </h3>
-              <div className="grid grid-cols-3 gap-2.5">
-                <ProfileStatBox
-                  label="Credits"
-                  value={String(authUser?.credits ?? 0)}
-                />
-                <ProfileStatBox
-                  label="Daily Goal"
-                  value={
-                    authUser?.daily_learning_goal_minutes
-                      ? `${authUser.daily_learning_goal_minutes} min`
-                      : "Not set"
-                  }
-                />
-                <ProfileStatBox
-                  label="Education"
-                  value={authUser?.education_level || "Not set"}
-                />
-                <ProfileStatBox
-                  label="Language"
-                  value={authUser?.preferred_language || "Not set"}
-                />
-              </div>
-            </div>
-
-            {/* ── Preferences ── */}
-            <div className="mb-4">
-              <h3 className="font-heading font-bold text-brand-gray-600 text-sm mb-3">
-                Profile
-              </h3>
-              <div className="space-y-3.5">
-                <label className="block">
-                  <span className="text-sm text-brand-gray-600">Display Name</span>
-                  <input
-                    type="text"
-                    value={form.full_name}
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, full_name: e.target.value }))
-                    }
-                    className="mt-1 w-full rounded-xl border border-brand-gray-200 bg-white/70 px-3 py-2 text-sm text-brand-gray-700 outline-none focus:border-brand-teal"
+            <div className="px-5 pb-5 pt-8 sm:px-7 sm:pt-9">
+              <div className="mx-auto flex w-full max-w-lg flex-col items-center text-center">
+                <div className="mb-4 flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-[#e8ddd0] shadow-lg">
+                  <Image
+                    src="/homeicon.ico"
+                    alt="Home icon avatar"
+                    width={96}
+                    height={96}
+                    className="h-full w-full object-cover"
                   />
-                </label>
-
-                <label className="block">
-                  <span className="text-sm text-brand-gray-600">Job Title</span>
-                  <input
-                    type="text"
-                    value={form.job_title}
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, job_title: e.target.value }))
-                    }
-                    className="mt-1 w-full rounded-xl border border-brand-gray-200 bg-white/70 px-3 py-2 text-sm text-brand-gray-700 outline-none focus:border-brand-teal"
-                  />
-                </label>
-
-                <label className="block">
-                  <span className="text-sm text-brand-gray-600">Education Level</span>
-                  <input
-                    type="text"
-                    value={form.education_level}
-                    onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        education_level: e.target.value,
-                      }))
-                    }
-                    className="mt-1 w-full rounded-xl border border-brand-gray-200 bg-white/70 px-3 py-2 text-sm text-brand-gray-700 outline-none focus:border-brand-teal"
-                  />
-                </label>
-
-                <label className="block">
-                  <span className="text-sm text-brand-gray-600">Preferred Language</span>
-                  <input
-                    type="text"
-                    value={form.preferred_language}
-                    onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        preferred_language: e.target.value,
-                      }))
-                    }
-                    placeholder="English, 繁體中文, 日本語..."
-                    className="mt-1 w-full rounded-xl border border-brand-gray-200 bg-white/70 px-3 py-2 text-sm text-brand-gray-700 outline-none focus:border-brand-teal"
-                  />
-                </label>
-
-                <label className="block">
-                  <span className="text-sm text-brand-gray-600">Daily Goal (min)</span>
-                  <input
-                    type="number"
-                    min="0"
-                    step="5"
-                    value={form.daily_learning_goal_minutes}
-                    onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        daily_learning_goal_minutes: e.target.value,
-                      }))
-                    }
-                    className="mt-1 w-full rounded-xl border border-brand-gray-200 bg-white/70 px-3 py-2 text-sm text-brand-gray-700 outline-none focus:border-brand-teal"
-                  />
-                </label>
-
-                <button
-                  onClick={() => void handleSaveProfile()}
-                  disabled={saving}
-                  className="w-full rounded-xl bg-brand-teal px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {saving ? "Saving..." : "Save Profile"}
-                </button>
-                {error && <p className="text-xs text-rose-500">{error}</p>}
-              </div>
-            </div>
-
-            <div className="mb-4">
-              <h3 className="font-heading font-bold text-brand-gray-600 text-sm mb-3">
-                Credits
-              </h3>
-              <div className="rounded-2xl border border-brand-gray-100 bg-gradient-to-b from-white/70 to-brand-gray-50 px-4 py-4">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.18em] text-brand-gray-400">
-                      Available
-                    </p>
-                    <p className="font-heading text-2xl font-extrabold text-brand-gray-700">
-                      {authUser?.credits ?? 0}
-                    </p>
-                  </div>
-                  <button
-                    onClick={handleOpenStore}
-                    className="rounded-xl border border-brand-gray-200 bg-white px-3 py-2 text-xs font-semibold text-brand-gray-600 transition hover:border-brand-teal hover:text-brand-teal"
-                  >
-                    Open Store
-                  </button>
                 </div>
-                <div className="mt-4 grid grid-cols-3 gap-2">
-                  {[500, 2000, 5000].map((amount) => (
-                    <button
-                      key={amount}
-                      onClick={() => void handleQuickTopUp(amount)}
-                      disabled={toppingUpAmount !== null}
-                      className="rounded-xl bg-brand-teal/10 px-3 py-2 text-xs font-semibold text-brand-teal transition hover:bg-brand-teal hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {toppingUpAmount === amount
-                        ? "Adding..."
-                        : `+${amount.toLocaleString()}`}
-                    </button>
-                  ))}
-                </div>
-                <p className="mt-3 text-xs leading-relaxed text-brand-gray-400">
-                  Sandbox refill for testing generation and lesson flows without leaving your account center.
+                <h2 className="font-heading text-2xl font-extrabold text-brand-gray-700">
+                  {authUser?.job_title?.trim() || title}
+                </h2>
+                <p className="mt-1 text-sm text-brand-gray-500">
+                  {authUser?.full_name?.trim() || "Learner"}
                 </p>
+                {authUser?.email && (
+                  <p className="mt-1 text-xs text-brand-gray-400">{authUser.email}</p>
+                )}
               </div>
-            </div>
 
-            <div className="mb-4">
-              <h3 className="font-heading font-bold text-brand-gray-600 text-sm mb-3">
-                Preferences
-              </h3>
-              <div className="space-y-3.5">
-                {/* Sound Effects */}
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-brand-gray-600">Sound Effects</span>
-                  <ProfileToggle
-                    on={soundOn}
-                    onChange={() => setPreferences({ soundOn: !soundOn })}
-                  />
-                </div>
-
-                {/* Dark/Light Theme */}
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-brand-gray-600">Dark/Light Theme</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-brand-gray-400 font-medium">Dark/Glass</span>
-                    <ProfileToggle
-                      on={darkGlass}
-                      onChange={() => setPreferences({ darkGlass: !darkGlass })}
+              <div className="mx-auto mt-5 w-full max-w-xl space-y-3">
+                <section className="rounded-3xl border border-brand-gray-100 bg-white/90 p-4">
+                  <h3 className="mb-3 font-heading text-sm font-bold text-brand-gray-600">
+                    Account Snapshot
+                  </h3>
+                  <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+                    <ProfileStatBox
+                      label="Credits"
+                      value={String(authUser?.credits ?? 0)}
+                    />
+                    <ProfileStatBox
+                      label="Daily Goal"
+                      value={
+                        authUser?.daily_learning_goal_minutes
+                          ? `${authUser.daily_learning_goal_minutes} min`
+                          : "Not set"
+                      }
+                    />
+                    <ProfileStatBox
+                      label="Education"
+                      value={authUser?.education_level || "Not set"}
+                    />
+                    <ProfileStatBox
+                      label="Language"
+                      value={authUser?.preferred_language || "Not set"}
                     />
                   </div>
-                </div>
 
-                {/* Difficulty Scaling */}
-                <div className="flex items-center justify-between gap-4">
-                  <span className="text-sm text-brand-gray-600 shrink-0">Difficulty Scaling</span>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={difficulty}
-                    onChange={(e) => setPreferences({ difficulty: Number(e.target.value) })}
-                    className="w-full h-1.5 rounded-full appearance-none cursor-pointer accent-brand-teal bg-brand-gray-200"
-                  />
-                </div>
+                  <div className="mt-3 grid grid-cols-1 gap-2 rounded-2xl border border-brand-gray-100 bg-brand-gray-50/60 p-3 text-sm sm:grid-cols-2">
+                    <div className="rounded-xl bg-white/80 px-3 py-2">
+                      <p className="text-[10px] uppercase tracking-[0.14em] text-brand-gray-400">
+                        Display Name
+                      </p>
+                      <p className="mt-1 font-semibold text-brand-gray-700">
+                        {authUser?.full_name?.trim() || "Learner"}
+                      </p>
+                    </div>
+                    <div className="rounded-xl bg-white/80 px-3 py-2">
+                      <p className="text-[10px] uppercase tracking-[0.14em] text-brand-gray-400">
+                        Job Title
+                      </p>
+                      <p className="mt-1 font-semibold text-brand-gray-700">
+                        {authUser?.job_title?.trim() || "Not set"}
+                      </p>
+                    </div>
+                  </div>
+                </section>
+
+                <section className="rounded-3xl border border-brand-gray-100 bg-white/90 p-4">
+                  <h3 className="mb-3 text-sm font-bold text-brand-gray-600">Preferences</h3>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-brand-gray-600">Sound Effects</span>
+                      <ProfileToggle
+                        on={soundOn}
+                        onChange={() => setPreferences({ soundOn: !soundOn })}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-brand-gray-600">Dark/Glass Theme</span>
+                      <ProfileToggle
+                        on={darkGlass}
+                        onChange={() => setPreferences({ darkGlass: !darkGlass })}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="shrink-0 text-sm text-brand-gray-600">Difficulty</span>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={difficulty}
+                        onChange={(e) =>
+                          setPreferences({ difficulty: Number(e.target.value) })
+                        }
+                        className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-brand-gray-200 accent-brand-teal"
+                      />
+                    </div>
+                  </div>
+                </section>
               </div>
-            </div>
 
-            {/* ── Log Out ── */}
-            <div className="pt-2 border-t border-brand-gray-100">
-              <button
-                onClick={handleOpenStore}
-                className="w-full text-center text-sm text-brand-gray-500 font-semibold hover:text-brand-gray-700 transition py-2"
-              >
-                Open Full Store
-              </button>
-              <button
-                onClick={handleLogout}
-                className="w-full text-center text-sm text-brand-teal font-semibold hover:text-brand-teal/70 transition py-2"
-              >
-                Log Out
-              </button>
+              <div className="mx-auto mt-4 flex w-full max-w-xl justify-end">
+                <button
+                  onClick={handleLogout}
+                  className="rounded-xl bg-brand-teal px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+                >
+                  Log Out
+                </button>
+              </div>
             </div>
           </div>
         </motion.div>
       </motion.div>
     </AnimatePresence>
-  );
-}
-
-/* ── Owl avatar (large) ── */
-
-function OwlAvatar() {
-  return (
-    <svg viewBox="0 0 96 96" className="h-20 w-20" fill="none">
-      {/* Body */}
-      <ellipse cx="48" cy="56" rx="22" ry="26" fill="#C4A882" />
-      <ellipse cx="48" cy="53" rx="17" ry="20" fill="#E8D5B7" />
-      {/* Eyes bg */}
-      <circle cx="39" cy="44" r="8" fill="white" />
-      <circle cx="57" cy="44" r="8" fill="white" />
-      {/* Eye rims (glasses) */}
-      <circle cx="39" cy="44" r="8.5" fill="none" stroke="#8B7355" strokeWidth="1.8" />
-      <circle cx="57" cy="44" r="8.5" fill="none" stroke="#8B7355" strokeWidth="1.8" />
-      <line x1="47.5" y1="44" x2="48.5" y2="44" stroke="#8B7355" strokeWidth="1.8" />
-      {/* Pupils */}
-      <circle cx="40" cy="44" r="4" fill="#333" />
-      <circle cx="56" cy="44" r="4" fill="#333" />
-      {/* Highlights */}
-      <circle cx="41.5" cy="42.5" r="1.5" fill="white" />
-      <circle cx="57.5" cy="42.5" r="1.5" fill="white" />
-      {/* Beak */}
-      <polygon points="48,50 45,54 51,54" fill="#E8734A" />
-      {/* Ear tufts */}
-      <polygon points="35,32 38,24 42,34" fill="#C4A882" />
-      <polygon points="61,32 58,24 54,34" fill="#C4A882" />
-      {/* Feet */}
-      <ellipse cx="42" cy="80" rx="6" ry="2.5" fill="#E8734A" opacity="0.7" />
-      <ellipse cx="54" cy="80" rx="6" ry="2.5" fill="#E8734A" opacity="0.7" />
-    </svg>
   );
 }
