@@ -54,7 +54,7 @@ export function HomeArenaTopicsSection({ courses }: HomeArenaTopicsSectionProps)
         ))}
 
         {courses.length === 0 ? (
-          <DeepGlassCard className="px-5 py-5 text-sm text-brand-gray-500">
+          <DeepGlassCard className="min-h-[220px] px-5 py-5 text-sm leading-relaxed text-brand-gray-500 md:col-span-2 xl:col-span-3">
             Public Arena topics will appear here once they are published and Arena-enabled.
           </DeepGlassCard>
         ) : null}

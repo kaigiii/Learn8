@@ -65,7 +65,7 @@ export default function TopStatsBar({
 
   return (
     <>
-      <nav className="sticky top-0 z-50 flex min-h-[72px] items-center justify-between gap-3 border-b border-[#d9e7ec] bg-[rgba(248,252,253,0.96)] px-4 py-3 shadow-[0_8px_24px_rgba(113,145,156,0.08)] md:px-8">
+      <nav className="sticky top-0 z-50 flex min-h-[72px] items-center justify-between gap-3 bg-white bg-[url('/Tools_Overview.png')] bg-[length:100%_100%] bg-no-repeat px-4 py-3 shadow-[0_8px_24px_rgba(113,145,156,0.08)] md:px-8">
         {/* Left: back arrow or avatar + logo */}
         <div className="relative flex min-w-0 items-center gap-3">
           {backHref ? (
