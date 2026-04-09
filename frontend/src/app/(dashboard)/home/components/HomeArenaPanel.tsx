@@ -117,83 +117,101 @@ export function HomeArenaPanel() {
   };
 
   return (
-    <DeepGlassCard className="h-full min-h-[360px] px-6 py-6 md:px-7 md:py-7">
-      <div className="flex h-full flex-col">
-        <div className="mb-5 flex items-start justify-between gap-4">
-          <div>
-            <h2 className="font-heading text-2xl font-extrabold text-brand-gray-700 md:text-3xl">
-              Arena
-            </h2>
-            <p className="mt-1 text-sm text-brand-gray-400">
-              Jump into official-topic competition straight from home.
-            </p>
-          </div>
+    <DeepGlassCard className="h-full px-5 py-5 md:px-6 md:py-6">
+      <div className="space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <p className="text-sm text-brand-gray-500">
+            Jump into official-topic competition straight from home.
+          </p>
           <div className="rounded-2xl border border-white/70 bg-white/72 px-3 py-2 text-right">
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-brand-teal">
               {season?.name ?? "No season"}
             </p>
-            <p className="mt-1 font-heading text-lg font-bold text-brand-gray-700">
+            <p className="mt-1 font-heading text-base font-bold text-brand-gray-700">
               {profile?.rankTier ?? "..."}
             </p>
           </div>
         </div>
 
-        <div className="space-y-3 rounded-2xl border border-[#9ecbd4]/18 bg-white/46 p-4 shadow-[0_12px_30px_rgba(97,163,184,0.10)] backdrop-blur-sm">
-          <label className="block">
-            <span className="text-xs font-bold uppercase tracking-[0.18em] text-brand-teal">
-              Official Topic
-            </span>
-            <select
-              className="mt-2 w-full rounded-xl border border-brand-gray-200 bg-white px-4 py-3 text-sm text-brand-gray-700 outline-none"
-              value={selectedCourseId ?? ""}
-              onChange={(event) => setSelectedCourseId(Number(event.target.value))}
-              disabled={loading || busy || courses.length === 0}
-            >
-              {courses.map((course) => (
-                <option key={course.id} value={course.id}>
-                  {course.title}
-                </option>
-              ))}
-            </select>
-          </label>
+        <div className="grid gap-4 md:grid-cols-2">
+          <section className="rounded-2xl border border-[#9ecbd4]/18 bg-white/52 p-4 shadow-[0_12px_30px_rgba(97,163,184,0.10)] backdrop-blur-sm">
+            <h3 className="font-heading text-2xl font-bold text-brand-gray-700">Official Competition</h3>
+            <label className="mt-3 block">
+              <span className="text-xs font-bold uppercase tracking-[0.18em] text-brand-gray-700">
+                Official Topic
+              </span>
+              <select
+                className="mt-2 w-full rounded-xl border border-brand-gray-200 bg-white px-4 py-3 text-sm text-brand-gray-700 outline-none"
+                value={selectedCourseId ?? ""}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setSelectedCourseId(value ? Number(value) : null);
+                }}
+                disabled={loading || busy || courses.length === 0}
+              >
+                {courses.length === 0 ? (
+                  <option value="">{loading ? "Loading topics..." : "No topics available"}</option>
+                ) : null}
+                {courses.map((course) => (
+                  <option key={course.id} value={course.id}>
+                    {course.title}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-          {selectedCourse ? (
-            <div className="rounded-xl border border-white/70 bg-white/72 px-4 py-3">
-              <p className="text-sm font-semibold text-brand-gray-700">{selectedCourse.title}</p>
-              <p className="mt-1 text-xs text-brand-gray-500">
+            {selectedCourse ? (
+              <p className="mt-2 line-clamp-2 text-xs text-brand-gray-500">
                 {selectedCourse.description || selectedCourse.topic}
               </p>
-            </div>
-          ) : null}
+            ) : null}
 
-          <div className="grid gap-3">
-            <GameButton onClick={() => void handleJoinCompetition()} disabled={!selectedCourseId || busy}>
+            <GameButton
+              className="mt-3 w-full py-3 text-[1.05rem]"
+              onClick={() => void handleJoinCompetition()}
+              disabled={!selectedCourseId || busy}
+            >
               Join Competition
             </GameButton>
-            <GameButton variant="secondary" onClick={() => void handleCreateRoom()} disabled={!selectedCourseId || busy}>
-              Create Room
-            </GameButton>
-          </div>
+          </section>
 
-          <div className="flex gap-2">
-            <input
-              className="min-w-0 flex-1 rounded-xl border border-brand-gray-200 bg-white px-4 py-3 text-sm uppercase text-brand-gray-700 outline-none"
-              value={roomCode}
-              onChange={(event) => setRoomCode(event.target.value.toUpperCase())}
-              placeholder="Room code"
-            />
+          <section className="rounded-2xl border border-[#9ecbd4]/18 bg-white/52 p-4 shadow-[0_12px_30px_rgba(97,163,184,0.10)] backdrop-blur-sm">
+            <h3 className="font-heading text-2xl font-bold text-brand-gray-700">Room Management</h3>
+
             <GameButton
               variant="secondary"
-              className="px-5"
-              onClick={() => void handleJoinRoom()}
-              disabled={!roomCode.trim() || busy}
+              className="mt-3 w-full py-3 text-[1.05rem]"
+              onClick={() => void handleCreateRoom()}
+              disabled={!selectedCourseId || busy}
             >
-              Join
+              Create Room
             </GameButton>
-          </div>
+
+            <label className="mt-4 block">
+              <span className="text-xs font-bold uppercase tracking-[0.18em] text-brand-gray-700">
+                Join a Private Room
+              </span>
+              <div className="mt-2 flex gap-2">
+                <input
+                  className="min-w-0 flex-1 rounded-xl border border-brand-gray-200 bg-white px-4 py-3 text-sm uppercase text-brand-gray-700 outline-none"
+                  value={roomCode}
+                  onChange={(event) => setRoomCode(event.target.value.toUpperCase())}
+                  placeholder="Enter room code"
+                />
+                <GameButton
+                  variant="secondary"
+                  className="min-w-[112px] px-4 py-3 text-sm"
+                  onClick={() => void handleJoinRoom()}
+                  disabled={!roomCode.trim() || busy}
+                >
+                  Join
+                </GameButton>
+              </div>
+            </label>
+          </section>
         </div>
 
-        {error ? <p className="mt-4 text-sm text-rose-600">{error}</p> : null}
+        {error ? <p className="text-sm text-rose-600">{error}</p> : null}
       </div>
     </DeepGlassCard>
   );

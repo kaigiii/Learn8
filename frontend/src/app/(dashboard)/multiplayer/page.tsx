@@ -66,7 +66,7 @@ export default function MultiplayerPage() {
       <HomeBackground />
 
       <div className="relative z-10 mx-auto max-w-7xl space-y-8 px-4 py-8 md:px-8">
-        <div className="max-w-xl">
+        <div className="w-full">
           <HomeArenaPanel />
         </div>
 
