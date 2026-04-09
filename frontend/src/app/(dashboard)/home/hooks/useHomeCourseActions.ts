@@ -279,7 +279,7 @@ export function useHomeCourseActions({
   const handleTopicSubmit = useCallback(
     async (topic: string) => {
       const trimmedTopic = topic.trim();
-      if (!trimmedTopic) return;
+      if (!trimmedTopic || isSubmittingTopic) return;
       let createdCourse: CourseListItem | null = null;
 
       setError("");

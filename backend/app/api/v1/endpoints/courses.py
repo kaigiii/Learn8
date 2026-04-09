@@ -474,6 +474,19 @@ async def generate_course_questionnaire(
             status_code=402, detail=f"Insufficient credits. Need {COST}."
         )
 
+    # Check for existing active job to prevent duplication
+    existing_job = (
+        db.query(JobModel)
+        .filter(
+            JobModel.course_id == course_id,
+            JobModel.job_type == JobType.QUESTIONNAIRE_GENERATION,
+            JobModel.status.in_([JobStatus.PENDING, JobStatus.PROCESSING]),
+        )
+        .first()
+    )
+    if existing_job:
+        return {"job_id": existing_job.id, "status": existing_job.status}
+
     files_used = (
         file_service.list_files(current_user.id, course.folder_name)
         if course.folder_name
