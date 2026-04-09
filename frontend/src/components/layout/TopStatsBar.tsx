@@ -14,6 +14,9 @@ interface TopStatsBarProps {
   backLogoSrc?: string;
   backLogoAlt?: string;
   backLogoClassName?: string;
+  mascotSrc?: string;
+  mascotAlt?: string;
+  mascotImageClassName?: string;
   navLinks?: Array<{
     href: string;
     label: string;
@@ -35,6 +38,9 @@ export default function TopStatsBar({
   backLogoSrc,
   backLogoAlt,
   backLogoClassName,
+  mascotSrc,
+  mascotAlt,
+  mascotImageClassName,
   navLinks = [],
   quickLinks = [],
 }: TopStatsBarProps = {}) {
@@ -114,7 +120,11 @@ export default function TopStatsBar({
                 onClick={() => setProfileOpen(true)}
                 className="relative h-10 w-10 overflow-hidden rounded-full border-2 border-brand-teal shadow-md transition hover:shadow-lg"
               >
-                <MascotAvatar />
+                <MascotAvatar
+                  src={mascotSrc}
+                  alt={mascotAlt}
+                  imageClassName={mascotImageClassName}
+                />
               </button>
 
               <Link href="/home" className="flex items-center">
@@ -221,14 +231,22 @@ export default function TopStatsBar({
 }
 
 /* ── Small mascot avatar ── */
-function MascotAvatar() {
+function MascotAvatar({
+  src = "/favicon.ico",
+  alt = "Profile mascot",
+  imageClassName,
+}: {
+  src?: string;
+  alt?: string;
+  imageClassName?: string;
+}) {
   return (
     <Image
-      src="/favicon.ico"
-      alt="Profile mascot"
+      src={src}
+      alt={alt}
       width={40}
       height={40}
-      className="h-full w-full object-cover"
+      className={`h-full w-full object-cover ${imageClassName ?? ""}`}
     />
   );
 }
