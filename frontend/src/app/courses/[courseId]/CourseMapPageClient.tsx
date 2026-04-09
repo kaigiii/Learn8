@@ -77,8 +77,7 @@ export default function CourseMapPageClient({
 
   return (
     <div
-      className="relative overflow-hidden bg-gradient-to-br from-[#edf7fb] via-[#c9e6f2] to-[#a3d5e8]"
-      style={{ zoom: 1.05, height: "calc(100vh / 1.05)" }}
+      className="relative min-h-dvh overflow-hidden bg-gradient-to-br from-[#edf7fb] via-[#c9e6f2] to-[#a3d5e8]"
     >
       <TopStatsBar backHref="/home" pageTitle={pageTitle} />
 
@@ -86,7 +85,7 @@ export default function CourseMapPageClient({
 
       <div
         className="relative z-10 mx-auto flex max-w-7xl gap-6 px-6"
-        style={{ height: "calc(100vh / 1.05 - 56px)" }}
+        style={{ height: "calc(100dvh - 72px)" }}
       >
         <div
           ref={mapContainerRef}
