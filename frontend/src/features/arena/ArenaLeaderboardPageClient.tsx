@@ -152,7 +152,10 @@ export default function ArenaLeaderboardPageClient() {
       <TopStatsBar
         backHref="/home"
         pageTitle="Arena Leaderboard"
-        showBackLogo={false}
+        quickLinks={[
+          { href: "/multiplayer", label: "Multiplayer" },
+          { href: "/arena/leaderboard", label: "Leaderboard", active: true },
+        ]}
       />
       <main className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-8 md:px-8">
         <DeepGlassCard className="px-6 py-6 md:px-8 md:py-8">

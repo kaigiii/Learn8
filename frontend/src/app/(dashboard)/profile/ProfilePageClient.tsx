@@ -88,7 +88,14 @@ export default function ProfilePageClient() {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-[#edf7fb] via-[#c9e6f2] to-[#a3d5e8]">
-      <TopStatsBar backHref="/home" pageTitle="Profile" />
+      <TopStatsBar
+        backHref="/home"
+        pageTitle="Profile"
+        quickLinks={[
+          { href: "/multiplayer", label: "Multiplayer" },
+          { href: "/arena/leaderboard", label: "Leaderboard" },
+        ]}
+      />
 
       <div className="relative z-10 mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8 md:px-8">
         <DeepGlassCard className="overflow-hidden border border-white/70 bg-white/78 px-6 py-6 shadow-[0_24px_60px_rgba(31,41,55,0.12)]">

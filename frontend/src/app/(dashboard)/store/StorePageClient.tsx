@@ -15,7 +15,14 @@ export default function StorePageClient() {
 
   return (
     <div className="relative min-h-screen overflow-hidden">
-      <TopStatsBar backHref="/home" pageTitle="Treasury / Top-Up Store" />
+      <TopStatsBar
+        backHref="/home"
+        pageTitle="Treasury / Top-Up Store"
+        quickLinks={[
+          { href: "/multiplayer", label: "Multiplayer" },
+          { href: "/arena/leaderboard", label: "Leaderboard" },
+        ]}
+      />
       <StoreBackground />
       <div className="relative z-10 max-w-6xl mx-auto px-4 md:px-8 py-10 md:py-16">
         <div className="text-center mb-10 md:mb-14">
