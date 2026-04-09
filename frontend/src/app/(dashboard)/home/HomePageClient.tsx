@@ -230,7 +230,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="relative overflow-hidden" style={{ zoom: 1.05 }}>
+    <div className="relative overflow-hidden">
       <TopStatsBar quickLinks={[{ href: "/arena/leaderboard", label: "Leaderboard" }]} />
 
       <HomeBackground />

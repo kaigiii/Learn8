@@ -41,25 +41,29 @@ export default function TopStatsBar({
     authUser?.job_title?.trim() ||
     authUser?.education_level?.trim() ||
     "Learner";
+  const pillClassName =
+    "inline-flex h-10 items-center rounded-full border border-white/85 bg-white/92 px-3 text-sm font-heading font-bold text-brand-gray-700 shadow-sm transition";
+  const navChipClassName =
+    "inline-flex h-9 items-center rounded-full px-3 text-[11px] font-bold uppercase tracking-[0.16em] transition";
 
   return (
     <>
-      <nav className="sticky top-0 z-50 flex items-center justify-between gap-3 px-4 py-3 md:px-8 bg-white/70 backdrop-blur-lg border-b border-white/40 shadow-sm">
+      <nav className="sticky top-0 z-50 flex min-h-[72px] items-center justify-between gap-3 border-b border-[#d9e7ec] bg-[rgba(248,252,253,0.96)] px-4 py-3 shadow-[0_8px_24px_rgba(113,145,156,0.08)] md:px-8">
         {/* Left: back arrow or avatar + logo */}
-        <div className="flex min-w-0 items-center gap-3 relative">
+        <div className="relative flex min-w-0 items-center gap-3">
           {backHref ? (
             /* Back arrow mode (e.g. store, map) */
             <>
               <Link
                 href={backHref}
-                className="h-10 w-10 rounded-full flex items-center justify-center hover:bg-brand-gray-50 transition text-brand-gray-600"
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-[#e3edf0] bg-white text-brand-gray-600 shadow-sm transition hover:bg-[#f8fbfc]"
               >
                 <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M15 18l-6-6 6-6" />
                 </svg>
               </Link>
               {showBackLogo ? <OwlLogoSmall /> : null}
-              <span className="font-heading text-xl font-extrabold text-brand-gray-700">
+              <span className="truncate font-heading text-lg font-extrabold leading-none text-brand-gray-700 md:text-[1.35rem]">
                 {pageTitle}
               </span>
               {navLinks.length > 0 ? (
@@ -68,10 +72,10 @@ export default function TopStatsBar({
                     <Link
                       key={`${link.href}-${link.label}`}
                       href={link.href}
-                      className={`rounded-full px-3 py-2 text-[11px] font-bold uppercase tracking-[0.16em] transition ${
+                      className={`${navChipClassName} ${
                         link.active
                           ? "bg-brand-teal/12 text-brand-teal ring-1 ring-brand-teal/20"
-                          : "bg-white/70 text-brand-gray-600 hover:bg-white"
+                          : "border border-[#e3edf0] bg-white text-brand-gray-600 hover:bg-[#f8fbfc]"
                       }`}
                     >
                       {link.label}
@@ -85,13 +89,13 @@ export default function TopStatsBar({
             <>
               <button
                 onClick={() => setProfileOpen(true)}
-                className="relative h-11 w-11 rounded-full overflow-hidden border-2 border-brand-teal shadow-md hover:shadow-lg transition"
+                className="relative h-10 w-10 overflow-hidden rounded-full border-2 border-brand-teal shadow-md transition hover:shadow-lg"
               >
                 <MascotAvatar />
               </button>
 
               <Link href="/home" className="flex items-center gap-2">
-                <span className="font-heading text-xl font-extrabold text-brand-teal hidden sm:inline">
+                <span className="hidden font-heading text-lg font-extrabold leading-none text-brand-teal sm:inline md:text-[1.35rem]">
                   Learn8
                 </span>
               </Link>
@@ -100,17 +104,17 @@ export default function TopStatsBar({
         </div>
 
         {/* Right: stats */}
-        <div className="flex items-center gap-4 md:gap-6">
+        <div className="flex items-center gap-2 md:gap-3">
           {quickLinks.length > 0 ? (
             <div className="flex items-center gap-2">
               {quickLinks.map((link) => (
                 <Link
                   key={`${link.href}-${link.label}-quick`}
                   href={link.href}
-                  className={`rounded-full px-3 py-2 text-[11px] font-bold uppercase tracking-[0.16em] transition ${
+                  className={`${navChipClassName} ${
                     link.active
                       ? "bg-brand-teal/12 text-brand-teal ring-1 ring-brand-teal/20"
-                      : "bg-white/70 text-brand-gray-600 hover:bg-white"
+                      : "border border-[#e3edf0] bg-white text-brand-gray-600 hover:bg-[#f8fbfc]"
                   }`}
                 >
                   {link.label}
@@ -124,10 +128,10 @@ export default function TopStatsBar({
                 <Link
                   key={`${link.href}-${link.label}-mobile`}
                   href={link.href}
-                  className={`rounded-full px-3 py-2 text-[11px] font-bold uppercase tracking-[0.16em] transition ${
+                  className={`${navChipClassName} ${
                     link.active
                       ? "bg-brand-teal/12 text-brand-teal ring-1 ring-brand-teal/20"
-                      : "bg-white/70 text-brand-gray-600 hover:bg-white"
+                      : "border border-[#e3edf0] bg-white text-brand-gray-600 hover:bg-[#f8fbfc]"
                   }`}
                 >
                   {link.label}
@@ -136,9 +140,9 @@ export default function TopStatsBar({
             </div>
           ) : null}
           {/* Streak */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-lg">⏱️</span>
-            <span className="font-heading font-bold text-brand-gray-700 text-sm md:text-base">
+          <div className={`${pillClassName} gap-1.5`}>
+            <span className="text-base leading-none">⏱️</span>
+            <span className="whitespace-nowrap text-sm leading-none">
               {goalLabel}
             </span>
           </div>
@@ -146,10 +150,10 @@ export default function TopStatsBar({
           {/* Credits */}
           <Link
             href="/store"
-            className="flex items-center gap-1.5 hover:opacity-80 transition"
+            className={`${pillClassName} gap-1.5 hover:bg-white`}
           >
-            <span className="text-lg">💎</span>
-            <span className="font-heading font-bold text-brand-gray-700 text-sm md:text-base">
+            <span className="text-base leading-none">💎</span>
+            <span className="whitespace-nowrap text-sm leading-none">
               {creditBalance.toLocaleString()}
             </span>
           </Link>
@@ -157,14 +161,14 @@ export default function TopStatsBar({
           {/* Profile badge */}
           <Link
             href="/profile"
-            className="flex items-center gap-3 rounded-full px-2 py-1.5 transition hover:bg-white/55"
+            className="flex h-10 items-center gap-2 rounded-full border border-white/85 bg-white/92 px-2.5 shadow-sm transition hover:bg-white"
           >
-            <div className="h-8 min-w-8 rounded-full bg-gradient-to-br from-yellow-300 to-yellow-500 flex items-center justify-center shadow-md px-2">
+            <div className="flex h-7 min-w-7 items-center justify-center rounded-full bg-gradient-to-br from-yellow-300 to-yellow-500 px-2 shadow-md">
               <span className="font-heading font-extrabold text-white text-[10px]">
                 {authUser?.full_name?.trim()?.slice(0, 1).toUpperCase() || "P"}
               </span>
             </div>
-            <span className="font-heading font-bold text-brand-gray-700 text-sm md:text-base hidden md:inline">
+            <span className="hidden max-w-[120px] truncate font-heading text-sm font-bold leading-none text-brand-gray-700 md:inline">
               {profileLabel}
             </span>
           </Link>
