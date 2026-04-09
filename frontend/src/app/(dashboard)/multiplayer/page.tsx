@@ -47,8 +47,19 @@ export default function MultiplayerPage() {
         backHref="/home"
         pageTitle="Multiplayer"
         quickLinks={[
-          { href: "/multiplayer", label: "Multiplayer", active: true },
-          { href: "/arena/leaderboard", label: "Leaderboard" },
+          {
+            href: "/multiplayer",
+            label: "Multiplayer",
+            active: true,
+            iconSrc: "/multiplayer-controller.svg",
+            iconAlt: "Multiplayer",
+          },
+          {
+            href: "/arena/leaderboard",
+            label: "Leaderboard",
+            iconSrc: "/leaderboard-logo.svg",
+            iconAlt: "Leaderboard",
+          },
         ]}
       />
 

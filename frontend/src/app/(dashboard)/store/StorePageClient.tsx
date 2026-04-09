@@ -19,8 +19,18 @@ export default function StorePageClient() {
         backHref="/home"
         pageTitle="Treasury / Top-Up Store"
         quickLinks={[
-          { href: "/multiplayer", label: "Multiplayer" },
-          { href: "/arena/leaderboard", label: "Leaderboard" },
+          {
+            href: "/multiplayer",
+            label: "Multiplayer",
+            iconSrc: "/multiplayer-controller.svg",
+            iconAlt: "Multiplayer",
+          },
+          {
+            href: "/arena/leaderboard",
+            label: "Leaderboard",
+            iconSrc: "/leaderboard-logo.svg",
+            iconAlt: "Leaderboard",
+          },
         ]}
       />
       <StoreBackground />
