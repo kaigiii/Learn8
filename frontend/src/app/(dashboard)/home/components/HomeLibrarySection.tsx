@@ -78,9 +78,9 @@ export function HomeLibrarySection({
             <motion.div
               key={item.key}
               whileHover={{ y: -4 }}
-              className="relative w-40 shrink-0 snap-start md:w-48"
+              className="group relative w-40 shrink-0 snap-start md:w-48"
             >
-              <div className="absolute right-2 top-2 z-20 flex gap-2">
+              <div className="absolute right-3 top-3 z-20 flex items-center gap-1 rounded-full border border-white/70 bg-white/80 p-1 shadow-[0_14px_34px_rgba(15,23,42,0.12)] backdrop-blur-md md:pointer-events-none md:invisible md:translate-y-1 md:opacity-0 md:transition-all md:duration-200 md:group-hover:pointer-events-auto md:group-hover:visible md:group-hover:translate-y-0 md:group-hover:opacity-100 md:group-focus-within:pointer-events-auto md:group-focus-within:visible md:group-focus-within:translate-y-0 md:group-focus-within:opacity-100">
                 <button
                   onClick={(event) => {
                     event.preventDefault();
@@ -94,8 +94,9 @@ export function HomeLibrarySection({
                       courseId: item.kind === "course" ? item.course.id : undefined,
                     });
                   }}
-                  className="flex h-9 w-9 items-center justify-center rounded-2xl border border-[#9ecbd4]/28 bg-gradient-to-br from-teal-100/95 to-cyan-50/92 text-brand-gray-600 shadow-[0_14px_34px_rgba(97,163,184,0.16)] backdrop-blur transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_38px_rgba(97,163,184,0.22)]"
+                  className="flex h-8 w-8 items-center justify-center rounded-full border border-teal-200/65 bg-teal-50/90 text-teal-700 transition-colors hover:bg-teal-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
                   aria-label="Rename course"
+                  title="Rename"
                 >
                   <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M12 20h9" />
@@ -112,8 +113,9 @@ export function HomeLibrarySection({
                       submitting: false,
                     });
                   }}
-                  className="flex h-9 w-9 items-center justify-center rounded-2xl border border-[#d6b0ba]/36 bg-gradient-to-br from-rose-100/95 to-orange-50/92 text-rose-500 shadow-[0_14px_34px_rgba(232,121,149,0.18)] backdrop-blur transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_38px_rgba(232,121,149,0.24)]"
+                  className="flex h-8 w-8 items-center justify-center rounded-full border border-rose-200/70 bg-rose-50/90 text-rose-600 transition-colors hover:bg-rose-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300"
                   aria-label="Delete course"
+                  title="Delete"
                 >
                   <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M3 6h18" />
