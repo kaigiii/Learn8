@@ -252,7 +252,7 @@ export default function HomePage() {
 
       <HomeBackground />
 
-      <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-8 py-8 space-y-8">
+      <div className="relative z-10 mx-auto max-w-[86rem] space-y-10 px-3 py-10 md:px-6">
         {isLoading && (
           <div className="rounded-2xl border border-white/60 bg-white/65 px-4 py-3 text-sm text-brand-gray-600 shadow-sm backdrop-blur">
             Refreshing your learning library...
@@ -271,6 +271,12 @@ export default function HomePage() {
           </div>
         )}
 
+        {error && (
+          <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 shadow-sm">
+            {error}
+          </div>
+        )}
+
         {activeJob && (
           <HomeActiveJobBanner
             activeJob={activeJob}
@@ -279,7 +285,7 @@ export default function HomePage() {
           />
         )}
 
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-8 xl:grid-cols-2">
           <HomeCoursePanel
             name={name}
             hasResumeCourse={hasResumeCourse}
@@ -318,17 +324,6 @@ export default function HomePage() {
           onOpenCourseModal={openCourseModal}
         />
       </div>
-
-      <footer className="relative z-10 py-4 text-center text-sm text-brand-gray-400">
-        {error && <div className="mb-3 text-sm text-rose-600">{error}</div>}
-        <a href="#" className="hover:text-brand-gray-600 transition">About</a>
-        <span className="mx-2 text-brand-gray-300">|</span>
-        <a href="#" className="hover:text-brand-gray-600 transition">Contact</a>
-        <span className="mx-2 text-brand-gray-300">|</span>
-        <a href="#" className="hover:text-brand-gray-600 transition">Privacy</a>
-        <span className="mx-2 text-brand-gray-300">|</span>
-        <a href="#" className="hover:text-brand-gray-600 transition">Terms</a>
-      </footer>
 
       <HomeCourseModal
         courseModal={courseModal}

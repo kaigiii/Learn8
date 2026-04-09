@@ -19,7 +19,11 @@ export interface CourseMapNode {
   y: number;
 }
 
-const X_PATTERN = [50, 28, 68, 32, 58, 40, 65, 30, 55, 42, 62, 35, 58, 45, 50];
+const X_PATTERN = [52, 18, 82, 24, 76, 28, 84, 22, 72, 30, 80, 26, 74, 34, 56];
+const NODE_VERTICAL_SPACING = 160;
+const MAP_TOP_OFFSET = 70;
+const FIRST_NODE_DOWN_OFFSET = 56;
+const MAP_BOTTOM_PADDING = 180;
 
 export function useCourseMapData({
   courseId,
@@ -98,8 +102,6 @@ export function useCourseMapData({
         unitTitle?: string;
       }[]
     ) => {
-      const count = sourceNodes.length;
-      const spacing = 120;
       return sourceNodes.map((node, index) => ({
         id: node.id,
         title: node.title,
@@ -108,7 +110,7 @@ export function useCourseMapData({
         hasGeneratedLesson: node.hasGeneratedLesson,
         unitTitle: node.unitTitle,
         x: X_PATTERN[index % X_PATTERN.length],
-        y: index * spacing + 60,
+        y: index * NODE_VERTICAL_SPACING + MAP_TOP_OFFSET + (index === 0 ? FIRST_NODE_DOWN_OFFSET : 0),
       }));
     };
 
@@ -128,7 +130,7 @@ export function useCourseMapData({
     );
   }, [backendCourse]);
 
-  const mapHeight = Math.max(560, nodes.length * 120 + 120);
+  const mapHeight = Math.max(680, nodes.length * NODE_VERTICAL_SPACING + MAP_BOTTOM_PADDING);
 
   useEffect(() => {
     if (nodes.length === 0 || !mapContainerRef.current) return;

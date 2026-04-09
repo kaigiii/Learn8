@@ -167,6 +167,7 @@ export function HomeArenaPanel() {
             ) : null}
 
             <GameButton
+              variant="secondary"
               className="mt-3 w-full py-3 text-[1.05rem]"
               onClick={() => void handleJoinCompetition()}
               disabled={!selectedCourseId || busy}

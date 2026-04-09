@@ -32,14 +32,8 @@ export default function QuestionnairePageClient() {
   const totalPages = questions.length > 0 ? questions.length + 1 : 0;
 
   const canSubmit = useMemo(() => {
-    if (questions.length === 0) return false;
-    return questions.every((question) => {
-      const value = answers[question.id];
-      if (!value?.trim()) return false;
-      if (value === "OTHER:") return false;
-      return true;
-    });
-  }, [answers, questions]);
+    return questions.length > 0;
+  }, [questions.length]);
 
   const isGenerationStep =
     (step === "loading" || step === "forging") && !!jobType;

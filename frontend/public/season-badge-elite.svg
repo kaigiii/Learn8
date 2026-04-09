@@ -1,0 +1,16 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="shieldElite" x1="18" y1="10" x2="108" y2="122" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#5D70C1" />
+      <stop offset="1" stop-color="#2F3A7F" />
+    </linearGradient>
+    <linearGradient id="diamondElite" x1="48" y1="45" x2="80" y2="88" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#CFF3FF" />
+      <stop offset="1" stop-color="#56C8FF" />
+    </linearGradient>
+  </defs>
+  <path d="M64 8L108 28L101 79C101 97 86 113 64 122C42 113 27 97 27 79L20 28L64 8Z" fill="url(#shieldElite)" stroke="#BCC7FF" stroke-width="3" />
+  <path d="M64 44L78 58L64 86L50 58L64 44Z" fill="url(#diamondElite)" />
+  <path d="M50 58H78" stroke="#D9F7FF" stroke-width="2.5" opacity="0.85" />
+  <path d="M64 44V86" stroke="#D9F7FF" stroke-width="2.5" opacity="0.6" />
+</svg>

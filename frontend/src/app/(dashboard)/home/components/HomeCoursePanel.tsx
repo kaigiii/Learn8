@@ -27,17 +27,17 @@ export function HomeCoursePanel({
   activeProgress,
 }: HomeCoursePanelProps) {
   return (
-    <DeepGlassCard className="h-full min-h-[360px] px-6 py-6 md:px-7 md:py-7">
+    <DeepGlassCard className="h-full min-h-[400px] px-7 py-7 md:px-8 md:py-8">
       <div className="flex h-full flex-col">
-        <h2 className="mb-1 font-heading text-2xl font-extrabold text-brand-gray-700 md:text-3xl">
+        <h2 className="mb-1 font-heading text-3xl font-extrabold text-brand-gray-700 md:text-4xl">
           Welcome back, {name}!
         </h2>
-        <p className="mb-5 text-sm text-brand-gray-400">Continue your course</p>
+        <p className="mt-3 mb-7 text-lg text-brand-gray-400 md:text-xl">Continue your course</p>
 
         {hasResumeCourse ? (
-          <div className="flex flex-1 items-start gap-5 rounded-2xl border border-[#9ecbd4]/18 bg-white/46 p-4 shadow-[0_12px_30px_rgba(97,163,184,0.10)] backdrop-blur-sm">
+          <div className="mt-auto translate-y-4 flex items-start gap-5 rounded-2xl border border-[#9ecbd4]/18 bg-white/46 p-5 shadow-[0_12px_30px_rgba(97,163,184,0.10)] backdrop-blur-sm md:translate-y-6">
             <div
-                className={`shrink-0 flex h-32 w-28 items-center justify-center rounded-xl bg-gradient-to-br ${
+                className={`shrink-0 flex h-36 w-32 items-center justify-center rounded-xl bg-gradient-to-br ${
                 HOME_COURSE_CARD_GRADIENTS[
                   (activeCourseNumericId ?? 0) % HOME_COURSE_CARD_GRADIENTS.length
                 ]
@@ -47,10 +47,10 @@ export function HomeCoursePanel({
             </div>
 
             <div className="flex min-w-0 flex-1 flex-col">
-              <h3 className="mb-1 font-heading text-lg font-bold leading-tight text-brand-gray-700">
+              <h3 className="mb-1 font-heading text-xl font-bold leading-tight text-brand-gray-700">
                 {resumeTitle}
               </h3>
-              <p className="mb-3 text-sm text-brand-gray-400">{resumeNodeCount} nodes</p>
+              <p className="mb-3 text-base text-brand-gray-400">{resumeNodeCount} nodes</p>
 
               <TopProgressBar progress={activeProgress} className="mb-2" />
               <p className="mb-4 text-xs font-semibold text-brand-gray-500">
@@ -59,13 +59,13 @@ export function HomeCoursePanel({
 
               <div className="mt-auto">
                 <Link href={`/courses/${activeCourseId}`}>
-                  <GameButton className="w-full text-base">Resume</GameButton>
+                  <GameButton variant="secondary" className="w-full text-lg">Resume</GameButton>
                 </Link>
               </div>
             </div>
           </div>
         ) : (
-          <div className="flex flex-1 flex-col rounded-2xl border border-[#9ecbd4]/18 bg-white/46 p-4 shadow-[0_12px_30px_rgba(97,163,184,0.10)] backdrop-blur-sm">
+          <div className="mt-auto translate-y-4 flex flex-col rounded-2xl border border-[#9ecbd4]/18 bg-white/46 p-4 shadow-[0_12px_30px_rgba(97,163,184,0.10)] backdrop-blur-sm md:translate-y-6">
             <p className="text-sm text-brand-gray-400">
               No active course ready yet.
             </p>

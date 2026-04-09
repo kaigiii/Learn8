@@ -70,6 +70,7 @@ export default function CourseMapPageClient({
 
   const selectedNode =
     nodes.find((node) => node.id === selectedNodeId) ?? null;
+  const showAssistantPanel = Boolean(coursePath && !coursePath.isPublic);
 
   if (!isBackendCourse) {
     return null;
@@ -84,13 +85,24 @@ export default function CourseMapPageClient({
       <CourseMapBackground />
 
       <div
-        className="relative z-10 mx-auto flex max-w-7xl gap-6 px-6"
-        style={{ height: "calc(100dvh - 72px)" }}
+        className="relative z-10 mx-auto grid max-w-[1580px] gap-8 px-6"
+        style={{
+          height: "calc(100dvh - 72px)",
+          gridTemplateColumns: showAssistantPanel ? "minmax(0, 1fr) 340px 340px" : "minmax(0, 1fr) 340px",
+        }}
       >
+        <div className="h-full min-h-0 pt-8 pb-8" style={{ order: 2 }}>
+          <CourseMapNodePanel
+            courseId={courseId}
+            coursePath={coursePath}
+            selectedNode={selectedNode}
+          />
+        </div>
+
         <div
           ref={mapContainerRef}
-          className="scrollbar-hide min-w-0 flex-1 overflow-y-auto rounded-2xl"
-          style={{ cursor: "grab" }}
+          className="scrollbar-hide min-w-0 overflow-y-auto rounded-2xl"
+          style={{ cursor: "grab", order: 1 }}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
@@ -156,23 +168,16 @@ export default function CourseMapPageClient({
           </div>
         </div>
 
-        <div className="w-[340px] flex-shrink-0 overflow-y-auto pt-8">
-          <div className="flex flex-col gap-5 pb-8">
-            <CourseMapNodePanel
-              courseId={courseId}
+        {showAssistantPanel && (
+          <div className="h-full min-h-0 translate-x-10 pt-8 pb-8" style={{ order: 3 }}>
+            <CourseMapAssistantPanel
               coursePath={coursePath}
-              selectedNode={selectedNode}
+              courseId={Number(courseId) || currentCourseId}
+              onCoursePathUpdated={setCoursePath}
+              compact
             />
-            {coursePath && !coursePath.isPublic && (
-              <CourseMapAssistantPanel
-                coursePath={coursePath}
-                courseId={Number(courseId) || currentCourseId}
-                onCoursePathUpdated={setCoursePath}
-                compact
-              />
-            )}
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
