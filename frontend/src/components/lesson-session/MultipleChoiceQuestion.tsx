@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useCallback } from "react";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import GameButton from "@/components/ui/GameButton";
 import { QuestionActionBar } from "./QuestionActionBar";
@@ -31,19 +32,14 @@ export interface MultipleChoiceQuestionProps
 
 function OwlMascotSmall() {
   return (
-    <svg viewBox="0 0 40 44" className="w-12 h-14 flex-shrink-0">
-      <ellipse cx="20" cy="32" rx="14" ry="12" fill="#C47F17" />
-      <ellipse cx="20" cy="30" rx="14" ry="12" fill="#E8A817" />
-      <circle cx="14" cy="26" r="6" fill="white" />
-      <circle cx="26" cy="26" r="6" fill="white" />
-      <circle cx="14" cy="26" r="3" fill="#2D2D2D" />
-      <circle cx="26" cy="26" r="3" fill="#2D2D2D" />
-      <circle cx="15" cy="25" r="1.2" fill="white" />
-      <circle cx="27" cy="25" r="1.2" fill="white" />
-      <polygon points="20,28 18,31 22,31" fill="#FF9500" />
-      <path d="M6,20 Q4,8 14,16" fill="#C47F17" />
-      <path d="M34,20 Q36,8 26,16" fill="#C47F17" />
-    </svg>
+    <Image
+      src="/full_icon.ico"
+      alt="Lesson mascot"
+      width={56}
+      height={56}
+      className="h-14 w-12 flex-shrink-0 object-contain"
+      priority
+    />
   );
 }
 
