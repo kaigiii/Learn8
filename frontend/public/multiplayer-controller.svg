@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 192" role="img" aria-labelledby="title desc">
+  <title id="title">Multiplayer Controller</title>
+  <desc id="desc">Game controller icon without an outer ring line.</desc>
+  <ellipse cx="128" cy="170" rx="96" ry="12" fill="#CBD5E1" opacity="0.45"/>
+  <path d="M44 92c0-23 19-42 42-42h84c23 0 42 19 42 42v30c0 18-14 32-32 32h-20c-7 0-13 5-15 12l-2 5c-3 8-10 13-18 13h-2c-8 0-15-5-18-13l-2-5c-2-7-8-12-15-12H76c-18 0-32-14-32-32V92z" fill="#DDE4EE"/>
+  <path d="M44 125c0 16 14 29 32 29h20c9 0 17 6 20 15l1 3c2 5 6 8 11 8h2c5 0 9-3 11-8l1-3c3-9 11-15 20-15h20c18 0 32-13 32-29v8c0 18-14 32-32 32h-20c-7 0-13 5-15 12l-2 5c-3 8-10 13-18 13h-2c-8 0-15-5-18-13l-2-5c-2-7-8-12-15-12H76c-18 0-32-14-32-32v-8z" fill="#CFD7E3"/>
+
+  <rect x="64" y="84" width="36" height="12" rx="6" fill="#5D547A"/>
+  <rect x="76" y="72" width="12" height="36" rx="6" fill="#5D547A"/>
+
+  <rect x="108" y="88" width="14" height="8" rx="4" fill="#66607F"/>
+  <rect x="134" y="88" width="14" height="8" rx="4" fill="#66607F"/>
+
+  <circle cx="106" cy="126" r="14" fill="#5B5378"/>
+  <circle cx="106" cy="126" r="9" fill="#DDE4EE"/>
+  <circle cx="106" cy="126" r="4" fill="#5B5378"/>
+
+  <circle cx="150" cy="126" r="14" fill="#5B5378"/>
+  <circle cx="150" cy="126" r="9" fill="#DDE4EE"/>
+  <circle cx="150" cy="126" r="4" fill="#5B5378"/>
+
+  <circle cx="180" cy="76" r="11" fill="#F7E08B"/>
+  <circle cx="196" cy="92" r="11" fill="#F9B0AA"/>
+  <circle cx="164" cy="92" r="11" fill="#F7E08B"/>
+  <circle cx="180" cy="108" r="11" fill="#F68F95"/>
+
+  <path d="M70 52h30c5 0 9 4 9 9v2H70z" fill="#74D3A2"/>
+  <path d="M156 52h30c5 0 9 4 9 9v2h-39z" fill="#F0A3AE"/>
+</svg>

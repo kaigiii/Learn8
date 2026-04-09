@@ -153,8 +153,19 @@ export default function ArenaLeaderboardPageClient() {
         backHref="/home"
         pageTitle="Arena Leaderboard"
         quickLinks={[
-          { href: "/multiplayer", label: "Multiplayer" },
-          { href: "/arena/leaderboard", label: "Leaderboard", active: true },
+          {
+            href: "/multiplayer",
+            label: "Multiplayer",
+            iconSrc: "/multiplayer-controller.svg",
+            iconAlt: "Multiplayer",
+          },
+          {
+            href: "/arena/leaderboard",
+            label: "Leaderboard",
+            active: true,
+            iconSrc: "/leaderboard-logo.svg",
+            iconAlt: "Leaderboard",
+          },
         ]}
       />
       <main className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-8 md:px-8">

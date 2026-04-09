@@ -92,8 +92,18 @@ export default function ProfilePageClient() {
         backHref="/home"
         pageTitle="Profile"
         quickLinks={[
-          { href: "/multiplayer", label: "Multiplayer" },
-          { href: "/arena/leaderboard", label: "Leaderboard" },
+          {
+            href: "/multiplayer",
+            label: "Multiplayer",
+            iconSrc: "/multiplayer-controller.svg",
+            iconAlt: "Multiplayer",
+          },
+          {
+            href: "/arena/leaderboard",
+            label: "Leaderboard",
+            iconSrc: "/leaderboard-logo.svg",
+            iconAlt: "Leaderboard",
+          },
         ]}
       />
 

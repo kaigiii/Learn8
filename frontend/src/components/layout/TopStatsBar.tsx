@@ -11,6 +11,9 @@ interface TopStatsBarProps {
   backHref?: string;
   pageTitle?: string;
   showBackLogo?: boolean;
+  backLogoSrc?: string;
+  backLogoAlt?: string;
+  backLogoClassName?: string;
   navLinks?: Array<{
     href: string;
     label: string;
@@ -20,6 +23,8 @@ interface TopStatsBarProps {
     href: string;
     label: string;
     active?: boolean;
+    iconSrc?: string;
+    iconAlt?: string;
   }>;
 }
 
@@ -27,6 +32,9 @@ export default function TopStatsBar({
   backHref,
   pageTitle,
   showBackLogo = true,
+  backLogoSrc,
+  backLogoAlt,
+  backLogoClassName,
   navLinks = [],
   quickLinks = [],
 }: TopStatsBarProps = {}) {
@@ -46,6 +54,8 @@ export default function TopStatsBar({
     "inline-flex h-10 items-center rounded-full border border-white/85 bg-white/92 px-3 text-sm font-heading font-bold text-brand-gray-700 shadow-sm transition";
   const navChipClassName =
     "inline-flex h-9 items-center rounded-full px-3 text-[11px] font-bold uppercase tracking-[0.16em] transition";
+  const quickChipClassName =
+    "inline-flex h-10 items-center gap-2 rounded-full bg-white/92 px-3 text-sm font-heading font-bold leading-none text-brand-gray-700 shadow-sm transition hover:bg-white";
 
   return (
     <>
@@ -63,7 +73,19 @@ export default function TopStatsBar({
                   <path d="M15 18l-6-6 6-6" />
                 </svg>
               </Link>
-              {showBackLogo ? <OwlLogoSmall /> : null}
+              {showBackLogo ? (
+                backLogoSrc ? (
+                  <Image
+                    src={backLogoSrc}
+                    alt={backLogoAlt ?? "Page icon"}
+                    width={40}
+                    height={40}
+                    className={backLogoClassName ?? "h-8 w-8 object-contain"}
+                  />
+                ) : (
+                  <OwlLogoSmall />
+                )
+              ) : null}
               <span className="truncate font-heading text-lg font-extrabold leading-none text-brand-gray-700 md:text-[1.35rem]">
                 {pageTitle}
               </span>
@@ -117,13 +139,22 @@ export default function TopStatsBar({
                 <Link
                   key={`${link.href}-${link.label}-quick`}
                   href={link.href}
-                  className={`${navChipClassName} ${
+                  className={`${quickChipClassName} ${
                     link.active
-                      ? "bg-brand-teal/12 text-brand-teal ring-1 ring-brand-teal/20"
-                      : "border border-[#e3edf0] bg-white text-brand-gray-600 hover:bg-[#f8fbfc]"
+                      ? "bg-white"
+                      : ""
                   }`}
                 >
-                  {link.label}
+                  {link.iconSrc ? (
+                    <Image
+                      src={link.iconSrc}
+                      alt={link.iconAlt ?? ""}
+                      width={24}
+                      height={24}
+                      className="h-6 w-6 object-contain"
+                    />
+                  ) : null}
+                  <span className="whitespace-nowrap">{link.label}</span>
                 </Link>
               ))}
             </div>
