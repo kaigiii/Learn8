@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import ProfileSettingsDialog from "@/features/profile/ProfileSettingsDialog";
 import { useAuthStore } from "@/stores/app/useAuthStore";
 import useUserStore, { selectAvailableCredits } from "@/stores/app/useUserStore";
@@ -94,10 +95,15 @@ export default function TopStatsBar({
                 <MascotAvatar />
               </button>
 
-              <Link href="/home" className="flex items-center gap-2">
-                <span className="hidden font-heading text-lg font-extrabold leading-none text-brand-teal sm:inline md:text-[1.35rem]">
-                  Learn8
-                </span>
+              <Link href="/home" className="flex items-center">
+                <Image
+                  src="/logs.png"
+                  alt="Learn8"
+                  width={280}
+                  height={112}
+                  priority
+                  className="hidden h-11 w-auto object-contain sm:block md:h-12"
+                />
               </Link>
             </>
           )}
@@ -186,38 +192,27 @@ export default function TopStatsBar({
 /* ── Small mascot avatar ── */
 function MascotAvatar() {
   return (
-    <svg viewBox="0 0 64 64" className="h-full w-full" fill="none">
-      <rect width="64" height="64" rx="32" fill="#E8F5F4" />
-      <ellipse cx="32" cy="36" rx="16" ry="18" fill="#C4A882" />
-      <ellipse cx="32" cy="34" rx="12" ry="14" fill="#E8D5B7" />
-      <circle cx="26" cy="29" r="5" fill="white" />
-      <circle cx="38" cy="29" r="5" fill="white" />
-      <circle cx="26" cy="29" r="5.5" fill="none" stroke="#6B6B6B" strokeWidth="1.2" />
-      <circle cx="38" cy="29" r="5.5" fill="none" stroke="#6B6B6B" strokeWidth="1.2" />
-      <line x1="31" y1="29" x2="33" y2="29" stroke="#6B6B6B" strokeWidth="1.2" />
-      <circle cx="27" cy="29" r="2.5" fill="#333" />
-      <circle cx="37" cy="29" r="2.5" fill="#333" />
-      <circle cx="28" cy="28" r="0.8" fill="white" />
-      <circle cx="38" cy="28" r="0.8" fill="white" />
-      <polygon points="32,33 30,36 34,36" fill="#E8734A" />
-      <polygon points="25,22 28,17 30,24" fill="#C4A882" />
-      <polygon points="39,22 36,17 34,24" fill="#C4A882" />
-    </svg>
+    <Image
+      src="/favicon.ico"
+      alt="Profile mascot"
+      width={40}
+      height={40}
+      className="h-full w-full object-cover"
+    />
   );
 }
 
 /* ── Small owl logo icon ── */
 function OwlLogoSmall() {
   return (
-    <svg viewBox="0 0 32 32" className="h-8 w-8" fill="none">
-      <circle cx="16" cy="16" r="15" fill="#7AC7C4" opacity="0.2" />
-      <ellipse cx="16" cy="18" rx="9" ry="10" fill="#C4A882" />
-      <ellipse cx="16" cy="17" rx="7" ry="8" fill="#E8D5B7" />
-      <circle cx="13" cy="14" r="3" fill="white" />
-      <circle cx="19" cy="14" r="3" fill="white" />
-      <circle cx="13.5" cy="14" r="1.5" fill="#333" />
-      <circle cx="18.5" cy="14" r="1.5" fill="#333" />
-      <polygon points="16,16 14.5,18 17.5,18" fill="#E8734A" />
-    </svg>
+    <div className="h-8 w-8 overflow-hidden rounded-full">
+      <Image
+        src="/favicon.ico"
+        alt="Learn8 logo"
+        width={32}
+        height={32}
+        className="h-full w-full object-cover"
+      />
+    </div>
   );
 }
