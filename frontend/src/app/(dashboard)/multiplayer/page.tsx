@@ -6,7 +6,7 @@ import TopStatsBar from "@/components/layout/TopStatsBar";
 import { fetchArenaPublicCourses } from "@/lib/arena/api";
 import type { ArenaPublicCourse } from "@/lib/apiTypes";
 import { HomeArenaPanel } from "../home/components/HomeArenaPanel";
-import { HomeArenaTopicsSection } from "../home/components/HomeArenaTopicsSection";
+import { MultiplayerTopicsSection } from "./components/MultiplayerTopicsSection";
 import { HomeBackground } from "../home/components/HomeBackground";
 
 export default function MultiplayerPage() {
@@ -82,7 +82,7 @@ export default function MultiplayerPage() {
           </div>
         ) : null}
 
-        <HomeArenaTopicsSection courses={courses} />
+        <MultiplayerTopicsSection courses={courses} />
       </div>
     </div>
   );
