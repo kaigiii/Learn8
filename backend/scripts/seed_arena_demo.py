@@ -351,6 +351,33 @@ def upsert_course_bundle(db: Session, seed: SeedCourse) -> PublicCourseModel:
     course.is_published = True
     course.is_arena_enabled = True
     course.tags_json = seed.tags
+    course.syllabus_json = {
+        "courseTitle": seed.title,
+        "description": seed.description,
+        "units": [
+            {
+                "unitId": f"{seed.slug}-unit-1",
+                "unitTitle": "Core Concepts",
+                "unitDescription": "Foundational topics for this arena.",
+                "nodes": [
+                    {
+                        "id": f"{seed.slug}-node-1",
+                        "title": "Introduction",
+                        "description": "Welcome to the arena prep for " + seed.title,
+                        "status": "available",
+                        "hasGeneratedLesson": False
+                    },
+                    {
+                        "id": f"{seed.slug}-node-2",
+                        "title": "Advanced Drills",
+                        "description": "More complex challenges.",
+                        "status": "locked",
+                        "hasGeneratedLesson": False
+                    }
+                ]
+            }
+        ]
+    }
     db.add(course)
     db.flush()
 

@@ -3,6 +3,7 @@
 import React, { useRef, useEffect, useLayoutEffect, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import TopStatsBar from "@/components/layout/TopStatsBar";
+import { fetchPublicCourses } from "@/lib/courses/api";
 import { COURSE_STATUS } from "@/lib/domain/statuses";
 import {
   clearRecentCourseNavigation,
@@ -14,6 +15,7 @@ import { HomeActiveJobBanner } from "./components/HomeActiveJobBanner";
 import { HomeBackground } from "./components/HomeBackground";
 import { HomeCourseModal } from "./components/HomeCourseModal";
 import { HomeCoursePanel } from "./components/HomeCoursePanel";
+import { HomePublicTopicsSection } from "./components/HomePublicTopicsSection";
 import { HomeForgePanel } from "./components/HomeForgePanel";
 import { HomeLibrarySection, type HomeLibraryItem } from "./components/HomeLibrarySection";
 import { useActiveJobResume } from "./hooks/useActiveJobResume";
@@ -22,6 +24,7 @@ import { useHomeDashboardData } from "./hooks/useHomeDashboardData";
 import { useHomeCourseActions } from "./hooks/useHomeCourseActions";
 import { useCourseFiles } from "./hooks/useCourseFiles";
 import type { CourseModalState } from "./types";
+import type { CourseListItem } from "@/lib/apiTypes";
 
 /* ═══════════════════ Page ═══════════════════ */
 
@@ -58,14 +61,15 @@ export default function HomePage() {
     courses,
   });
   const [topic, setTopic] = useState("");
+  const [publicCourses, setPublicCourses] = useState<CourseListItem[]>([]);
   const {
     fileInputRef,
+    fileActionMessage,
     isDragging,
     setIsDragging,
     isForging,
     isSubmittingTopic,
     removingFile,
-    fileActionMessage,
     courseModal,
     setCourseModal,
     handleFileAccepted,
@@ -95,6 +99,25 @@ export default function HomePage() {
       router.replace("/auth/login");
     }
   }, [authHydrated, router, token]);
+
+  useEffect(() => {
+    if (!token) {
+      return;
+    }
+
+    let cancelled = false;
+    void fetchPublicCourses()
+      .then((items) => {
+        if (!cancelled) {
+          setPublicCourses(items);
+        }
+      })
+      .catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -284,6 +307,9 @@ export default function HomePage() {
             onRemoveCourseFile={(file) => handleRemoveCourseFile(file)}
           />
         </div>
+
+        {/* Official Public Topics */}
+        <HomePublicTopicsSection courses={publicCourses} />
 
         <HomeLibrarySection
           scrollRef={scrollRef}

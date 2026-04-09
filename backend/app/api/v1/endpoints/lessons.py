@@ -71,6 +71,9 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
+SYSTEM_USER_EMAIL = "public@learn8.system"
+
+
 @router.get("/components", response_model=LessonComponentManifestResponse)
 def get_lesson_component_manifest():
     from app.core.component_loader import registry
@@ -564,13 +567,19 @@ def _apply_course_node_completion(
     node_id: str,
     current_user_id: int,
 ):
-    course_record = (
-        db.query(CourseModel)
-        .filter(CourseModel.id == course_id, CourseModel.user_id == current_user_id)
-        .first()
-    )
+    course_record = db.query(CourseModel).filter(CourseModel.id == course_id).first()
     if not course_record:
         raise HTTPException(status_code=404, detail=f"Course {course_id} not found")
+
+    # If it's a public course (shared), we don't update its immutable syllabus.
+    # We instead calculate progress on the fly in get_course_detail.
+    system_user = db.query(UserModel).filter(UserModel.email == SYSTEM_USER_EMAIL).first()
+    if system_user and course_record.user_id == system_user.id:
+        return
+    
+    # Otherwise, it must be the user's own course to update syllabus
+    if course_record.user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to update this course syllabus")
 
     syllabus_data = course_record.syllabus_json
     node_found = False
@@ -698,6 +707,60 @@ async def generate_lesson_from_node_endpoint(
     parsed_allowed_components = [
         item.strip() for item in (allowed_components or "").split(",") if item.strip()
     ]
+    
+    # 1. Check for cached lesson first (essential for official pre-seeded topics)
+    def _fetch_cached_lesson():
+        # First check if the lesson belongs to the current user
+        query = db.query(LessonModel).filter(
+            LessonModel.node_id == node.id,
+            LessonModel.course_topic == topic,
+            LessonModel.user_id == current_user.id,
+        )
+        if course_id is not None:
+            query = query.filter(LessonModel.course_id == course_id)
+        lesson = query.order_by(LessonModel.created_at.desc()).first()
+        
+        if lesson:
+            return lesson
+            
+        # Fallback: Check system user's seeded lessons
+        system_user = db.query(UserModel).filter(UserModel.email == SYSTEM_USER_EMAIL).first()
+        if system_user:
+            return db.query(LessonModel).filter(
+                LessonModel.node_id == node.id,
+                LessonModel.course_topic == topic,
+                LessonModel.user_id == system_user.id,
+            ).order_by(LessonModel.created_at.desc()).first()
+        
+        return None
+
+    cached_lesson = await run_in_threadpool(_fetch_cached_lesson)
+
+    if cached_lesson:
+        cached_metadata = (
+            cached_lesson.generation_metadata_json
+            if isinstance(cached_lesson.generation_metadata_json, dict)
+            else {}
+        )
+        return {
+            "status": JobStatus.COMPLETED,
+            "result_data": {
+                "stages": _lesson_stage_models_to_schema(cached_lesson.stages),
+                "metadata": cached_metadata,
+            },
+        }
+
+    # 2. Block generation for official public topics if no cache found
+    if course_id:
+        course = db.query(CourseModel).filter(CourseModel.id == course_id).first()
+        system_user = db.query(UserModel).filter(UserModel.email == SYSTEM_USER_EMAIL).first()
+        if system_user and course and course.user_id == system_user.id:
+            raise HTTPException(
+                status_code=403, 
+                detail="Official topics use pre-seeded content and cannot be regenerated."
+            )
+
+    # 3. Check components
     invalid_components = [
         item
         for item in parsed_allowed_components
@@ -745,67 +808,12 @@ async def generate_lesson_from_node_endpoint(
         parsed_allowed_components if parsed_allowed_components else effective_allowed_components
     )
 
-    def _fetch_cached_lesson():
-        query = db.query(LessonModel).filter(
-            LessonModel.node_id == node.id,
-            LessonModel.course_topic == topic,
-            LessonModel.user_id == current_user.id,
-        )
-        if course_id is not None:
-            query = query.filter(LessonModel.course_id == course_id)
-        return query.order_by(LessonModel.created_at.desc()).first()
+    # 4. Credits check
+    COST = settings.COST_LESSON_GENERATION
+    if not has_sufficient_credits(current_user, COST):
+        raise HTTPException(status_code=402, detail="Insufficient credits")
 
-    cached_lesson = await run_in_threadpool(_fetch_cached_lesson)
-
-    if cached_lesson:
-        cached_metadata = (
-            cached_lesson.generation_metadata_json
-            if isinstance(cached_lesson.generation_metadata_json, dict)
-            else {}
-        )
-        cached_allowed_components = _normalize_component_list(
-            cached_metadata.get("allowed_components")
-            if isinstance(cached_metadata, dict)
-            else []
-        )
-        if cached_allowed_components and (
-            set(cached_allowed_components) != set(resolved_allowed_components)
-        ):
-            raise HTTPException(
-                status_code=409,
-                detail=(
-                    "This node already has generated lesson content with locked question types. "
-                    "Enter the lesson instead of regenerating it."
-                ),
-            )
-        if not cached_allowed_components and parsed_allowed_components:
-            raise HTTPException(
-                status_code=409,
-                detail=(
-                    "This node already has generated lesson content and cannot be regenerated "
-                    "with a different question-type selection."
-                ),
-            )
-        try:
-            ordered_stage_models = sorted(
-                list(cached_lesson.stages or []),
-                key=lambda item: (item.stage_order, item.id),
-            )
-            stages = _lesson_stage_models_to_schema(ordered_stage_models)
-            if stages:
-                return {
-                    "status": JobStatus.COMPLETED,
-                    "result_data": {"stages": [s.model_dump() for s in stages]},
-                }
-        except Exception as exc:
-            logger.warning(
-                "Ignoring cached lesson with unsupported or invalid stages. "
-                "lesson_id=%s node_id=%s topic=%s error=%s",
-                cached_lesson.id,
-                node.id,
-                topic,
-                exc,
-            )
+    # 5. Profile context
 
     if not has_sufficient_credits(current_user, settings.COST_LESSON_GENERATION):
         raise HTTPException(
@@ -881,11 +889,23 @@ async def start_lesson_session(
     current_user: UserModel = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    system_user = db.query(UserModel).filter(UserModel.email == SYSTEM_USER_EMAIL).first()
+    
+    # 1. Resolve effective course (always use the requested one directly - no more cloning)
+    effective_course_id = request.courseId
+    is_public_course = False
+    if system_user:
+        is_public_course = db.query(CourseModel.id).filter(
+            CourseModel.id == effective_course_id,
+            CourseModel.user_id == system_user.id
+        ).first() is not None
+
+    # 2. Resume existing active session
     existing_session = (
         db.query(LessonSessionModel)
         .filter(
             LessonSessionModel.user_id == current_user.id,
-            LessonSessionModel.course_id == request.courseId,
+            LessonSessionModel.course_id == effective_course_id,
             LessonSessionModel.node_id == request.nodeId,
             LessonSessionModel.status.in_(ACTIVE_LESSON_SESSION_STATUSES),
         )
@@ -893,6 +913,7 @@ async def start_lesson_session(
         .first()
     )
     if existing_session:
+        # Standard session recovery
         if existing_session.status == LessonSessionStatus.REMEDIAL_GENERATING:
             _, remedial_stages = _resolve_session_stage_lists(existing_session)
             if remedial_stages:
@@ -900,22 +921,12 @@ async def start_lesson_session(
                 existing_session.active_phase = LessonSessionPhase.REMEDIAL
                 db.commit()
                 db.refresh(existing_session)
-                return _build_session_payload(
-                    db, existing_session, resumed_session=True
-                )
+                return _build_session_payload(db, existing_session, resumed_session=True)
 
-            remedial_job_id = _find_active_remedial_job_id(
-                db, existing_session.id, current_user.id
-            )
+            remedial_job_id = _find_active_remedial_job_id(db, existing_session.id, current_user.id)
             if remedial_job_id:
-                return _build_session_payload(
-                    db,
-                    existing_session,
-                    remedial_job_id=remedial_job_id,
-                    resumed_session=True,
-                )
+                return _build_session_payload(db, existing_session, remedial_job_id=remedial_job_id, resumed_session=True)
 
-            # Recover stale sessions that were left in generating state without an active job.
             existing_session.status = LessonSessionStatus.PLAYING_PRIMARY
             existing_session.active_phase = LessonSessionPhase.PRIMARY
             db.commit()
@@ -923,19 +934,31 @@ async def start_lesson_session(
 
         return _build_session_payload(db, existing_session, resumed_session=True)
 
-    lesson_query = db.query(LessonModel).filter(
-        LessonModel.user_id == current_user.id,
-        LessonModel.node_id == request.nodeId,
+    # 3. Find Lesson (Prefer personal, fallback to system for public topics)
+    cached_lesson = (
+        db.query(LessonModel)
+        .filter(
+            LessonModel.user_id == current_user.id,
+            LessonModel.course_id == effective_course_id,
+            LessonModel.node_id == request.nodeId,
+        )
+        .order_by(LessonModel.created_at.desc())
+        .first()
     )
-    if request.lessonId is not None:
-        lesson_query = lesson_query.filter(LessonModel.id == request.lessonId)
-    else:
-        lesson_query = lesson_query.filter(
-            LessonModel.course_id == request.courseId,
-            LessonModel.course_topic == request.topic,
+
+    if not cached_lesson and system_user:
+        # If public or explicitly searching official content
+        cached_lesson = (
+            db.query(LessonModel)
+            .filter(
+                LessonModel.user_id == system_user.id,
+                LessonModel.course_topic == request.topic,
+                LessonModel.node_id == request.nodeId,
+            )
+            .order_by(LessonModel.created_at.desc())
+            .first()
         )
 
-    cached_lesson = lesson_query.order_by(LessonModel.created_at.desc()).first()
     if not cached_lesson:
         raise HTTPException(status_code=404, detail="Generated lesson not found")
 
@@ -943,26 +966,24 @@ async def start_lesson_session(
     if not primary_stages:
         raise HTTPException(status_code=409, detail="Generated lesson has no canonical stages")
 
+    # 4. Create new session tied to the SHARED public course (or personal course)
     session = LessonSessionModel(
         user_id=current_user.id,
-        course_id=request.courseId,
-        lesson_id=cached_lesson.id if cached_lesson else None,
+        course_id=effective_course_id,
+        lesson_id=cached_lesson.id,
         node_id=request.nodeId,
         course_topic=request.topic,
         status=LessonSessionStatus.PLAYING_PRIMARY,
         active_phase=LessonSessionPhase.PRIMARY,
         reward_eligible=not _is_course_node_already_completed(
-            db, request.courseId, request.nodeId, current_user.id
+            db, effective_course_id, request.nodeId, current_user.id
         ),
         schema_version=2,
     )
     db.add(session)
     db.flush()
-    lesson_stage_by_uid: dict[str, LessonStageModel] = {}
-    if cached_lesson:
-        lesson_stage_by_uid = {
-            item.stage_uid: item for item in (cached_lesson.stages or [])
-        }
+    
+    lesson_stage_by_uid = {item.stage_uid: item for item in (cached_lesson.stages or [])}
     sync_session_stages(
         db,
         session=session,

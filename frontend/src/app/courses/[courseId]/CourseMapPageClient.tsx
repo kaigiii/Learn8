@@ -163,12 +163,14 @@ export default function CourseMapPageClient({
               coursePath={coursePath}
               selectedNode={selectedNode}
             />
-            <CourseMapAssistantPanel
-              coursePath={coursePath}
-              courseId={Number(courseId) || currentCourseId}
-              onCoursePathUpdated={setCoursePath}
-              compact
-            />
+            {coursePath && !coursePath.isPublic && (
+              <CourseMapAssistantPanel
+                coursePath={coursePath}
+                courseId={Number(courseId) || currentCourseId}
+                onCoursePathUpdated={setCoursePath}
+                compact
+              />
+            )}
           </div>
         </div>
       </div>
