@@ -2,6 +2,7 @@
 
 import React from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { ProfileStatBox } from "./components/ProfileStatBox";
 import { ProfileToggle } from "./components/ProfileToggle";
@@ -12,6 +13,7 @@ interface ProfileSettingsDialogProps {
 }
 
 export default function ProfileSettingsDialog({ onClose }: ProfileSettingsDialogProps) {
+  const router = useRouter();
   const {
     authUser,
     title,
@@ -21,6 +23,11 @@ export default function ProfileSettingsDialog({ onClose }: ProfileSettingsDialog
   } = useProfileSettings(onClose);
 
   const { soundOn, darkGlass, difficulty } = preferences;
+
+  const openProfilePanel = (panel: "personal" | "wallet") => {
+    onClose();
+    router.push(`/profile?panel=${panel}`);
+  };
 
   return (
     <AnimatePresence>
@@ -62,7 +69,7 @@ export default function ProfileSettingsDialog({ onClose }: ProfileSettingsDialog
 
             <div className="px-5 pb-5 pt-8 sm:px-7 sm:pt-9">
               <div className="mx-auto flex w-full max-w-lg flex-col items-center text-center">
-                <div className="mb-4 flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-[#e8ddd0] shadow-lg">
+                <div className="mb-4 flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-[#e8ddd0] shadow-lg">
                   <Image
                     src="/homeicon.ico"
                     alt="Home icon avatar"
@@ -80,6 +87,21 @@ export default function ProfileSettingsDialog({ onClose }: ProfileSettingsDialog
                 {authUser?.email && (
                   <p className="mt-1 text-xs text-brand-gray-400">{authUser.email}</p>
                 )}
+
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                  <button
+                    onClick={() => openProfilePanel("personal")}
+                    className="rounded-lg border border-brand-gray-200 bg-white px-4 py-2 text-sm font-semibold text-brand-gray-600 transition hover:border-brand-teal hover:text-brand-teal"
+                  >
+                    Personal Profile
+                  </button>
+                  <button
+                    onClick={() => openProfilePanel("wallet")}
+                    className="rounded-lg border border-brand-gray-200 bg-white px-4 py-2 text-sm font-semibold text-brand-gray-600 transition hover:border-brand-teal hover:text-brand-teal"
+                  >
+                    Wallet
+                  </button>
+                </div>
               </div>
 
               <div className="mx-auto mt-5 w-full max-w-xl space-y-3">

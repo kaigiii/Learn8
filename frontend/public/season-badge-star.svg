@@ -1,0 +1,15 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="shieldStar" x1="18" y1="10" x2="108" y2="122" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4FB5B3" />
+      <stop offset="1" stop-color="#1C6D78" />
+    </linearGradient>
+    <linearGradient id="starCore" x1="47" y1="48" x2="81" y2="80" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF2B8" />
+      <stop offset="1" stop-color="#F4C74A" />
+    </linearGradient>
+  </defs>
+  <path d="M64 8L108 28L101 79C101 97 86 113 64 122C42 113 27 97 27 79L20 28L64 8Z" fill="url(#shieldStar)" stroke="#A8EEF0" stroke-width="3" />
+  <path d="M64 46L69 57H81L71 64L75 76L64 69L53 76L57 64L47 57H59L64 46Z" fill="url(#starCore)" />
+  <circle cx="64" cy="63" r="20" stroke="#9BE2E7" stroke-width="2" opacity="0.35" />
+</svg>

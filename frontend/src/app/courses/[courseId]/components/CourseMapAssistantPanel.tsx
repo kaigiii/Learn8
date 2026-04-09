@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { apiFetch, ApiError } from "@/lib/apiClient";
@@ -111,24 +112,17 @@ export function CourseMapAssistantPanel({
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: 0.3, type: "spring", damping: 18 }}
       className="flex flex-col overflow-hidden rounded-3xl border border-white/50 bg-white/60 shadow-lg shadow-teal-200/20 backdrop-blur-xl"
-      style={compact ? { minHeight: 420 } : { height: "78vh", minHeight: 560 }}
+      style={compact ? { height: "100%", minHeight: 560 } : { height: "78vh", minHeight: 560 }}
     >
       <div className="flex items-center gap-3 px-6 pt-6 pb-4">
-        <div className="relative h-14 w-14 flex-shrink-0">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-amber-300 to-amber-500 shadow-md">
-            <svg viewBox="0 0 40 40" className="h-9 w-9" fill="none">
-              <ellipse cx="20" cy="24" rx="12" ry="10" fill="#C47F17" />
-              <circle cx="15" cy="20" r="5" fill="white" />
-              <circle cx="25" cy="20" r="5" fill="white" />
-              <circle cx="15" cy="20" r="2.5" fill="#2D2D2D" />
-              <circle cx="25" cy="20" r="2.5" fill="#2D2D2D" />
-              <circle cx="16" cy="19" r="1" fill="white" />
-              <circle cx="26" cy="19" r="1" fill="white" />
-              <polygon points="20,22 18,25 22,25" fill="#FF9500" />
-              <polygon points="10,16 8,8 15,14" fill="#C47F17" />
-              <polygon points="30,16 32,8 25,14" fill="#C47F17" />
-            </svg>
-          </div>
+        <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-full shadow-md">
+          <Image
+            src="/homeicon.ico"
+            alt="Syllabus architect avatar"
+            width={56}
+            height={56}
+            className="h-full w-full object-cover"
+          />
         </div>
         <div>
           <h3 className="font-heading text-[15px] font-bold text-brand-gray-700">

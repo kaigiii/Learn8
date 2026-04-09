@@ -1,19 +1,42 @@
 "use client";
 
+import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import type { Dispatch, ReactNode, SetStateAction } from "react";
 
 import TopStatsBar from "@/components/layout/TopStatsBar";
 import DeepGlassCard from "@/components/ui/DeepGlassCard";
 import GameButton from "@/components/ui/GameButton";
-import { fetchArenaProfile, fetchArenaRankHistory } from "@/lib/arena/api";
-import { resolveErrorMessage } from "@/lib/apiClient";
-import type { ArenaProfile, ArenaRankHistoryEntry, UserLedgerEvent } from "@/lib/apiTypes";
 import { ProfileStatBox } from "@/features/profile/components/ProfileStatBox";
 import { ProfileToggle } from "@/features/profile/components/ProfileToggle";
 import { useProfileSettings } from "@/features/profile/hooks/useProfileSettings";
+import { resolveErrorMessage } from "@/lib/apiClient";
+import { fetchArenaProfile, fetchArenaRankHistory } from "@/lib/arena/api";
+import type { ArenaProfile, ArenaRankHistoryEntry, UserLedgerEvent } from "@/lib/apiTypes";
 import useUserStore, { selectUserProgression } from "@/stores/app/useUserStore";
 
+type OverlayPanel = "personal" | "wallet" | null;
+
+type ProfileFormState = {
+  full_name: string;
+  job_title: string;
+  education_level: string;
+  preferred_language: string;
+  daily_learning_goal_minutes: string;
+};
+
+type PreferenceState = {
+  soundOn: boolean;
+  darkGlass: boolean;
+  difficulty: number;
+};
+
 export default function ProfilePageClient() {
+  const searchParams = useSearchParams();
+  const panelParam = searchParams.get("panel");
+  const [activeOverlay, setActiveOverlay] = useState<OverlayPanel>(null);
+
   const {
     authUser,
     title,
@@ -21,16 +44,14 @@ export default function ProfilePageClient() {
     form,
     setForm,
     saving,
-    toppingUpAmount,
     ledgerLoading,
     ledgerItems,
     error,
     setPreferences,
     handleSaveProfile,
-    handleQuickTopUp,
-    handleOpenStore,
     handleLogout,
-  } = useProfileSettings(() => {});
+  } = useProfileSettings(() => setActiveOverlay(null));
+
   const progression = useUserStore(selectUserProgression);
   const [arenaProfile, setArenaProfile] = useState<ArenaProfile | null>(null);
   const [arenaHistory, setArenaHistory] = useState<ArenaRankHistoryEntry[]>([]);
@@ -38,12 +59,9 @@ export default function ProfilePageClient() {
   const [arenaError, setArenaError] = useState<string | null>(null);
 
   const displayName = authUser?.full_name?.trim() || form.full_name || "Learner";
-  const profileLabel =
-    authUser?.job_title?.trim() ||
-    authUser?.education_level?.trim() ||
-    title ||
-    "Learner";
+  const profileLabel = authUser?.job_title?.trim() || authUser?.education_level?.trim() || title || "Learner";
   const initial = displayName.slice(0, 1).toUpperCase() || "P";
+
   const arenaTopTopics = useMemo(
     () => [...(arenaProfile?.topicRatings ?? [])].sort((left, right) => right.rating - left.rating).slice(0, 4),
     [arenaProfile?.topicRatings]
@@ -52,6 +70,7 @@ export default function ProfilePageClient() {
     () => arenaHistory.slice(0, 5).reduce((sum, entry) => sum + entry.ratingDelta, 0),
     [arenaHistory]
   );
+  const recentOutcomeTrends = useMemo(() => resolveRecentOutcomeTrends(arenaHistory), [arenaHistory]);
 
   useEffect(() => {
     let cancelled = false;
@@ -69,9 +88,9 @@ export default function ProfilePageClient() {
         }
         setArenaProfile(nextArenaProfile);
         setArenaHistory(nextArenaHistory.items);
-      } catch (error) {
+      } catch (caughtError) {
         if (!cancelled) {
-          setArenaError(resolveErrorMessage(error, "Unable to load Arena competitive profile right now."));
+          setArenaError(resolveErrorMessage(caughtError, "Unable to load Arena competitive profile right now."));
         }
       } finally {
         if (!cancelled) {
@@ -84,6 +103,22 @@ export default function ProfilePageClient() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (panelParam === "personal" || panelParam === "wallet") {
+      setActiveOverlay(panelParam);
+    }
+  }, [panelParam]);
+
+  const seasonLabel = arenaProfile?.activeSeason ?? "Initial Season";
+  const rankPosition = arenaProfile?.seasonPlacement != null ? `#${arenaProfile.seasonPlacement}` : (arenaProfile?.rankTier ?? "Bronze");
+  const seasonBadgeValue = arenaLoading ? "..." : arenaProfile?.seasonBadge ?? "None";
+  const seasonBadgeVisual = arenaLoading ? null : resolveSeasonBadgeVisual(seasonBadgeValue);
+  const seasonTitleTagline = arenaLoading ? "..." : resolveRankTierTagline(arenaProfile?.rankTier);
+  const normalizedSeasonPercentile = Math.min(100, Math.max(0, arenaProfile?.seasonPercentile ?? 0));
+  const seasonPercentileTagline = arenaLoading
+    ? "..."
+    : `Ahead of ${Number.isInteger(normalizedSeasonPercentile) ? normalizedSeasonPercentile.toFixed(0) : normalizedSeasonPercentile.toFixed(1)}% players`;
 
   return (
     <div className="relative min-h-screen overflow-hidden app-shared-bg">
@@ -108,513 +143,416 @@ export default function ProfilePageClient() {
 
       <div className="relative z-10 mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8 md:px-8">
         <DeepGlassCard className="overflow-hidden border border-white/70 bg-white/78 px-6 py-6 shadow-[0_24px_60px_rgba(31,41,55,0.12)]">
-          <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-center gap-4">
               <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#ffd23c] to-[#f4b800] shadow-[0_18px_36px_rgba(244,184,0,0.35)]">
-                <span className="font-heading text-2xl font-extrabold text-white">
-                  {initial}
-                </span>
+                <span className="font-heading text-2xl font-extrabold text-white">{initial}</span>
               </div>
               <div>
-                <p className="font-heading text-3xl font-extrabold text-brand-gray-700">
-                  {displayName}
-                </p>
+                <p className="font-heading text-3xl font-extrabold text-brand-gray-700">{displayName}</p>
                 <p className="mt-1 text-sm text-brand-gray-500">{profileLabel}</p>
-                {authUser?.email && (
-                  <p className="mt-1 text-xs text-brand-gray-400">
-                    {authUser.email}
-                  </p>
-                )}
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-              <ProfileStatBox
-                label="Credits"
-                value={String(authUser?.credits ?? 0)}
-              />
-              <ProfileStatBox
-                label="Level"
-                value={String(progression.level)}
-              />
-              <ProfileStatBox
-                label="XP"
-                value={String(progression.xp)}
-              />
-              <ProfileStatBox
-                label="Daily Goal"
-                value={
-                  authUser?.daily_learning_goal_minutes
-                    ? `${authUser.daily_learning_goal_minutes} min`
-                    : "Not set"
-                }
-              />
+            <div className="w-full lg:max-w-[760px]">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                <ProfileStatBox label="Credits" value={String(authUser?.credits ?? 0)} />
+                <ProfileStatBox label="Level" value={String(progression.level)} />
+                <ProfileStatBox label="XP" value={String(progression.xp)} />
+                <ProfileStatBox
+                  label="Daily Goal"
+                  value={authUser?.daily_learning_goal_minutes ? `${authUser.daily_learning_goal_minutes} min` : "Not set"}
+                />
+
+                <button
+                  type="button"
+                  onClick={() => setActiveOverlay("personal")}
+                  className={`min-h-[58px] rounded-xl border px-3 text-sm font-semibold transition ${
+                    activeOverlay === "personal"
+                      ? "border-[#0a6175] bg-[#0f7f96] text-white shadow-[0_10px_20px_rgba(15,127,150,0.35)]"
+                      : "border-[#79b8c6] bg-[#d5ecf2] text-[#145d6c] hover:border-[#0e758b] hover:bg-[#86c4d1] hover:text-white"
+                  }`}
+                >
+                  Personal Profile
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveOverlay("wallet")}
+                  className={`min-h-[58px] rounded-xl border px-3 text-sm font-semibold transition ${
+                    activeOverlay === "wallet"
+                      ? "border-[#0a6175] bg-[#0f7f96] text-white shadow-[0_10px_20px_rgba(15,127,150,0.35)]"
+                      : "border-[#79b8c6] bg-[#d5ecf2] text-[#145d6c] hover:border-[#0e758b] hover:bg-[#86c4d1] hover:text-white"
+                  }`}
+                >
+                  Wallet
+                </button>
+              </div>
             </div>
           </div>
         </DeepGlassCard>
 
-        <DeepGlassCard className="border border-white/70 bg-white/82 px-6 py-6 shadow-[0_24px_60px_rgba(31,41,55,0.12)]">
-          <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-brand-teal">
-                Arena
-              </p>
-              <h2 className="mt-2 font-heading text-2xl font-extrabold text-brand-gray-700">
-                Competitive Identity
-              </h2>
-              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-brand-gray-500">
-                Your real-time competition snapshot lives here, including rating, ladder momentum,
-                strongest topics, and recent ranked movement.
-              </p>
-            </div>
-
-            <div className="rounded-3xl border border-[#f5d77a]/55 bg-gradient-to-br from-[#fff7d8] via-white to-[#f6fbfc] px-5 py-4 shadow-[0_18px_36px_rgba(244,184,0,0.14)]">
-              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-brand-gray-400">
-                Active Season
-              </p>
-              <p className="mt-2 font-heading text-2xl font-extrabold text-brand-gray-700">
-                {arenaProfile?.activeSeason ?? "No active season"}
-              </p>
-              <p className="mt-1 text-xs text-brand-gray-500">
-                {arenaLoading
-                  ? "Loading Arena season status..."
-                  : arenaProfile
-                    ? `${arenaProfile.rankTier} ladder currently active`
-                    : "Season data will appear after your first Arena sync."}
-              </p>
-            </div>
-          </div>
-
+        <DeepGlassCard className="border border-white/70 bg-white/82 px-5 py-5 shadow-[0_24px_60px_rgba(31,41,55,0.12)] md:px-6 md:py-6">
           {arenaError ? (
-            <div className="mt-5 rounded-2xl border border-rose-200 bg-rose-50/80 px-4 py-3 text-sm text-rose-600">
+            <div className="mb-5 rounded-2xl border border-rose-200 bg-rose-50/80 px-4 py-3 text-sm text-rose-600">
               {arenaError}
             </div>
           ) : null}
 
-          <div className="mt-6 grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">
-            <div className="space-y-6">
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                <ProfileStatBox
-                  label="Arena Rating"
-                  value={arenaLoading ? "..." : String(arenaProfile?.rating ?? 0)}
-                />
-                <ProfileStatBox
-                  label="Rank Tier"
-                  value={arenaLoading ? "..." : arenaProfile?.rankTier ?? "Unranked"}
-                />
-                <ProfileStatBox
-                  label="Best Tier"
-                  value={arenaLoading ? "..." : arenaProfile?.bestRankTier ?? "Unranked"}
-                />
-                <ProfileStatBox
-                  label="Win Rate"
-                  value={arenaLoading ? "..." : `${(arenaProfile?.winRate ?? 0).toFixed(1)}%`}
-                />
-                <ProfileStatBox
-                  label="Ranked Matches"
-                  value={arenaLoading ? "..." : String(arenaProfile?.rankedMatches ?? 0)}
-                />
+          <div className="grid gap-6 xl:grid-cols-[1.08fr_1.32fr_0.82fr]">
+            <section className="rounded-[28px] border border-white/70 bg-white/68 p-4">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-gray-500">Arena</p>
+              <h2 className="mt-1 font-heading text-[29px] font-extrabold leading-tight text-brand-gray-700">Competitive Identity</h2>
+
+              <div className="relative mt-4 overflow-hidden rounded-3xl border border-white/70 bg-gradient-to-br from-[#7f8fa3] via-[#9aa8b7] to-[#d6dce5] px-5 py-6 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]">
+                <div className="absolute inset-x-0 top-0 h-10 bg-white/20 blur-xl" />
+                <div className="relative">
+                  <Image src="/leaderboard-logo.svg" alt="Season emblem" width={100} height={100} className="mx-auto h-24 w-24" />
+                  <p className="mt-3 font-heading text-3xl font-extrabold text-white">{seasonLabel}</p>
+                  <p className="mt-1 text-xs uppercase tracking-[0.14em] text-white/85">
+                    {arenaLoading ? "Syncing season info" : `${arenaProfile?.rankTier ?? "Bronze"} rank currently active`}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+                <ProfileStatBox label="Arena Rating" value={arenaLoading ? "..." : String(arenaProfile?.rating ?? 0)} />
+                <ProfileStatBox label="Rank Tier" value={arenaLoading ? "..." : arenaProfile?.rankTier ?? "Unranked"} />
+                <ProfileStatBox label="Rank Position" value={arenaLoading ? "..." : rankPosition} />
+                <ProfileStatBox label="Win Rate" value={arenaLoading ? "..." : `${(arenaProfile?.winRate ?? 0).toFixed(1)}%`} />
+                <ProfileStatBox label="Ranked Matches" value={arenaLoading ? "..." : String(arenaProfile?.rankedMatches ?? 0)} />
                 <ProfileStatBox
                   label="Recent Momentum"
-                  value={
-                    arenaLoading
-                      ? "..."
-                      : `${arenaRecentMomentum > 0 ? "+" : ""}${arenaRecentMomentum}`
-                  }
+                  value={arenaLoading ? "..." : `${arenaRecentMomentum > 0 ? "+" : ""}${arenaRecentMomentum}`}
                 />
               </div>
+            </section>
 
-              <div className="rounded-[28px] border border-white/70 bg-white/68 p-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-teal">
-                      Season Honors
-                    </p>
-                    <h3 className="mt-2 font-heading text-xl font-bold text-brand-gray-700">
-                      Current season identity
-                    </h3>
-                  </div>
-                  <span className="rounded-full bg-brand-teal/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.14em] text-brand-teal">
-                    {arenaLoading
-                      ? "..."
-                      : arenaProfile?.seasonPlacement
-                        ? `#${arenaProfile.seasonPlacement}`
-                        : "Unranked"}
-                  </span>
-                </div>
+            <div className="grid gap-6 xl:grid-rows-[minmax(0,0.86fr)_minmax(0,1.14fr)]">
+              <section className="flex h-full flex-col rounded-[28px] border border-white/70 bg-white/68 p-4">
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-gray-500">Season Honors</p>
+                <h3 className="mt-1 font-heading text-[26px] font-extrabold leading-tight text-brand-gray-700">Current season identity</h3>
 
-                <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <div className="mt-3 grid flex-1 grid-cols-1 items-stretch gap-2 sm:grid-cols-[repeat(3,minmax(0,1fr))]">
                   <ArenaMetricPill
                     label="Season Badge"
-                    value={arenaLoading ? "..." : arenaProfile?.seasonBadge ?? "None"}
+                    value={seasonBadgeValue}
+                    iconSrc={seasonBadgeVisual?.src}
+                    iconAlt={seasonBadgeVisual?.alt}
                   />
-                  <ArenaMetricPill
-                    label="Season Title"
-                    value={arenaLoading ? "..." : arenaProfile?.seasonTitle ?? "Contender"}
-                  />
+                  <ArenaMetricPill label="Season Title" value={seasonTitleTagline} compactText />
                   <ArenaMetricPill
                     label="Percentile"
-                    value={
-                      arenaLoading
-                        ? "..."
-                        : arenaProfile?.seasonPercentile != null
-                          ? `${arenaProfile.seasonPercentile.toFixed(1)}%`
-                          : "-"
-                    }
+                    value={seasonPercentileTagline}
+                    compactText
                   />
                 </div>
-              </div>
+              </section>
 
-              <div className="rounded-[28px] border border-white/70 bg-white/68 p-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-teal">
-                      Match Summary
-                    </p>
-                    <h3 className="mt-2 font-heading text-xl font-bold text-brand-gray-700">
-                      Competitive record
-                    </h3>
-                  </div>
-                  <span className="rounded-full bg-brand-teal/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.14em] text-brand-teal">
-                    {arenaLoading ? "..." : `${arenaProfile?.rankedMatches ?? 0} matches`}
-                  </span>
-                </div>
+              <section className="flex h-full flex-col rounded-[28px] border border-white/70 bg-white/68 p-4">
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-gray-500">Match Summary</p>
+                <h3 className="mt-1 font-heading text-[30px] font-extrabold leading-tight text-brand-gray-700">Competitive record</h3>
 
-                <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                  <ArenaMetricPill
+                <div className="mt-4 grid flex-1 grid-cols-1 items-stretch gap-2.5 sm:grid-cols-[repeat(3,minmax(0,1fr))]">
+                  <ArenaSummaryMetric
                     label="Wins"
-                    value={arenaLoading ? "..." : String(arenaProfile?.wins ?? 0)}
+                    value={arenaLoading ? "..." : String(recentOutcomeTrends.win[recentOutcomeTrends.win.length - 1] ?? 0)}
+                    tone="win"
+                    trendValues={recentOutcomeTrends.win}
                   />
-                  <ArenaMetricPill
+                  <ArenaSummaryMetric
                     label="Losses"
-                    value={arenaLoading ? "..." : String(arenaProfile?.losses ?? 0)}
+                    value={arenaLoading ? "..." : String(recentOutcomeTrends.loss[recentOutcomeTrends.loss.length - 1] ?? 0)}
+                    tone="loss"
+                    trendValues={recentOutcomeTrends.loss}
                   />
-                  <ArenaMetricPill
+                  <ArenaSummaryMetric
                     label="Draws"
-                    value={arenaLoading ? "..." : String(arenaProfile?.draws ?? 0)}
+                    value={arenaLoading ? "..." : String(recentOutcomeTrends.draw[recentOutcomeTrends.draw.length - 1] ?? 0)}
+                    tone="draw"
+                    trendValues={recentOutcomeTrends.draw}
                   />
                 </div>
-              </div>
+              </section>
             </div>
 
-            <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr] xl:grid-cols-1">
-              <div className="rounded-[28px] border border-white/70 bg-white/68 p-5">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-teal">
-                  Strongest Topics
-                </p>
-                <h3 className="mt-2 font-heading text-xl font-bold text-brand-gray-700">
-                  Topic strengths
-                </h3>
-                <div className="mt-4 space-y-3">
-                  {arenaLoading ? (
-                    <p className="text-sm text-brand-gray-500">Loading Arena topic ratings...</p>
-                  ) : arenaTopTopics.length === 0 ? (
-                    <p className="text-sm text-brand-gray-500">
-                      Topic ratings will appear after a few Arena matches.
-                    </p>
-                  ) : (
-                    arenaTopTopics.map((topic) => (
-                      <div
-                        key={topic.publicCourseId}
-                        className="rounded-2xl border border-white/70 bg-white/76 px-4 py-3"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="text-sm font-semibold text-brand-gray-700">
-                              {topic.title}
-                            </p>
-                            <p className="mt-1 text-[11px] uppercase tracking-[0.16em] text-brand-teal">
-                              {topic.rankTier}
-                            </p>
-                          </div>
-                          <p className="font-heading text-xl font-bold text-brand-gray-700">
-                            {topic.rating}
-                          </p>
-                        </div>
-                        <p className="mt-2 text-xs text-brand-gray-500">{topic.topic}</p>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
+            <div className="grid gap-6 xl:grid-rows-[minmax(0,0.86fr)_minmax(0,1.14fr)]">
+              <section className="flex h-full flex-col rounded-[28px] border border-white/70 bg-white/68 p-4">
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-gray-500">Strong Topics</p>
+                <h3 className="mt-1 font-heading text-[26px] font-extrabold leading-tight text-brand-gray-700">Topic strengths</h3>
 
-              <div className="rounded-[28px] border border-white/70 bg-white/68 p-5">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-teal">
-                  Rank History
-                </p>
-                <h3 className="mt-2 font-heading text-xl font-bold text-brand-gray-700">
-                  Recent ladder movement
-                </h3>
-                <div className="mt-4 space-y-3">
-                  {arenaLoading ? (
-                    <p className="text-sm text-brand-gray-500">Loading rating history...</p>
-                  ) : arenaHistory.length === 0 ? (
-                    <p className="text-sm text-brand-gray-500">
-                      Your ladder history will appear after ranked matches are recorded.
-                    </p>
-                  ) : (
-                    arenaHistory.map((entry, index) => (
-                      <ArenaHistoryRow
-                        key={`${entry.matchId ?? "entry"}-${entry.createdAt}-${index}`}
-                        entry={entry}
-                      />
-                    ))
-                  )}
+                <div className="mt-3 flex items-end justify-between gap-4">
+                  <p className="max-w-[170px] text-sm text-brand-gray-500">
+                    {arenaLoading
+                      ? "Loading topic strengths..."
+                      : arenaTopTopics.length === 0
+                        ? "Topic strengths will appear after a few Arena matches. Play to unlock."
+                        : `Your best topic is ${arenaTopTopics[0].title}. Keep queueing to strengthen your top lane.`}
+                  </p>
+                  <Image src="/topic-strengths.svg" alt="Topic strength visual" width={88} height={88} className="h-20 w-20 opacity-95" />
                 </div>
-              </div>
+
+                {!arenaLoading && arenaTopTopics.length > 0 && (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {arenaTopTopics.slice(0, 2).map((topic) => (
+                      <span
+                        key={topic.publicCourseId}
+                        className="rounded-full border border-brand-teal/20 bg-brand-teal/10 px-3 py-1 text-xs font-semibold text-brand-teal"
+                      >
+                        {topic.title} ({topic.rating})
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </section>
+
+                <section className="flex h-full flex-col rounded-[28px] border border-white/70 bg-white/68 p-4">
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-gray-500">Rank History</p>
+                <h3 className="mt-1 font-heading text-[30px] font-extrabold leading-tight text-brand-gray-700">Recent ladder movement</h3>
+
+                  <div className="mt-3 flex flex-1 items-end justify-between gap-4">
+                  <p className="max-w-[170px] text-sm text-brand-gray-500">
+                    {arenaLoading
+                      ? "Loading ladder timeline..."
+                      : arenaHistory.length === 0
+                        ? "Your detailed ladder and rank history will appear here after ranked matches are recorded. Rank up to fill this history."
+                        : "Recent shifts are now tracked below. Continue ranked matches to build your full ladder trail."}
+                  </p>
+                  <Image src="/rank-history-scroll.svg" alt="Rank history visual" width={90} height={90} className="h-20 w-20 opacity-95" />
+                </div>
+
+                {!arenaLoading && arenaHistory.length > 0 && (
+                  <div className="mt-4 space-y-2">
+                    {arenaHistory.slice(0, 2).map((entry, index) => (
+                      <div key={`${entry.createdAt}-${entry.matchId ?? "entry"}-${index}`} className="rounded-xl border border-white/75 bg-white/76 px-3 py-2">
+                        <p className="text-sm font-semibold text-brand-gray-700">
+                          {entry.rankTierBefore} to {entry.rankTierAfter}
+                        </p>
+                        <p className="mt-1 text-xs text-brand-gray-500">
+                          {entry.ratingBefore} to {entry.ratingAfter} ({entry.ratingDelta > 0 ? "+" : ""}{entry.ratingDelta})
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
             </div>
           </div>
         </DeepGlassCard>
+      </div>
 
-        <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-          <DeepGlassCard className="border border-white/70 bg-white/80 px-6 py-6 shadow-[0_20px_50px_rgba(31,41,55,0.10)]">
-            <div className="mb-5">
-              <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-brand-teal">
-                Account
-              </p>
-              <h2 className="mt-2 font-heading text-2xl font-extrabold text-brand-gray-700">
-                Personal Details
-              </h2>
-              <p className="mt-2 text-sm leading-relaxed text-brand-gray-500">
-                Update the identity shown across your courses, map, and learning
-                sessions.
-              </p>
-            </div>
+      {activeOverlay && (
+        <ProfileOverlayShell
+          title={activeOverlay === "personal" ? "Personal Profile" : "Wallet"}
+          onClose={() => setActiveOverlay(null)}
+        >
+          {activeOverlay === "personal" ? (
+            <PersonalProfileContent
+              form={form}
+              setForm={setForm}
+              saving={saving}
+              error={error}
+              handleSaveProfile={handleSaveProfile}
+              preferences={preferences}
+              setPreferences={setPreferences}
+              handleLogout={handleLogout}
+            />
+          ) : (
+            <WalletContent
+              ledgerLoading={ledgerLoading}
+              ledgerItems={ledgerItems}
+              error={error}
+            />
+          )}
+        </ProfileOverlayShell>
+      )}
+    </div>
+  );
+}
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="block">
-                <span className="text-sm text-brand-gray-600">Display Name</span>
-                <input
-                  type="text"
-                  value={form.full_name}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, full_name: e.target.value }))
-                  }
-                  className="mt-1.5 w-full rounded-2xl border border-brand-gray-200 bg-white/75 px-4 py-3 text-sm text-brand-gray-700 outline-none focus:border-brand-teal"
-                />
-              </label>
-
-              <label className="block">
-                <span className="text-sm text-brand-gray-600">Job Title</span>
-                <input
-                  type="text"
-                  value={form.job_title}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, job_title: e.target.value }))
-                  }
-                  className="mt-1.5 w-full rounded-2xl border border-brand-gray-200 bg-white/75 px-4 py-3 text-sm text-brand-gray-700 outline-none focus:border-brand-teal"
-                />
-              </label>
-
-              <label className="block">
-                <span className="text-sm text-brand-gray-600">Education Level</span>
-                <input
-                  type="text"
-                  value={form.education_level}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      education_level: e.target.value,
-                    }))
-                  }
-                  className="mt-1.5 w-full rounded-2xl border border-brand-gray-200 bg-white/75 px-4 py-3 text-sm text-brand-gray-700 outline-none focus:border-brand-teal"
-                />
-              </label>
-
-              <label className="block">
-                <span className="text-sm text-brand-gray-600">Preferred Language</span>
-                <input
-                  type="text"
-                  value={form.preferred_language}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      preferred_language: e.target.value,
-                    }))
-                  }
-                  placeholder="English, 繁體中文, 日本語..."
-                  className="mt-1.5 w-full rounded-2xl border border-brand-gray-200 bg-white/75 px-4 py-3 text-sm text-brand-gray-700 outline-none focus:border-brand-teal"
-                />
-              </label>
-
-              <label className="block">
-                <span className="text-sm text-brand-gray-600">Daily Goal (min)</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="5"
-                  value={form.daily_learning_goal_minutes}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      daily_learning_goal_minutes: e.target.value,
-                    }))
-                  }
-                  className="mt-1.5 w-full rounded-2xl border border-brand-gray-200 bg-white/75 px-4 py-3 text-sm text-brand-gray-700 outline-none focus:border-brand-teal"
-                />
-              </label>
-            </div>
-
-            <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <GameButton
-                onClick={() => void handleSaveProfile()}
-                disabled={saving}
-                className="min-w-[170px]"
-              >
-                {saving ? "Saving..." : "Save Profile"}
-              </GameButton>
-              {error && <p className="text-sm text-rose-500">{error}</p>}
-            </div>
-          </DeepGlassCard>
-
-          <div className="space-y-6">
-            <DeepGlassCard className="border border-white/70 bg-white/80 px-6 py-6 shadow-[0_20px_50px_rgba(31,41,55,0.10)]">
-              <div className="mb-4">
-                <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-brand-teal">
-                  Credits
-                </p>
-                <h2 className="mt-2 font-heading text-2xl font-extrabold text-brand-gray-700">
-                  Wallet
-                </h2>
-              </div>
-
-              <div className="rounded-3xl border border-[#f5d77a]/55 bg-gradient-to-br from-[#fff7d8] via-white to-[#f6fbfc] px-5 py-5 shadow-[0_16px_40px_rgba(244,184,0,0.12)]">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-brand-gray-400">
-                      Available
-                    </p>
-                    <p className="mt-2 font-heading text-3xl font-extrabold text-brand-gray-700">
-                      {(authUser?.credits ?? 0).toLocaleString()}
-                    </p>
-                  </div>
-                  <button
-                    onClick={handleOpenStore}
-                    className="rounded-2xl border border-brand-gray-200 bg-white px-3 py-2 text-xs font-semibold text-brand-gray-600 transition hover:border-brand-teal hover:text-brand-teal"
-                  >
-                    Open Store
-                  </button>
-                </div>
-
-                <div className="mt-4 grid grid-cols-3 gap-2">
-                  {[500, 2000, 5000].map((amount) => (
-                    <button
-                      key={amount}
-                      onClick={() => void handleQuickTopUp(amount)}
-                      disabled={toppingUpAmount !== null}
-                      className="rounded-2xl bg-brand-teal/10 px-3 py-2 text-xs font-semibold text-brand-teal transition hover:bg-brand-teal hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {toppingUpAmount === amount
-                        ? "Adding..."
-                        : `+${amount.toLocaleString()}`}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </DeepGlassCard>
-
-            <DeepGlassCard className="border border-white/70 bg-white/80 px-6 py-6 shadow-[0_20px_50px_rgba(31,41,55,0.10)]">
-              <div className="mb-4">
-                <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-brand-teal">
-                  Activity
-                </p>
-                <h2 className="mt-2 font-heading text-2xl font-extrabold text-brand-gray-700">
-                  Recent Account Activity
-                </h2>
-              </div>
-
-              <div className="space-y-3">
-                {ledgerLoading ? (
-                  <div className="rounded-2xl border border-brand-gray-100 bg-brand-gray-50 px-4 py-4 text-sm text-brand-gray-500">
-                    Loading recent activity...
-                  </div>
-                ) : ledgerItems.length === 0 ? (
-                  <div className="rounded-2xl border border-brand-gray-100 bg-brand-gray-50 px-4 py-4 text-sm text-brand-gray-500">
-                    No credits or XP events yet.
-                  </div>
-                ) : (
-                  ledgerItems.map((item) => (
-                    <LedgerActivityRow key={item.id} item={item} />
-                  ))
-                )}
-              </div>
-            </DeepGlassCard>
-
-            <DeepGlassCard className="border border-white/70 bg-white/80 px-6 py-6 shadow-[0_20px_50px_rgba(31,41,55,0.10)]">
-              <div className="mb-4">
-                <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-brand-teal">
-                  Preferences
-                </p>
-                <h2 className="mt-2 font-heading text-2xl font-extrabold text-brand-gray-700">
-                  Learning Setup
-                </h2>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-brand-gray-600">
-                    Sound Effects
-                  </span>
-                  <ProfileToggle
-                    on={preferences.soundOn}
-                    onChange={() =>
-                      setPreferences({ soundOn: !preferences.soundOn })
-                    }
-                  />
-                </div>
-
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm text-brand-gray-600">
-                    Dark / Glass Theme
-                  </span>
-                  <ProfileToggle
-                    on={preferences.darkGlass}
-                    onChange={() =>
-                      setPreferences({ darkGlass: !preferences.darkGlass })
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-brand-gray-600">
-                      Difficulty Scaling
-                    </span>
-                    <span className="text-xs font-semibold text-brand-gray-400">
-                      {preferences.difficulty}
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={preferences.difficulty}
-                    onChange={(e) =>
-                      setPreferences({ difficulty: Number(e.target.value) })
-                    }
-                    className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-brand-gray-200 accent-brand-teal"
-                  />
-                </div>
-              </div>
-            </DeepGlassCard>
-
-            <DeepGlassCard className="border border-white/70 bg-white/80 px-6 py-6 shadow-[0_20px_50px_rgba(31,41,55,0.10)]">
-              <div className="flex flex-col gap-3">
-                <button
-                  onClick={handleOpenStore}
-                  className="rounded-2xl border border-brand-gray-200 bg-white px-4 py-3 text-sm font-semibold text-brand-gray-600 transition hover:border-brand-teal hover:text-brand-teal"
-                >
-                  Open Full Store
-                </button>
-                <button
-                  onClick={handleLogout}
-                  className="rounded-2xl bg-brand-teal px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90"
-                >
-                  Log Out
-                </button>
-              </div>
-            </DeepGlassCard>
+function ProfileOverlayShell({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  return (
+    <div className="fixed inset-0 z-[120]">
+      <div className="absolute inset-0 bg-slate-900/35 backdrop-blur-md" onClick={onClose} />
+      <div className="relative z-10 flex min-h-full items-center justify-center p-4">
+        <div className="w-full max-w-3xl rounded-[30px] border border-white/70 bg-white/90 shadow-[0_30px_80px_rgba(15,23,42,0.28)] backdrop-blur-xl">
+          <div className="flex items-center justify-between border-b border-brand-gray-100 px-5 py-4 md:px-6">
+            <h2 className="font-heading text-2xl font-extrabold text-brand-gray-700">{title}</h2>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close panel"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-brand-gray-200 bg-white text-brand-gray-500 transition hover:text-brand-gray-700"
+            >
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 6L6 18" />
+                <path d="M6 6l12 12" />
+              </svg>
+            </button>
           </div>
+          <div className="max-h-[78vh] overflow-y-auto px-5 py-5 md:px-6 md:py-6">{children}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PersonalProfileContent({
+  form,
+  setForm,
+  saving,
+  error,
+  handleSaveProfile,
+  preferences,
+  setPreferences,
+  handleLogout,
+}: {
+  form: ProfileFormState;
+  setForm: Dispatch<SetStateAction<ProfileFormState>>;
+  saving: boolean;
+  error: string;
+  handleSaveProfile: () => Promise<void>;
+  preferences: PreferenceState;
+  setPreferences: (patch: Partial<PreferenceState>) => void;
+  handleLogout: () => void;
+}) {
+  return (
+    <div className="space-y-5">
+      <p className="text-sm text-brand-gray-500">
+        Update your public profile details and learning preferences. Changes are applied immediately after saving.
+      </p>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <label className="block">
+          <span className="text-sm text-brand-gray-600">Display Name</span>
+          <input
+            type="text"
+            value={form.full_name}
+            onChange={(event) => setForm((prev) => ({ ...prev, full_name: event.target.value }))}
+            className="mt-1.5 w-full rounded-2xl border border-brand-gray-200 bg-white/85 px-4 py-3 text-sm text-brand-gray-700 outline-none focus:border-brand-teal"
+          />
+        </label>
+
+        <label className="block">
+          <span className="text-sm text-brand-gray-600">Job Title</span>
+          <input
+            type="text"
+            value={form.job_title}
+            onChange={(event) => setForm((prev) => ({ ...prev, job_title: event.target.value }))}
+            className="mt-1.5 w-full rounded-2xl border border-brand-gray-200 bg-white/85 px-4 py-3 text-sm text-brand-gray-700 outline-none focus:border-brand-teal"
+          />
+        </label>
+
+        <label className="block">
+          <span className="text-sm text-brand-gray-600">Education Level</span>
+          <input
+            type="text"
+            value={form.education_level}
+            onChange={(event) => setForm((prev) => ({ ...prev, education_level: event.target.value }))}
+            className="mt-1.5 w-full rounded-2xl border border-brand-gray-200 bg-white/85 px-4 py-3 text-sm text-brand-gray-700 outline-none focus:border-brand-teal"
+          />
+        </label>
+
+        <label className="block">
+          <span className="text-sm text-brand-gray-600">Preferred Language</span>
+          <input
+            type="text"
+            value={form.preferred_language}
+            onChange={(event) => setForm((prev) => ({ ...prev, preferred_language: event.target.value }))}
+            className="mt-1.5 w-full rounded-2xl border border-brand-gray-200 bg-white/85 px-4 py-3 text-sm text-brand-gray-700 outline-none focus:border-brand-teal"
+          />
+        </label>
+
+        <label className="block">
+          <span className="text-sm text-brand-gray-600">Daily Goal (min)</span>
+          <input
+            type="number"
+            min="0"
+            step="5"
+            value={form.daily_learning_goal_minutes}
+            onChange={(event) => setForm((prev) => ({ ...prev, daily_learning_goal_minutes: event.target.value }))}
+            className="mt-1.5 w-full rounded-2xl border border-brand-gray-200 bg-white/85 px-4 py-3 text-sm text-brand-gray-700 outline-none focus:border-brand-teal"
+          />
+        </label>
+      </div>
+
+      <div className="rounded-2xl border border-brand-gray-100 bg-brand-gray-50/75 p-4">
+        <p className="text-sm font-semibold text-brand-gray-700">Learning preferences</p>
+
+        <div className="mt-3 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-brand-gray-600">Sound Effects</span>
+            <ProfileToggle on={preferences.soundOn} onChange={() => setPreferences({ soundOn: !preferences.soundOn })} />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-brand-gray-600">Dark / Glass Theme</span>
+            <ProfileToggle on={preferences.darkGlass} onChange={() => setPreferences({ darkGlass: !preferences.darkGlass })} />
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-brand-gray-600">Difficulty Scaling</span>
+              <span className="text-xs font-semibold text-brand-gray-400">{preferences.difficulty}</span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={preferences.difficulty}
+              onChange={(event) => setPreferences({ difficulty: Number(event.target.value) })}
+              className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-brand-gray-200 accent-brand-teal"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="rounded-xl border border-brand-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-brand-gray-600 transition hover:border-brand-teal hover:text-brand-teal"
+        >
+          Log Out
+        </button>
+        <div className="flex flex-col items-start gap-2 sm:items-end">
+          {error ? <p className="text-sm text-rose-500">{error}</p> : null}
+          <GameButton onClick={() => void handleSaveProfile()} disabled={saving} className="min-w-[170px]">
+            {saving ? "Saving..." : "Save Profile"}
+          </GameButton>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function WalletContent({
+  ledgerLoading,
+  ledgerItems,
+  error,
+}: {
+  ledgerLoading: boolean;
+  ledgerItems: UserLedgerEvent[];
+  error: string;
+}) {
+  return (
+    <div className="space-y-5">
+      {error ? <p className="text-sm text-rose-500">{error}</p> : null}
+
+      <div className="rounded-2xl border border-brand-gray-100 bg-brand-gray-50/75 p-4">
+        <p className="text-sm font-semibold text-brand-gray-700">Recent account activity</p>
+        <div className="mt-3 space-y-3">
+          {ledgerLoading ? (
+            <div className="rounded-2xl border border-brand-gray-100 bg-white px-4 py-4 text-sm text-brand-gray-500">
+              Loading recent activity...
+            </div>
+          ) : ledgerItems.length === 0 ? (
+            <div className="rounded-2xl border border-brand-gray-100 bg-white px-4 py-4 text-sm text-brand-gray-500">
+              No credits or XP events yet.
+            </div>
+          ) : (
+            ledgerItems.map((item) => <LedgerActivityRow key={item.id} item={item} />)
+          )}
         </div>
       </div>
     </div>
@@ -623,18 +561,12 @@ export default function ProfilePageClient() {
 
 function LedgerActivityRow({ item }: { item: UserLedgerEvent }) {
   const eventLabel = getLedgerEventLabel(item.event_type);
-  const creditsText =
-    item.credits_delta === 0
-      ? null
-      : `${item.credits_delta > 0 ? "+" : ""}${item.credits_delta.toLocaleString()} credits`;
-  const xpText =
-    item.xp_delta === 0
-      ? null
-      : `+${item.xp_delta.toLocaleString()} XP`;
+  const creditsText = item.credits_delta === 0 ? null : `${item.credits_delta > 0 ? "+" : ""}${item.credits_delta.toLocaleString()} credits`;
+  const xpText = item.xp_delta === 0 ? null : `+${item.xp_delta.toLocaleString()} XP`;
   const timestamp = new Date(item.created_at).toLocaleString();
 
   return (
-    <div className="rounded-2xl border border-brand-gray-100 bg-brand-gray-50/75 px-4 py-3">
+    <div className="rounded-2xl border border-brand-gray-100 bg-white px-4 py-3">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-brand-gray-700">{eventLabel}</p>
@@ -642,65 +574,178 @@ function LedgerActivityRow({ item }: { item: UserLedgerEvent }) {
         </div>
         <div className="text-right">
           {creditsText && (
-            <p
-              className={`text-sm font-semibold ${
-                item.credits_delta > 0 ? "text-brand-green" : "text-rose-500"
-              }`}
-            >
+            <p className={`text-sm font-semibold ${item.credits_delta > 0 ? "text-brand-green" : "text-rose-500"}`}>
               {creditsText}
             </p>
           )}
-          {xpText && <p className="text-sm font-semibold text-brand-teal">{xpText}</p>}
+          {xpText ? <p className="text-sm font-semibold text-brand-teal">{xpText}</p> : null}
         </div>
       </div>
       <p className="mt-2 text-xs text-brand-gray-500">
-        Balance: {item.credits_balance_after.toLocaleString()} credits, level{" "}
-        {item.level_after}, {item.xp_balance_after.toLocaleString()} XP
+        Balance: {item.credits_balance_after.toLocaleString()} credits, level {item.level_after}, {item.xp_balance_after.toLocaleString()} XP
       </p>
     </div>
   );
 }
 
-function ArenaMetricPill({ label, value }: { label: string; value: string }) {
+function resolveSeasonBadgeVisual(badge: string): { src: string; alt: string } {
+  switch (badge.trim().toLowerCase()) {
+    case "crown":
+      return { src: "/season-badge-crown.svg", alt: "Crown badge" };
+    case "podium":
+      return { src: "/season-badge-podium.svg", alt: "Podium badge" };
+    case "elite":
+      return { src: "/season-badge-elite.svg", alt: "Elite badge" };
+    case "star":
+      return { src: "/season-badge-star.svg", alt: "Star badge" };
+    case "":
+    case "none":
+    case "unranked":
+      return { src: "/season-badge-none.svg", alt: "Unranked badge" };
+    default:
+      return { src: "/season-badge-none.svg", alt: `${badge} badge` };
+  }
+}
+
+function resolveRankTierTagline(rankTier?: string | null): string {
+  switch ((rankTier ?? "").trim().toLowerCase()) {
+    case "bronze":
+      return "Foundation";
+    case "silver":
+      return "Steady";
+    case "gold":
+      return "Focused";
+    case "platinum":
+      return "Tempo";
+    case "diamond":
+      return "Precision";
+    case "master":
+      return "Command";
+    case "grandmaster":
+      return "Apex";
+    default:
+      return "Climb";
+  }
+}
+
+function ArenaMetricPill({
+  label,
+  value,
+  iconSrc,
+  iconAlt,
+  compactText,
+}: {
+  label: string;
+  value: string;
+  iconSrc?: string;
+  iconAlt?: string;
+  compactText?: boolean;
+}) {
   return (
-    <div className="rounded-2xl border border-white/70 bg-white/78 px-4 py-3">
-      <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-brand-gray-400">
-        {label}
-      </p>
-      <p className="mt-2 font-heading text-2xl font-bold text-brand-gray-700">{value}</p>
+    <div className="flex h-full min-h-[98px] w-full min-w-0 flex-col rounded-2xl border border-[#365580] bg-gradient-to-b from-[#2d4f7b] to-[#1f385b] px-3 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+      <p className="w-full text-center text-[10px] font-bold uppercase tracking-[0.14em] text-white/70">{label}</p>
+      {iconSrc ? (
+        <div className="mt-2 flex flex-1 items-center justify-center">
+          <Image
+            src={iconSrc}
+            alt={iconAlt ?? `${label} badge`}
+            width={56}
+            height={56}
+            className="h-11 w-11 object-contain drop-shadow-[0_8px_12px_rgba(0,0,0,0.25)] sm:h-12 sm:w-12"
+          />
+        </div>
+      ) : compactText ? (
+        <div className="mt-2 flex flex-1 items-center justify-center">
+          <p className="w-full text-center font-heading text-[0.8rem] font-extrabold leading-snug text-white/95 sm:text-[0.9rem]">{value}</p>
+        </div>
+      ) : (
+        <p className="mt-2 w-full whitespace-nowrap text-center font-heading text-[1.15rem] font-extrabold leading-none sm:text-[1.35rem]">{value}</p>
+      )}
     </div>
   );
 }
 
-function ArenaHistoryRow({ entry }: { entry: ArenaRankHistoryEntry }) {
-  const timestamp = new Date(entry.createdAt).toLocaleString();
-  const deltaText = `${entry.ratingDelta > 0 ? "+" : ""}${entry.ratingDelta}`;
+function resolveRecentOutcomeTrends(history: ArenaRankHistoryEntry[]): { win: number[]; loss: number[]; draw: number[] } {
+  const recentDesc = [...history]
+    .sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt))
+    .slice(0, 5);
+  const chronological = recentDesc.sort((left, right) => Date.parse(left.createdAt) - Date.parse(right.createdAt));
+  const paddedChronological: Array<ArenaRankHistoryEntry | null> = [
+    ...Array.from({ length: Math.max(0, 5 - chronological.length) }, () => null),
+    ...chronological,
+  ];
+
+  let wins = 0;
+  let losses = 0;
+  let draws = 0;
+
+  const winTrend: number[] = [];
+  const lossTrend: number[] = [];
+  const drawTrend: number[] = [];
+
+  for (const entry of paddedChronological) {
+    if (entry) {
+      if (entry.ratingDelta > 0) {
+        wins += 1;
+      } else if (entry.ratingDelta < 0) {
+        losses += 1;
+      } else {
+        draws += 1;
+      }
+    }
+    winTrend.push(wins);
+    lossTrend.push(losses);
+    drawTrend.push(draws);
+  }
+
+  return {
+    win: winTrend,
+    loss: lossTrend,
+    draw: drawTrend,
+  };
+}
+
+function ArenaSummaryMetric({
+  label,
+  value,
+  tone,
+  trendValues,
+}: {
+  label: string;
+  value: string;
+  tone: "win" | "loss" | "draw";
+  trendValues: number[];
+}) {
+  const chartValues = trendValues.length > 0 ? trendValues : [0, 0, 0, 0, 0];
+  const maxValue = Math.max(...chartValues, 1);
+  const viewWidth = 100;
+  const viewHeight = 24;
+  const padX = 4;
+  const padY = 3;
+  const xStep = chartValues.length > 1 ? (viewWidth - padX * 2) / (chartValues.length - 1) : 0;
+  const polylinePoints = chartValues
+    .map((point, index) => {
+      const x = padX + xStep * index;
+      const y = viewHeight - padY - (point / maxValue) * (viewHeight - padY * 2);
+      return `${x.toFixed(2)},${y.toFixed(2)}`;
+    })
+    .join(" ");
+
+  const toneStroke =
+    tone === "win"
+      ? "#63d5eb"
+      : tone === "loss"
+        ? "#d8a0bc"
+        : "#b9c2d1";
 
   return (
-    <div className="rounded-2xl border border-white/70 bg-white/76 px-4 py-3">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold text-brand-gray-700">
-            {entry.rankTierBefore} to {entry.rankTierAfter}
-          </p>
-          <p className="mt-1 text-xs text-brand-gray-400">{timestamp}</p>
-        </div>
-        <div className="text-right">
-          <p
-            className={`text-sm font-semibold ${
-              entry.ratingDelta > 0
-                ? "text-brand-green"
-                : entry.ratingDelta < 0
-                  ? "text-rose-500"
-                  : "text-brand-gray-500"
-            }`}
-          >
-            {deltaText}
-          </p>
-          <p className="mt-1 text-xs text-brand-gray-500">
-            {entry.ratingBefore} to {entry.ratingAfter}
-          </p>
-        </div>
+    <div className="flex h-full min-h-[122px] w-full min-w-0 flex-col rounded-2xl border border-[#365580] bg-gradient-to-b from-[#2d4f7b] to-[#1f385b] px-3 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/70">{label}</p>
+      <p className="mt-2 truncate font-heading text-3xl font-extrabold leading-none">{value}</p>
+      <div className="mt-auto h-7 overflow-visible">
+        <svg viewBox={`0 0 ${viewWidth} ${viewHeight}`} className="h-full w-full" preserveAspectRatio="none" aria-hidden="true">
+          <polyline fill="none" stroke={toneStroke} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" points={polylinePoints} />
+        </svg>
       </div>
     </div>
   );

@@ -1,0 +1,18 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="shieldCrown" x1="18" y1="10" x2="108" y2="122" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F0B941" />
+      <stop offset="1" stop-color="#B4741A" />
+    </linearGradient>
+    <linearGradient id="crownMetal" x1="44" y1="45" x2="84" y2="78" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF2A5" />
+      <stop offset="1" stop-color="#D4981D" />
+    </linearGradient>
+  </defs>
+  <path d="M64 8L108 28L101 79C101 97 86 113 64 122C42 113 27 97 27 79L20 28L64 8Z" fill="url(#shieldCrown)" stroke="#FFE2A1" stroke-width="3" />
+  <path d="M44 49L52 63L64 48L76 63L84 49L88 69H40L44 49Z" fill="url(#crownMetal)" />
+  <circle cx="44" cy="48" r="3" fill="#FFF5C2" />
+  <circle cx="64" cy="44" r="3" fill="#FFF5C2" />
+  <circle cx="84" cy="48" r="3" fill="#FFF5C2" />
+  <rect x="40" y="69" width="48" height="8" rx="4" fill="#E2A225" />
+</svg>

@@ -39,7 +39,7 @@ export function HomeForgePanel({
   onRemoveCourseFile,
 }: HomeForgePanelProps) {
   return (
-    <DeepGlassCard className="relative h-full min-h-[360px] px-6 py-6 md:px-7 md:py-7">
+    <DeepGlassCard className="relative h-full min-h-[400px] px-7 py-7 md:px-8 md:py-8">
       <div className="flex h-full flex-col">
         <input
           ref={fileInputRef}
@@ -66,7 +66,7 @@ export function HomeForgePanel({
             setIsDragging(false);
           }}
           onDrop={onDrop}
-          className={`relative flex min-h-[200px] flex-1 cursor-pointer flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed backdrop-blur-sm transition-all duration-200 ${
+          className={`relative flex min-h-[225px] flex-1 cursor-pointer flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed backdrop-blur-sm transition-all duration-200 ${
             isDragging
               ? "border-brand-teal/80 bg-white/60 shadow-lg shadow-brand-teal/10"
               : "border-brand-teal/40 bg-white/40 hover:border-brand-teal/70 hover:bg-white/50"
@@ -123,7 +123,7 @@ export function HomeForgePanel({
                       ))}
                     </div>
                   ) : (
-                    <p className="max-w-xs px-4 text-center text-sm text-brand-gray-500 md:text-base">
+                    <p className="max-w-sm px-4 text-center text-base text-brand-gray-500">
                       {isDragging
                         ? "Release to upload your PDF"
                         : "Drop a PDF here or click this card to start a new course, then define your topic below."}
@@ -135,7 +135,7 @@ export function HomeForgePanel({
           </AnimatePresence>
         </motion.div>
 
-        <div className="mt-4 space-y-3 rounded-2xl border border-[#9ecbd4]/18 bg-white/46 p-4 shadow-[0_12px_30px_rgba(97,163,184,0.10)] backdrop-blur-sm">
+        <div className="mt-5 space-y-3 rounded-2xl border border-[#9ecbd4]/18 bg-white/46 p-5 shadow-[0_12px_30px_rgba(97,163,184,0.10)] backdrop-blur-sm">
           <div className="flex flex-col gap-4 md:flex-row md:items-start">
             <div className="min-w-0 flex-1">
               <input
@@ -147,14 +147,15 @@ export function HomeForgePanel({
                   }
                 }}
                 placeholder="Enter the topic you want to learn"
-                className="w-full rounded-xl border border-brand-gray-200 bg-white px-4 py-3 text-sm text-brand-gray-700 outline-none focus:border-brand-teal"
+                className="w-full rounded-xl border border-brand-gray-200 bg-white px-4 py-3.5 text-base text-brand-gray-700 outline-none focus:border-brand-teal"
               />
             </div>
             <div className="md:w-auto md:shrink-0">
               <GameButton
+                variant="secondary"
                 onClick={() => void onTopicSubmit()}
                 disabled={!topic.trim() || isSubmittingTopic || isForging}
-                className="w-full min-w-[160px] md:min-w-[180px]"
+                className="w-full min-w-[170px] text-lg md:min-w-[200px]"
               >
                 {isSubmittingTopic ? "Generating..." : "Generate"}
               </GameButton>
@@ -168,7 +169,7 @@ export function HomeForgePanel({
 
 function PortalIcon() {
   return (
-    <svg viewBox="0 0 120 120" className="h-24 w-24" fill="none">
+    <svg viewBox="0 0 120 120" className="h-28 w-28" fill="none">
       <circle cx="60" cy="60" r="50" fill="#7AC7C4" opacity="0.08" />
       <circle cx="60" cy="60" r="42" fill="#7AC7C4" opacity="0.12" />
       <circle cx="60" cy="60" r="35" fill="none" stroke="#7AC7C4" strokeWidth="3" opacity="0.4" />
