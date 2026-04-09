@@ -30,6 +30,7 @@ export function useQuestionnaireFlow() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const activeJobIdRef = useRef<string | null>(null);
+  const isInitiatingRef = useRef(false);
   const hasNavigatedAwayRef = useRef(false);
 
   const [step, setStep] = useState<QuestionnaireStep>("answering");
@@ -231,10 +232,14 @@ export function useQuestionnaireFlow() {
     if (typeof window === "undefined") return;
 
     resetQuestionnaireState();
+    isInitiatingRef.current = false;
 
     const courseIdFromQuery = searchParams.get("courseId");
 
     const start = async () => {
+      if (isInitiatingRef.current) return;
+      isInitiatingRef.current = true;
+
       try {
         let pendingCourseId: number | null = null;
         let pendingTopic = "";

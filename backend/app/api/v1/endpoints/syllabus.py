@@ -107,6 +107,22 @@ async def generate_syllabus(
             if content:
                 full_text_context += f"\\n--- Document: {fname} ---\\n{content}\\n"
 
+    # Check for existing active job to prevent duplication
+    existing_job = (
+        db.query(JobModel)
+        .filter(
+            JobModel.course_id == course_id,
+            JobModel.job_type == JobType.SYLLABUS_GENERATION,
+            JobModel.status.in_([JobStatus.PENDING, JobStatus.PROCESSING]),
+        )
+        .first()
+    )
+    if existing_job:
+        return JSONResponse(
+            status_code=202,
+            content={"job_id": existing_job.id, "status": existing_job.status},
+        )
+
     # 建立 PENDING 狀態的 Job
     new_job = JobModel(
         user_id=current_user.id,
