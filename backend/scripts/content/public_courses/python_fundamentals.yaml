@@ -1,0 +1,448 @@
+title: "Python Fundamentals"
+topic: "Python Programming Basics"
+description: "Master Python from variables and loops to object-oriented programming and file I/O."
+units:
+  - unitId: "py-u1"
+    unitTitle: "Basics & Data Types"
+    unitDescription: "Variables, types, and basic operations."
+    nodes:
+      - id: "py-1-1"
+        title: "Variables & Assignment"
+        description: "Storing and naming data in Python."
+        stages:
+          - component: "ExplainerMedia"
+            data:
+              title: "Naming Things"
+              explanation: "Variables in Python are names that point to objects in memory. Use `=` to assign."
+              bullets: ["Dynamic typing: no need to declare type", "snake_case convention"]
+          - component: "MultipleChoice"
+            data:
+              question: "Which is a valid Python variable name?"
+              options:
+                - {id: "a", text: "2name"}
+                - {id: "b", text: "my_var"}
+                - {id: "c", text: "class"}
+                - {id: "d", text: "my-var"}
+              correctOptionId: "b"
+          - component: "FeynmanMirror"
+            data:
+              prompt: "Explain Python variables vs variables in math."
+              sampleAnswer: "In math, a variable represents an unknown. In Python, a variable is a label pointing to an object stored in memory—you can reassign it at any time."
+
+      - id: "py-1-2"
+        title: "Numbers & Arithmetic"
+        description: "int, float, and mathematical operators."
+        stages:
+          - component: "MultipleChoice"
+            data:
+              question: "What is the result of 7 // 2 in Python?"
+              options:
+                - {id: "a", text: "3.5"}
+                - {id: "b", text: "3"}
+                - {id: "c", text: "4"}
+                - {id: "d", text: "Error"}
+              correctOptionId: "b"
+          - component: "MatchingPairs"
+            data:
+              pairs:
+                - {id: "p1", left: "//", right: "Floor division"}
+                - {id: "p2", left: "**", right: "Exponentiation"}
+                - {id: "p3", left: "%", right: "Modulo (remainder)"}
+                - {id: "p4", left: "/", right: "True division"}
+          - component: "Ordering"
+            data:
+              question: "Order by operator precedence (highest first):"
+              steps: ["** (exponent)", "* / // % (mult/div)", "+ - (add/sub)", "= (assignment)"]
+
+      - id: "py-1-3"
+        title: "Strings"
+        description: "Text manipulation and formatting."
+        stages:
+          - component: "ExplainerMedia"
+            data:
+              title: "Text in Python"
+              explanation: "Strings are immutable sequences of characters. Use quotes, f-strings for formatting, and slicing for substrings."
+              bullets: ["f'Hello {name}'", "'hello'[1:4] → 'ell'"]
+          - component: "MultipleChoice"
+            data:
+              question: "What does 'hello'[1:3] return?"
+              options:
+                - {id: "a", text: "'hel'"}
+                - {id: "b", text: "'el'"}
+                - {id: "c", text: "'ell'"}
+                - {id: "d", text: "'he'"}
+              correctOptionId: "b"
+          - component: "MatchingPairs"
+            data:
+              pairs:
+                - {id: "p1", left: ".upper()", right: "HELLO"}
+                - {id: "p2", left: ".split()", right: "List of words"}
+                - {id: "p3", left: ".strip()", right: "Remove whitespace"}
+                - {id: "p4", left: ".replace()", right: "Substitute text"}
+
+      - id: "py-1-4"
+        title: "Lists"
+        description: "Ordered mutable sequences."
+        stages:
+          - component: "MultipleChoice"
+            data:
+              question: "Which method adds an element to the end of a list?"
+              options:
+                - {id: "a", text: ".add()"}
+                - {id: "b", text: ".append()"}
+                - {id: "c", text: ".insert()"}
+                - {id: "d", text: ".push()"}
+              correctOptionId: "b"
+          - component: "Ordering"
+            data:
+              question: "Order these list operations by what they do:"
+              steps: [".append() — add to end", ".insert(0, x) — add to start", ".pop() — remove last", ".clear() — remove all"]
+          - component: "FeynmanMirror"
+            data:
+              prompt: "Explain the difference between a list and a tuple."
+              sampleAnswer: "Lists are mutable ordered sequences (can add/remove/change elements), while tuples are immutable (cannot be changed after creation). Tuples use parentheses, lists use brackets."
+
+      - id: "py-1-5"
+        title: "Dictionaries"
+        description: "Key-value data structures."
+        stages:
+          - component: "ExplainerMedia"
+            data:
+              title: "Key-Value Pairs"
+              explanation: "Dictionaries store data as key-value pairs with O(1) lookup. Keys must be hashable."
+              bullets: ["d = {'name': 'Alice', 'age': 30}", "Access: d['name'] or d.get('name')"]
+          - component: "MultipleChoice"
+            data:
+              question: "What happens when you access a missing key with d['x']?"
+              options:
+                - {id: "a", text: "Returns None"}
+                - {id: "b", text: "Returns 0"}
+                - {id: "c", text: "KeyError"}
+                - {id: "d", text: "Creates the key"}
+              correctOptionId: "c"
+          - component: "MatchingPairs"
+            data:
+              pairs:
+                - {id: "p1", left: ".keys()", right: "All keys"}
+                - {id: "p2", left: ".values()", right: "All values"}
+                - {id: "p3", left: ".items()", right: "Key-value pairs"}
+                - {id: "p4", left: ".get(k, default)", right: "Safe access"}
+
+      - id: "py-1-6"
+        title: "Sets & Booleans"
+        description: "Unique collections and truth values."
+        stages:
+          - component: "MultipleChoice"
+            data:
+              question: "What is the result of {1,2,3} & {2,3,4}?"
+              options:
+                - {id: "a", text: "{1,2,3,4}"}
+                - {id: "b", text: "{2,3}"}
+                - {id: "c", text: "{1,4}"}
+                - {id: "d", text: "Error"}
+              correctOptionId: "b"
+          - component: "MatchingPairs"
+            data:
+              pairs:
+                - {id: "p1", left: "&", right: "Intersection"}
+                - {id: "p2", left: "|", right: "Union"}
+                - {id: "p3", left: "-", right: "Difference"}
+                - {id: "p4", left: "^", right: "Symmetric difference"}
+          - component: "Ordering"
+            data:
+              question: "Order these from falsy to truthy in Python:"
+              steps: ["None", "0", "'' (empty string)", "'hello' (non-empty)"]
+
+  - unitId: "py-u2"
+    unitTitle: "Control Flow & Functions"
+    unitDescription: "Conditionals, loops, and reusable functions."
+    nodes:
+      - id: "py-2-1"
+        title: "If/Elif/Else"
+        description: "Conditional branching."
+        stages:
+          - component: "ExplainerMedia"
+            data:
+              title: "Making Decisions"
+              explanation: "Python uses if/elif/else for branching. Conditions must be boolean expressions."
+              bullets: ["Indentation defines blocks", "elif = else if"]
+          - component: "MultipleChoice"
+            data:
+              question: "What prints? x=5; print('big' if x>3 else 'small')"
+              options:
+                - {id: "a", text: "big"}
+                - {id: "b", text: "small"}
+                - {id: "c", text: "5"}
+                - {id: "d", text: "Error"}
+              correctOptionId: "a"
+          - component: "Ordering"
+            data:
+              question: "Order the conditional evaluation:"
+              steps: ["Check if condition", "If True, execute if block", "Else check elif conditions", "If all False, execute else block"]
+
+      - id: "py-2-2"
+        title: "For Loops"
+        description: "Iterating over sequences."
+        stages:
+          - component: "MultipleChoice"
+            data:
+              question: "How many times does 'for i in range(5):' loop?"
+              options:
+                - {id: "a", text: "4"}
+                - {id: "b", text: "5"}
+                - {id: "c", text: "6"}
+                - {id: "d", text: "Infinite"}
+              correctOptionId: "b"
+          - component: "MatchingPairs"
+            data:
+              pairs:
+                - {id: "p1", left: "range(5)", right: "0,1,2,3,4"}
+                - {id: "p2", left: "range(2,5)", right: "2,3,4"}
+                - {id: "p3", left: "range(0,10,2)", right: "0,2,4,6,8"}
+                - {id: "p4", left: "range(5,0,-1)", right: "5,4,3,2,1"}
+          - component: "FeynmanMirror"
+            data:
+              prompt: "Explain enumerate() and when to use it."
+              sampleAnswer: "enumerate() wraps an iterable and yields (index, value) pairs, so you get both the position and the element without managing a counter variable manually."
+
+      - id: "py-2-3"
+        title: "While Loops"
+        description: "Repeating until a condition is met."
+        stages:
+          - component: "ExplainerMedia"
+            data:
+              title: "Loop Until Done"
+              explanation: "While loops repeat as long as a condition is True. Always ensure the condition eventually becomes False!"
+              bullets: ["Use break to exit early", "Use continue to skip iteration"]
+          - component: "MultipleChoice"
+            data:
+              question: "What can cause an infinite loop?"
+              options:
+                - {id: "a", text: "Forgetting to update the counter"}
+                - {id: "b", text: "Using break"}
+                - {id: "c", text: "Using range()"}
+                - {id: "d", text: "Using continue"}
+              correctOptionId: "a"
+          - component: "Ordering"
+            data:
+              question: "Order the while loop execution:"
+              steps: ["Evaluate condition", "If True, execute body", "Update loop variable", "Go back to step 1"]
+
+      - id: "py-2-4"
+        title: "Functions (def)"
+        description: "Defining and calling reusable code."
+        stages:
+          - component: "MultipleChoice"
+            data:
+              question: "What does a function without a return statement return?"
+              options:
+                - {id: "a", text: "0"}
+                - {id: "b", text: "''"}
+                - {id: "c", text: "None"}
+                - {id: "d", text: "Error"}
+              correctOptionId: "c"
+          - component: "MatchingPairs"
+            data:
+              pairs:
+                - {id: "p1", left: "def", right: "Define a function"}
+                - {id: "p2", left: "return", right: "Send value back"}
+                - {id: "p3", left: "*args", right: "Variable positional args"}
+                - {id: "p4", left: "**kwargs", right: "Variable keyword args"}
+          - component: "FeynmanMirror"
+            data:
+              prompt: "Explain the difference between parameters and arguments."
+              sampleAnswer: "Parameters are the variable names in the function definition. Arguments are the actual values passed when calling the function."
+
+      - id: "py-2-5"
+        title: "Lambda & Map/Filter"
+        description: "Functional programming basics."
+        stages:
+          - component: "ExplainerMedia"
+            data:
+              title: "Anonymous Functions"
+              explanation: "Lambda creates small anonymous functions inline: lambda x: x*2. Often used with map() and filter()."
+              bullets: ["map(func, iterable) → apply func to each", "filter(func, iterable) → keep if True"]
+          - component: "MultipleChoice"
+            data:
+              question: "What is the output of list(map(lambda x: x**2, [1,2,3]))?"
+              options:
+                - {id: "a", text: "[1,4,9]"}
+                - {id: "b", text: "[2,4,6]"}
+                - {id: "c", text: "[1,2,3]"}
+                - {id: "d", text: "Error"}
+              correctOptionId: "a"
+          - component: "Ordering"
+            data:
+              question: "Order from simplest to most complex:"
+              steps: ["lambda x: x", "lambda x: x*2", "lambda x,y: x+y", "def func(x): ..."]
+
+      - id: "py-2-6"
+        title: "List Comprehensions"
+        description: "Concise list creation syntax."
+        stages:
+          - component: "MultipleChoice"
+            data:
+              question: "What does [x for x in range(5) if x%2==0] produce?"
+              options:
+                - {id: "a", text: "[0,2,4]"}
+                - {id: "b", text: "[1,3]"}
+                - {id: "c", text: "[0,1,2,3,4]"}
+                - {id: "d", text: "[2,4]"}
+              correctOptionId: "a"
+          - component: "MatchingPairs"
+            data:
+              pairs:
+                - {id: "p1", left: "[x for x in L]", right: "List comprehension"}
+                - {id: "p2", left: "{x for x in L}", right: "Set comprehension"}
+                - {id: "p3", left: "{k:v for k,v in d}", right: "Dict comprehension"}
+                - {id: "p4", left: "(x for x in L)", right: "Generator expression"}
+          - component: "FeynmanMirror"
+            data:
+              prompt: "Explain when to use a list comprehension vs a for loop."
+              sampleAnswer: "Use comprehensions for simple transformations that produce a new list. Use for loops for complex logic, side effects, or when readability suffers from a one-liner."
+
+  - unitId: "py-u3"
+    unitTitle: "OOP & File I/O"
+    unitDescription: "Object-oriented programming and file handling."
+    nodes:
+      - id: "py-3-1"
+        title: "Classes & Objects"
+        description: "Defining custom types."
+        stages:
+          - component: "ExplainerMedia"
+            data:
+              title: "Blueprints for Objects"
+              explanation: "A class defines attributes and methods. Objects are instances of classes."
+              bullets: ["class Dog: ...", "my_dog = Dog()"]
+          - component: "MultipleChoice"
+            data:
+              question: "What is __init__ used for?"
+              options:
+                - {id: "a", text: "Deleting objects"}
+                - {id: "b", text: "Initializing attributes"}
+                - {id: "c", text: "Printing objects"}
+                - {id: "d", text: "Importing modules"}
+              correctOptionId: "b"
+          - component: "Ordering"
+            data:
+              question: "Order the OOP workflow:"
+              steps: ["Define a class", "Write __init__ method", "Add methods", "Create instances"]
+
+      - id: "py-3-2"
+        title: "Inheritance"
+        description: "Extending classes."
+        stages:
+          - component: "MultipleChoice"
+            data:
+              question: "What does super() do?"
+              options:
+                - {id: "a", text: "Creates a new class"}
+                - {id: "b", text: "Calls the parent class method"}
+                - {id: "c", text: "Deletes a class"}
+                - {id: "d", text: "Copies a class"}
+              correctOptionId: "b"
+          - component: "MatchingPairs"
+            data:
+              pairs:
+                - {id: "p1", left: "Inheritance", right: "Child extends parent"}
+                - {id: "p2", left: "Polymorphism", right: "Same interface, different behavior"}
+                - {id: "p3", left: "Encapsulation", right: "Hide internal details"}
+                - {id: "p4", left: "Abstraction", right: "Simplify complex systems"}
+          - component: "FeynmanMirror"
+            data:
+              prompt: "Explain method resolution order (MRO)."
+              sampleAnswer: "MRO determines the order Python searches for methods in inheritance hierarchies, typically using C3 linearization to ensure each class appears once."
+
+      - id: "py-3-3"
+        title: "Exception Handling"
+        description: "try/except for robust code."
+        stages:
+          - component: "ExplainerMedia"
+            data:
+              title: "Graceful Failures"
+              explanation: "Use try/except to catch errors. finally always runs. raise to throw custom exceptions."
+              bullets: ["try: → except: → finally:", "Catch specific exceptions first"]
+          - component: "MultipleChoice"
+            data:
+              question: "Which block always executes?"
+              options:
+                - {id: "a", text: "try"}
+                - {id: "b", text: "except"}
+                - {id: "c", text: "finally"}
+                - {id: "d", text: "raise"}
+              correctOptionId: "c"
+          - component: "Ordering"
+            data:
+              question: "Order the exception handling flow:"
+              steps: ["try block executes", "If error, jump to except", "Matching except block runs", "finally block always runs"]
+
+      - id: "py-3-4"
+        title: "File I/O"
+        description: "Reading and writing files."
+        stages:
+          - component: "MultipleChoice"
+            data:
+              question: "Which mode opens a file for reading?"
+              options:
+                - {id: "a", text: "'w'"}
+                - {id: "b", text: "'r'"}
+                - {id: "c", text: "'a'"}
+                - {id: "d", text: "'x'"}
+              correctOptionId: "b"
+          - component: "MatchingPairs"
+            data:
+              pairs:
+                - {id: "p1", left: "'r'", right: "Read only"}
+                - {id: "p2", left: "'w'", right: "Write (overwrite)"}
+                - {id: "p3", left: "'a'", right: "Append"}
+                - {id: "p4", left: "'rb'", right: "Read binary"}
+          - component: "FeynmanMirror"
+            data:
+              prompt: "Explain why 'with open()' is preferred over open()/close()."
+              sampleAnswer: "The 'with' statement creates a context manager that automatically closes the file when the block ends, even if an exception occurs, preventing resource leaks."
+
+      - id: "py-3-5"
+        title: "Modules & Imports"
+        description: "Organizing code across files."
+        stages:
+          - component: "ExplainerMedia"
+            data:
+              title: "Code Organization"
+              explanation: "Modules are .py files you can import. Packages are directories with __init__.py."
+              bullets: ["import math", "from os import path"]
+          - component: "MultipleChoice"
+            data:
+              question: "What does __name__ == '__main__' check?"
+              options:
+                - {id: "a", text: "If file is imported"}
+                - {id: "b", text: "If file is run directly"}
+                - {id: "c", text: "If file exists"}
+                - {id: "d", text: "If file is empty"}
+              correctOptionId: "b"
+          - component: "Ordering"
+            data:
+              question: "Order Python's module search path:"
+              steps: ["Current directory", "PYTHONPATH directories", "Standard library", "Site-packages"]
+
+      - id: "py-3-6"
+        title: "Decorators"
+        description: "Functions that modify functions."
+        stages:
+          - component: "ExplainerMedia"
+            data:
+              title: "Wrapping Functions"
+              explanation: "A decorator is a function that takes another function and extends its behavior. Use @decorator syntax."
+              bullets: ["@timer\ndef func(): ...", "Common: @property, @staticmethod"]
+          - component: "MultipleChoice"
+            data:
+              question: "What does @staticmethod do?"
+              options:
+                - {id: "a", text: "Makes method async"}
+                - {id: "b", text: "Removes self parameter"}
+                - {id: "c", text: "Makes method private"}
+                - {id: "d", text: "Caches results"}
+              correctOptionId: "b"
+          - component: "FeynmanMirror"
+            data:
+              prompt: "Explain how decorators work under the hood."
+              sampleAnswer: "When you write @my_decorator above a function, Python replaces: func = my_decorator(func). The decorator returns a wrapper that can add logic before/after calling the original function."
