@@ -173,18 +173,17 @@ export default function LoginPageClient() {
   };
 
   return (
-    <div className="relative flex min-h-screen flex-col bg-gradient-to-br from-[#edf7fb] via-[#c9e6f2] to-[#a3d5e8] overflow-hidden">
-      <ParticleField />
+    <div className="relative flex min-h-screen flex-col overflow-hidden bg-[#d9ecf6] bg-[url('/LogInBg.png')] bg-cover bg-center bg-no-repeat">
 
-      <main className="relative z-10 flex flex-1 items-center justify-center px-4 py-10 gap-8 flex-wrap lg:flex-nowrap max-w-7xl mx-auto w-full">
-        <section className="flex flex-col items-start max-w-md shrink-0">
-          <div className="mb-6 flex items-center gap-4">
-            <div className="h-14 w-14 overflow-hidden rounded-full border border-white/85 bg-white shadow-md">
+      <main className="relative z-10 mx-auto flex w-full max-w-[1440px] flex-1 flex-wrap items-center justify-center gap-8 px-4 py-10 lg:flex-nowrap lg:justify-between lg:gap-20 lg:px-10">
+        <section className="flex w-full max-w-xl flex-col items-start shrink-0 lg:max-w-[760px]">
+          <div className="mb-8 flex items-center gap-5">
+            <div className="h-20 w-20 overflow-hidden rounded-full shadow-md">
               <Image
                 src="/homeicon.ico"
                 alt="Learn8 icon"
-                width={56}
-                height={56}
+                width={80}
+                height={80}
                 priority
                 className="h-full w-full object-cover"
               />
@@ -192,102 +191,30 @@ export default function LoginPageClient() {
             <Image
               src="/logs.png"
               alt="Learn8"
-              width={250}
-              height={100}
+              width={360}
+              height={144}
               priority
-              className="h-14 w-auto object-contain"
+              className="h-20 w-auto object-contain"
             />
           </div>
 
-          <h1 className="font-heading text-4xl md:text-[2.6rem] leading-tight font-extrabold text-brand-gray-700 mb-3">
+          <h1 className="mb-3 font-heading text-4xl font-extrabold leading-tight text-brand-gray-700 md:text-[3rem] lg:text-[3.9rem]">
             Stop Reading,{" "}
             <span className="block">Start Playing.</span>
           </h1>
-          <p className="text-brand-gray-500 text-lg mb-8">
+          <p className="mb-8 text-brand-gray-500 text-lg lg:max-w-[650px] lg:text-[1.45rem] lg:leading-relaxed">
             Convert your notes into a dynamic Skill Tree and master any subject through immersive mini-games.
           </p>
 
-          <div className="mb-4 flex justify-center w-full">
+          <div className="mb-4 flex w-full justify-center lg:justify-start lg:pl-12">
             <MascotOwl />
           </div>
-          <p className="text-brand-gray-600 font-semibold text-sm">
+          <p className="text-brand-gray-600 font-semibold text-sm lg:pl-12 lg:text-base">
             Start building your next course today!
           </p>
         </section>
 
-        <section className="flex flex-col items-center bg-white/70 backdrop-blur-md rounded-2xl shadow-lg px-10 py-10 w-80 shrink-0">
-          <div className="flex gap-3 mb-6 text-lg font-heading font-bold">
-            <button
-              type="button"
-              onClick={() => setActiveTab("signup")}
-              className={`pb-1 transition ${
-                activeTab === "signup"
-                  ? "text-brand-teal border-b-2 border-brand-teal"
-                  : "text-brand-gray-400"
-              }`}
-            >
-              Sign Up
-            </button>
-            <span className="text-brand-gray-300">/</span>
-            <button
-              type="button"
-              onClick={() => setActiveTab("login")}
-              className={`pb-1 transition ${
-                activeTab === "login"
-                  ? "text-brand-teal border-b-2 border-brand-teal"
-                  : "text-brand-gray-400"
-              }`}
-            >
-              Log In
-            </button>
-          </div>
-
-          {activeTab === "signup" ? (
-            <>
-              <p className="text-brand-gray-600 text-center mb-6">
-                New here?
-                <br />
-                Create your account.
-              </p>
-              <button
-                type="button"
-                onClick={() => setActiveTab("signup")}
-                className="w-full rounded-xl bg-brand-green px-6 py-3 font-heading font-bold text-white uppercase tracking-wide shadow-md hover:bg-brand-green-dark active:translate-y-0.5 transition mb-4"
-              >
-                Create Your Account
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab("login")}
-                className="text-brand-teal font-semibold hover:underline text-sm"
-              >
-                LOG IN
-              </button>
-            </>
-          ) : (
-            <>
-              <p className="text-brand-gray-600 text-center mb-6">
-                Ready to continue?
-              </p>
-              <button
-                type="button"
-                onClick={() => setActiveTab("login")}
-                className="w-full rounded-xl bg-brand-green px-6 py-3 font-heading font-bold text-white uppercase tracking-wide shadow-md hover:bg-brand-green-dark active:translate-y-0.5 transition mb-4"
-              >
-                Log In
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab("signup")}
-                className="text-brand-teal font-semibold hover:underline text-sm"
-              >
-                SIGN UP
-              </button>
-            </>
-          )}
-        </section>
-
-        <section className="bg-white rounded-2xl shadow-xl px-8 py-10 w-96 shrink-0">
+        <section className="w-full max-w-[470px] shrink-0 rounded-2xl bg-white px-9 py-11 shadow-xl lg:ml-auto">
           <h2 className="font-heading text-2xl font-extrabold text-brand-gray-700 text-center mb-6">
             {activeTab === "signup" ? "Create Your Account" : "Welcome Back"}
           </h2>
@@ -498,32 +425,15 @@ function SocialButton({
   );
 }
 
-function ParticleField() {
-  return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden">
-      {Array.from({ length: 18 }).map((_, i) => (
-        <span
-          key={i}
-          className="absolute h-2 w-2 rounded-full bg-white/35"
-          style={{
-            left: `${(i * 17) % 100}%`,
-            top: `${(i * 29) % 100}%`,
-          }}
-        />
-      ))}
-    </div>
-  );
-}
-
 function MascotOwl() {
   return (
-    <div className="flex h-48 w-48 items-center justify-center rounded-full bg-white/50 shadow-inner">
+    <div className="flex h-56 w-56 items-center justify-center rounded-full bg-transparent lg:h-60 lg:w-60">
       <Image
         src="/full_icon.ico"
         alt="Learn8 mascot"
-        width={198}
-        height={198}
-        className="h-48 w-48 object-contain"
+        width={240}
+        height={240}
+        className="h-56 w-56 object-contain mix-blend-multiply lg:h-60 lg:w-60"
       />
     </div>
   );

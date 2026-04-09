@@ -79,7 +79,7 @@ function ForgePreviewPageContent() {
   const preview = useMemo(() => getPreviewConfig(variant), [variant]);
 
   return (
-    <div className="relative min-h-dvh overflow-hidden bg-gradient-to-br from-[#edf7fb] via-[#c9e6f2] to-[#a3d5e8]">
+    <div className="relative min-h-dvh overflow-hidden app-shared-bg">
       <main className="relative z-10 flex min-h-dvh flex-1 flex-col">
         <div className="flex flex-1 flex-col">
           <ForgeStatus

@@ -20,7 +20,7 @@ import {
   updateArenaAdminQuestionPool,
   updateArenaAdminSeason,
 } from "@/lib/arena/api";
-import { ApiError } from "@/lib/apiClient";
+import { ApiError, resolveErrorMessage } from "@/lib/apiClient";
 import { useRequireAuthRedirect } from "@/lib/auth/useRequireAuthRedirect";
 import type {
   ArenaAdminHealthSnapshot,
@@ -181,7 +181,7 @@ export default function ArenaAdminPageClient() {
           setAccessDenied(true);
           setError("This account is signed in, but it does not have Arena admin access.");
         } else {
-          setError(err instanceof Error ? err.message : "Failed to load Arena admin.");
+          setError(resolveErrorMessage(err, "Unable to load Arena admin right now."));
         }
       } finally {
         if (!cancelled) {
@@ -349,7 +349,7 @@ export default function ArenaAdminPageClient() {
       setSelectedCourseId(saved.id);
       setNotice(selectedCourse ? "Official topic updated." : "Official topic created.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save official topic.");
+      setError(resolveErrorMessage(err, "Unable to save official topic right now."));
     } finally {
       setSavingCourse(false);
     }
@@ -387,7 +387,7 @@ export default function ArenaAdminPageClient() {
       setSelectedPoolId(saved.id);
       setNotice(selectedPool ? "Question pool updated." : "Question pool created.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save question pool.");
+      setError(resolveErrorMessage(err, "Unable to save question pool right now."));
     } finally {
       setSavingPool(false);
     }
@@ -422,7 +422,7 @@ export default function ArenaAdminPageClient() {
       setSelectedSeasonId(saved.id);
       setNotice(selectedSeason ? "Arena season updated." : "Arena season created.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save Arena season.");
+      setError(resolveErrorMessage(err, "Unable to save Arena season right now."));
     } finally {
       setSavingSeason(false);
     }
@@ -507,14 +507,14 @@ export default function ArenaAdminPageClient() {
       setHealthSnapshot(nextHealthSnapshot);
       setNotice("Operations data refreshed.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load Arena operations data.");
+      setError(resolveErrorMessage(err, "Unable to load Arena operations data right now."));
     } finally {
       setLoadingOps(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#edf7fb] via-[#c9e6f2] to-[#a3d5e8]">
+    <div className="min-h-screen app-shared-bg">
       <TopStatsBar backHref="/home" pageTitle="Arena Admin" />
       <main className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-8 md:px-8">
         <DeepGlassCard className="overflow-hidden px-6 py-6 md:px-8 md:py-8">

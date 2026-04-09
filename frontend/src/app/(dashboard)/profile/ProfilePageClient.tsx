@@ -6,6 +6,7 @@ import TopStatsBar from "@/components/layout/TopStatsBar";
 import DeepGlassCard from "@/components/ui/DeepGlassCard";
 import GameButton from "@/components/ui/GameButton";
 import { fetchArenaProfile, fetchArenaRankHistory } from "@/lib/arena/api";
+import { resolveErrorMessage } from "@/lib/apiClient";
 import type { ArenaProfile, ArenaRankHistoryEntry, UserLedgerEvent } from "@/lib/apiTypes";
 import { ProfileStatBox } from "@/features/profile/components/ProfileStatBox";
 import { ProfileToggle } from "@/features/profile/components/ProfileToggle";
@@ -70,9 +71,7 @@ export default function ProfilePageClient() {
         setArenaHistory(nextArenaHistory.items);
       } catch (error) {
         if (!cancelled) {
-          setArenaError(
-            error instanceof Error ? error.message : "Failed to load Arena competitive profile."
-          );
+          setArenaError(resolveErrorMessage(error, "Unable to load Arena competitive profile right now."));
         }
       } finally {
         if (!cancelled) {
@@ -87,7 +86,7 @@ export default function ProfilePageClient() {
   }, []);
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-[#edf7fb] via-[#c9e6f2] to-[#a3d5e8]">
+    <div className="relative min-h-screen overflow-hidden app-shared-bg">
       <TopStatsBar
         backHref="/home"
         pageTitle="Profile"

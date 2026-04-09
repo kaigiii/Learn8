@@ -7,6 +7,7 @@ import TopStatsBar from "@/components/layout/TopStatsBar";
 import DeepGlassCard from "@/components/ui/DeepGlassCard";
 import GameButton from "@/components/ui/GameButton";
 import { leaveArenaRoom, setArenaRoomReady, startArenaRoom } from "@/lib/arena/api";
+import { resolveErrorMessage } from "@/lib/apiClient";
 import { getArenaEventLabel } from "@/lib/arena/eventTypes";
 import { useRequireAuthRedirect } from "@/lib/auth/useRequireAuthRedirect";
 import { useAuthStore } from "@/stores/app/useAuthStore";
@@ -52,7 +53,7 @@ export default function ArenaLobbyPageClient({ roomCode }: { roomCode: string })
     try {
       await setArenaRoomReady(room.roomCode, !currentPlayer.isReady);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update ready state");
+      setError(resolveErrorMessage(err, "Unable to update ready state right now."));
     } finally {
       setBusy(false);
     }
@@ -65,7 +66,7 @@ export default function ArenaLobbyPageClient({ roomCode }: { roomCode: string })
       await leaveArenaRoom(room.roomCode);
       router.push("/home");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to leave room");
+      setError(resolveErrorMessage(err, "Unable to leave room right now."));
       setBusy(false);
     }
   };
@@ -78,14 +79,14 @@ export default function ArenaLobbyPageClient({ roomCode }: { roomCode: string })
       const result = await startArenaRoom(room.roomCode);
       router.push(`/arena/match/${result.matchId}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to start room");
+      setError(resolveErrorMessage(err, "Unable to start room right now."));
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#edf7fb] via-[#c9e6f2] to-[#a3d5e8]">
+    <div className="min-h-screen app-shared-bg">
       <TopStatsBar backHref="/home" pageTitle="Arena Lobby" />
       <main className="mx-auto grid max-w-7xl gap-6 px-4 py-8 md:px-8 xl:grid-cols-[1.15fr_0.85fr]">
         <DeepGlassCard className="px-6 py-6 md:px-8 md:py-8">

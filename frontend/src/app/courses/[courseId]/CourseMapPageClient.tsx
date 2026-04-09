@@ -77,7 +77,7 @@ export default function CourseMapPageClient({
 
   return (
     <div
-      className="relative min-h-dvh overflow-hidden bg-gradient-to-br from-[#edf7fb] via-[#c9e6f2] to-[#a3d5e8]"
+      className="relative min-h-dvh overflow-hidden app-shared-bg"
     >
       <TopStatsBar backHref="/home" pageTitle={pageTitle} />
 

@@ -171,7 +171,7 @@ export default function WelcomeOnboardingPageClient() {
   };
 
   return (
-    <div className="relative flex min-h-screen flex-col overflow-hidden bg-gradient-to-br from-[#edf7fb] via-[#c9e6f2] to-[#a3d5e8]">
+    <div className="relative flex min-h-screen flex-col overflow-hidden app-shared-bg">
       <BgEffects />
       {step > 0 && <SideHint side="left" step={STEPS[step - 1]} />}
       {step < STEPS.length - 1 && <SideHint side="right" step={STEPS[step + 1]} />}

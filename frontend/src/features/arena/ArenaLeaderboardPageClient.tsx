@@ -147,8 +147,19 @@ export default function ArenaLeaderboardPageClient() {
     return String(currentUserStanding.entry.rating);
   }, [category, currentUserStanding]);
 
+  const snapshotMetricLabel =
+    category === "win_rate"
+      ? "Win Rate"
+      : category === "matches"
+        ? "Matches"
+        : "Current Rating";
+  const ratingProgress = Math.max(
+    8,
+    Math.min(100, ((profile?.rating ?? currentUserStanding?.entry.rating ?? 0) / 2000) * 100)
+  );
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#edf7fb] via-[#c9e6f2] to-[#a3d5e8]">
+    <div className="min-h-screen app-shared-bg">
       <TopStatsBar
         backHref="/home"
         pageTitle="Arena Leaderboard"
@@ -169,164 +180,191 @@ export default function ArenaLeaderboardPageClient() {
         ]}
       />
       <main className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-8 md:px-8">
-        <DeepGlassCard className="px-6 py-6 md:px-8 md:py-8">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.28em] text-brand-teal">
-                Competitive Rankings
-              </p>
-              <h1 className="mt-3 font-heading text-4xl font-extrabold text-brand-gray-700 md:text-5xl">
-                Arena leaderboard
-              </h1>
-              <p className="mt-4 max-w-3xl text-sm leading-relaxed text-brand-gray-500 md:text-base">
-                Explore the live competitive ladder with multiple ranking views, from pure rating to
-                win-rate leaders and high-volume grinders.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap gap-3">
-              <TabButton
-                active={tab === "season"}
-                label={season?.name ?? "Season"}
-                onClick={() => setTab("season")}
-              />
-              <TabButton
-                active={tab === "global"}
-                label="Global"
-                onClick={() => setTab("global")}
-              />
-            </div>
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h1 className="font-heading text-3xl font-extrabold text-brand-gray-700 md:text-4xl">
+              Arena Leaderboard
+            </h1>
+            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-brand-gray-500 md:text-[1.03rem]">
+              Explore the live competitive ladder with multiple ranking viewer, from pure rating to
+              leaders and high-volume grinders.
+            </p>
           </div>
-        </DeepGlassCard>
+
+          <div className="flex gap-2">
+            <select
+              value={tab}
+              onChange={(event) => setTab(event.target.value as LeaderboardTab)}
+              className="rounded-2xl border border-white/70 bg-white/65 px-4 py-2.5 text-base font-semibold text-brand-gray-700 outline-none transition hover:bg-white/80"
+            >
+              <option value="season">Season</option>
+              <option value="global">Global</option>
+            </select>
+            <select
+              value={category}
+              onChange={(event) => setCategory(event.target.value as LeaderboardCategory)}
+              className="rounded-2xl border border-white/70 bg-white/65 px-4 py-2.5 text-base font-semibold text-brand-gray-700 outline-none transition hover:bg-white/80"
+            >
+              <option value="rating">Global</option>
+              <option value="win_rate">Win Rate</option>
+              <option value="matches">Matches</option>
+            </select>
+          </div>
+        </div>
 
         {error ? (
           <DeepGlassCard className="px-6 py-5 text-sm text-rose-700">{error}</DeepGlassCard>
         ) : null}
 
-        <div className="grid gap-6 xl:grid-cols-[0.78fr_1.22fr]">
-          <DeepGlassCard className="px-6 py-6">
-            <h2 className="font-heading text-2xl font-bold text-brand-gray-700">Your Ladder Snapshot</h2>
-            <div className="mt-5 space-y-4">
-              <MetricCard label="Display Name" value={profile?.displayName ?? "..."} />
-              <MetricCard label="Current Rating" value={profile ? String(profile.rating) : "..."} />
-              <MetricCard label="Rank Tier" value={profile?.rankTier ?? "..."} />
-              <MetricCard label="Season Badge" value={profile?.seasonBadge ?? "..."} />
-              <MetricCard label="Season Title" value={profile?.seasonTitle ?? "..."} />
-              <MetricCard
-                label={
-                  category === "win_rate"
-                    ? "Current Win Rate"
-                    : category === "matches"
-                      ? "Competition Matches"
-                      : "Rank Rating"
-                }
-                value={currentMetricValue}
-              />
-              <MetricCard
-                label={`${activeLabel} Placement`}
-                value={currentUserStanding ? `#${currentUserStanding.placement}` : "Unranked"}
-              />
-            </div>
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,4fr)_minmax(0,6fr)]">
+          <DeepGlassCard className="min-w-0 px-4 py-4 md:px-5 md:py-5">
+            <h2 className="font-heading text-[1.6rem] font-bold text-brand-gray-700">Your Ladder Snapshot</h2>
 
-            <div className="mt-6 rounded-[26px] border border-white/70 bg-white/68 p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-teal">
-                Season Status
-              </p>
-              <p className="mt-3 font-heading text-2xl font-bold text-brand-gray-700">
-                {season?.name ?? "No active season"}
-              </p>
-              <p className="mt-2 text-sm text-brand-gray-500">
-                {season?.startedAt
-                  ? `Started ${new Date(season.startedAt).toLocaleDateString()}`
-                  : "Season timing will appear here once configured."}
-              </p>
-            </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,7fr)_minmax(0,3fr)]">
+                <div className="min-w-0 rounded-[22px] border border-white/70 bg-white/68 p-3">
+                  <div className="flex items-center gap-3">
+                    <AvatarPlaceholder />
+                    <div className="min-w-0">
+                      <p className="font-heading break-words text-xl font-bold leading-tight text-brand-gray-700 xl:text-2xl">
+                        {profile?.displayName ?? "Unknown"}
+                      </p>
+                    </div>
+                    <div className="ml-auto">
+                      <TierShield />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="min-w-0 rounded-[22px] border border-white/70 bg-white/68 p-3">
+                  <p className="text-xs font-semibold text-brand-gray-500">{snapshotMetricLabel}</p>
+                  <p className="mt-1 font-heading text-3xl font-bold leading-none text-brand-gray-700">
+                    {currentMetricValue}
+                  </p>
+                  <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-brand-gray-200">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-brand-teal/70 to-brand-teal/35"
+                      style={{ width: `${ratingProgress}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <SnapshotStatTile label="Rank Tier" value={profile?.rankTier ?? "-"} icon="⛭" />
+                <SnapshotStatTile
+                  label="Matches"
+                  value={String(profile?.rankedMatches ?? currentUserStanding?.entry.totalMatches ?? 0)}
+                  icon="%"
+                />
+                <SnapshotStatTile
+                  label="Wins | Losses"
+                  value={`${profile?.wins ?? 0}W | ${profile?.losses ?? 0}L`}
+                  icon="%"
+                />
+                <SnapshotStatTile
+                  label="#1 Placement"
+                  value={currentUserStanding ? `#${currentUserStanding.placement}` : "#-"}
+                  icon="#"
+                />
+              </div>
+
+              <div className="mt-3 flex items-center justify-between rounded-[22px] border border-white/70 bg-white/68 px-4 py-3">
+                <div>
+                  <p className="text-xs text-brand-gray-500">Season Status</p>
+                  <p className="mt-1 font-heading text-[1.4rem] font-bold leading-tight text-brand-gray-700 break-words">
+                    {season?.name ?? "No active season."}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-white/70 bg-white/75 p-2 text-brand-gray-500">
+                  <SeasonCalendar />
+                </div>
+              </div>
           </DeepGlassCard>
 
-          <DeepGlassCard className="px-6 py-6">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="font-heading text-2xl font-bold text-brand-gray-700">{activeLabel}</h2>
-                <p className="mt-2 text-sm text-brand-gray-500">
-                  Independent leaderboard categories for rank rating, win rate, and total competition
-                  matches.
-                </p>
+          <DeepGlassCard className="min-w-0 px-4 py-4 md:px-5 md:py-5">
+            <h2 className="font-heading text-[1.75rem] font-bold text-brand-gray-700">
+                {tab === "season" ? "Current Season" : "Global Ladder"}
+              </h2>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                <CategoryChip
+                  active={category === "rating"}
+                  label="Rank"
+                  onClick={() => setCategory("rating")}
+                />
+                <CategoryChip
+                  active={category === "win_rate"}
+                  label="Win Rate"
+                  onClick={() => setCategory("win_rate")}
+                />
+                <CategoryChip
+                  active={category === "matches"}
+                  label="Matches"
+                  onClick={() => setCategory("matches")}
+                />
               </div>
-              <span className="rounded-full bg-white/75 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-brand-teal">
-                {sortedBoard.length} ranked
-              </span>
-            </div>
 
-            <div className="mt-5 flex flex-wrap gap-2">
-              <CategoryButton
-                active={category === "rating"}
-                label="Rank"
-                onClick={() => setCategory("rating")}
-              />
-              <CategoryButton
-                active={category === "win_rate"}
-                label="Win Rate"
-                onClick={() => setCategory("win_rate")}
-              />
-              <CategoryButton
-                active={category === "matches"}
-                label="Matches"
-                onClick={() => setCategory("matches")}
-              />
-            </div>
+              <div className="mt-4 grid grid-cols-[82px_minmax(0,1.6fr)_minmax(0,1fr)_minmax(128px,0.9fr)] items-center gap-2 px-2 text-xs font-semibold uppercase tracking-[0.08em] text-brand-gray-500">
+                <span>Rank</span>
+                <span>Player</span>
+                <span>Tier</span>
+                <span className="text-right">Stats</span>
+              </div>
 
-            <div className="mt-5 space-y-3">
-              {sortedBoard.map((entry, index) => {
-                const isCurrentUser = entry.userId === profile?.userId;
-                return (
-                  <div
-                    key={entry.userId}
-                    className={`rounded-[26px] border px-5 py-4 ${
-                      isCurrentUser
-                        ? "border-brand-teal/45 bg-brand-teal/10 shadow-[0_16px_30px_rgba(95,179,175,0.16)]"
-                        : "border-white/70 bg-white/68"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-4">
-                      <div>
-                        <p className="font-heading text-xl font-bold text-brand-gray-700">
-                          #{index + 1} {entry.displayName}
+              <div className="mt-2 space-y-2">
+                {sortedBoard.map((entry, index) => {
+                  const isCurrentUser = entry.userId === profile?.userId;
+                  return (
+                    <div
+                      key={entry.userId}
+                      className={`grid grid-cols-[82px_minmax(0,1.6fr)_minmax(0,1fr)_minmax(128px,0.9fr)] items-center gap-2 rounded-[22px] border px-2 py-2 ${
+                        isCurrentUser
+                          ? "border-brand-teal/45 bg-brand-teal/10 shadow-[0_16px_30px_rgba(95,179,175,0.16)]"
+                          : "border-white/70 bg-white/68"
+                      }`}
+                    >
+                      <div className="flex items-center justify-center">
+                        <RankBadge rank={index + 1} />
+                      </div>
+
+                      <div className="flex min-w-0 items-center gap-2">
+                        <AvatarPlaceholder small />
+                        <p className="min-w-0 break-words text-lg font-bold leading-tight text-brand-gray-700 lg:text-xl">
+                          {entry.displayName}
                         </p>
-                        <p className="mt-1 text-xs uppercase tracking-[0.18em] text-brand-teal">
-                          {entry.rankTier}
-                          {isCurrentUser ? " • You" : ""}
-                        </p>
-                        {entry.seasonTitle ? (
-                          <p className="mt-1 text-xs text-brand-gray-500">
-                            {entry.seasonBadge ? `${entry.seasonBadge} • ` : ""}
-                            {entry.seasonTitle}
-                          </p>
+                        {isCurrentUser ? (
+                          <span className="rounded-full bg-brand-teal/15 px-2 py-0.5 text-xs font-semibold text-brand-teal">
+                            You
+                          </span>
                         ) : null}
                       </div>
+
+                      <div className="flex min-w-0 items-center gap-2 text-sm font-semibold text-brand-gray-700 lg:text-base">
+                        <TierShield small />
+                        <span className="break-words">{entry.rankTier}</span>
+                      </div>
+
                       <div className="text-right">
-                        <p className="font-heading text-2xl font-bold text-brand-gray-700">
+                        <p className="text-2xl font-bold text-brand-gray-700 lg:text-[1.85rem]">
                           {category === "win_rate"
-                            ? `${entry.winRate.toFixed(1)}%`
+                            ? `${entry.winRate.toFixed(0)}%`
                             : category === "matches"
                               ? entry.totalMatches
                               : entry.rating}
                         </p>
-                        <p className="text-xs text-brand-gray-500">
-                          {entry.wins}W / {entry.losses}L / {entry.totalMatches} matches
-                        </p>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
 
-              {sortedBoard.length === 0 && !loading ? (
-                <div className="rounded-2xl border border-dashed border-brand-gray-300 bg-white/60 px-4 py-5 text-sm text-brand-gray-500">
-                  No leaderboard entries yet. The ladder will appear after Arena competition results
-                  are recorded.
-                </div>
-              ) : null}
-            </div>
+                {sortedBoard.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-brand-gray-300 bg-white/60 px-4 py-4 text-base text-brand-gray-500">
+                    {loading
+                      ? "Loading leaderboard..."
+                      : "No leaderboard entries yet. Match results will appear here."}
+                  </div>
+                ) : null}
+              </div>
           </DeepGlassCard>
         </div>
       </main>
@@ -334,16 +372,28 @@ export default function ArenaLeaderboardPageClient() {
   );
 }
 
-function MetricCard({ label, value }: { label: string; value: string }) {
+function SnapshotStatTile({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: string;
+  icon: string;
+}) {
   return (
-    <div className="rounded-2xl border border-white/70 bg-white/68 px-4 py-4">
-      <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-teal">{label}</p>
-      <p className="mt-2 font-heading text-2xl font-bold text-brand-gray-700">{value}</p>
+    <div className="rounded-2xl border border-white/70 bg-white/68 px-3 py-2.5">
+      <p className="text-xs font-semibold uppercase tracking-[0.08em] text-brand-gray-500">
+        {icon} {label}
+      </p>
+      <p className="mt-1 font-heading text-[1.25rem] font-bold leading-tight text-brand-gray-700 xl:text-[1.4rem] break-words">
+        {value}
+      </p>
     </div>
   );
 }
 
-function TabButton({
+function CategoryChip({
   active,
   label,
   onClick,
@@ -356,10 +406,10 @@ function TabButton({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
+      className={`rounded-full border px-4 py-2 text-sm font-bold uppercase tracking-[0.08em] transition ${
         active
-          ? "border-brand-teal/35 bg-brand-teal/10 text-brand-teal"
-          : "border-white/70 bg-white/65 text-brand-gray-700 hover:bg-white/80"
+          ? "bg-brand-teal/12 text-brand-teal ring-1 ring-brand-teal/20 border-transparent"
+          : "border-white/70 bg-white/60 text-brand-gray-600 hover:bg-white/85"
       }`}
     >
       {label}
@@ -367,26 +417,124 @@ function TabButton({
   );
 }
 
-function CategoryButton({
-  active,
-  label,
-  onClick,
-}: {
-  active: boolean;
-  label: string;
-  onClick: () => void;
-}) {
+function RankBadge({ rank }: { rank: number }) {
+  if (rank === 1 || rank === 2 || rank === 3) {
+    return <MedalBadge place={rank} />;
+  }
+
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-full px-3 py-2 text-xs font-bold uppercase tracking-[0.16em] transition ${
-        active
-          ? "bg-brand-teal/12 text-brand-teal ring-1 ring-brand-teal/20"
-          : "bg-white/60 text-brand-gray-600 hover:bg-white/85"
+    <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-brand-gray-300 bg-white/80 text-2xl font-extrabold text-brand-gray-600">
+      #{rank}
+    </span>
+  );
+}
+
+function MedalBadge({ place }: { place: 1 | 2 | 3 }) {
+  const medalPalette =
+    place === 1
+      ? {
+          outer: "#FFD94D",
+          outerStroke: "#F0B400",
+          inner: "#FFC62A",
+          innerStroke: "#F2A800",
+          number: "#F6A90A",
+        }
+      : place === 2
+        ? {
+            outer: "#D9E3EC",
+            outerStroke: "#A5B3C2",
+            inner: "#C7D2DE",
+            innerStroke: "#93A3B4",
+            number: "#7E8FA1",
+          }
+        : {
+            outer: "#E2B38D",
+            outerStroke: "#BD845B",
+            inner: "#D79A6D",
+            innerStroke: "#AF6C44",
+            number: "#A45D33",
+          };
+
+  return (
+    <svg viewBox="0 0 64 74" className="h-12 w-12" aria-label={`rank-${place}-medal`}>
+      <path d="M13 4h14l8 19H22L13 4z" fill="#F45E79" />
+      <path d="M37 4h14l-9 19H29L37 4z" fill="#DE1D1D" />
+      <path d="M27 4h10l4 19H23l4-19z" fill="#E6F2FF" />
+      <rect x="23" y="20" width="18" height="8" rx="3" fill="#FFCC2E" />
+
+      <circle
+        cx="32"
+        cy="48"
+        r="21"
+        fill={medalPalette.outer}
+        stroke={medalPalette.outerStroke}
+        strokeWidth="2"
+      />
+      <circle
+        cx="32"
+        cy="48"
+        r="14"
+        fill={medalPalette.inner}
+        stroke={medalPalette.innerStroke}
+        strokeWidth="2"
+      />
+      <circle cx="24" cy="48" r="1.9" fill="#FFE17B" opacity="0.95" />
+      <circle cx="40" cy="48" r="1.9" fill="#FFE17B" opacity="0.95" />
+      <text
+        x="32"
+        y="53"
+        textAnchor="middle"
+        fontSize="20"
+        fontWeight="800"
+        fill={medalPalette.number}
+      >
+        {place}
+      </text>
+    </svg>
+  );
+}
+
+function AvatarPlaceholder({ small = false }: { small?: boolean }) {
+  return (
+    <div
+      className={`relative overflow-hidden rounded-full border border-brand-gray-200 bg-gradient-to-b from-[#f3f8fc] to-[#d7e5f1] ${
+        small ? "h-12 w-12" : "h-20 w-20"
       }`}
     >
-      {label}
-    </button>
+      <div className="absolute left-1/2 top-[31%] h-[36%] w-[36%] -translate-x-1/2 rounded-full bg-[#9fb4c9]" />
+      <div className="absolute left-1/2 top-[56%] h-[45%] w-[66%] -translate-x-1/2 rounded-t-[999px] bg-[#9fb4c9]" />
+    </div>
+  );
+}
+
+function TierShield({ small = false }: { small?: boolean }) {
+  const sizeClass = small ? "h-8 w-8" : "h-14 w-14";
+  return (
+    <svg viewBox="0 0 64 64" className={sizeClass} fill="none" aria-hidden="true">
+      <path
+        d="M32 6l20 7v16c0 13.5-8.1 22.9-20 29-11.9-6.1-20-15.5-20-29V13l20-7z"
+        fill="url(#shieldFill)"
+        stroke="#f3cf97"
+        strokeWidth="2"
+      />
+      <path d="M32 14v34" stroke="#ffe6c2" strokeOpacity="0.65" />
+      <path d="M18 24l14-10 14 10" stroke="#ffdfb0" strokeOpacity="0.55" />
+      <defs>
+        <linearGradient id="shieldFill" x1="12" y1="8" x2="52" y2="58" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#d8a16c" />
+          <stop offset="1" stopColor="#8a4d2a" />
+        </linearGradient>
+      </defs>
+    </svg>
+  );
+}
+
+function SeasonCalendar() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="1.9">
+      <rect x="3" y="5" width="18" height="16" rx="2" />
+      <path d="M16 3v4M8 3v4M3 10h18" />
+      <rect x="9" y="13" width="6" height="5" rx="1" fill="currentColor" stroke="none" />
+    </svg>
   );
 }
