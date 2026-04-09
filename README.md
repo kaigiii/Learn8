@@ -43,6 +43,7 @@ Learn8 是一個 AI 驅動的學習平台，把 `course draft -> file upload / R
 - 前端分層：看 `docs/FRONTEND_ARCHITECTURE.md`
 - 後端分層：看 `docs/BACKEND_ARCHITECTURE.md`
 - AI / RAG 流程：看 `docs/AI_PIPELINE.md`
+- 內容管理 (YAML 導入)：看 `docs/PUBLIC_CONTENT_MANAGEMENT.md`
 
 ## 技術棧
 
@@ -115,29 +116,18 @@ npm run dev
 - `.env` 需填 `GOOGLE_API_KEY` 與 `DATABASE_URL`
 - 前端 API 預設 `http://localhost:8000/api/v1`
 
-## 前端架構
+## 常用指令 (Useful Scripts)
 
-前端分層與主要模組位置的快速導覽：
+所有的腳本建議在 `backend` 目錄下執行：
 
-- `docs/FRONTEND_ARCHITECTURE.md`
-
-## 後端架構
-
-後端分層、主要 API 模組與責任邊界的總覽：
-
-- `docs/BACKEND_ARCHITECTURE.md`
-
-## 新增題型
-
-新增前後端題型的完整流程、對齊與驗證清單：
-
-- `docs/QUESTION_TYPES.md`
-
-## AI Pipeline
-
-AI 生成流程與資料落地方式的實作對齊摘要：
-
-- `docs/AI_PIPELINE.md`
+- **同步公開課程內容**：從 YAML 導入官方教材並清理廢棄課程。
+  ```bash
+  python3.12 -m scripts.seed_public_courses
+  ```
+- **資料庫遷移**：將資料庫結構更新至最新版本。
+  ```bash
+  python3.12 -m alembic upgrade head
+  ```
 
 ## 相關文件
 
@@ -145,5 +135,6 @@ AI 生成流程與資料落地方式的實作對齊摘要：
 - `docs/QUESTION_TYPES.md`
 - `docs/TESTING.md`
 - `docs/AI_PIPELINE.md`
+- `docs/CONTENT_MANAGEMENT.md`
 - `docs/FRONTEND_ARCHITECTURE.md`
 - `docs/BACKEND_ARCHITECTURE.md`

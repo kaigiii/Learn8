@@ -1,0 +1,453 @@
+title: "World History"
+topic: "World History from Ancient Civilizations to the Modern Era"
+description: "Journey through human history from Mesopotamia to the digital age."
+units:
+  - unitId: "wh-u1"
+    unitTitle: "Ancient Civilizations"
+    unitDescription: "The birth of civilization and early empires."
+    nodes:
+      - id: "wh-1-1"
+        title: "Mesopotamia"
+        description: "The cradle of civilization."
+        stages:
+          - component: "ExplainerMedia"
+            data:
+              title: "Between the Rivers"
+              explanation: "Mesopotamia, located between the Tigris and Euphrates rivers, gave rise to the first cities, writing (cuneiform), and legal codes."
+              bullets: ["Sumer, Akkad, Babylon, Assyria", "Hammurabi's Code ~1750 BCE"]
+          - component: "MultipleChoice"
+            data:
+              question: "What writing system did the Sumerians develop?"
+              options:
+                - {id: "a", text: "Hieroglyphics"}
+                - {id: "b", text: "Cuneiform"}
+                - {id: "c", text: "Alphabet"}
+                - {id: "d", text: "Kanji"}
+              correctOptionId: "b"
+          - component: "MatchingPairs"
+            data:
+              pairs:
+                - {id: "p1", left: "Sumer", right: "First cities ~3500 BCE"}
+                - {id: "p2", left: "Babylon", right: "Hammurabi's Code"}
+                - {id: "p3", left: "Assyria", right: "Military empire"}
+                - {id: "p4", left: "Persia", right: "Cyrus the Great"}
+
+      - id: "wh-1-2"
+        title: "Ancient Egypt"
+        description: "The Nile civilization."
+        stages:
+          - component: "MultipleChoice"
+            data:
+              question: "The Great Pyramid was built for which pharaoh?"
+              options:
+                - {id: "a", text: "Tutankhamun"}
+                - {id: "b", text: "Khufu"}
+                - {id: "c", text: "Ramesses II"}
+                - {id: "d", text: "Cleopatra"}
+              correctOptionId: "b"
+          - component: "Ordering"
+            data:
+              question: "Order the Egyptian periods:"
+              steps: ["Old Kingdom (pyramids)", "Middle Kingdom (expansion)", "New Kingdom (empire)", "Ptolemaic Period (Greek rule)"]
+          - component: "FeynmanMirror"
+            data:
+              prompt: "Explain the importance of the Nile River to Egyptian civilization."
+              sampleAnswer: "The Nile's annual flooding deposited fertile silt for agriculture, provided water for irrigation, served as a transportation highway, and defined the rhythm of Egyptian life and calendar."
+
+      - id: "wh-1-3"
+        title: "Ancient Greece"
+        description: "Democracy, philosophy, and the arts."
+        stages:
+          - component: "ExplainerMedia"
+            data:
+              title: "The Greek World"
+              explanation: "Ancient Greece pioneered democracy, philosophy, theater, and the Olympic games. City-states like Athens and Sparta shaped Western civilization."
+              bullets: ["Athenian democracy ~508 BCE", "Socrates, Plato, Aristotle"]
+          - component: "MultipleChoice"
+            data:
+              question: "Which city-state is known for its military culture?"
+              options:
+                - {id: "a", text: "Athens"}
+                - {id: "b", text: "Corinth"}
+                - {id: "c", text: "Sparta"}
+                - {id: "d", text: "Thebes"}
+              correctOptionId: "c"
+          - component: "MatchingPairs"
+            data:
+              pairs:
+                - {id: "p1", left: "Socrates", right: "Questioning method"}
+                - {id: "p2", left: "Plato", right: "Theory of Forms"}
+                - {id: "p3", left: "Aristotle", right: "Logic & natural philosophy"}
+                - {id: "p4", left: "Herodotus", right: "Father of History"}
+
+      - id: "wh-1-4"
+        title: "Roman Empire"
+        description: "From republic to empire."
+        stages:
+          - component: "MultipleChoice"
+            data:
+              question: "When did the Western Roman Empire fall?"
+              options:
+                - {id: "a", text: "27 BCE"}
+                - {id: "b", text: "476 CE"}
+                - {id: "c", text: "1453 CE"}
+                - {id: "d", text: "330 CE"}
+              correctOptionId: "b"
+          - component: "Ordering"
+            data:
+              question: "Order Roman history:"
+              steps: ["Roman Kingdom", "Roman Republic", "Roman Empire", "Fall of Western Rome"]
+          - component: "MatchingPairs"
+            data:
+              pairs:
+                - {id: "p1", left: "Julius Caesar", right: "Assassinated 44 BCE"}
+                - {id: "p2", left: "Augustus", right: "First Emperor"}
+                - {id: "p3", left: "Constantine", right: "Legalized Christianity"}
+                - {id: "p4", left: "Romulus Augustulus", right: "Last Western Emperor"}
+
+      - id: "wh-1-5"
+        title: "Han Dynasty China"
+        description: "The Silk Road empire."
+        stages:
+          - component: "ExplainerMedia"
+            data:
+              title: "The Silk Road"
+              explanation: "The Han Dynasty (206 BCE – 220 CE) expanded the Silk Road, established the civil service exam, and invented paper."
+              bullets: ["Confucianism became state ideology", "Population ~60 million"]
+          - component: "MultipleChoice"
+            data:
+              question: "What major trade route was expanded during the Han Dynasty?"
+              options:
+                - {id: "a", text: "Spice Route"}
+                - {id: "b", text: "Silk Road"}
+                - {id: "c", text: "Amber Road"}
+                - {id: "d", text: "Trans-Saharan"}
+              correctOptionId: "b"
+          - component: "FeynmanMirror"
+            data:
+              prompt: "Explain the significance of the Chinese civil service examination system."
+              sampleAnswer: "The exam system selected government officials based on merit rather than birth, promoting Confucian education and creating a professional bureaucracy that persisted for centuries."
+
+      - id: "wh-1-6"
+        title: "Maurya & Gupta India"
+        description: "The golden age of Indian civilization."
+        stages:
+          - component: "MultipleChoice"
+            data:
+              question: "Who founded the Maurya Empire?"
+              options:
+                - {id: "a", text: "Ashoka"}
+                - {id: "b", text: "Chandragupta Maurya"}
+                - {id: "c", text: "Samudragupta"}
+                - {id: "d", text: "Harsha"}
+              correctOptionId: "b"
+          - component: "MatchingPairs"
+            data:
+              pairs:
+                - {id: "p1", left: "Ashoka", right: "Spread Buddhism"}
+                - {id: "p2", left: "Gupta Empire", right: "Golden Age of India"}
+                - {id: "p3", left: "Aryabhata", right: "Mathematics & astronomy"}
+                - {id: "p4", left: "Kalidasa", right: "Sanskrit literature"}
+          - component: "Ordering"
+            data:
+              question: "Order these Indian developments:"
+              steps: ["Vedic period", "Maurya Empire", "Gupta Golden Age", "Delhi Sultanate"]
+
+  - unitId: "wh-u2"
+    unitTitle: "Medieval & Early Modern"
+    unitDescription: "Feudalism, renaissance, and exploration."
+    nodes:
+      - id: "wh-2-1"
+        title: "The Medieval Period"
+        description: "Feudalism and the Church."
+        stages:
+          - component: "ExplainerMedia"
+            data:
+              title: "The Middle Ages"
+              explanation: "After Rome's fall, Europe entered a feudal period where lords, vassals, and serfs structured society under the Catholic Church's influence."
+              bullets: ["Feudal hierarchy: King → Lords → Knights → Peasants", "Monasteries preserved knowledge"]
+          - component: "MultipleChoice"
+            data:
+              question: "Feudalism is based on the exchange of what?"
+              options:
+                - {id: "a", text: "Money for goods"}
+                - {id: "b", text: "Land for loyalty/service"}
+                - {id: "c", text: "Technology for resources"}
+                - {id: "d", text: "Religion for power"}
+              correctOptionId: "b"
+          - component: "MatchingPairs"
+            data:
+              pairs:
+                - {id: "p1", left: "Charlemagne", right: "Holy Roman Empire"}
+                - {id: "p2", left: "Black Death", right: "1347-1351"}
+                - {id: "p3", left: "Magna Carta", right: "1215"}
+                - {id: "p4", left: "Crusades", right: "1096-1291"}
+
+      - id: "wh-2-2"
+        title: "The Renaissance"
+        description: "Rebirth of art and learning."
+        stages:
+          - component: "MultipleChoice"
+            data:
+              question: "The Renaissance began in which country?"
+              options:
+                - {id: "a", text: "France"}
+                - {id: "b", text: "England"}
+                - {id: "c", text: "Italy"}
+                - {id: "d", text: "Spain"}
+              correctOptionId: "c"
+          - component: "MatchingPairs"
+            data:
+              pairs:
+                - {id: "p1", left: "Leonardo da Vinci", right: "Mona Lisa"}
+                - {id: "p2", left: "Michelangelo", right: "Sistine Chapel"}
+                - {id: "p3", left: "Gutenberg", right: "Printing press"}
+                - {id: "p4", left: "Copernicus", right: "Heliocentric model"}
+          - component: "FeynmanMirror"
+            data:
+              prompt: "Explain why the Renaissance started in Italy."
+              sampleAnswer: "Italy's wealth from trade, city-state competition, classical Roman heritage, patronage by families like the Medici, and influx of Greek scholars after Constantinople's fall all combined to spark the Renaissance."
+
+      - id: "wh-2-3"
+        title: "Age of Exploration"
+        description: "European voyages across the globe."
+        stages:
+          - component: "Ordering"
+            data:
+              question: "Order these explorations:"
+              steps: ["Columbus reaches Americas (1492)", "Vasco da Gama reaches India (1498)", "Magellan circumnavigates (1519)", "Cook reaches Australia (1770)"]
+          - component: "MultipleChoice"
+            data:
+              question: "Who funded Columbus's voyage?"
+              options:
+                - {id: "a", text: "England"}
+                - {id: "b", text: "Portugal"}
+                - {id: "c", text: "Spain"}
+                - {id: "d", text: "France"}
+              correctOptionId: "c"
+          - component: "ExplainerMedia"
+            data:
+              title: "Why Explore?"
+              explanation: "European powers sought new trade routes, resources, and territories. The 'Columbian Exchange' transferred crops, animals, and diseases between hemispheres."
+              bullets: ["Gold, God, Glory", "Devastating effect on indigenous populations"]
+
+      - id: "wh-2-4"
+        title: "The Reformation"
+        description: "Martin Luther and religious change."
+        stages:
+          - component: "MultipleChoice"
+            data:
+              question: "In what year did Luther post his 95 Theses?"
+              options:
+                - {id: "a", text: "1492"}
+                - {id: "b", text: "1517"}
+                - {id: "c", text: "1543"}
+                - {id: "d", text: "1648"}
+              correctOptionId: "b"
+          - component: "MatchingPairs"
+            data:
+              pairs:
+                - {id: "p1", left: "Luther", right: "95 Theses"}
+                - {id: "p2", left: "Calvin", right: "Predestination"}
+                - {id: "p3", left: "Henry VIII", right: "Church of England"}
+                - {id: "p4", left: "Counter-Reformation", right: "Council of Trent"}
+          - component: "FeynmanMirror"
+            data:
+              prompt: "Explain the main causes of the Protestant Reformation."
+              sampleAnswer: "Corruption in the Catholic Church (indulgences, simony), the printing press spreading new ideas, rising nationalism, and reformers like Luther questioning papal authority all drove the Reformation."
+
+      - id: "wh-2-5"
+        title: "The Enlightenment"
+        description: "Reason and individual rights."
+        stages:
+          - component: "ExplainerMedia"
+            data:
+              title: "The Age of Reason"
+              explanation: "Enlightenment thinkers championed reason, science, and individual rights, challenging absolute monarchy and church authority."
+              bullets: ["Locke: natural rights", "Montesquieu: separation of powers"]
+          - component: "MultipleChoice"
+            data:
+              question: "Who wrote 'The Social Contract'?"
+              options:
+                - {id: "a", text: "Locke"}
+                - {id: "b", text: "Voltaire"}
+                - {id: "c", text: "Rousseau"}
+                - {id: "d", text: "Montesquieu"}
+              correctOptionId: "c"
+          - component: "MatchingPairs"
+            data:
+              pairs:
+                - {id: "p1", left: "Voltaire", right: "Freedom of speech"}
+                - {id: "p2", left: "Locke", right: "Life, liberty, property"}
+                - {id: "p3", left: "Rousseau", right: "Social contract"}
+                - {id: "p4", left: "Adam Smith", right: "Free market economics"}
+
+      - id: "wh-2-6"
+        title: "The French Revolution"
+        description: "Liberty, equality, fraternity."
+        stages:
+          - component: "Ordering"
+            data:
+              question: "Order the French Revolution events:"
+              steps: ["Storming of the Bastille (1789)", "Declaration of Rights of Man", "Reign of Terror (1793-94)", "Rise of Napoleon (1799)"]
+          - component: "MultipleChoice"
+            data:
+              question: "What was the Reign of Terror?"
+              options:
+                - {id: "a", text: "Economic boom"}
+                - {id: "b", text: "Period of mass executions"}
+                - {id: "c", text: "Religious reform"}
+                - {id: "d", text: "Colonial expansion"}
+              correctOptionId: "b"
+          - component: "FeynmanMirror"
+            data:
+              prompt: "Explain the causes of the French Revolution."
+              sampleAnswer: "The causes include financial crisis from war debt, unfair taxation of the Third Estate, food shortages, Enlightenment ideas about equality, and the rigid class system that denied commoners political power."
+
+  - unitId: "wh-u3"
+    unitTitle: "Modern World"
+    unitDescription: "Industrialization to the information age."
+    nodes:
+      - id: "wh-3-1"
+        title: "Industrial Revolution"
+        description: "The transformation of production."
+        stages:
+          - component: "ExplainerMedia"
+            data:
+              title: "Machines Change Everything"
+              explanation: "Starting in Britain ~1760, mechanized production transformed economies from agrarian to industrial."
+              bullets: ["Steam engine, spinning jenny, railways", "Urbanization and labor movements"]
+          - component: "MultipleChoice"
+            data:
+              question: "The Industrial Revolution began in which country?"
+              options:
+                - {id: "a", text: "France"}
+                - {id: "b", text: "Germany"}
+                - {id: "c", text: "Britain"}
+                - {id: "d", text: "USA"}
+              correctOptionId: "c"
+          - component: "MatchingPairs"
+            data:
+              pairs:
+                - {id: "p1", left: "James Watt", right: "Steam engine"}
+                - {id: "p2", left: "Eli Whitney", right: "Cotton gin"}
+                - {id: "p3", left: "Henry Ford", right: "Assembly line"}
+                - {id: "p4", left: "Edison", right: "Electric light bulb"}
+
+      - id: "wh-3-2"
+        title: "World War I"
+        description: "The Great War 1914-1918."
+        stages:
+          - component: "MultipleChoice"
+            data:
+              question: "What event triggered WWI?"
+              options:
+                - {id: "a", text: "Sinking of Lusitania"}
+                - {id: "b", text: "Assassination of Archduke Franz Ferdinand"}
+                - {id: "c", text: "German invasion of Poland"}
+                - {id: "d", text: "Russian Revolution"}
+              correctOptionId: "b"
+          - component: "Ordering"
+            data:
+              question: "Order WWI events:"
+              steps: ["Assassination of Franz Ferdinand (1914)", "US enters the war (1917)", "Russian Revolution (1917)", "Armistice signed (1918)"]
+          - component: "FeynmanMirror"
+            data:
+              prompt: "Explain the system of alliances that led to WWI."
+              sampleAnswer: "Europe was divided into the Triple Alliance (Germany, Austria-Hungary, Italy) and Triple Entente (France, Russia, Britain). When one nation was attacked, treaties pulled allies in, turning a regional conflict into a world war."
+
+      - id: "wh-3-3"
+        title: "World War II"
+        description: "The global conflict 1939-1945."
+        stages:
+          - component: "ExplainerMedia"
+            data:
+              title: "Total War"
+              explanation: "WWII was the deadliest conflict in history, involving most of the world's nations in two opposing alliances: the Allies and the Axis."
+              bullets: ["~70-85 million deaths", "Holocaust: 6 million Jews murdered"]
+          - component: "MultipleChoice"
+            data:
+              question: "D-Day invasion landed on the beaches of which region?"
+              options:
+                - {id: "a", text: "Sicily"}
+                - {id: "b", text: "Normandy"}
+                - {id: "c", text: "Dunkirk"}
+                - {id: "d", text: "Okinawa"}
+              correctOptionId: "b"
+          - component: "Ordering"
+            data:
+              question: "Order WWII events:"
+              steps: ["Germany invades Poland (1939)", "Pearl Harbor (1941)", "D-Day (1944)", "Atomic bombs dropped (1945)"]
+
+      - id: "wh-3-4"
+        title: "The Cold War"
+        description: "Superpower rivalry 1947-1991."
+        stages:
+          - component: "MultipleChoice"
+            data:
+              question: "What was the Iron Curtain?"
+              options:
+                - {id: "a", text: "A physical wall"}
+                - {id: "b", text: "Ideological division of Europe"}
+                - {id: "c", text: "Military strategy"}
+                - {id: "d", text: "Trade agreement"}
+              correctOptionId: "b"
+          - component: "MatchingPairs"
+            data:
+              pairs:
+                - {id: "p1", left: "NATO", right: "Western military alliance"}
+                - {id: "p2", left: "Warsaw Pact", right: "Eastern bloc alliance"}
+                - {id: "p3", left: "Cuban Missile Crisis", right: "1962 nuclear standoff"}
+                - {id: "p4", left: "Berlin Wall", right: "Fell in 1989"}
+          - component: "FeynmanMirror"
+            data:
+              prompt: "Explain why the Cold War never became a 'hot' war between superpowers."
+              sampleAnswer: "Nuclear deterrence (MAD - Mutually Assured Destruction) prevented direct conflict between the US and USSR. Instead, they fought proxy wars and competed in arms races, space races, and ideology."
+
+      - id: "wh-3-5"
+        title: "Decolonization"
+        description: "The end of European empires."
+        stages:
+          - component: "ExplainerMedia"
+            data:
+              title: "New Nations Rise"
+              explanation: "After WWII, European empires crumbled as colonies demanded independence, reshaping the global political map."
+              bullets: ["India 1947, Ghana 1957", "UN membership grew from 51 to 193"]
+          - component: "MultipleChoice"
+            data:
+              question: "Who led India's nonviolent independence movement?"
+              options:
+                - {id: "a", text: "Nehru"}
+                - {id: "b", text: "Jinnah"}
+                - {id: "c", text: "Gandhi"}
+                - {id: "d", text: "Bose"}
+              correctOptionId: "c"
+          - component: "Ordering"
+            data:
+              question: "Order these independence dates:"
+              steps: ["India (1947)", "Ghana (1957)", "Algeria (1962)", "Zimbabwe (1980)"]
+
+      - id: "wh-3-6"
+        title: "The Digital Revolution"
+        description: "Computers, internet, and the modern world."
+        stages:
+          - component: "MultipleChoice"
+            data:
+              question: "The World Wide Web was invented by whom?"
+              options:
+                - {id: "a", text: "Bill Gates"}
+                - {id: "b", text: "Steve Jobs"}
+                - {id: "c", text: "Tim Berners-Lee"}
+                - {id: "d", text: "Vint Cerf"}
+              correctOptionId: "c"
+          - component: "Ordering"
+            data:
+              question: "Order the digital milestones:"
+              steps: ["First computer (ENIAC, 1945)", "Personal computer era (1980s)", "World Wide Web (1991)", "iPhone launched (2007)"]
+          - component: "MatchingPairs"
+            data:
+              pairs:
+                - {id: "p1", left: "ARPANET", right: "Precursor to the internet"}
+                - {id: "p2", left: "HTTP", right: "Web protocol"}
+                - {id: "p3", left: "Google", right: "Search engine (1998)"}
+                - {id: "p4", left: "Bitcoin", right: "Cryptocurrency (2009)"}

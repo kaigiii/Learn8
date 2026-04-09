@@ -1,0 +1,446 @@
+title: "AI & Neural Networks"
+topic: "Artificial Intelligence & Neural Networks"
+description: "A comprehensive expedition through the mechanics of neural networks, backpropagation, and modern architectures."
+units:
+  - unitId: "ai-u1"
+    unitTitle: "Foundations"
+    unitDescription: "Mathematical and structural fundamentals of neural networks."
+    nodes:
+      - id: "ai-1-1"
+        title: "Biological vs Artificial Neurons"
+        description: "The perceptron and its biological inspiration."
+        stages:
+          - component: "ExplainerMedia"
+            data:
+              title: "What is a Neuron?"
+              explanation: "A neuron receives inputs, applies weights, sums them, and passes through an activation function."
+              bullets: ["Inputs × Weights → Sum → Activation", "Inspired by biological synapses"]
+          - component: "MultipleChoice"
+            data:
+              question: "What does a perceptron compute?"
+              options:
+                - {id: "a", text: "Weighted sum + activation"}
+                - {id: "b", text: "Random output"}
+                - {id: "c", text: "Image recognition"}
+                - {id: "d", text: "Sorting"}
+              correctOptionId: "a"
+          - component: "FeynmanMirror"
+            data:
+              prompt: "Explain in your own words how a single artificial neuron works."
+              sampleAnswer: "A neuron takes weighted inputs, sums them, adds a bias, and passes the result through an activation function to produce output."
+
+      - id: "ai-1-2"
+        title: "Activation Functions"
+        description: "Sigmoid, ReLU, Tanh and their roles."
+        stages:
+          - component: "MultipleChoice"
+            data:
+              question: "Which activation function outputs values between 0 and 1?"
+              options:
+                - {id: "a", text: "ReLU"}
+                - {id: "b", text: "Sigmoid"}
+                - {id: "c", text: "Tanh"}
+                - {id: "d", text: "Softmax"}
+              correctOptionId: "b"
+          - component: "MatchingPairs"
+            data:
+              pairs:
+                - {id: "p1", left: "ReLU", right: "max(0, x)"}
+                - {id: "p2", left: "Sigmoid", right: "1/(1+e^-x)"}
+                - {id: "p3", left: "Tanh", right: "(e^x - e^-x)/(e^x + e^-x)"}
+                - {id: "p4", left: "Softmax", right: "Probability distribution"}
+          - component: "Ordering"
+            data:
+              question: "Order these activation functions from oldest to newest:"
+              steps: ["Step Function", "Sigmoid", "Tanh", "ReLU"]
+
+      - id: "ai-1-3"
+        title: "Forward Propagation"
+        description: "How data flows through a dense network."
+        stages:
+          - component: "ExplainerMedia"
+            data:
+              title: "Forward Pass"
+              explanation: "Data enters at the input layer, gets multiplied by weights at each connection, summed at each neuron, and passed through activation functions until reaching the output."
+              bullets: ["Input → Hidden → Output", "Each layer transforms the data"]
+          - component: "Ordering"
+            data:
+              question: "Order the steps of forward propagation:"
+              steps: ["Receive input values", "Multiply by weights", "Sum weighted inputs + bias", "Apply activation function"]
+          - component: "MultipleChoice"
+            data:
+              question: "In forward propagation, data flows in which direction?"
+              options:
+                - {id: "a", text: "Output to input"}
+                - {id: "b", text: "Input to output"}
+                - {id: "c", text: "Randomly"}
+                - {id: "d", text: "Bidirectionally"}
+              correctOptionId: "b"
+
+      - id: "ai-1-4"
+        title: "Loss Functions"
+        description: "MSE, Cross-entropy and optimization basics."
+        stages:
+          - component: "MultipleChoice"
+            data:
+              question: "Which loss function is typically used for classification?"
+              options:
+                - {id: "a", text: "MSE"}
+                - {id: "b", text: "MAE"}
+                - {id: "c", text: "Cross-Entropy"}
+                - {id: "d", text: "Huber"}
+              correctOptionId: "c"
+          - component: "MatchingPairs"
+            data:
+              pairs:
+                - {id: "p1", left: "MSE", right: "Regression tasks"}
+                - {id: "p2", left: "Cross-Entropy", right: "Classification tasks"}
+                - {id: "p3", left: "MAE", right: "Robust to outliers"}
+                - {id: "p4", left: "Huber", right: "Combines MSE and MAE"}
+          - component: "FeynmanMirror"
+            data:
+              prompt: "Explain what a loss function does and why it matters."
+              sampleAnswer: "A loss function quantifies how far the model's predictions are from the true values, guiding the optimizer to adjust weights."
+
+      - id: "ai-1-5"
+        title: "Gradient Descent"
+        description: "How models learn by following the gradient."
+        stages:
+          - component: "ExplainerMedia"
+            data:
+              title: "Walking Downhill"
+              explanation: "Gradient descent finds the minimum of the loss function by iteratively adjusting parameters in the direction of steepest descent."
+              bullets: ["Learning rate controls step size", "Too large → overshoot, too small → slow"]
+          - component: "Ordering"
+            data:
+              question: "Order the gradient descent algorithm steps:"
+              steps: ["Compute predictions", "Calculate loss", "Compute gradients", "Update weights"]
+          - component: "MultipleChoice"
+            data:
+              question: "What happens if the learning rate is too large?"
+              options:
+                - {id: "a", text: "Converges faster"}
+                - {id: "b", text: "Overshoots the minimum"}
+                - {id: "c", text: "Nothing changes"}
+                - {id: "d", text: "Model freezes"}
+              correctOptionId: "b"
+
+      - id: "ai-1-6"
+        title: "Backpropagation"
+        description: "The chain rule for training deep networks."
+        stages:
+          - component: "MultipleChoice"
+            data:
+              question: "Backpropagation uses which calculus concept?"
+              options:
+                - {id: "a", text: "Integration"}
+                - {id: "b", text: "Chain Rule"}
+                - {id: "c", text: "Limits"}
+                - {id: "d", text: "Series"}
+              correctOptionId: "b"
+          - component: "Ordering"
+            data:
+              question: "Order the backpropagation process:"
+              steps: ["Forward pass to compute output", "Calculate loss at output layer", "Propagate error backwards layer by layer", "Update weights using gradients"]
+          - component: "FeynmanMirror"
+            data:
+              prompt: "Explain backpropagation as if teaching a friend."
+              sampleAnswer: "Backpropagation calculates how much each weight contributed to the error by applying the chain rule backwards through the network, then adjusts weights to reduce the error."
+
+  - unitId: "ai-u2"
+    unitTitle: "Training Techniques"
+    unitDescription: "Practical techniques for training robust models."
+    nodes:
+      - id: "ai-2-1"
+        title: "Batch vs Stochastic GD"
+        description: "Mini-batch, batch and SGD trade-offs."
+        stages:
+          - component: "MultipleChoice"
+            data:
+              question: "Which method updates weights after every single sample?"
+              options:
+                - {id: "a", text: "Batch GD"}
+                - {id: "b", text: "SGD"}
+                - {id: "c", text: "Mini-batch GD"}
+                - {id: "d", text: "Adam"}
+              correctOptionId: "b"
+          - component: "MatchingPairs"
+            data:
+              pairs:
+                - {id: "p1", left: "Batch GD", right: "Uses entire dataset per update"}
+                - {id: "p2", left: "SGD", right: "Uses one sample per update"}
+                - {id: "p3", left: "Mini-batch", right: "Uses small subsets per update"}
+                - {id: "p4", left: "Adam", right: "Adaptive learning rate optimizer"}
+          - component: "ExplainerMedia"
+            data:
+              title: "Choosing Your Strategy"
+              explanation: "Batch GD is stable but slow. SGD is noisy but fast. Mini-batch combines both benefits and is the standard approach."
+              bullets: ["Mini-batch size: typically 32-256", "SGD adds regularization via noise"]
+
+      - id: "ai-2-2"
+        title: "Vanishing Gradients"
+        description: "Why deep networks struggle to learn."
+        stages:
+          - component: "ExplainerMedia"
+            data:
+              title: "The Vanishing Problem"
+              explanation: "When gradients shrink exponentially through many layers, early layers stop learning. This is the vanishing gradient problem."
+              bullets: ["Sigmoid/Tanh are prone to this", "ReLU helps mitigate it"]
+          - component: "MultipleChoice"
+            data:
+              question: "Which activation function helps mitigate vanishing gradients?"
+              options:
+                - {id: "a", text: "Sigmoid"}
+                - {id: "b", text: "Tanh"}
+                - {id: "c", text: "ReLU"}
+                - {id: "d", text: "Step Function"}
+              correctOptionId: "c"
+          - component: "FeynmanMirror"
+            data:
+              prompt: "Explain the vanishing gradient problem to a beginner."
+              sampleAnswer: "As error signals travel back through many layers, they get multiplied by small numbers repeatedly and shrink to near zero, preventing early layers from learning."
+
+      - id: "ai-2-3"
+        title: "Dropout Regularization"
+        description: "Preventing overfitting with random deactivation."
+        stages:
+          - component: "MultipleChoice"
+            data:
+              question: "What does dropout do during training?"
+              options:
+                - {id: "a", text: "Adds more neurons"}
+                - {id: "b", text: "Randomly deactivates neurons"}
+                - {id: "c", text: "Increases learning rate"}
+                - {id: "d", text: "Removes layers"}
+              correctOptionId: "b"
+          - component: "Ordering"
+            data:
+              question: "Order the dropout process:"
+              steps: ["During training, randomly select neurons", "Set selected neurons output to zero", "Scale remaining outputs", "At inference, use all neurons"]
+          - component: "MatchingPairs"
+            data:
+              pairs:
+                - {id: "p1", left: "Dropout rate 0.5", right: "50% neurons deactivated"}
+                - {id: "p2", left: "L2 Regularization", right: "Penalizes large weights"}
+                - {id: "p3", left: "Early Stopping", right: "Stop when validation loss rises"}
+                - {id: "p4", left: "Data Augmentation", right: "Artificially expand training set"}
+
+      - id: "ai-2-4"
+        title: "Batch Normalization"
+        description: "Stabilizing training with normalization layers."
+        stages:
+          - component: "ExplainerMedia"
+            data:
+              title: "Normalizing Activations"
+              explanation: "Batch normalization normalizes the inputs to each layer, making training more stable and allowing higher learning rates."
+              bullets: ["Applied before or after activation", "Uses running mean/variance at inference"]
+          - component: "MultipleChoice"
+            data:
+              question: "Batch normalization operates on which dimension?"
+              options:
+                - {id: "a", text: "Each feature across the batch"}
+                - {id: "b", text: "Each sample independently"}
+                - {id: "c", text: "The entire dataset"}
+                - {id: "d", text: "Only the output layer"}
+              correctOptionId: "a"
+          - component: "FeynmanMirror"
+            data:
+              prompt: "Explain batch normalization in simple terms."
+              sampleAnswer: "BatchNorm standardizes each layer's inputs to have zero mean and unit variance across the mini-batch, which speeds up training and reduces sensitivity to initialization."
+
+      - id: "ai-2-5"
+        title: "Learning Rate Scheduling"
+        description: "Dynamically adjusting the learning rate."
+        stages:
+          - component: "MultipleChoice"
+            data:
+              question: "What does a learning rate scheduler do?"
+              options:
+                - {id: "a", text: "Keeps LR constant"}
+                - {id: "b", text: "Adjusts LR during training"}
+                - {id: "c", text: "Removes LR entirely"}
+                - {id: "d", text: "Doubles LR each epoch"}
+              correctOptionId: "b"
+          - component: "MatchingPairs"
+            data:
+              pairs:
+                - {id: "p1", left: "Step Decay", right: "Reduce LR every N epochs"}
+                - {id: "p2", left: "Cosine Annealing", right: "Smoothly decrease then increase LR"}
+                - {id: "p3", left: "Warmup", right: "Gradually increase LR at start"}
+                - {id: "p4", left: "ReduceOnPlateau", right: "Reduce LR when metric stalls"}
+          - component: "Ordering"
+            data:
+              question: "Order these from highest to lowest typical initial learning rate:"
+              steps: ["SGD (0.1)", "Adam (0.001)", "Fine-tuning (0.00001)", "Warmup start (0.0)"]
+
+      - id: "ai-2-6"
+        title: "Transfer Learning"
+        description: "Leveraging pre-trained models."
+        stages:
+          - component: "ExplainerMedia"
+            data:
+              title: "Standing on Giants"
+              explanation: "Transfer learning uses a model pre-trained on a large dataset and fine-tunes it for a new, smaller dataset."
+              bullets: ["Saves compute and data", "Common in vision and NLP"]
+          - component: "MultipleChoice"
+            data:
+              question: "In transfer learning, which layers are typically frozen?"
+              options:
+                - {id: "a", text: "Output layers"}
+                - {id: "b", text: "Early/feature extraction layers"}
+                - {id: "c", text: "All layers"}
+                - {id: "d", text: "No layers"}
+              correctOptionId: "b"
+          - component: "Ordering"
+            data:
+              question: "Order the transfer learning workflow:"
+              steps: ["Select a pre-trained model", "Freeze early layers", "Replace the final classification head", "Fine-tune on your dataset"]
+
+  - unitId: "ai-u3"
+    unitTitle: "Modern Architectures"
+    unitDescription: "CNNs, RNNs, Transformers and beyond."
+    nodes:
+      - id: "ai-3-1"
+        title: "Convolutional Neural Networks"
+        description: "Kernels, pooling, and spatial learning."
+        stages:
+          - component: "ExplainerMedia"
+            data:
+              title: "Seeing Patterns"
+              explanation: "CNNs use small learnable filters that slide across images to detect features like edges, textures, and objects."
+              bullets: ["Convolution → Activation → Pooling", "Translation invariant"]
+          - component: "MultipleChoice"
+            data:
+              question: "What does a pooling layer do?"
+              options:
+                - {id: "a", text: "Learns new features"}
+                - {id: "b", text: "Reduces spatial dimensions"}
+                - {id: "c", text: "Adds more channels"}
+                - {id: "d", text: "Normalizes inputs"}
+              correctOptionId: "b"
+          - component: "MatchingPairs"
+            data:
+              pairs:
+                - {id: "p1", left: "Convolution", right: "Feature detection"}
+                - {id: "p2", left: "Max Pooling", right: "Downsampling"}
+                - {id: "p3", left: "Flatten", right: "Convert 2D to 1D"}
+                - {id: "p4", left: "Fully Connected", right: "Classification head"}
+
+      - id: "ai-3-2"
+        title: "Recurrent Neural Networks"
+        description: "Handling sequential data."
+        stages:
+          - component: "MultipleChoice"
+            data:
+              question: "RNNs are designed for what type of data?"
+              options:
+                - {id: "a", text: "Tabular"}
+                - {id: "b", text: "Sequential"}
+                - {id: "c", text: "Graph"}
+                - {id: "d", text: "Static images"}
+              correctOptionId: "b"
+          - component: "Ordering"
+            data:
+              question: "Order the RNN evolution:"
+              steps: ["Vanilla RNN", "LSTM", "GRU", "Transformer"]
+          - component: "FeynmanMirror"
+            data:
+              prompt: "Explain why vanilla RNNs struggle with long sequences."
+              sampleAnswer: "Vanilla RNNs process one token at a time and maintain a hidden state, but gradients vanish over many time steps, making it hard to remember early inputs. LSTMs solve this with gating mechanisms."
+
+      - id: "ai-3-3"
+        title: "The Transformer"
+        description: "Attention is all you need."
+        stages:
+          - component: "ExplainerMedia"
+            data:
+              title: "Attention Revolution"
+              explanation: "Transformers process all tokens in parallel using self-attention, where each token attends to every other token to build contextual representations."
+              bullets: ["No recurrence needed", "Scales better than RNNs"]
+          - component: "MultipleChoice"
+            data:
+              question: "What are the three vectors in self-attention?"
+              options:
+                - {id: "a", text: "Input, Output, Hidden"}
+                - {id: "b", text: "Query, Key, Value"}
+                - {id: "c", text: "Mean, Variance, Scale"}
+                - {id: "d", text: "Weight, Bias, Gradient"}
+              correctOptionId: "b"
+          - component: "MatchingPairs"
+            data:
+              pairs:
+                - {id: "p1", left: "Query", right: "What am I looking for?"}
+                - {id: "p2", left: "Key", right: "What do I contain?"}
+                - {id: "p3", left: "Value", right: "What information do I provide?"}
+                - {id: "p4", left: "Attention Score", right: "Dot product of Q and K"}
+
+      - id: "ai-3-4"
+        title: "GPT & Language Models"
+        description: "Autoregressive text generation."
+        stages:
+          - component: "MultipleChoice"
+            data:
+              question: "GPT models are trained using which objective?"
+              options:
+                - {id: "a", text: "Image classification"}
+                - {id: "b", text: "Next token prediction"}
+                - {id: "c", text: "Clustering"}
+                - {id: "d", text: "Reinforcement"}
+              correctOptionId: "b"
+          - component: "Ordering"
+            data:
+              question: "Order the GPT model sizes (smallest to largest):"
+              steps: ["GPT-1 (117M)", "GPT-2 (1.5B)", "GPT-3 (175B)", "GPT-4 (estimated >1T)"]
+          - component: "FeynmanMirror"
+            data:
+              prompt: "Explain how GPT generates text."
+              sampleAnswer: "GPT predicts the next most likely token given all previous tokens, then appends it and repeats. This autoregressive process generates fluent text one token at a time."
+
+      - id: "ai-3-5"
+        title: "Vision Transformers (ViT)"
+        description: "Applying transformers to images."
+        stages:
+          - component: "ExplainerMedia"
+            data:
+              title: "Patches as Tokens"
+              explanation: "Vision Transformers split images into fixed-size patches, flatten them into sequences, and process them with standard transformer encoders."
+              bullets: ["16×16 patches are common", "Competes with CNNs on large datasets"]
+          - component: "MultipleChoice"
+            data:
+              question: "How does ViT convert an image into a sequence?"
+              options:
+                - {id: "a", text: "Pixel by pixel"}
+                - {id: "b", text: "Splits into patches"}
+                - {id: "c", text: "Random sampling"}
+                - {id: "d", text: "Edge detection"}
+              correctOptionId: "b"
+          - component: "MatchingPairs"
+            data:
+              pairs:
+                - {id: "p1", left: "ViT", right: "Patch-based image transformer"}
+                - {id: "p2", left: "ResNet", right: "Deep CNN with skip connections"}
+                - {id: "p3", left: "CLIP", right: "Vision-language alignment"}
+                - {id: "p4", left: "DALL-E", right: "Text-to-image generation"}
+
+      - id: "ai-3-6"
+        title: "Diffusion Models"
+        description: "Generative AI through denoising."
+        stages:
+          - component: "ExplainerMedia"
+            data:
+              title: "From Noise to Art"
+              explanation: "Diffusion models learn to reverse a gradual noising process, starting from pure noise and iteratively denoising to generate realistic data."
+              bullets: ["Forward: add noise step by step", "Reverse: learn to remove noise"]
+          - component: "Ordering"
+            data:
+              question: "Order the diffusion model process:"
+              steps: ["Start with clean data", "Gradually add Gaussian noise", "Train model to predict and remove noise", "Generate new data by denoising from pure noise"]
+          - component: "MultipleChoice"
+            data:
+              question: "What do diffusion models learn to predict?"
+              options:
+                - {id: "a", text: "The original image directly"}
+                - {id: "b", text: "The noise added at each step"}
+                - {id: "c", text: "Image labels"}
+                - {id: "d", text: "Pixel colors"}
+              correctOptionId: "b"
