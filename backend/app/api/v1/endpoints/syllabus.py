@@ -159,6 +159,13 @@ async def refine_syllabus_endpoint(
         "General Audience",
     )
     if request.courseId:
+        from app.api.v1.endpoints.courses import SYSTEM_USER_EMAIL
+        system_user = db.query(UserModel).filter(UserModel.email == SYSTEM_USER_EMAIL).first()
+        course = db.query(CourseModel).filter(CourseModel.id == request.courseId).first()
+        if system_user and course and course.user_id == system_user.id:
+            raise HTTPException(status_code=403, detail="Official topics are immutable and cannot be refined.")
+
+    if request.courseId:
         def _fetch_refine_course():
             return (
                 db.query(CourseModel)

@@ -32,7 +32,7 @@ class JobModel(Base):
     progress = Column(Integer, default=0)
 
     # 顯示給前端看的進度訊息
-    message = Column(String(255), nullable=True)
+    message = Column(String, nullable=True)
 
     # 執行結果的載體 (如 {"course_id": 123})
     result_data = Column(JSON, nullable=True)

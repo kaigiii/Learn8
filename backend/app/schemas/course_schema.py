@@ -39,6 +39,7 @@ class CoursePath(BaseModel):
     topic: Optional[str] = None  # 用於重新生成時保留主題
     courseTitle: str
     description: Optional[str] = None
+    isPublic: bool = False
     units: List[Unit]
 
 

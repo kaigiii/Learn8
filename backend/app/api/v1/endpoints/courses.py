@@ -9,11 +9,11 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from app.api.dependencies import get_db, get_current_user
 from app.core.time import utc_now_naive
-from app.domain.statuses import CourseStatus, JobStatus, JobType, NodeStatus
+from app.domain.statuses import CourseStatus, JobStatus, JobType, NodeStatus, LessonSessionStatus
 from app.models.user import UserModel
 from app.models.course import CourseModel, NodeModel
 from app.models.job import JobModel
-from app.models.lesson import LessonModel
+from app.models.lesson import LessonModel, LessonAttempt, LessonSessionModel
 from app.schemas.course_schema import (
     CoursePath,
     CourseCreateRequest,
@@ -72,6 +72,42 @@ def get_courses(
     ]
 
 
+SYSTEM_USER_EMAIL = "public@learn8.system"
+
+
+@router.get("/public", response_model=List[dict])
+def get_public_courses(
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Return all courses owned by the system user (public courses)."""
+    system_user = db.query(UserModel).filter(UserModel.email == SYSTEM_USER_EMAIL).first()
+    if not system_user:
+        return []
+
+    courses = (
+        db.query(CourseModel)
+        .filter(
+            CourseModel.user_id == system_user.id,
+            CourseModel.status == CourseStatus.READY,
+        )
+        .order_by(CourseModel.updated_at.desc())
+        .all()
+    )
+    return [
+        {
+            "id": c.id,
+            "title": c.title,
+            "topic": c.topic,
+            "status": c.status,
+            "draft_json": c.draft_json,
+            "folder_name": c.folder_name,
+            "created_at": c.created_at,
+        }
+        for c in courses
+    ]
+
+
 @router.post("", response_model=dict)
 def create_course(
     request: CourseCreateRequest,
@@ -114,6 +150,16 @@ def get_course_detail(
         .first()
     )
 
+    # If not found in user's own courses, check if it's a public course
+    if not course:
+        system_user = db.query(UserModel).filter(UserModel.email == SYSTEM_USER_EMAIL).first()
+        if system_user:
+            course = (
+                db.query(CourseModel)
+                .filter(CourseModel.id == course_id, CourseModel.user_id == system_user.id)
+                .first()
+            )
+
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
 
@@ -126,20 +172,60 @@ def get_course_detail(
     path.id = course.id
     path.topic = course.topic
 
-    generated_node_ids = {
-        row[0]
-        for row in db.query(LessonModel.node_id)
-        .filter(
-            LessonModel.user_id == current_user.id,
-            LessonModel.course_id == course.id,
+    # For public courses, check lessons owned by the system user
+    lesson_owner_id = course.user_id
+    # We find nodes that have lessons either by exact course_id OR by topic (for system user)
+    system_user = db.query(UserModel).filter(UserModel.email == SYSTEM_USER_EMAIL).first()
+    is_system_course = system_user and (course.user_id == system_user.id)
+    
+    lesson_query = db.query(LessonModel.node_id).filter(LessonModel.user_id == lesson_owner_id)
+    if is_system_course:
+        # For system courses, we can also match by topic to be safe
+        lesson_query = lesson_query.filter(
+            (LessonModel.course_id == course.id) | (LessonModel.course_topic == course.topic)
         )
-        .distinct()
-        .all()
-    }
+    else:
+        lesson_query = lesson_query.filter(LessonModel.course_id == course.id)
+
+    generated_node_ids = {row[0] for row in lesson_query.distinct().all()}
 
     for unit in path.units:
         for node in unit.nodes:
             node.hasGeneratedLesson = node.id in generated_node_ids
+
+    # Patch for public courses: dynamically update status based on current_user's completions
+    system_user = db.query(UserModel).filter(UserModel.email == SYSTEM_USER_EMAIL).first()
+    if system_user and course.user_id == system_user.id:
+        path.isPublic = True
+        # For public courses, the nodes in syllabus_json don't have statuses
+        # We must map current_user's completions
+        completed_node_ids = {
+            row[0]
+            for row in db.query(LessonSessionModel.node_id)
+            .filter(
+                LessonSessionModel.user_id == current_user.id,
+                LessonSessionModel.course_id == course.id,
+                LessonSessionModel.status == LessonSessionStatus.COMPLETED,
+            )
+            .all()
+        }
+
+        all_nodes_flat = []
+        for unit in path.units:
+            for node in unit.nodes:
+                all_nodes_flat.append(node)
+
+        for i, node in enumerate(all_nodes_flat):
+            if node.id in completed_node_ids:
+                node.status = NodeStatus.COMPLETED
+            elif i == 0:
+                # First node is always available if not completed
+                node.status = NodeStatus.AVAILABLE
+            elif all_nodes_flat[i - 1].id in completed_node_ids:
+                # Node is available if previous node is completed
+                node.status = NodeStatus.AVAILABLE
+            else:
+                node.status = NodeStatus.LOCKED
 
     return path
 

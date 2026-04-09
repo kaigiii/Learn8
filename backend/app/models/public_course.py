@@ -17,6 +17,7 @@ class PublicCourseModel(Base):
     is_arena_enabled = Column(Boolean, nullable=False, default=False, index=True)
     tags_json = Column(JSON, nullable=False, default=list)
     metadata_json = Column(JSON, nullable=True)
+    syllabus_json = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=utc_now_naive)
     updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive)
 

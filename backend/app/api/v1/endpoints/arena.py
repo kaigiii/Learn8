@@ -67,6 +67,29 @@ def list_public_courses(
     ]
 
 
+@router.get("/public-courses/{course_id}", response_model=dict)
+def get_public_course(
+    course_id: int,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
+    from app.models.public_course import PublicCourseModel
+    from app.schemas.course_schema import CoursePath
+    course = db.query(PublicCourseModel).filter(PublicCourseModel.id == course_id, PublicCourseModel.is_published == True).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Public course not found")
+    
+    if not course.syllabus_json:
+        raise HTTPException(status_code=409, detail="This public course does not have a mapped syllabus yet")
+        
+    path = CoursePath(**course.syllabus_json)
+    path.id = course.id
+    path.topic = course.topic
+    
+    return path.model_dump()
+
+
+
 @router.get("/season", response_model=ArenaSeasonSummary | None)
 def get_active_season(
     db: Session = Depends(get_db),
