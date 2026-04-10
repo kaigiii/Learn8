@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Any
 
 from pydantic import BaseModel, Field
 
@@ -28,15 +28,30 @@ class ArenaAdminPublicCourseResponse(BaseModel):
 
 class ArenaAdminQuestionPoolItemRequest(BaseModel):
     questionKey: str = Field(min_length=1, max_length=120)
+    questionType: str = Field(default="MultipleChoice", min_length=1)
     prompt: str = Field(min_length=1)
-    options: List[dict]
-    correctOptionId: str = Field(min_length=1, max_length=120)
+    options: List[Any]
+    correctOptionId: Optional[str] = None
     difficulty: str = "normal"
     knowledgeTags: List[str] = Field(default_factory=list)
     explanation: Optional[str] = None
     sourceUnitId: Optional[str] = None
     sourceNodeId: Optional[str] = None
     isActive: bool = True
+
+
+class ArenaAdminSyllabusQuestionResponse(BaseModel):
+    unitId: str
+    unitTitle: str
+    nodeId: str
+    nodeTitle: str
+    questionKey: str
+    questionType: str
+    prompt: str
+    options: List[Any]
+    correctOptionId: Optional[str] = None
+    difficulty: str = "normal"
+    explanation: Optional[str] = None
 
 
 class ArenaAdminQuestionPoolUpsertRequest(BaseModel):
@@ -52,9 +67,10 @@ class ArenaAdminQuestionPoolUpsertRequest(BaseModel):
 class ArenaAdminQuestionPoolItemResponse(BaseModel):
     id: int
     questionKey: str
+    questionType: str
     prompt: str
-    options: List[dict]
-    correctOptionId: str
+    options: List[Any]
+    correctOptionId: Optional[str] = None
     difficulty: str
     knowledgeTags: List[str]
     explanation: Optional[str] = None

@@ -252,6 +252,20 @@ export interface ArenaAdminPublicCourse extends ArenaPublicCourse {
   isArenaEnabled: boolean;
 }
 
+export interface ArenaAdminSyllabusQuestion {
+  unitId: string;
+  unitTitle: string;
+  nodeId: string;
+  nodeTitle: string;
+  questionKey: string;
+  questionType: string;
+  prompt: string;
+  options: any[];
+  correctOptionId?: string;
+  difficulty: string;
+  explanation?: string | null;
+}
+
 export interface ArenaAdminPublicCourseUpsertRequest {
   slug: string;
   title: string;
@@ -266,9 +280,10 @@ export interface ArenaAdminPublicCourseUpsertRequest {
 export interface ArenaAdminQuestionPoolItem {
   id: number;
   questionKey: string;
+  questionType: string;
   prompt: string;
-  options: Array<Record<string, unknown>>;
-  correctOptionId: string;
+  options: any[];
+  correctOptionId?: string;
   difficulty: string;
   knowledgeTags: string[];
   explanation?: string | null;
@@ -290,9 +305,10 @@ export interface ArenaAdminQuestionPool {
 
 export interface ArenaAdminQuestionPoolItemUpsertRequest {
   questionKey: string;
+  questionType: string;
   prompt: string;
-  options: Array<Record<string, unknown>>;
-  correctOptionId: string;
+  options: any[];
+  correctOptionId?: string;
   difficulty: string;
   knowledgeTags: string[];
   explanation?: string | null;
@@ -420,8 +436,9 @@ export interface ArenaQuestionOption {
 
 export interface ArenaQuestionView {
   questionId: string;
+  questionType: string;
   prompt: string;
-  options: ArenaQuestionOption[];
+  options: any[];
   difficulty?: string | null;
   knowledgeTags: string[];
 }

@@ -407,6 +407,7 @@ class RoundEngine:
                 "revealedAnswer": active_round.revealed_answer_json,
                 "question": {
                     "questionId": str(question.get("question_id") or active_round.id),
+                    "questionType": str(question.get("question_type") or "MultipleChoice"),
                     "prompt": str(question.get("prompt") or ""),
                     "options": list(question.get("options") or []),
                     "difficulty": question.get("difficulty"),
@@ -442,7 +443,8 @@ class RoundEngine:
         match_id: int,
         round_id: int,
         current_user: UserModel,
-        selected_option_id: str,
+        selected_option_id: str | None = None,
+        answer_payload: dict | None = None,
     ) -> dict:
         match = self.get_match(db, match_id)
         if not match:
@@ -517,7 +519,7 @@ class RoundEngine:
                     match_id=match.id,
                     round_id=round_model.id,
                     user_id=current_user.id,
-                    answer_payload_json={"selectedOptionId": selected_option_id},
+                    answer_payload_json=answer_payload or {"selectedOptionId": selected_option_id},
                     selected_option_id=selected_option_id,
                     is_correct=is_correct,
                     score_awarded=score_awarded,
@@ -564,6 +566,7 @@ class RoundEngine:
                 "roundId": round_model.id,
                 "userId": current_user.id,
                 "selectedOptionId": selected_option_id,
+                "answerPayload": answer_payload,
             },
         )
 

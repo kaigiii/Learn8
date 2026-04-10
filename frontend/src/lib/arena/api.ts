@@ -21,6 +21,7 @@ import type {
   ArenaRankHistoryResponse,
   ArenaRoom,
   ArenaSeasonSummary,
+  ArenaAdminSyllabusQuestion,
 } from "@/lib/apiTypes";
 
 export function fetchArenaPublicCourses() {
@@ -124,7 +125,7 @@ export function heartbeatArenaMatchPresence(matchId: number) {
 
 export function submitArenaAnswer(
   matchId: number,
-  payload: { roundId: number; selectedOptionId: string }
+  payload: { roundId: number; selectedOptionId?: string | null; answerPayload?: any }
 ) {
   return apiFetch<ArenaAnswerSubmitResponse>(`/arena/matches/${matchId}/answers`, {
     method: "POST",
@@ -174,6 +175,14 @@ export function updateArenaAdminPublicCourse(
   });
 }
 
+// ...existing code...
+
+export function fetchArenaAdminAvailableQuestions(publicCourseId: number) {
+  return apiFetch<ArenaAdminSyllabusQuestion[]>(
+    `/arena/admin/public-courses/${publicCourseId}/available-questions`
+  );
+}
+
 export function fetchArenaAdminQuestionPools(publicCourseId?: number | null) {
   const search = new URLSearchParams();
   if (publicCourseId) {
@@ -202,6 +211,11 @@ export function updateArenaAdminQuestionPool(
   });
 }
 
+export function deleteArenaAdminQuestionPool(poolId: number) {
+  return apiFetch<{ status: string }>(`/arena/admin/question-pools/${poolId}`, {
+    method: "DELETE",
+  });
+}
 export function fetchArenaAdminSeasons() {
   return apiFetch<ArenaAdminSeason[]>("/arena/admin/seasons");
 }

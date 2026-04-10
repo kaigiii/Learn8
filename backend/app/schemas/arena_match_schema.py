@@ -10,8 +10,9 @@ class ArenaQuestionOption(BaseModel):
 
 class ArenaQuestionView(BaseModel):
     questionId: str
+    questionType: str = "MultipleChoice"
     prompt: str
-    options: List[ArenaQuestionOption]
+    options: List[Any]
     difficulty: Optional[str] = None
     knowledgeTags: List[str] = Field(default_factory=list)
 
@@ -76,7 +77,8 @@ class ArenaMatchStateResponse(BaseModel):
 
 class ArenaAnswerSubmitRequest(BaseModel):
     roundId: int
-    selectedOptionId: str
+    selectedOptionId: Optional[str] = None
+    answerPayload: Optional[Any] = None
 
 
 class ArenaAnswerSubmitResponse(BaseModel):

@@ -67,6 +67,7 @@ class QuestionPoolService:
         options = item.options_json if isinstance(item.options_json, list) else []
         return {
             "question_id": item.question_key,
+            "question_type": item.question_type,
             "prompt": item.prompt,
             "options": options,
             "correct_option_id": item.correct_option_id,
@@ -107,6 +108,7 @@ class QuestionPoolService:
 
         return {
             "question_id": question_id,
+            "question_type": payload.get("question_type") or payload.get("questionType") or "MultipleChoice",
             "prompt": prompt,
             "options": options,
             "correct_option_id": correct_option_id,

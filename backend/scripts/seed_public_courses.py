@@ -226,6 +226,9 @@ def _seed_one_course(db: Session, user: UserModel, course_def: dict) -> None:
                 if "topic" not in s_def:
                     s_def["topic"] = node_def["title"]
                 stages_data.append(build_stage_snapshot(s_def))
+                
+                # Also bake back the component specifically for the syllabus
+                s_def["data"] = stages_data[-1]["config"]["data"]
 
             # Create Lesson
             lesson = LessonModel(
@@ -260,7 +263,7 @@ def _seed_one_course(db: Session, user: UserModel, course_def: dict) -> None:
                     recommended_duration_minutes=stage_snapshot.get("recommendedDurationMinutes"),
                     item_count=1,
                     schema_version=2,
-                    content_json=stage_snapshot["config"],
+                    content_json=stage_snapshot["config"]["data"],
                     validation_json=stage_snapshot["validation"],
                     feedback_json=stage_snapshot["feedback"],
                     stage_snapshot_json=stage_snapshot,
@@ -271,7 +274,44 @@ def _seed_one_course(db: Session, user: UserModel, course_def: dict) -> None:
                 stage_count += 1
 
     db.commit()
-    print(f"    ✓ {title}: {node_count} nodes, {stage_count} stages (course_id={course.id})")
+
+    # Now also seed the PublicCourseModel, ensuring it uses the fully enriched syllabus with baked stages
+    from app.models.public_course import PublicCourseModel
+    slug = title.lower().replace(" ", "-").replace("&", "and")
+    
+    public_course = (
+        db.query(PublicCourseModel)
+        .filter(PublicCourseModel.slug == slug)
+        .first()
+    )
+    if public_course:
+        db.delete(public_course)
+        db.flush()
+
+    # Re-build syllabus with all stages intact from the original course_def
+    final_syllabus = _build_syllabus_json(course_def)
+    # Inject stages back into the syllabus structurally
+    for u_i, unit in enumerate(final_syllabus["units"]):
+        for n_i, node in enumerate(unit["nodes"]):
+            node["stages"] = course_def["units"][u_i]["nodes"][n_i].get("stages", [])
+
+    public_course = PublicCourseModel(
+        slug=slug,
+        title=title,
+        topic=course_def["topic"],
+        description=course_def.get("description", "System generated public course"),
+        difficulty="intermediate",
+        is_published=True,
+        is_arena_enabled=True,
+        tags_json=["yaml-seeded"],
+        syllabus_json=final_syllabus,
+        created_at=now,
+        updated_at=now,
+    )
+    db.add(public_course)
+    db.commit()
+
+    print(f"    ✓ {title}: {node_count} nodes, {stage_count} stages (course_id={course.id}, public_course_id={public_course.id})")
 
 
 def main() -> None:
