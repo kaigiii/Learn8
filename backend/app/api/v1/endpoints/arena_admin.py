@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_arena_admin, get_db
@@ -13,6 +13,7 @@ from app.schemas.arena_admin_schema import (
     ArenaAdminQuestionPoolUpsertRequest,
     ArenaAdminSeasonResponse,
     ArenaAdminSeasonUpsertRequest,
+    ArenaAdminSyllabusQuestionResponse,
 )
 from app.services.arena.admin_service import AdminService
 from app.services.arena.telemetry_service import TelemetryService
@@ -95,6 +96,23 @@ def update_admin_public_course(
     return service.serialize_public_course(course)
 
 
+@router.get(
+    "/public-courses/{public_course_id}/available-questions",
+    response_model=list[ArenaAdminSyllabusQuestionResponse],
+)
+def list_available_syllabus_questions(
+    public_course_id: int,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_arena_admin),
+):
+    del current_user
+    service = AdminService()
+    return [
+        ArenaAdminSyllabusQuestionResponse(**row)
+        for row in service.extract_questions_from_syllabus(db, public_course_id=public_course_id)
+    ]
+
+
 @router.get("/question-pools", response_model=list[ArenaAdminQuestionPoolResponse])
 def list_admin_question_pools(
     public_course_id: int | None = None,
@@ -133,6 +151,18 @@ def update_admin_question_pool(
     pool = service.upsert_question_pool(db, pool_id=pool_id, payload=payload.model_dump())
     return ArenaAdminQuestionPoolResponse(**service.serialize_question_pool(pool))
 
+@router.delete("/question-pools/{pool_id}")
+def delete_admin_question_pool(
+    pool_id: int,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_arena_admin),
+):
+    del current_user
+    service = AdminService()
+    success = service.delete_question_pool(db, pool_id=pool_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Question pool not found")
+    return {"status": "ok"}
 
 @router.get("/seasons", response_model=list[ArenaAdminSeasonResponse])
 def list_admin_seasons(

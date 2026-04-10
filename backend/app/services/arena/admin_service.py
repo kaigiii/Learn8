@@ -11,6 +11,7 @@ from app.models.arena_round import ArenaRoundModel
 from app.models.arena_season import ArenaSeasonModel
 from app.models.public_course import PublicCourseModel
 from app.models.user import UserModel
+from app.models.lesson import LessonModel, LessonStageModel
 
 
 class AdminService:
@@ -208,7 +209,6 @@ class AdminService:
         if pool is None:
             pool = ArenaQuestionPoolModel(public_course_id=payload["publicCourseId"])
             db.add(pool)
-            db.flush()
 
         pool.public_course_id = payload["publicCourseId"]
         pool.slug = payload["slug"].strip()
@@ -216,7 +216,6 @@ class AdminService:
         pool.description = payload.get("description")
         pool.is_active = bool(payload.get("isActive"))
         pool.version = int(payload.get("version") or 1)
-        db.add(pool)
         db.flush()
 
         existing_by_key = {item.question_key: item for item in list(pool.items)}
@@ -230,9 +229,10 @@ class AdminService:
                 db.add(item)
 
             item.question_key = question_key
+            item.question_type = raw_item.get("questionType", "MultipleChoice")
             item.prompt = raw_item["prompt"].strip()
             item.options_json = list(raw_item.get("options") or [])
-            item.correct_option_id = str(raw_item["correctOptionId"]).strip()
+            item.correct_option_id = str(raw_item.get("correctOptionId", "")).strip() if raw_item.get("correctOptionId") else None
             item.difficulty = raw_item.get("difficulty") or "normal"
             item.knowledge_tags_json = list(raw_item.get("knowledgeTags") or [])
             item.explanation = raw_item.get("explanation")
@@ -252,6 +252,91 @@ class AdminService:
             .filter(ArenaQuestionPoolModel.id == pool.id)
             .first()
         )
+
+    def delete_question_pool(self, db: Session, pool_id: int) -> bool:
+        pool = db.query(ArenaQuestionPoolModel).filter(ArenaQuestionPoolModel.id == pool_id).first()
+        if not pool:
+            return False
+        db.delete(pool)
+        db.commit()
+        return True
+
+    def extract_questions_from_syllabus(
+        self,
+        db: Session,
+        public_course_id: int,
+    ) -> list[dict]:
+        course = db.query(PublicCourseModel).filter(PublicCourseModel.id == public_course_id).first()
+        if not course:
+            raise HTTPException(status_code=404, detail="Public course not found")
+
+        syllabus = course.syllabus_json
+        if not syllabus or not isinstance(syllabus, dict) or "units" not in syllabus:
+            return []
+
+        extracted = []
+        for unit in syllabus.get("units") or []:
+            u_id = unit.get("unitId", "U")
+            u_title = unit.get("unitTitle", "Untitled Unit")
+            for node in unit.get("nodes") or []:
+                n_id = node.get("id", "N")
+                n_title = node.get("title", "Untitled Node")
+                
+                context = {
+                    "unitId": u_id,
+                    "unitTitle": u_title,
+                    "nodeId": n_id,
+                    "nodeTitle": n_title,
+                }
+                
+                for stage_idx, stage in enumerate(node.get("stages") or []):
+                    # stage is a dict from syllabus_json
+                    component = stage.get("component")
+                    if component in ["MultipleChoice", "Ordering", "MatchingPairs", "FeynmanMirror", "ExplainerMedia"]:
+                        item = self._map_stage_to_syllabus_question(stage, context, len(extracted))
+                        if item:
+                            extracted.append(item)
+
+        return extracted
+
+    def _map_stage_to_syllabus_question(self, stage: dict, context: dict, index: int) -> dict:
+        component = stage.get("component", "Unknown")
+        data = stage.get("data", {})
+        
+        # Difficulty might not be explicitly set in syllabus stage block, fallback to normal
+        difficulty = stage.get("difficulty") or data.get("difficulty") or "normal"
+        explanation = data.get("explanation") or ""
+        
+        item = {
+            "unitId": context["unitId"],
+            "unitTitle": context["unitTitle"],
+            "nodeId": context["nodeId"],
+            "nodeTitle": context["nodeTitle"],
+            "questionKey": f"{context['nodeId']}-{index}",
+            "questionType": component,
+            "difficulty": difficulty,
+            "explanation": explanation,
+        }
+
+        if component == "MultipleChoice":
+            item["prompt"] = data.get("question", "")
+            item["options"] = data.get("options") or []
+            item["correctOptionId"] = data.get("correctOptionId") or ""
+        elif component == "MatchingPairs":
+            item["prompt"] = data.get("question") or context["nodeTitle"]
+            item["options"] = data.get("pairs") or []
+        elif component == "Ordering":
+            item["prompt"] = data.get("question") or context["nodeTitle"]
+            item["options"] = data.get("steps") or []
+        elif component == "FeynmanMirror":
+            item["prompt"] = data.get("prompt") or context["nodeTitle"]
+            item["options"] = []
+        elif component == "ExplainerMedia":
+            item["prompt"] = data.get("title") or context["nodeTitle"]
+            item["options"] = data.get("content") or []
+
+        return item
+
 
     def serialize_public_course(self, course: PublicCourseModel) -> dict:
         return {
@@ -280,6 +365,7 @@ class AdminService:
                 {
                     "id": item.id,
                     "questionKey": item.question_key,
+                    "questionType": item.question_type,
                     "prompt": item.prompt,
                     "options": list(item.options_json or []),
                     "correctOptionId": item.correct_option_id,

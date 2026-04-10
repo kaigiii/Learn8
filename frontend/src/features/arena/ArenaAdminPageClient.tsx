@@ -2,6 +2,19 @@
 
 import Link from "next/link";
 import React, { useEffect, useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+  FiLayout, 
+  FiBookOpen, 
+  FiCalendar, 
+  FiActivity, 
+  FiSave, 
+  FiPlus, 
+  FiTrash2, 
+  FiArrowRight, 
+  FiSearch, 
+  FiTerminal 
+} from "react-icons/fi";
 
 import TopStatsBar from "@/components/layout/TopStatsBar";
 import DeepGlassCard from "@/components/ui/DeepGlassCard";
@@ -18,7 +31,9 @@ import {
   fetchArenaAdminSeasons,
   updateArenaAdminPublicCourse,
   updateArenaAdminQuestionPool,
+  deleteArenaAdminQuestionPool,
   updateArenaAdminSeason,
+  fetchArenaAdminAvailableQuestions,
 } from "@/lib/arena/api";
 import { ApiError, resolveErrorMessage } from "@/lib/apiClient";
 import { useRequireAuthRedirect } from "@/lib/auth/useRequireAuthRedirect";
@@ -33,7 +48,11 @@ import type {
   ArenaAdminQuestionPoolUpsertRequest,
   ArenaAdminSeason,
   ArenaAdminSeasonUpsertRequest,
+  ArenaAdminSyllabusQuestion,
 } from "@/lib/apiTypes";
+import ArenaPoolBuilder from "./components/ArenaPoolBuilder";
+
+/* ═══════════════════ Types ═══════════════════ */
 
 type CourseFormState = {
   slug: string;
@@ -53,15 +72,16 @@ type PoolOptionFormState = {
 
 type PoolItemFormState = {
   questionKey: string;
+  questionType: string;
   prompt: string;
-  correctOptionId: string;
+  correctOptionId?: string;
   difficulty: string;
   knowledgeTagsText: string;
   explanation: string;
   sourceUnitId: string;
   sourceNodeId: string;
   isActive: boolean;
-  options: PoolOptionFormState[];
+  options: any[];
 };
 
 type PoolFormState = {
@@ -84,6 +104,8 @@ type SeasonFormState = {
   rewardConfigText: string;
 };
 
+/* ═══════════════════ Constants ═══════════════════ */
+
 const EMPTY_COURSE_FORM: CourseFormState = {
   slug: "",
   title: "",
@@ -102,7 +124,7 @@ const EMPTY_POOL_FORM: PoolFormState = {
   description: "",
   isActive: true,
   version: 1,
-  items: [createEmptyPoolItem(1)],
+  items: [],
 };
 
 const EMPTY_SEASON_FORM: SeasonFormState = {
@@ -114,6 +136,8 @@ const EMPTY_SEASON_FORM: SeasonFormState = {
   leaderboardConfigText: "{\n  \"type\": \"global\"\n}",
   rewardConfigText: "{}",
 };
+
+/* ═══════════════════ Main Component ═══════════════════ */
 
 export default function ArenaAdminPageClient() {
   const { isReady } = useRequireAuthRedirect();
@@ -132,12 +156,18 @@ export default function ArenaAdminPageClient() {
   const [loading, setLoading] = useState(true);
   const [savingCourse, setSavingCourse] = useState(false);
   const [savingPool, setSavingPool] = useState(false);
+  const [poolToDeleteId, setPoolToDeleteId] = useState<number | null>(null);
   const [savingSeason, setSavingSeason] = useState(false);
   const [loadingOps, setLoadingOps] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
   const [playerMatchSearch, setPlayerMatchSearch] = useState("");
+  
+  // UI Tabs State
+  const [activeTab, setActiveTab] = useState<"builder" | "topics" | "seasons" | "operations">("builder");
+  const [availableQuestions, setAvailableQuestions] = useState<ArenaAdminSyllabusQuestion[]>([]);
+  const [loadingAvailable, setLoadingAvailable] = useState(false);
 
   useEffect(() => {
     if (!isReady) return;
@@ -195,6 +225,26 @@ export default function ArenaAdminPageClient() {
     };
   }, [isReady]);
 
+  // Sync Syllabus Questions
+  useEffect(() => {
+    if (!selectedCourseId) {
+      setAvailableQuestions([]);
+      return;
+    }
+
+    void (async () => {
+      setLoadingAvailable(true);
+      try {
+        const next = await fetchArenaAdminAvailableQuestions(selectedCourseId);
+        setAvailableQuestions(next);
+      } catch (err) {
+        console.error("Failed to fetch available questions:", err);
+      } finally {
+        setLoadingAvailable(false);
+      }
+    })();
+  }, [selectedCourseId]);
+
   const filteredPools = useMemo(() => {
     if (!selectedCourseId) return pools;
     return pools.filter((pool) => pool.publicCourseId === selectedCourseId);
@@ -215,15 +265,12 @@ export default function ArenaAdminPageClient() {
     [seasons, selectedSeasonId]
   );
 
-  const poolItemCount = poolForm.items.length;
-  const totalOptionCount = poolForm.items.reduce((sum, item) => sum + item.options.length, 0);
-
+  // Sync Forms with Selections
   useEffect(() => {
     if (!selectedCourse) {
       setCourseForm(EMPTY_COURSE_FORM);
       return;
     }
-
     setCourseForm({
       slug: selectedCourse.slug,
       title: selectedCourse.title,
@@ -241,11 +288,10 @@ export default function ArenaAdminPageClient() {
       setPoolForm({
         ...EMPTY_POOL_FORM,
         publicCourseId: selectedCourseId,
-        items: [createEmptyPoolItem(1)],
+        items: [],
       });
       return;
     }
-
     setPoolForm({
       publicCourseId: selectedPool.publicCourseId,
       slug: selectedPool.slug,
@@ -253,8 +299,9 @@ export default function ArenaAdminPageClient() {
       description: selectedPool.description ?? "",
       isActive: selectedPool.isActive,
       version: selectedPool.version,
-      items: selectedPool.items.map((item, index) => ({
+      items: selectedPool.items.map((item) => ({
         questionKey: item.questionKey,
+        questionType: item.questionType || "MultipleChoice",
         prompt: item.prompt,
         correctOptionId: item.correctOptionId,
         difficulty: item.difficulty,
@@ -263,29 +310,16 @@ export default function ArenaAdminPageClient() {
         sourceUnitId: item.sourceUnitId ?? "",
         sourceNodeId: item.sourceNodeId ?? "",
         isActive: item.isActive,
-        options:
-          item.options.length > 0
-            ? item.options.map((option, optionIndex) => ({
-                id: String(option.id ?? String.fromCharCode(97 + optionIndex)),
-                text: String(option.text ?? ""),
-              }))
-            : createEmptyOptions(),
+        options: [...item.options],
       })),
     });
   }, [selectedCourseId, selectedPool]);
-
-  useEffect(() => {
-    if (selectedPoolId && !filteredPools.some((pool) => pool.id === selectedPoolId)) {
-      setSelectedPoolId(filteredPools[0]?.id ?? null);
-    }
-  }, [filteredPools, selectedPoolId]);
 
   useEffect(() => {
     if (!selectedSeason) {
       setSeasonForm(EMPTY_SEASON_FORM);
       return;
     }
-
     setSeasonForm({
       name: selectedSeason.name,
       status: selectedSeason.status,
@@ -297,19 +331,13 @@ export default function ArenaAdminPageClient() {
     });
   }, [selectedSeason]);
 
-  const handleNewCourse = () => {
-    setSelectedCourseId(null);
-    setCourseForm(EMPTY_COURSE_FORM);
-    setNotice("Creating a new official topic.");
-    setError(null);
-  };
-
+  // Handlers
   const handleNewPool = () => {
     setSelectedPoolId(null);
     setPoolForm({
       ...EMPTY_POOL_FORM,
       publicCourseId: selectedCourseId,
-      items: [createEmptyPoolItem(1)],
+      items: [],
     });
     setNotice("Creating a new question pool.");
     setError(null);
@@ -320,84 +348,59 @@ export default function ArenaAdminPageClient() {
     setSeasonForm(EMPTY_SEASON_FORM);
     setNotice("Creating a new Arena season.");
     setError(null);
-  };
-
-  const handleSaveCourse = async () => {
-    setSavingCourse(true);
-    setError(null);
-    setNotice(null);
-
-    try {
-      const payload: ArenaAdminPublicCourseUpsertRequest = {
-        slug: courseForm.slug.trim(),
-        title: courseForm.title.trim(),
-        topic: courseForm.topic.trim(),
-        description: courseForm.description.trim() || null,
-        difficulty: courseForm.difficulty.trim() || "intermediate",
-        isPublished: courseForm.isPublished,
-        isArenaEnabled: courseForm.isArenaEnabled,
-        tags: uniqueValues(splitCommaSeparated(courseForm.tagsText)),
-      };
-
-      validateCoursePayload(payload);
-
-      const saved = selectedCourse
-        ? await updateArenaAdminPublicCourse(selectedCourse.id, payload)
-        : await createArenaAdminPublicCourse(payload);
-
-      setCourses((current) => upsertById(current, saved));
-      setSelectedCourseId(saved.id);
-      setNotice(selectedCourse ? "Official topic updated." : "Official topic created.");
-    } catch (err) {
-      setError(resolveErrorMessage(err, "Unable to save official topic right now."));
-    } finally {
-      setSavingCourse(false);
-    }
+    setActiveTab("seasons");
   };
 
   const handleSavePool = async () => {
     setSavingPool(true);
     setError(null);
-    setNotice(null);
-
     try {
-      const resolvedPublicCourseId = poolForm.publicCourseId ?? selectedCourseId;
-      if (!resolvedPublicCourseId) {
-        throw new Error("Select or create an official topic before saving a question pool.");
-      }
-
+      const resolvedId = poolForm.publicCourseId || selectedCourseId;
+      if (!resolvedId) throw new Error("Please select a topic first.");
       const payload: ArenaAdminQuestionPoolUpsertRequest = {
-        publicCourseId: resolvedPublicCourseId,
+        publicCourseId: resolvedId,
         slug: poolForm.slug.trim(),
         title: poolForm.title.trim(),
         description: poolForm.description.trim() || null,
         isActive: poolForm.isActive,
-        version: Math.max(1, Math.trunc(poolForm.version || 1)),
-        items: poolForm.items.map((item, index) => serializePoolItem(item, index)),
+        version: poolForm.version,
+        items: poolForm.items.map((item, idx) => serializePoolItem(item, idx)),
       };
-
-      validatePoolPayload(payload);
-
-      const saved = selectedPool
+      const saved = selectedPool 
         ? await updateArenaAdminQuestionPool(selectedPool.id, payload)
         : await createArenaAdminQuestionPool(payload);
-
-      setPools((current) => upsertById(current, saved));
-      setSelectedCourseId(saved.publicCourseId);
+      setPools(current => upsertById(current, saved));
       setSelectedPoolId(saved.id);
-      setNotice(selectedPool ? "Question pool updated." : "Question pool created.");
+      setNotice("Pool saved successfully.");
     } catch (err) {
-      setError(resolveErrorMessage(err, "Unable to save question pool right now."));
+      setError(resolveErrorMessage(err, "Failed to save pool."));
     } finally {
       setSavingPool(false);
+    }
+  };
+
+  const handleDeletePool = async () => {
+    if (!poolToDeleteId) return;
+    setSavingPool(true);
+    setError(null);
+    try {
+      await deleteArenaAdminQuestionPool(poolToDeleteId);
+      setPools(current => current.filter(p => p.id !== poolToDeleteId));
+      if (selectedPoolId === poolToDeleteId) {
+        setSelectedPoolId(null);
+      }
+      setNotice("Pool deleted successfully.");
+    } catch (err) {
+      setError(resolveErrorMessage(err, "Failed to delete pool."));
+    } finally {
+      setSavingPool(false);
+      setPoolToDeleteId(null);
     }
   };
 
   const handleSaveSeason = async () => {
     setSavingSeason(true);
     setError(null);
-    setNotice(null);
-
     try {
       const payload: ArenaAdminSeasonUpsertRequest = {
         name: seasonForm.name.trim(),
@@ -405,97 +408,24 @@ export default function ArenaAdminPageClient() {
         isActive: seasonForm.isActive,
         startedAt: seasonForm.startedAt ? new Date(seasonForm.startedAt).toISOString() : null,
         endedAt: seasonForm.endedAt ? new Date(seasonForm.endedAt).toISOString() : null,
-        leaderboardConfig: parseJsonConfig(
-          seasonForm.leaderboardConfigText,
-          "Leaderboard config"
-        ),
-        rewardConfig: parseJsonConfig(seasonForm.rewardConfigText, "Reward config"),
+        leaderboardConfig: JSON.parse(seasonForm.leaderboardConfigText || "{}"),
+        rewardConfig: JSON.parse(seasonForm.rewardConfigText || "{}"),
       };
-
-      validateSeasonPayload(payload);
-
       const saved = selectedSeason
         ? await updateArenaAdminSeason(selectedSeason.id, payload)
         : await createArenaAdminSeason(payload);
-
-      setSeasons((current) => upsertById(current, saved));
+      setSeasons(current => upsertById(current, saved));
       setSelectedSeasonId(saved.id);
-      setNotice(selectedSeason ? "Arena season updated." : "Arena season created.");
+      setNotice("Season saved successfully.");
     } catch (err) {
-      setError(resolveErrorMessage(err, "Unable to save Arena season right now."));
+      setError(resolveErrorMessage(err, "Failed to save season."));
     } finally {
       setSavingSeason(false);
     }
   };
 
-  const setPoolItem = (
-    itemIndex: number,
-    updater: (current: PoolItemFormState) => PoolItemFormState
-  ) => {
-    setPoolForm((current) => ({
-      ...current,
-      items: current.items.map((item, index) => (index === itemIndex ? updater(item) : item)),
-    }));
-  };
-
-  const addPoolItem = () => {
-    setPoolForm((current) => ({
-      ...current,
-      items: [...current.items, createEmptyPoolItem(current.items.length + 1)],
-    }));
-  };
-
-  const removePoolItem = (itemIndex: number) => {
-    setPoolForm((current) => {
-      if (current.items.length === 1) {
-        return current;
-      }
-      return {
-        ...current,
-        items: current.items.filter((_, index) => index !== itemIndex),
-      };
-    });
-  };
-
-  const addOption = (itemIndex: number) => {
-    setPoolItem(itemIndex, (item) => ({
-      ...item,
-      options: [...item.options, createEmptyOption(item.options.length)],
-    }));
-  };
-
-  const removeOption = (itemIndex: number, optionIndex: number) => {
-    setPoolItem(itemIndex, (item) => {
-      if (item.options.length === 1) {
-        return item;
-      }
-
-      const nextOptions = item.options.filter((_, index) => index !== optionIndex);
-      const hasSelectedCorrect = nextOptions.some(
-        (option) => option.id.trim() === item.correctOptionId.trim()
-      );
-
-      return {
-        ...item,
-        options: nextOptions,
-        correctOptionId: hasSelectedCorrect ? item.correctOptionId : nextOptions[0]?.id ?? "",
-      };
-    });
-  };
-
-  const poolPreview = useMemo(() => {
-    try {
-      const items = poolForm.items.map((item, index) => serializePoolItem(item, index));
-      return JSON.stringify(items, null, 2);
-    } catch {
-      return "Pool preview becomes available after required question fields are filled.";
-    }
-  }, [poolForm.items]);
-
   const handleRefreshOps = async () => {
     setLoadingOps(true);
-    setError(null);
-
     try {
       const [nextPlayerMatches, nextMatchReviews, nextHealthSnapshot] = await Promise.all([
         fetchArenaAdminPlayerMatches(playerMatchSearch || undefined, 12),
@@ -507,1269 +437,426 @@ export default function ArenaAdminPageClient() {
       setHealthSnapshot(nextHealthSnapshot);
       setNotice("Operations data refreshed.");
     } catch (err) {
-      setError(resolveErrorMessage(err, "Unable to load Arena operations data right now."));
+      setError(resolveErrorMessage(err, "Failed to refresh operations data."));
     } finally {
       setLoadingOps(false);
     }
   };
 
+  if (!isReady) return null;
+
   return (
     <div className="min-h-screen app-shared-bg">
       <TopStatsBar backHref="/home" pageTitle="Arena Admin" />
       <main className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-8 md:px-8">
-        <DeepGlassCard className="overflow-hidden px-6 py-6 md:px-8 md:py-8">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.28em] text-brand-teal">
-                Internal Operations
-              </p>
-              <h1 className="mt-3 font-heading text-4xl font-extrabold text-brand-gray-700">
-                Arena content admin
+        
+        {/* Header Dashboard Card */}
+        <DeepGlassCard className="relative overflow-hidden px-6 py-6 transition-all md:px-8 md:py-8">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="z-10">
+              <div className="flex items-center gap-2">
+                <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-brand-teal">
+                  Content Management
+                </p>
+                {loading && (
+                  <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 2, ease: "linear" }} className="h-3 w-3 border-2 border-brand-teal border-t-transparent rounded-full" />
+                )}
+              </div>
+              <h1 className="mt-2 font-heading text-4xl font-extrabold text-brand-gray-700">
+                Arena Admin <span className="text-brand-teal">Console</span>
               </h1>
-              <p className="mt-3 max-w-3xl text-sm leading-relaxed text-brand-gray-500 md:text-base">
-                Manage official topics and the question pools that power multiplayer Arena rooms.
-                This console now supports structured question editing, so content ops can manage
-                real pools without hand-writing JSON.
-              </p>
             </div>
 
-            <div className="flex flex-wrap gap-3">
-              <Link
-                href="/home"
-                className="rounded-2xl border border-white/70 bg-white/65 px-4 py-3 text-sm font-semibold text-brand-gray-700 transition hover:bg-white/80"
-              >
-                Open Home
-              </Link>
-              <button
-                type="button"
-                onClick={handleNewCourse}
-                className="rounded-2xl border border-brand-teal/25 bg-brand-teal/10 px-4 py-3 text-sm font-semibold text-brand-teal transition hover:bg-brand-teal/15"
-              >
-                New topic
-              </button>
-              <button
-                type="button"
-                onClick={handleNewPool}
-                className="rounded-2xl border border-brand-teal/25 bg-brand-teal/10 px-4 py-3 text-sm font-semibold text-brand-teal transition hover:bg-brand-teal/15"
-              >
-                New pool
-              </button>
-              <button
-                type="button"
-                onClick={handleNewSeason}
-                className="rounded-2xl border border-brand-teal/25 bg-brand-teal/10 px-4 py-3 text-sm font-semibold text-brand-teal transition hover:bg-brand-teal/15"
-              >
-                New season
-              </button>
+            <div className="z-10 flex flex-wrap gap-2">
+              <NavButton active={activeTab === "builder"} onClick={() => setActiveTab("builder")} icon={<FiLayout />} label="Pool Builder" />
+              <NavButton active={activeTab === "seasons"} onClick={() => setActiveTab("seasons")} icon={<FiCalendar />} label="Seasons" />
+              <NavButton active={activeTab === "operations"} onClick={() => setActiveTab("operations")} icon={<FiActivity />} label="Operations" />
             </div>
           </div>
 
-          {error ? (
-            <div className="mt-5 rounded-2xl border border-rose-200 bg-rose-50/90 px-4 py-3 text-sm text-rose-700">
-              {error}
-            </div>
-          ) : null}
-          {notice ? (
-            <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50/90 px-4 py-3 text-sm text-emerald-700">
-              {notice}
-            </div>
-          ) : null}
+          <AnimatePresence>
+            {error && (
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="mt-5 overflow-hidden">
+                <div className="rounded-2xl border border-rose-200 bg-rose-50/90 px-4 py-3 text-sm text-rose-700">
+                  {error}
+                </div>
+              </motion.div>
+            )}
+            {notice && (
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="mt-5 overflow-hidden">
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50/90 px-4 py-3 text-sm text-emerald-700">
+                  {notice}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </DeepGlassCard>
 
-        {accessDenied ? (
-          <DeepGlassCard className="px-6 py-6 text-sm text-brand-gray-600">
-            Backend auth is working and denied this account. Grant Arena admin permissions on the
-            API side, then reload this page.
+        {accessDenied && (
+          <DeepGlassCard className="p-6 text-sm text-brand-gray-600 flex items-center gap-3">
+            <FiTerminal className="text-rose-500 shrink-0" />
+            Backend access denied. Grant Arena admin permissions on the API side, then reload this page.
           </DeepGlassCard>
-        ) : null}
+        )}
 
-        {!accessDenied ? (
-          <div className="flex flex-col gap-6">
-            <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-              <DeepGlassCard className="px-6 py-6">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h2 className="font-heading text-2xl font-bold text-brand-gray-700">
-                    Official topics
-                  </h2>
-                  <p className="mt-2 text-sm text-brand-gray-500">
-                    Choose the public course metadata exposed to Arena.
-                  </p>
-                </div>
-                <span className="rounded-full bg-white/75 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-brand-teal">
-                  {courses.length} total
-                </span>
-              </div>
-
-              <div className="mt-5 grid gap-4">
-                <div className="max-h-[340px] space-y-3 overflow-y-auto pr-1">
-                  {courses.map((course) => {
-                    const active = course.id === selectedCourseId;
-                    return (
-                      <button
-                        key={course.id}
-                        type="button"
-                        onClick={() => {
-                          setSelectedCourseId(course.id);
-                          setSelectedPoolId(null);
-                          setError(null);
-                          setNotice(null);
-                        }}
-                        className={`w-full rounded-[26px] border px-4 py-4 text-left transition ${
-                          active
-                            ? "border-brand-teal/45 bg-brand-teal/10 shadow-[0_16px_30px_rgba(95,179,175,0.16)]"
-                            : "border-white/70 bg-white/68"
-                        }`}
-                      >
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="font-heading text-xl font-bold text-brand-gray-700">
-                            {course.title}
-                          </p>
-                          <StatusChip
-                            label={course.isPublished ? "Published" : "Draft"}
-                            tone={course.isPublished ? "success" : "neutral"}
-                          />
-                          <StatusChip
-                            label={course.isArenaEnabled ? "Arena On" : "Arena Off"}
-                            tone={course.isArenaEnabled ? "info" : "neutral"}
-                          />
-                        </div>
-                        <p className="mt-2 text-sm text-brand-gray-500">
-                          {course.description || course.topic}
-                        </p>
-                      </button>
-                    );
-                  })}
-                  {courses.length === 0 && !loading ? (
-                    <div className="rounded-2xl border border-dashed border-brand-gray-300 bg-white/60 px-4 py-5 text-sm text-brand-gray-500">
-                      No official topics yet. Create the first one from this panel.
-                    </div>
-                  ) : null}
-                </div>
-
-                <div className="rounded-[28px] border border-white/70 bg-white/68 p-5">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <Field label="Slug">
-                      <input
-                        className={inputClassName}
-                        value={courseForm.slug}
-                        onChange={(event) =>
-                          setCourseForm((current) => ({ ...current, slug: event.target.value }))
-                        }
-                        placeholder="intro-to-calculus"
-                      />
-                    </Field>
-                    <Field label="Difficulty">
-                      <input
-                        className={inputClassName}
-                        value={courseForm.difficulty}
-                        onChange={(event) =>
-                          setCourseForm((current) => ({
-                            ...current,
-                            difficulty: event.target.value,
-                          }))
-                        }
-                        placeholder="intermediate"
-                      />
-                    </Field>
-                  </div>
-
-                  <Field className="mt-4" label="Title">
-                    <input
-                      className={inputClassName}
-                      value={courseForm.title}
-                      onChange={(event) =>
-                        setCourseForm((current) => ({ ...current, title: event.target.value }))
-                      }
-                      placeholder="Calculus Sprint"
-                    />
-                  </Field>
-
-                  <Field className="mt-4" label="Topic">
-                    <input
-                      className={inputClassName}
-                      value={courseForm.topic}
-                      onChange={(event) =>
-                        setCourseForm((current) => ({ ...current, topic: event.target.value }))
-                      }
-                      placeholder="Derivatives and limits"
-                    />
-                  </Field>
-
-                  <Field className="mt-4" label="Description">
-                    <textarea
-                      className={`${inputClassName} min-h-[96px] resize-y`}
-                      value={courseForm.description}
-                      onChange={(event) =>
-                        setCourseForm((current) => ({
-                          ...current,
-                          description: event.target.value,
-                        }))
-                      }
-                      placeholder="Short summary for the official Arena topic."
-                    />
-                  </Field>
-
-                  <Field className="mt-4" label="Tags">
-                    <input
-                      className={inputClassName}
-                      value={courseForm.tagsText}
-                      onChange={(event) =>
-                        setCourseForm((current) => ({ ...current, tagsText: event.target.value }))
-                      }
-                      placeholder="limits, derivatives, speed"
-                    />
-                  </Field>
-
-                  <div className="mt-4 grid gap-3 md:grid-cols-2">
-                    <ToggleRow
-                      label="Published"
-                      checked={courseForm.isPublished}
-                      onChange={(checked) =>
-                        setCourseForm((current) => ({ ...current, isPublished: checked }))
-                      }
-                    />
-                    <ToggleRow
-                      label="Arena enabled"
-                      checked={courseForm.isArenaEnabled}
-                      onChange={(checked) =>
-                        setCourseForm((current) => ({ ...current, isArenaEnabled: checked }))
-                      }
-                    />
-                  </div>
-
-                  <GameButton
-                    className="mt-5 w-full"
-                    onClick={() => void handleSaveCourse()}
-                    disabled={loading || savingCourse}
-                  >
-                    {savingCourse
-                      ? "Saving topic..."
-                      : selectedCourse
-                        ? "Update topic"
-                        : "Create topic"}
-                  </GameButton>
-                </div>
-              </div>
-              </DeepGlassCard>
-
-              <DeepGlassCard className="px-6 py-6">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h2 className="font-heading text-2xl font-bold text-brand-gray-700">
-                    Question pools
-                  </h2>
-                  <p className="mt-2 text-sm text-brand-gray-500">
-                    Manage the question set consumed by Arena rooms for each official topic.
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <InfoChip label={`${filteredPools.length} pools`} />
-                  <InfoChip label={`${poolItemCount} questions`} />
-                  <InfoChip label={`${totalOptionCount} options`} />
-                </div>
-              </div>
-
-              <div className="mt-5 grid gap-4">
-                <div className="rounded-[26px] border border-white/70 bg-white/68 p-4">
-                  <Field label="Pool topic binding">
-                    <select
-                      className={inputClassName}
-                      value={poolForm.publicCourseId ?? ""}
-                      onChange={(event) =>
-                        setPoolForm((current) => ({
-                          ...current,
-                          publicCourseId: Number(event.target.value),
-                        }))
-                      }
-                    >
-                      <option value="" disabled>
-                        Select official topic
-                      </option>
-                      {courses.map((course) => (
-                        <option key={course.id} value={course.id}>
-                          {course.title}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                </div>
-
-                <div className="max-h-[240px] space-y-3 overflow-y-auto pr-1">
-                  {filteredPools.map((pool) => {
-                    const active = pool.id === selectedPoolId;
-                    return (
-                      <button
-                        key={pool.id}
-                        type="button"
-                        onClick={() => {
-                          setSelectedPoolId(pool.id);
-                          setError(null);
-                          setNotice(null);
-                        }}
-                        className={`w-full rounded-[24px] border px-4 py-4 text-left transition ${
-                          active
-                            ? "border-brand-teal/45 bg-brand-teal/10 shadow-[0_16px_30px_rgba(95,179,175,0.16)]"
-                            : "border-white/70 bg-white/68"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <p className="font-heading text-lg font-bold text-brand-gray-700">
-                              {pool.title}
-                            </p>
-                            <p className="mt-1 text-xs uppercase tracking-[0.18em] text-brand-teal">
-                              v{pool.version} • {pool.items.length} items
-                            </p>
-                          </div>
-                          <StatusChip
-                            label={pool.isActive ? "Active" : "Inactive"}
-                            tone={pool.isActive ? "success" : "neutral"}
-                          />
-                        </div>
-                      </button>
-                    );
-                  })}
-                  {filteredPools.length === 0 && !loading ? (
-                    <div className="rounded-2xl border border-dashed border-brand-gray-300 bg-white/60 px-4 py-5 text-sm text-brand-gray-500">
-                      No pools found for the current topic yet.
-                    </div>
-                  ) : null}
-                </div>
-
-                <div className="rounded-[28px] border border-white/70 bg-white/68 p-5">
-                  <div className="grid gap-4 md:grid-cols-[1fr_1fr_140px]">
-                    <Field label="Slug">
-                      <input
-                        className={inputClassName}
-                        value={poolForm.slug}
-                        onChange={(event) =>
-                          setPoolForm((current) => ({ ...current, slug: event.target.value }))
-                        }
-                        placeholder="calculus-sprint-v1"
-                      />
-                    </Field>
-                    <Field label="Title">
-                      <input
-                        className={inputClassName}
-                        value={poolForm.title}
-                        onChange={(event) =>
-                          setPoolForm((current) => ({ ...current, title: event.target.value }))
-                        }
-                        placeholder="Calculus Sprint Pool"
-                      />
-                    </Field>
-                    <Field label="Version">
-                      <input
-                        className={inputClassName}
-                        type="number"
-                        min={1}
-                        value={poolForm.version}
-                        onChange={(event) =>
-                          setPoolForm((current) => ({
-                            ...current,
-                            version: Number(event.target.value) || 1,
-                          }))
-                        }
-                      />
-                    </Field>
-                  </div>
-
-                  <Field className="mt-4" label="Description">
-                    <textarea
-                      className={`${inputClassName} min-h-[82px] resize-y`}
-                      value={poolForm.description}
-                      onChange={(event) =>
-                        setPoolForm((current) => ({
-                          ...current,
-                          description: event.target.value,
-                        }))
-                      }
-                      placeholder="What this pool is for, release notes, or scope."
-                    />
-                  </Field>
-
-                  <div className="mt-4">
-                    <ToggleRow
-                      label="Pool active"
-                      checked={poolForm.isActive}
-                      onChange={(checked) =>
-                        setPoolForm((current) => ({ ...current, isActive: checked }))
-                      }
-                    />
-                  </div>
-
-                  <div className="mt-5 flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-teal">
-                        Questions
-                      </p>
-                      <p className="mt-1 text-sm text-brand-gray-500">
-                        Add, reorder mentally, and edit each Arena question directly.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={addPoolItem}
-                      className="rounded-2xl border border-brand-teal/25 bg-brand-teal/10 px-4 py-2 text-sm font-semibold text-brand-teal transition hover:bg-brand-teal/15"
-                    >
-                      Add question
-                    </button>
-                  </div>
-
-                  <div className="mt-4 space-y-4">
-                    {poolForm.items.map((item, itemIndex) => (
-                      <div
-                        key={`${item.questionKey}-${itemIndex}`}
-                        className="rounded-[24px] border border-white/80 bg-white/82 p-4 shadow-[0_14px_30px_rgba(97,163,184,0.08)]"
-                      >
-                        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                          <div>
-                            <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-teal">
-                              Question {itemIndex + 1}
-                            </p>
-                            <p className="mt-1 text-sm text-brand-gray-500">
-                              {item.options.length} options configured
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <StatusChip
-                              label={item.isActive ? "Active" : "Inactive"}
-                              tone={item.isActive ? "success" : "neutral"}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => removePoolItem(itemIndex)}
-                              disabled={poolForm.items.length === 1}
-                              className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold uppercase tracking-[0.14em] text-rose-700 transition disabled:cursor-not-allowed disabled:opacity-40"
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="mt-4 grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
-                          <Field label="Question key">
-                            <input
-                              className={inputClassName}
-                              value={item.questionKey}
-                              onChange={(event) =>
-                                setPoolItem(itemIndex, (current) => ({
-                                  ...current,
-                                  questionKey: event.target.value,
-                                }))
-                              }
-                              placeholder={`question-${itemIndex + 1}`}
-                            />
-                          </Field>
-                          <Field label="Difficulty">
-                            <input
-                              className={inputClassName}
-                              value={item.difficulty}
-                              onChange={(event) =>
-                                setPoolItem(itemIndex, (current) => ({
-                                  ...current,
-                                  difficulty: event.target.value,
-                                }))
-                              }
-                              placeholder="normal"
-                            />
-                          </Field>
-                        </div>
-
-                        <Field className="mt-4" label="Prompt">
-                          <textarea
-                            className={`${inputClassName} min-h-[96px] resize-y`}
-                            value={item.prompt}
-                            onChange={(event) =>
-                              setPoolItem(itemIndex, (current) => ({
-                                ...current,
-                                prompt: event.target.value,
-                              }))
-                            }
-                            placeholder="What should the player answer?"
-                          />
-                        </Field>
-
-                        <div className="mt-4 flex items-center justify-between gap-3">
-                          <div>
-                            <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-teal">
-                              Options
-                            </p>
-                            <p className="mt-1 text-sm text-brand-gray-500">
-                              The correct option id must match one of the options below.
-                            </p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => addOption(itemIndex)}
-                            className="rounded-2xl border border-brand-teal/25 bg-brand-teal/10 px-3 py-2 text-xs font-bold uppercase tracking-[0.14em] text-brand-teal transition hover:bg-brand-teal/15"
-                          >
-                            Add option
-                          </button>
-                        </div>
-
-                        <div className="mt-4 space-y-3">
-                          {item.options.map((option, optionIndex) => (
-                            <div
-                              key={`${option.id}-${optionIndex}`}
-                              className="grid gap-3 rounded-2xl border border-brand-gray-100 bg-white px-4 py-3 md:grid-cols-[120px_1fr_auto]"
-                            >
-                              <input
-                                className={inputClassName}
-                                value={option.id}
-                                onChange={(event) =>
-                                  setPoolItem(itemIndex, (current) => {
-                                    const nextId = event.target.value;
-                                    const nextOptions = current.options.map((entry, entryIndex) =>
-                                      entryIndex === optionIndex ? { ...entry, id: nextId } : entry
-                                    );
-                                    return {
-                                      ...current,
-                                      options: nextOptions,
-                                      correctOptionId:
-                                        current.correctOptionId === option.id
-                                          ? nextId
-                                          : current.correctOptionId,
-                                    };
-                                  })
-                                }
-                                placeholder="a"
-                              />
-                              <input
-                                className={inputClassName}
-                                value={option.text}
-                                onChange={(event) =>
-                                  setPoolItem(itemIndex, (current) => ({
-                                    ...current,
-                                    options: current.options.map((entry, entryIndex) =>
-                                      entryIndex === optionIndex
-                                        ? { ...entry, text: event.target.value }
-                                        : entry
-                                    ),
-                                  }))
-                                }
-                                placeholder="Option text"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => removeOption(itemIndex, optionIndex)}
-                                disabled={item.options.length === 1}
-                                className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold uppercase tracking-[0.14em] text-rose-700 transition disabled:cursor-not-allowed disabled:opacity-40"
-                              >
-                                Remove
-                              </button>
+        {!accessDenied && (
+          <div className="relative">
+            {activeTab === "builder" && (
+              <motion.div key="builder" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="grid gap-6 xl:grid-cols-[300px_1fr]">
+                
+                {/* Left Sidebar Menu */}
+                <DeepGlassCard className="p-5 flex flex-col max-h-[85vh]">
+                   <h2 className="font-heading text-lg font-bold text-brand-gray-700 mb-4">Content Directory</h2>
+                   <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-6">
+                     {courses.map(course => {
+                       const coursePools = pools.filter(p => p.publicCourseId === course.id);
+                       return (
+                         <div key={course.id} className="space-y-2">
+                            <div className="flex items-center justify-between">
+                               <p className="text-xs font-bold uppercase tracking-wider text-brand-gray-400 truncate pr-2" title={course.title}>
+                                 {course.title}
+                               </p>
+                               <button 
+                                 onClick={() => {
+                                   setSelectedCourseId(course.id);
+                                   handleNewPool();
+                                 }} 
+                                 className="flex items-center justify-center w-6 h-6 rounded-md bg-brand-teal/10 text-brand-teal hover:bg-brand-teal hover:text-white transition-colors"
+                                 title="New Pool for this Topc"
+                               >
+                                 <FiPlus size={12} strokeWidth={3} />
+                               </button>
                             </div>
-                          ))}
-                        </div>
+                            <div className="space-y-1">
+                               {coursePools.length === 0 ? (
+                                 <p className="text-[10px] text-brand-gray-300 italic px-2">No active pools.</p>
+                               ) : (
+                                 coursePools.map(pool => (
+                                   <button
+                                     key={pool.id}
+                                     onClick={() => {
+                                       setSelectedCourseId(course.id);
+                                       setSelectedPoolId(pool.id);
+                                     }}
+                                     className={`w-full text-left px-4 py-2.5 rounded-xl transition-all text-sm font-medium ${selectedPoolId === pool.id ? "bg-brand-teal/15 text-brand-teal shadow-sm border border-brand-teal/20" : "text-brand-gray-600 hover:bg-white/60 border border-transparent"}`}
+                                   >
+                                     <div className="flex items-center justify-between">
+                                        <span className="truncate">{pool.title}</span>
+                                        {!pool.isActive && <span className="w-2 h-2 rounded-full bg-brand-gray-300"></span>}
+                                        {pool.isActive && <span className="w-2 h-2 rounded-full bg-emerald-400"></span>}
+                                     </div>
+                                   </button>
+                                 ))
+                               )}
+                            </div>
+                         </div>
+                       );
+                     })}
+                   </div>
+                </DeepGlassCard>
 
-                        <div className="mt-4 grid gap-4 md:grid-cols-[1fr_1fr]">
-                          <Field label="Correct option id">
-                            <input
-                              className={inputClassName}
-                              value={item.correctOptionId}
-                              onChange={(event) =>
-                                setPoolItem(itemIndex, (current) => ({
-                                  ...current,
-                                  correctOptionId: event.target.value,
-                                }))
-                              }
-                              placeholder="a"
-                            />
-                          </Field>
-                          <Field label="Knowledge tags">
-                            <input
-                              className={inputClassName}
-                              value={item.knowledgeTagsText}
-                              onChange={(event) =>
-                                setPoolItem(itemIndex, (current) => ({
-                                  ...current,
-                                  knowledgeTagsText: event.target.value,
-                                }))
-                              }
-                              placeholder="calculus, derivatives"
-                            />
-                          </Field>
-                        </div>
-
-                        <Field className="mt-4" label="Explanation">
-                          <textarea
-                            className={`${inputClassName} min-h-[88px] resize-y`}
-                            value={item.explanation}
-                            onChange={(event) =>
-                              setPoolItem(itemIndex, (current) => ({
-                                ...current,
-                                explanation: event.target.value,
-                              }))
-                            }
-                            placeholder="Why is the answer correct?"
-                          />
-                        </Field>
-
-                        <div className="mt-4 grid gap-4 md:grid-cols-2">
-                          <Field label="Source unit id">
-                            <input
-                              className={inputClassName}
-                              value={item.sourceUnitId}
-                              onChange={(event) =>
-                                setPoolItem(itemIndex, (current) => ({
-                                  ...current,
-                                  sourceUnitId: event.target.value,
-                                }))
-                              }
-                              placeholder="unit-1"
-                            />
-                          </Field>
-                          <Field label="Source node id">
-                            <input
-                              className={inputClassName}
-                              value={item.sourceNodeId}
-                              onChange={(event) =>
-                                setPoolItem(itemIndex, (current) => ({
-                                  ...current,
-                                  sourceNodeId: event.target.value,
-                                }))
-                              }
-                              placeholder="node-derivatives"
-                            />
-                          </Field>
-                        </div>
-
-                        <div className="mt-4">
-                          <ToggleRow
-                            label="Question active"
-                            checked={item.isActive}
-                            onChange={(checked) =>
-                              setPoolItem(itemIndex, (current) => ({
-                                ...current,
-                                isActive: checked,
-                              }))
-                            }
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <Field
-                    className="mt-5"
-                    label="Generated JSON preview"
-                    hint="Readonly preview of what will be sent to the API."
-                  >
-                    <textarea
-                      className={`${inputClassName} min-h-[220px] resize-y font-mono text-xs leading-6`}
-                      value={poolPreview}
-                      readOnly
-                      spellCheck={false}
-                    />
-                  </Field>
-
-                  <GameButton
-                    className="mt-5 w-full"
-                    variant="secondary"
-                    onClick={() => void handleSavePool()}
-                    disabled={loading || savingPool}
-                  >
-                    {savingPool
-                      ? "Saving pool..."
-                      : selectedPool
-                        ? "Update pool"
-                        : "Create pool"}
-                  </GameButton>
-                </div>
-              </div>
-              </DeepGlassCard>
-            </div>
-
-            <DeepGlassCard className="px-6 py-6">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h2 className="font-heading text-2xl font-bold text-brand-gray-700">
-                    Seasons
-                  </h2>
-                  <p className="mt-2 text-sm text-brand-gray-500">
-                    Control the active Arena season, leaderboard window, and season metadata.
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <InfoChip label={`${seasons.length} seasons`} />
-                  <InfoChip
-                    label={`${seasons.filter((season) => season.isActive).length} active`}
-                  />
-                </div>
-              </div>
-
-              <div className="mt-5 grid gap-4 xl:grid-cols-[0.8fr_1.2fr]">
-                <div className="max-h-[320px] space-y-3 overflow-y-auto pr-1">
-                  {seasons.map((season) => {
-                    const active = season.id === selectedSeasonId;
-                    return (
-                      <button
-                        key={season.id}
-                        type="button"
-                        onClick={() => {
-                          setSelectedSeasonId(season.id);
-                          setError(null);
-                          setNotice(null);
-                        }}
-                        className={`w-full rounded-[24px] border px-4 py-4 text-left transition ${
-                          active
-                            ? "border-brand-teal/45 bg-brand-teal/10 shadow-[0_16px_30px_rgba(95,179,175,0.16)]"
-                            : "border-white/70 bg-white/68"
-                        }`}
-                      >
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="font-heading text-xl font-bold text-brand-gray-700">
-                            {season.name}
-                          </p>
-                          <StatusChip
-                            label={season.isActive ? "Active" : season.status}
-                            tone={season.isActive ? "success" : "neutral"}
-                          />
-                        </div>
-                        <p className="mt-2 text-xs uppercase tracking-[0.18em] text-brand-teal">
-                          {season.startedAt
-                            ? `Starts ${new Date(season.startedAt).toLocaleDateString()}`
-                            : "No start time"}
-                        </p>
-                      </button>
-                    );
-                  })}
-                  {seasons.length === 0 && !loading ? (
-                    <div className="rounded-2xl border border-dashed border-brand-gray-300 bg-white/60 px-4 py-5 text-sm text-brand-gray-500">
-                      No Arena seasons yet. Create the first season from this panel.
+                {/* Right Workspace Panel */}
+                <DeepGlassCard className="p-6 flex flex-col">
+                  {(!selectedCourseId && !selectedPoolId) ? (
+                    <div className="flex-1 flex flex-col items-center justify-center text-center p-12 text-brand-gray-400">
+                       <FiLayout className="w-16 h-16 mb-6 opacity-20" />
+                       <h3 className="font-heading text-xl font-bold text-brand-gray-600 mb-2">Select a Topic or Pool</h3>
+                       <p className="text-sm max-w-sm">Use the left sidebar to select an existing question pool, or create a fresh one to start dragging questions in.</p>
                     </div>
-                  ) : null}
-                </div>
-
-                <div className="rounded-[28px] border border-white/70 bg-white/68 p-5">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <Field label="Season name">
-                      <input
-                        className={inputClassName}
-                        value={seasonForm.name}
-                        onChange={(event) =>
-                          setSeasonForm((current) => ({ ...current, name: event.target.value }))
-                        }
-                        placeholder="Season 2026 Spring"
-                      />
-                    </Field>
-                    <Field label="Status">
-                      <input
-                        className={inputClassName}
-                        value={seasonForm.status}
-                        onChange={(event) =>
-                          setSeasonForm((current) => ({ ...current, status: event.target.value }))
-                        }
-                        placeholder="upcoming"
-                      />
-                    </Field>
-                  </div>
-
-                  <div className="mt-4 grid gap-4 md:grid-cols-2">
-                    <Field label="Start time">
-                      <input
-                        className={inputClassName}
-                        type="datetime-local"
-                        value={seasonForm.startedAt}
-                        onChange={(event) =>
-                          setSeasonForm((current) => ({
-                            ...current,
-                            startedAt: event.target.value,
-                          }))
-                        }
-                      />
-                    </Field>
-                    <Field label="End time">
-                      <input
-                        className={inputClassName}
-                        type="datetime-local"
-                        value={seasonForm.endedAt}
-                        onChange={(event) =>
-                          setSeasonForm((current) => ({
-                            ...current,
-                            endedAt: event.target.value,
-                          }))
-                        }
-                      />
-                    </Field>
-                  </div>
-
-                  <div className="mt-4">
-                    <ToggleRow
-                      label="Set as active season"
-                      checked={seasonForm.isActive}
-                      onChange={(checked) =>
-                        setSeasonForm((current) => ({ ...current, isActive: checked }))
-                      }
-                    />
-                  </div>
-
-                  <Field className="mt-4" label="Leaderboard config JSON">
-                    <textarea
-                      className={`${inputClassName} min-h-[120px] resize-y font-mono text-xs`}
-                      value={seasonForm.leaderboardConfigText}
-                      onChange={(event) =>
-                        setSeasonForm((current) => ({
-                          ...current,
-                          leaderboardConfigText: event.target.value,
-                        }))
-                      }
-                    />
-                  </Field>
-
-                  <Field className="mt-4" label="Reward config JSON">
-                    <textarea
-                      className={`${inputClassName} min-h-[120px] resize-y font-mono text-xs`}
-                      value={seasonForm.rewardConfigText}
-                      onChange={(event) =>
-                        setSeasonForm((current) => ({
-                          ...current,
-                          rewardConfigText: event.target.value,
-                        }))
-                      }
-                    />
-                  </Field>
-
-                  <GameButton
-                    className="mt-5 w-full"
-                    onClick={() => void handleSaveSeason()}
-                    disabled={loading || savingSeason}
-                  >
-                    {savingSeason
-                      ? "Saving season..."
-                      : selectedSeason
-                        ? "Update season"
-                        : "Create season"}
-                  </GameButton>
-                </div>
-              </div>
-            </DeepGlassCard>
-
-            <DeepGlassCard className="px-6 py-6">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h2 className="font-heading text-2xl font-bold text-brand-gray-700">
-                    Arena system health
-                  </h2>
-                  <p className="mt-2 text-sm text-brand-gray-500">
-                    Soft telemetry for queue pressure, stale matches, disconnect instability, and suspicious latency activity.
-                  </p>
-                </div>
-                <InfoChip
-                  label={
-                    healthSnapshot
-                      ? new Date(healthSnapshot.generatedAt).toLocaleTimeString()
-                      : "No data"
-                  }
-                />
-              </div>
-
-              <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <MetricCard label="Waiting Queue" value={String(healthSnapshot?.waitingQueueCount ?? 0)} />
-                <MetricCard label="Matched Queue" value={String(healthSnapshot?.matchedQueueCount ?? 0)} />
-                <MetricCard label="Live Matches" value={String(healthSnapshot?.inProgressMatchCount ?? 0)} />
-                <MetricCard label="Stale Matches" value={String(healthSnapshot?.staleMatchCount ?? 0)} />
-                <MetricCard label="Abandonments" value={String(healthSnapshot?.abandonmentCount ?? 0)} />
-                <MetricCard label="Suspicious Latency" value={String(healthSnapshot?.suspiciousLatencyCount ?? 0)} />
-                <MetricCard label="Disconnect Instability" value={String(healthSnapshot?.disconnectInstabilityCount ?? 0)} />
-                <MetricCard label="Alert Flags" value={String(healthSnapshot?.alertFlags.length ?? 0)} />
-              </div>
-
-              <div className="mt-4 flex flex-wrap gap-2">
-                {(healthSnapshot?.alertFlags.length ? healthSnapshot.alertFlags : ["healthy"]).map((flag) => (
-                  <span
-                    key={flag}
-                    className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-600"
-                  >
-                    {flag.replaceAll("_", " ")}
-                  </span>
-                ))}
-              </div>
-            </DeepGlassCard>
-
-            <DeepGlassCard className="px-6 py-6">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                <div>
-                  <h2 className="font-heading text-2xl font-bold text-brand-gray-700">
-                    Operations review
-                  </h2>
-                  <p className="mt-2 text-sm text-brand-gray-500">
-                    Inspect recent player match records and quickly spot suspicious or degraded Arena matches.
-                  </p>
-                </div>
-                <div className="flex flex-col gap-3 md:flex-row">
-                  <input
-                    className={`${inputClassName} min-w-[220px]`}
-                    value={playerMatchSearch}
-                    onChange={(event) => setPlayerMatchSearch(event.target.value)}
-                    placeholder="Search player email or name"
-                  />
-                  <GameButton onClick={() => void handleRefreshOps()} disabled={loadingOps}>
-                    {loadingOps ? "Refreshing..." : "Refresh ops data"}
-                  </GameButton>
-                </div>
-              </div>
-
-              <div className="mt-5 grid gap-6 xl:grid-cols-2">
-                <div>
-                  <div className="flex items-center justify-between gap-3">
-                    <h3 className="font-heading text-xl font-bold text-brand-gray-700">
-                      Player match records
-                    </h3>
-                    <InfoChip label={`${playerMatches.length} rows`} />
-                  </div>
-                  <div className="mt-4 space-y-3">
-                    {playerMatches.map((record) => (
-                      <div
-                        key={`${record.matchId}-${record.userId}`}
-                        className="rounded-[24px] border border-white/70 bg-white/68 px-4 py-4"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="font-heading text-lg font-bold text-brand-gray-700">
-                              {record.displayName}
-                            </p>
-                            <p className="mt-1 text-xs text-brand-gray-500">{record.email}</p>
-                          </div>
-                          <StatusChip label={record.status} tone={record.status === "finished" ? "success" : "neutral"} />
-                        </div>
-                        <p className="mt-3 text-sm text-brand-gray-600">
-                          Match #{record.matchId} • {record.publicCourseTitle} • {record.mode}
-                        </p>
-                        <p className="mt-2 text-xs text-brand-gray-500">
-                          Rank {record.finalRank ?? "-"} • Score {record.score} • {record.correctCount} correct • Rating {record.ratingDelta >= 0 ? "+" : ""}{record.ratingDelta}
-                        </p>
-                      </div>
-                    ))}
-                    {playerMatches.length === 0 ? (
-                      <div className="rounded-2xl border border-dashed border-brand-gray-300 bg-white/60 px-4 py-5 text-sm text-brand-gray-500">
-                        No player match records found for this search.
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between gap-3">
-                    <h3 className="font-heading text-xl font-bold text-brand-gray-700">
-                      Match anomaly review
-                    </h3>
-                    <InfoChip label={`${matchReviews.length} matches`} />
-                  </div>
-                  <div className="mt-4 space-y-3">
-                    {matchReviews.map((review) => (
-                      <div
-                        key={review.matchId}
-                        className="rounded-[24px] border border-white/70 bg-white/68 px-4 py-4"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="font-heading text-lg font-bold text-brand-gray-700">
-                              Match #{review.matchId}
-                            </p>
-                            <p className="mt-1 text-sm text-brand-gray-500">
-                              {review.publicCourseTitle} • {review.mode}
-                            </p>
-                          </div>
-                          <StatusChip
-                            label={review.anomalyFlags.length > 0 ? "Review" : "Healthy"}
-                            tone={review.anomalyFlags.length > 0 ? "info" : "success"}
-                          />
-                        </div>
-                        <p className="mt-3 text-xs text-brand-gray-500">
-                          {review.playerCount} players • {review.roundCount} rounds • {review.answerCount} answers • {review.timedOutCount} timeouts
-                        </p>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {(review.anomalyFlags.length > 0 ? review.anomalyFlags : ["no_flags"]).map((flag) => (
-                            <span
-                              key={flag}
-                              className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-600"
-                            >
-                              {flag.replaceAll("_", " ")}
-                            </span>
-                          ))}
+                  ) : (
+                    <>
+                      <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                        <div>
+                          <h2 className="font-heading text-xl font-bold text-brand-gray-700">
+                            {selectedPool ? `Editing Pool: ${selectedPool.title}` : "New Question Pool"}
+                          </h2>
+                          <p className="text-xs text-brand-gray-500 mt-1">
+                            Topic: {courses.find(c => c.id === selectedCourseId)?.title}
+                          </p>
                         </div>
                       </div>
-                    ))}
-                    {matchReviews.length === 0 ? (
-                      <div className="rounded-2xl border border-dashed border-brand-gray-300 bg-white/60 px-4 py-5 text-sm text-brand-gray-500">
-                        No match reviews are available yet.
+
+                      <div className="flex flex-col gap-5 mb-8 bg-white/50 backdrop-blur-md p-6 rounded-[2rem] border border-brand-teal/20 shadow-[0_8px_30px_rgba(95,179,175,0.06)] relative overflow-hidden">
+                         <div className="absolute top-0 left-0 w-1.5 h-full bg-brand-teal/40"></div>
+                         
+                         <div className="w-full">
+                           <Field label="Pool Title" hint="This defines the public name displayed to players.">
+                              <input 
+                                 className={`${inputClassName} text-base py-3`} 
+                                 value={poolForm.title} 
+                                 onChange={e => {
+                                   const title = e.target.value;
+                                   const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+                                   setPoolForm(prev => ({...prev, title, slug}));
+                                 }} 
+                                 placeholder="E.g. The Ultimate Python Fundamentals" 
+                              />
+                           </Field>
+                         </div>
+
+                         <div className="flex flex-wrap items-center justify-between gap-3 mt-2 pt-5 border-t border-brand-teal/10">
+                            <div>
+                               <ToggleRow label="Enable Pool" checked={poolForm.isActive} onChange={checked => setPoolForm(prev => ({...prev, isActive: checked}))} />
+                            </div>
+                            <div className="flex gap-3">
+                               {selectedPoolId && (
+                                 <button onClick={() => setPoolToDeleteId(selectedPoolId)} disabled={savingPool} title="Delete Pool" className="flex items-center gap-2 rounded-2xl border border-rose-200 bg-white/80 px-6 py-3 text-sm font-bold text-rose-500 transition hover:bg-rose-50 hover:border-rose-300 disabled:opacity-50 shadow-sm">
+                                   <FiTrash2 /> Delete
+                                 </button>
+                               )}
+                               <GameButton onClick={() => void handleSavePool()} disabled={savingPool || !selectedCourseId} className="min-w-[160px] shadow-lg shadow-brand-teal/20">
+                                  {savingPool ? "Saving..." : <span className="flex items-center gap-2 font-bold text-sm"><FiSave /> Save Changes</span>}
+                               </GameButton>
+                            </div>
+                         </div>
                       </div>
-                    ) : null}
+
+                      <ArenaPoolBuilder availableQuestions={availableQuestions} currentPoolItems={poolForm.items} onUpdatePool={(items) => setPoolForm(prev => ({...prev, items}))} isLoading={loadingAvailable} />
+                    </>
+                  )}
+                </DeepGlassCard>
+              </motion.div>
+            )}
+
+
+
+            {activeTab === "seasons" && (
+              <motion.div key="seasons" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
+                 <DeepGlassCard className="p-6">
+                    <div className="flex items-center justify-between mb-5">
+                       <h2 className="font-heading text-2xl font-bold text-brand-gray-700">Seasons</h2>
+                       <button onClick={handleNewSeason} className="rounded-full bg-brand-teal p-2 text-white hover:scale-110 transition shadow-md"><FiPlus /></button>
+                    </div>
+                    <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1 custom-scrollbar">
+                       {seasons.map(s => (
+                           <button key={s.id} onClick={() => setSelectedSeasonId(s.id)} className={`w-full rounded-[24px] border px-4 py-4 text-left transition ${s.id === selectedSeasonId ? "border-brand-teal/45 bg-brand-teal/10 shadow-lg" : "border-white/70 bg-white/68"}`}>
+                             <div className="flex items-center gap-2">
+                               <p className="font-heading font-bold text-brand-gray-700">{s.name}</p>
+                               <StatusChip label={s.isActive ? "Active" : s.status} tone={s.isActive ? "success" : "neutral"} />
+                             </div>
+                             <p className="text-[10px] text-brand-teal font-bold uppercase mt-1">
+                               {s.startedAt ? new Date(s.startedAt).toLocaleDateString() : "TBD"} &mdash; {s.endedAt ? new Date(s.endedAt).toLocaleDateString() : "TBD"}
+                             </p>
+                           </button>
+                       ))}
+                    </div>
+                 </DeepGlassCard>
+                 <DeepGlassCard className="p-6">
+                    <div className="mb-4 flex items-center justify-between">
+                       <h3 className="font-heading text-xl font-bold text-brand-gray-700">Config</h3>
+                       <GameButton onClick={() => void handleSaveSeason()} disabled={savingSeason}>{savingSeason ? "..." : <FiSave />}</GameButton>
+                    </div>
+                    <div className="space-y-4">
+                       <div className="grid gap-4 md:grid-cols-2">
+                          <Field label="Name"><input className={inputClassName} value={seasonForm.name} onChange={e => setSeasonForm(s => ({...s, name: e.target.value}))} /></Field>
+                          <Field label="Status"><input className={inputClassName} value={seasonForm.status} onChange={e => setSeasonForm(s => ({...s, status: e.target.value}))} /></Field>
+                       </div>
+                       <div className="grid gap-4 md:grid-cols-2">
+                          <Field label="Start"><input type="datetime-local" className={inputClassName} value={seasonForm.startedAt} onChange={e => setSeasonForm(s => ({...s, startedAt: e.target.value}))} /></Field>
+                          <Field label="End"><input type="datetime-local" className={inputClassName} value={seasonForm.endedAt} onChange={e => setSeasonForm(s => ({...s, endedAt: e.target.value}))} /></Field>
+                       </div>
+                       <ToggleRow label="Is Active" checked={seasonForm.isActive} onChange={checked => setSeasonForm(s => ({...s, isActive: checked}))} />
+                       <Field label="Leaderboard Config JSON"><textarea className={`${inputClassName} font-mono text-xs min-h-[100px]`} value={seasonForm.leaderboardConfigText} onChange={e => setSeasonForm(s => ({...s, leaderboardConfigText: e.target.value}))} /></Field>
+                       <Field label="Reward Config JSON"><textarea className={`${inputClassName} font-mono text-xs min-h-[100px]`} value={seasonForm.rewardConfigText} onChange={e => setSeasonForm(s => ({...s, rewardConfigText: e.target.value}))} /></Field>
+                    </div>
+                 </DeepGlassCard>
+              </motion.div>
+            )}
+
+            {activeTab === "operations" && (
+              <motion.div key="operations" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-6">
+                <DeepGlassCard className="p-6">
+                  <div className="flex items-center justify-between mb-5">
+                    <h2 className="font-heading text-2xl font-bold text-brand-gray-700">Arena Health</h2>
+                    <InfoChip label={healthSnapshot ? new Date(healthSnapshot.generatedAt).toLocaleTimeString() : "No data"} />
                   </div>
-                </div>
-              </div>
-            </DeepGlassCard>
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <MetricCard label="Waiting Queue" value={String(healthSnapshot?.waitingQueueCount ?? 0)} />
+                    <MetricCard label="Live Matches" value={String(healthSnapshot?.inProgressMatchCount ?? 0)} />
+                    <MetricCard label="Abandonments" value={String(healthSnapshot?.abandonmentCount ?? 0)} />
+                    <MetricCard label="Alert Flags" value={String(healthSnapshot?.alertFlags.length ?? 0)} />
+                  </div>
+                </DeepGlassCard>
+
+                <DeepGlassCard className="p-6">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between mb-6">
+                    <div>
+                      <h2 className="font-heading text-2xl font-bold text-brand-gray-700">Operations</h2>
+                      <p className="mt-2 text-sm text-brand-gray-500">Match logs and anomaly review.</p>
+                    </div>
+                    <div className="flex gap-2">
+                       <input className={inputClassName} value={playerMatchSearch} onChange={e => setPlayerMatchSearch(e.target.value)} placeholder="Search players..." />
+                       <GameButton onClick={() => void handleRefreshOps()} disabled={loadingOps}>{loadingOps ? "Refreshing..." : "Refresh"}</GameButton>
+                    </div>
+                  </div>
+                  <div className="grid gap-8 xl:grid-cols-2">
+                    <div className="space-y-4">
+                       <h3 className="font-heading font-bold text-brand-gray-700 text-lg border-b pb-2">Recent Player Activity</h3>
+                       {playerMatches.map(r => (
+                         <div key={`${r.matchId}-${r.userId}`} className="rounded-2xl border border-white/70 bg-white/68 p-4 hover:shadow-sm transition">
+                            <p className="font-heading font-bold text-brand-gray-700">{r.displayName}</p>
+                            <p className="text-[10px] text-brand-gray-500 uppercase tracking-wider font-bold">Match #{r.matchId} &bull; {r.publicCourseTitle}</p>
+                            <p className="text-[10px] mt-1 text-brand-teal font-bold">{r.status.toUpperCase()} &bull; SCORE: {r.score}</p>
+                         </div>
+                       ))}
+                    </div>
+                    <div className="space-y-4">
+                       <h3 className="font-heading font-bold text-brand-gray-700 text-lg border-b pb-2">Match Review Alerts</h3>
+                       {matchReviews.map(r => (
+                         <div key={r.matchId} className="rounded-2xl border border-white/70 bg-white/68 p-4 hover:shadow-sm transition">
+                            <div className="flex items-center justify-between">
+                               <p className="font-heading font-bold text-brand-gray-700">Match #{r.matchId}</p>
+                               <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${r.anomalyFlags.length > 0 ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                                 {r.anomalyFlags.length > 0 ? 'Flagged' : 'Healthy'}
+                               </span>
+                            </div>
+                            <div className="flex flex-wrap gap-1 mt-2">
+                               {r.anomalyFlags.map(f => <span key={f} className="text-[9px] bg-sky-100 text-sky-700 px-2 py-0.5 rounded-full font-bold uppercase">{f.replaceAll('_', ' ')}</span>)}
+                            </div>
+                         </div>
+                       ))}
+                    </div>
+                  </div>
+                </DeepGlassCard>
+              </motion.div>
+            )}
           </div>
-        ) : null}
+        )}
       </main>
+
+      {/* Glass Confirmation Modal */}
+      <AnimatePresence>
+        {poolToDeleteId && (
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-brand-gray-900/30 backdrop-blur-sm p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 10 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              className="relative w-full max-w-sm rounded-[2.5rem] border border-rose-200/50 bg-white/90 backdrop-blur-xl p-8 shadow-[0_32px_80px_rgba(225,29,72,0.15)]"
+            >
+              <div className="absolute top-0 inset-x-0 h-40 bg-gradient-to-b from-rose-100/50 to-transparent -z-10 rounded-t-[2.5rem]"></div>
+              
+              <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-3xl bg-rose-100 text-rose-500 shadow-inner">
+                <FiTrash2 className="h-7 w-7" />
+              </div>
+              
+              <h2 className="font-heading text-2xl font-extrabold text-brand-gray-700 mb-2">Delete this Pool?</h2>
+              <p className="text-sm font-medium text-brand-gray-500 mb-8 leading-relaxed">
+                This action is permanent and cannot be undone. Are you absolutely certain you want to destroy this question pool?
+              </p>
+              
+              <div className="flex flex-col gap-3">
+                <button 
+                  onClick={() => void handleDeletePool()}
+                  className="w-full rounded-2xl bg-rose-500 py-3.5 px-6 font-bold text-white shadow-lg shadow-rose-500/30 transition-all hover:bg-rose-600 active:scale-95"
+                >
+                  Yes, destroy it
+                </button>
+                <button 
+                  onClick={() => setPoolToDeleteId(null)}
+                  className="w-full rounded-2xl bg-brand-gray-100 py-3.5 px-6 font-bold text-brand-gray-600 transition-all hover:bg-brand-gray-200 active:scale-95"
+                >
+                  Cancel
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
-function Field({
-  children,
-  className = "",
-  hint,
-  label,
-}: {
-  children: React.ReactNode;
-  className?: string;
-  hint?: string;
-  label: string;
-}) {
+/* ═══════════════════ Helper Components ═══════════════════ */
+
+function NavButton({ active, onClick, icon, label }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string }) {
+  return (
+    <button onClick={onClick} className={`flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold transition-all ${active ? "bg-brand-teal text-white shadow-xl shadow-brand-teal/20" : "bg-white/60 text-brand-gray-500 hover:bg-white/80 hover:text-brand-teal hover:scale-105"}`}>
+      <span className={active ? "text-white" : "text-brand-teal"}>{icon}</span>
+      {label}
+    </button>
+  );
+}
+
+function Field({ children, className = "", hint, label }: { children: React.ReactNode; className?: string; hint?: string; label: string }) {
   return (
     <label className={`block ${className}`}>
-      <span className="text-xs font-bold uppercase tracking-[0.2em] text-brand-teal">
-        {label}
-      </span>
-      {hint ? <p className="mt-1 text-xs text-brand-gray-500">{hint}</p> : null}
-      <div className="mt-2">{children}</div>
+      <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-brand-teal">{label}</span>
+      {hint && <p className="mt-1 text-xs text-brand-gray-500">{hint}</p>}
+      <div className="mt-1.5">{children}</div>
     </label>
   );
 }
 
-function ToggleRow({
-  checked,
-  label,
-  onChange,
-}: {
-  checked: boolean;
-  label: string;
-  onChange: (next: boolean) => void;
-}) {
+function ToggleRow({ checked, label, onChange }: { checked: boolean; label: string; onChange: (n: boolean) => void }) {
   return (
-    <label className="flex items-center justify-between rounded-2xl border border-white/75 bg-white/72 px-4 py-3">
+    <label className="flex items-center justify-between rounded-2xl border border-white/75 bg-white/72 px-4 py-3 cursor-pointer hover:bg-white/90 transition">
       <span className="text-sm font-semibold text-brand-gray-700">{label}</span>
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(event) => onChange(event.target.checked)}
-        className="h-4 w-4 accent-brand-teal"
-      />
+      <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} className="h-4 w-4 accent-brand-teal cursor-pointer" />
     </label>
   );
 }
 
-function StatusChip({
-  label,
-  tone,
-}: {
-  label: string;
-  tone: "success" | "info" | "neutral";
-}) {
-  const className =
-    tone === "success"
-      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-      : tone === "info"
-        ? "bg-sky-50 text-sky-700 border-sky-200"
-        : "bg-slate-50 text-slate-600 border-slate-200";
-
-  return (
-    <span
-      className={`rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.16em] ${className}`}
-    >
-      {label}
-    </span>
-  );
+function StatusChip({ label, tone }: { label: string; tone: "success" | "info" | "neutral" }) {
+  const cn = tone === "success" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : tone === "info" ? "bg-sky-50 text-sky-700 border-sky-200" : "bg-slate-50 text-slate-600 border-slate-200";
+  return <span className={`rounded-full border px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider ${cn}`}>{label}</span>;
 }
 
 function InfoChip({ label }: { label: string }) {
-  return (
-    <span className="rounded-full bg-white/75 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-brand-teal">
-      {label}
-    </span>
-  );
+  return <span className="rounded-full bg-white/75 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-brand-teal border border-brand-teal/10 shadow-sm">{label}</span>;
 }
 
 function MetricCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[22px] border border-white/70 bg-white/68 px-4 py-4">
-      <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-brand-gray-400">
-        {label}
-      </p>
-      <p className="mt-2 font-heading text-2xl font-bold text-brand-gray-700">{value}</p>
+    <div className="rounded-[22px] border border-white/70 bg-white/68 px-4 py-4 shadow-sm">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-brand-gray-400">{label}</p>
+      <p className="mt-1 font-heading text-2xl font-bold text-brand-gray-700">{value}</p>
     </div>
   );
 }
 
-function createEmptyPoolItem(index: number): PoolItemFormState {
+/* ═══════════════════ Utility Helpers ═══════════════════ */
+
+function serializePoolItem(item: PoolItemFormState, idx: number): ArenaAdminQuestionPoolItemUpsertRequest {
+  if (!item.questionKey.trim()) throw new Error(`Q#${idx + 1} has no key.`);
+  if (!item.prompt.trim()) throw new Error(`Q#${idx + 1} has no prompt.`);
   return {
-    questionKey: `question-${index}`,
-    prompt: "",
-    correctOptionId: "a",
-    difficulty: "normal",
-    knowledgeTagsText: "",
-    explanation: "",
-    sourceUnitId: "",
-    sourceNodeId: "",
-    isActive: true,
-    options: createEmptyOptions(),
-  };
-}
-
-function createEmptyOptions(): PoolOptionFormState[] {
-  return [
-    { id: "a", text: "" },
-    { id: "b", text: "" },
-  ];
-}
-
-function createEmptyOption(index: number): PoolOptionFormState {
-  return {
-    id: String.fromCharCode(97 + index),
-    text: "",
-  };
-}
-
-function splitCommaSeparated(value: string) {
-  return value
-    .split(",")
-    .map((part) => part.trim())
-    .filter(Boolean);
-}
-
-function uniqueValues(values: string[]) {
-  return Array.from(new Set(values));
-}
-
-function serializePoolItem(
-  item: PoolItemFormState,
-  itemIndex: number
-): ArenaAdminQuestionPoolItemUpsertRequest {
-  const questionKey = item.questionKey.trim();
-  const prompt = item.prompt.trim();
-  const correctOptionId = item.correctOptionId.trim();
-  const options = item.options.map((option, optionIndex) => {
-    const id = option.id.trim();
-    const text = option.text.trim();
-
-    if (!id) {
-      throw new Error(`Question ${itemIndex + 1}: option ${optionIndex + 1} is missing an id.`);
-    }
-    if (!text) {
-      throw new Error(`Question ${itemIndex + 1}: option ${id} is missing text.`);
-    }
-
-    return { id, text };
-  });
-
-  if (!questionKey) {
-    throw new Error(`Question ${itemIndex + 1} is missing a question key.`);
-  }
-  if (!prompt) {
-    throw new Error(`Question ${itemIndex + 1} is missing a prompt.`);
-  }
-  if (!correctOptionId) {
-    throw new Error(`Question ${itemIndex + 1} is missing a correct option id.`);
-  }
-  if (!options.some((option) => option.id === correctOptionId)) {
-    throw new Error(
-      `Question ${itemIndex + 1}: correct option id must match one of the configured options.`
-    );
-  }
-
-  return {
-    questionKey,
-    prompt,
-    options,
-    correctOptionId,
-    difficulty: item.difficulty.trim() || "normal",
+    questionKey: item.questionKey.trim(),
+    questionType: (item as any).questionType || "MultipleChoice", // Default for legacy data
+    prompt: item.prompt.trim(),
+    options: item.options.map(o => {
+      if (typeof o === "string") return o;
+      if (o && typeof o === "object" && !("id" in o) && !("text" in o)) return o; // e.g. MatchingPairs { left, right }
+      return { id: (o.id || "").trim(), text: (o.text || "").trim() };
+    }),
+    correctOptionId: item.correctOptionId ? item.correctOptionId.trim() : undefined,
+    difficulty: item.difficulty || "normal",
     knowledgeTags: uniqueValues(splitCommaSeparated(item.knowledgeTagsText)),
-    explanation: item.explanation.trim() || null,
-    sourceUnitId: item.sourceUnitId.trim() || null,
-    sourceNodeId: item.sourceNodeId.trim() || null,
-    isActive: item.isActive,
+    explanation: item.explanation ? item.explanation.trim() : null,
+    sourceUnitId: item.sourceUnitId ? item.sourceUnitId.trim() : null,
+    sourceNodeId: item.sourceNodeId ? item.sourceNodeId.trim() : null,
+    isActive: Boolean(item.isActive),
   };
 }
 
-function validateCoursePayload(payload: ArenaAdminPublicCourseUpsertRequest) {
-  if (!payload.slug) throw new Error("Topic slug is required.");
-  if (!payload.title) throw new Error("Topic title is required.");
-  if (!payload.topic) throw new Error("Topic topic is required.");
+function toDateTimeLocalValue(v?: string | null) {
+  if (!v) return "";
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return "";
+  return d.toISOString().slice(0, 16);
 }
 
-function validatePoolPayload(payload: ArenaAdminQuestionPoolUpsertRequest) {
-  if (!payload.slug) throw new Error("Pool slug is required.");
-  if (!payload.title) throw new Error("Pool title is required.");
-  if (!payload.items.length) throw new Error("Pool items cannot be empty.");
-
-  const duplicateQuestionKeys = findDuplicates(payload.items.map((item) => item.questionKey));
-  if (duplicateQuestionKeys.length > 0) {
-    throw new Error(`Duplicate question keys: ${duplicateQuestionKeys.join(", ")}`);
-  }
+function splitCommaSeparated(v: string) { return v.split(",").map(p => p.trim()).filter(Boolean); }
+function uniqueValues(v: string[]) { return Array.from(new Set(v)); }
+function upsertById<T extends { id: number }>(items: T[], next: T) {
+  const i = items.findIndex(x => x.id === next.id);
+  if (i === -1) return [next, ...items];
+  const n = [...items]; n[i] = next; return n;
 }
 
-function validateSeasonPayload(payload: ArenaAdminSeasonUpsertRequest) {
-  if (!payload.name) throw new Error("Season name is required.");
-  if (!payload.status) throw new Error("Season status is required.");
-  if (payload.startedAt && payload.endedAt && new Date(payload.endedAt) < new Date(payload.startedAt)) {
-    throw new Error("Season end time must be after the start time.");
-  }
-}
-
-function parseJsonConfig(value: string, label: string): Record<string, unknown> {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return {};
-  }
-
-  try {
-    const parsed = JSON.parse(trimmed) as unknown;
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      throw new Error(`${label} must be a JSON object.`);
-    }
-    return parsed as Record<string, unknown>;
-  } catch (error) {
-    if (error instanceof Error && error.message.includes("must be a JSON object")) {
-      throw error;
-    }
-    throw new Error(`${label} must be valid JSON.`);
-  }
-}
-
-function toDateTimeLocalValue(value?: string | null) {
-  if (!value) {
-    return "";
-  }
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return "";
-  }
-  const year = parsed.getFullYear();
-  const month = String(parsed.getMonth() + 1).padStart(2, "0");
-  const day = String(parsed.getDate()).padStart(2, "0");
-  const hours = String(parsed.getHours()).padStart(2, "0");
-  const minutes = String(parsed.getMinutes()).padStart(2, "0");
-  return `${year}-${month}-${day}T${hours}:${minutes}`;
-}
-
-function findDuplicates(values: string[]) {
-  const seen = new Set<string>();
-  const duplicates = new Set<string>();
-
-  for (const value of values) {
-    if (seen.has(value)) {
-      duplicates.add(value);
-      continue;
-    }
-    seen.add(value);
-  }
-
-  return Array.from(duplicates);
-}
-
-function upsertById<T extends { id: number }>(items: T[], nextItem: T) {
-  const existingIndex = items.findIndex((item) => item.id === nextItem.id);
-  if (existingIndex === -1) {
-    return [nextItem, ...items];
-  }
-
-  const nextItems = [...items];
-  nextItems[existingIndex] = nextItem;
-  return nextItems;
-}
-
-const inputClassName =
-  "w-full rounded-2xl border border-brand-gray-200 bg-white px-4 py-3 text-sm text-brand-gray-700 outline-none transition focus:border-brand-teal/40 focus:ring-2 focus:ring-brand-teal/15";
+const inputClassName = "w-full rounded-2xl border border-brand-gray-200 bg-white px-4 py-2.5 text-sm text-brand-gray-700 outline-none transition focus:border-brand-teal focus:ring-2 focus:ring-brand-teal/10";

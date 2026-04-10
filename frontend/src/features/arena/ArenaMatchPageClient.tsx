@@ -12,6 +12,15 @@ import { useRequireAuthRedirect } from "@/lib/auth/useRequireAuthRedirect";
 import { useAuthStore } from "@/stores/app/useAuthStore";
 import { useArenaMatchStore } from "@/stores/arena/useArenaMatchStore";
 import { useArenaMatchEvents } from "./hooks/useArenaMatchEvents";
+import { 
+  FiList, 
+  FiHash, 
+  FiLayers, 
+  FiMessageSquare, 
+  FiBookOpen, 
+  FiZap, 
+  FiCheckCircle 
+} from "react-icons/fi";
 
 export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
   const router = useRouter();
@@ -187,34 +196,117 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
 
           {activeRound ? (
             <div className="mt-6">
-              <div className="rounded-[28px] border border-white/70 bg-white/74 p-6">
-                <p className="text-xs font-bold uppercase tracking-[0.22em] text-brand-teal">
-                  Live Question
-                </p>
-                <h2 className="mt-3 font-heading text-3xl font-bold leading-tight text-brand-gray-700">
+              <div className="rounded-[28px] border border-white/70 bg-white/74 p-6 shadow-xl backdrop-blur-xl">
+                <div className="flex items-center justify-between gap-4 mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-teal text-white">
+                      {activeRound.question.questionType === "MultipleChoice" && <FiList />}
+                      {activeRound.question.questionType === "MatchingPairs" && <FiHash />}
+                      {activeRound.question.questionType === "Ordering" && <FiLayers />}
+                      {activeRound.question.questionType === "FeynmanMirror" && <FiMessageSquare />}
+                      {activeRound.question.questionType === "ExplainerMedia" && <FiBookOpen />}
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-brand-teal">
+                        {activeRound.question.questionType || "Live Question"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 rounded-full bg-brand-teal/10 px-3 py-1 text-[10px] font-bold text-brand-teal">
+                    <FiZap className="h-3 w-3" />
+                    +50 Max Points
+                  </div>
+                </div>
+
+                <h2 className="font-heading text-2xl font-bold leading-tight text-brand-gray-700">
                   {activeRound.question.prompt}
                 </h2>
-                <div className="mt-5 grid gap-3">
-                  {activeRound.question.options.map((option) => {
-                    const active = selectedOptionId === option.id;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setSelectedOptionId(option.id)}
-                        className={`rounded-2xl border px-4 py-4 text-left transition ${
-                          active
-                            ? "border-brand-teal/60 bg-brand-teal/10"
-                            : "border-brand-gray-200 bg-white hover:border-brand-teal/40"
-                        }`}
-                      >
-                        <span className="font-semibold text-brand-gray-700">{option.text}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-                <GameButton className="mt-5 w-full" onClick={() => void handleSubmit()} disabled={!selectedOptionId || submitting || activeRound.hasSubmitted}>
-                  {activeRound.hasSubmitted ? "Answer Submitted" : "Lock Answer"}
+
+                {activeRound.question.questionType === "MultipleChoice" && (
+                  <div className="mt-6 grid gap-3">
+                    {activeRound.question.options.map((option: any) => {
+                      const active = selectedOptionId === option.id;
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          disabled={activeRound.hasSubmitted}
+                          onClick={() => setSelectedOptionId(option.id)}
+                          className={`group relative flex items-center justify-between rounded-2xl border-2 px-6 py-4 text-left transition-all ${
+                            active
+                              ? "border-brand-teal bg-brand-teal/5 shadow-lg shadow-brand-teal/5"
+                              : "border-brand-gray-100 bg-white hover:border-brand-teal/30 hover:bg-brand-gray-50/50"
+                          } ${activeRound.hasSubmitted && !active ? "opacity-50" : ""}`}
+                        >
+                          <span className={`font-bold transition-colors ${active ? "text-brand-teal" : "text-brand-gray-700"}`}>
+                            {option.text}
+                          </span>
+                          <div className={`flex h-6 w-6 items-center justify-center rounded-full border-2 transition-all ${
+                            active ? "border-brand-teal bg-brand-teal text-white" : "border-brand-gray-200"
+                          }`}>
+                            {active && <FiCheckCircle className="h-3.5 w-3.5" />}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {(activeRound.question.questionType === "MatchingPairs" || activeRound.question.questionType === "Ordering") && (
+                  <div className="mt-6 rounded-2xl border border-dashed border-brand-teal/30 bg-white/40 p-12 text-center text-sm text-brand-gray-500 italic">
+                    <FiLayers className="mx-auto mb-3 h-8 w-8 opacity-20" />
+                    Interactive {activeRound.question.questionType} support is launching in the next seed.
+                    <br />
+                    <span className="text-[10px] non-italic">For now, select any option to continue.</span>
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+                       {activeRound.question.options.slice(0, 4).map((opt: any, i: number) => (
+                         <button 
+                            key={i} 
+                            onClick={() => setSelectedOptionId(opt.id || String(i))}
+                            className={`rounded-xl border p-2 text-[10px] ${selectedOptionId === (opt.id || String(i)) ? 'bg-brand-teal text-white' : 'bg-white'}`}
+                         >
+                           Select Path {i+1}
+                         </button>
+                       ))}
+                    </div>
+                  </div>
+                )}
+
+                {activeRound.question.questionType === "FeynmanMirror" && (
+                  <div className="mt-6 space-y-4">
+                    <textarea 
+                      className="w-full rounded-2xl border-2 border-brand-gray-100 p-4 text-sm focus:border-brand-teal focus:outline-none"
+                      placeholder="Type your explanation here..."
+                      rows={4}
+                      disabled={activeRound.hasSubmitted}
+                      onChange={(e) => setSelectedOptionId(e.target.value)}
+                    />
+                  </div>
+                )}
+
+                {activeRound.question.questionType === "ExplainerMedia" && (
+                  <div className="mt-6 space-y-4">
+                    <div className="rounded-2xl bg-sky-50 p-4 text-sm text-sky-800 border border-sky-100">
+                       Please read the explanation carefully. Point values for this round vary by speed of acknowledgement.
+                    </div>
+                    <button 
+                      onClick={() => setSelectedOptionId("acknowledged")}
+                      disabled={activeRound.hasSubmitted}
+                      className={`w-full rounded-2xl py-4 font-bold transition-all ${
+                        selectedOptionId === "acknowledged" ? "bg-emerald-500 text-white" : "bg-white border-2 border-emerald-500 text-emerald-500"
+                      }`}
+                    >
+                      {selectedOptionId === "acknowledged" ? "Read & Acknowledged" : "Click to Acknowledge"}
+                    </button>
+                  </div>
+                )}
+
+                <GameButton 
+                  className="mt-6 w-full py-4 text-lg" 
+                  onClick={() => void handleSubmit()} 
+                  disabled={!selectedOptionId || submitting || activeRound.hasSubmitted}
+                >
+                  {activeRound.hasSubmitted ? "Answer Locked" : "Submit Challenge"}
                 </GameButton>
               </div>
             </div>
