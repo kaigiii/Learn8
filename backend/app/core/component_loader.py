@@ -15,12 +15,19 @@ class ComponentRegistryLoader:
 
     def _load_all(self):
         """從 modules 目錄中載入所有 YAML 檔案。"""
+        from app.core.config import settings
+
         if not MODULES_DIR.exists():
             print(f"Warning: Modules directory not found at {MODULES_DIR}")
             return
 
+        enabled_modules = [m.strip() for m in settings.ENABLED_GAME_MODULES.split(",") if m.strip()]
+
         for filename in os.listdir(MODULES_DIR):
             if filename.endswith(".yaml") or filename.endswith(".yml"):
+                if enabled_modules and filename not in enabled_modules:
+                    continue
+
                 filepath = MODULES_DIR / filename
                 with open(filepath, "r", encoding="utf-8") as f:
                     try:

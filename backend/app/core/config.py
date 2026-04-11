@@ -62,4 +62,8 @@ class Settings(BaseSettings):
     MAX_FILE_READ_BYTES: int = 50000
     MAX_COURSE_CONTEXT_BYTES: int = 30000
 
+    # Content Whitelists (Comma-separated filenames)
+    ENABLED_PUBLIC_COURSES: str = "ai_neural_networks.yaml,python_fundamentals.yaml,world_history.yaml"
+    ENABLED_GAME_MODULES: str = "ExplainerMedia.yaml,FeynmanMirror.yaml,MatchingPairs.yaml,MultipleChoice.yaml,Ordering.yaml"
+
 settings = Settings()
