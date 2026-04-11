@@ -26,6 +26,27 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
             item.add_marker(skip_ai)
 
 
+@pytest.fixture(scope="session", autouse=True)
+def setup_database():
+    """
+    Ensure the database is initialized (tables created) and seeded 
+    with public courses before running any tests.
+    """
+    from app.db.session import engine
+    from app.core.course_loader import registry as course_registry
+    from app.db.session import SessionLocal
+
+    # Create all tables on the target database (e.g., learn8-ci.db in GHA)
+    Base.metadata.create_all(bind=engine)
+
+    # Automatically sync public courses so integration tests have data
+    db = SessionLocal()
+    try:
+        course_registry.sync_to_db(db)
+    finally:
+        db.close()
+
+
 @pytest.fixture()
 def db_session():
     engine = create_engine("sqlite:///:memory:")

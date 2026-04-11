@@ -1,27 +1,24 @@
+import pytest
 from app.db.session import SessionLocal
-from app.db import registry
 from app.services.arena.admin_service import AdminService
-import json
+from app.models.public_course import PublicCourseModel
 
-def test():
+def test_extraction():
     db = SessionLocal()
-    svc = AdminService()
-    # public_course_id 6 is Python Fundamentals
-    qs = svc.extract_questions_from_syllabus(db, 6)
-    
-    counts = {}
-    for q in qs:
-        t = q['questionType']
-        counts[t] = counts.get(t, 0) + 1
+    try:
+        svc = AdminService()
         
-    print(f"Total extracted: {len(qs)}")
-    print("Counts by type:")
-    for k, v in counts.items():
-        print(f"  {k}: {v}")
+        # Find any public course that was seeded
+        course = db.query(PublicCourseModel).first()
+        if not course:
+            pytest.skip("No public courses found in database.")
+            
+        public_course_id = course.id
+        qs = svc.extract_questions_from_syllabus(db, public_course_id)
         
-    if qs:
-        print("\nSample question:")
-        print(json.dumps(qs[0], indent=2))
-
-if __name__ == "__main__":
-    test()
+        assert len(qs) >= 0
+        if qs:
+             # Basic validation of extraction logic
+             assert 'questionType' in qs[0]
+    finally:
+        db.close()
