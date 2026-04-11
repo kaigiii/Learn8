@@ -1,0 +1,32 @@
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
+
+from app.core.config import settings
+from app.services.jobs.job_registry import JobRegistry
+
+@asynccontextmanager
+async def application_lifespan(app: FastAPI):
+    """
+    Handles application startup and shutdown events.
+    """
+    # 1. Background Jobs Setup
+    JobRegistry.cleanup_on_startup()
+    JobRegistry.start_monitor()
+
+    # 2. Automatic Synchronization of Public Courses
+    from app.core.course_loader import registry as course_registry
+    from app.db.session import SessionLocal
+    
+    db = SessionLocal()
+    try:
+        # Note: sync_to_db performs database I/O. 
+        # If the number of courses is large, consider running in a thread 
+        # to avoid blocking the event loop, though for seeding small sets it is fine.
+        course_registry.sync_to_db(db)
+    finally:
+        db.close()
+
+    yield
+
+    # 3. Shutdown Logic
+    JobRegistry.stop_monitor()
