@@ -21,7 +21,7 @@ interface WatchArenaEventsOptions {
 
 function buildArenaStreamUrl(path: string, afterCursor: number): string {
   const token = getAuthToken();
-  const url = new URL(`${API_BASE_URL}${path}`);
+  const url = new URL(`${API_BASE_URL}${path}`, window.location.origin);
   url.searchParams.set("after_cursor", String(Math.max(0, afterCursor)));
   if (token) {
     url.searchParams.set("access_token", token);

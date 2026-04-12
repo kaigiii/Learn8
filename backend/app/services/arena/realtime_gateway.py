@@ -89,5 +89,5 @@ def serialize_arena_event(event: ArenaEventModel) -> dict:
         "eventType": event.event_type,
         "version": event.version,
         "payload": event.payload_json if isinstance(event.payload_json, dict) else {},
-        "createdAt": event.created_at.isoformat(),
+        "createdAt": event.created_at.isoformat() + "Z",
     }
