@@ -47,13 +47,16 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
     }
 
     const tick = () => {
-      const deadline = new Date(match.activeRound?.deadlineAt ?? "").getTime();
-      const diff = Math.max(0, deadline - Date.now());
+      const deadlineAt = match.activeRound?.deadlineAt ?? "";
+      // Ensure the deadline is treated as UTC if it ends with Z
+      const deadline = new Date(deadlineAt).getTime();
+      const now = Date.now();
+      const diff = Math.max(0, deadline - now);
       setRemainingSeconds(Math.ceil(diff / 1000));
     };
 
     tick();
-    const intervalId = window.setInterval(tick, 300);
+    const intervalId = window.setInterval(tick, 200);
     return () => window.clearInterval(intervalId);
   }, [match?.activeRound?.deadlineAt]);
 
@@ -141,15 +144,29 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
                 {match?.publicCourseTitle ?? "Loading Arena match..."}
               </h1>
             </div>
-            <div className="flex gap-3">
-              <div className="rounded-2xl border border-white/70 bg-white/68 px-4 py-3 text-sm text-brand-gray-600">
-                Round {(match?.currentRoundIndex ?? 0) + 1} / {match?.totalRounds ?? 0}
-              </div>
-              <div className="rounded-2xl border border-white/70 bg-white/68 px-4 py-3 text-sm font-semibold text-brand-gray-700">
-                {activeRound ? `${remainingSeconds}s left` : match?.status === "finished" ? "Finished" : "Waiting"}
+              <div className="flex gap-3">
+                <div className="rounded-2xl border border-white/70 bg-white/68 px-4 py-3 text-sm text-brand-gray-600">
+                  Round {(match?.currentRoundIndex ?? 0) + 1} / {match?.totalRounds ?? 0}
+                </div>
+                <div className={`rounded-2xl border border-white/70 bg-white/68 px-4 py-3 text-sm font-bold transition-colors ${
+                  activeRound && remainingSeconds <= 5 ? "text-rose-600 animate-pulse" : "text-brand-gray-700"
+                }`}>
+                  {activeRound ? `${remainingSeconds}s` : match?.status === "finished" ? "Finished" : "Waiting"}
+                </div>
               </div>
             </div>
-          </div>
+
+            {/* Visual Progress Bar */}
+            {activeRound ? (
+              <div className="mt-6 h-2 w-full overflow-hidden rounded-full bg-brand-gray-100/50">
+                <div 
+                  className={`h-full transition-all duration-300 ease-linear ${
+                    remainingSeconds <= 5 ? "bg-rose-500" : "bg-brand-teal"
+                  }`}
+                  style={{ width: `${Math.min(100, (remainingSeconds / (activeRound.timerSeconds || 30)) * 100)}%` }}
+                />
+              </div>
+            ) : null}
 
           {connectionStatus !== "connected" || isRecovering ? (
             <div className="mt-5 rounded-2xl border border-sky-200 bg-sky-50/90 px-4 py-3 text-sm text-sky-900">

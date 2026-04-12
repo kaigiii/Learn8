@@ -128,6 +128,7 @@ class RoundEngine:
                     "roundId": active_round.id,
                     "roundIndex": active_round.round_index,
                     "timerSeconds": active_round.timer_seconds,
+                    "deadlineAt": active_round.deadline_at.isoformat() + "Z" if active_round.deadline_at else None,
                 },
             )
 
@@ -295,6 +296,7 @@ class RoundEngine:
                     "roundId": next_round.id,
                     "roundIndex": next_round.round_index,
                     "timerSeconds": next_round.timer_seconds,
+                    "deadlineAt": next_round.deadline_at.isoformat() + "Z" if next_round.deadline_at else None,
                 },
             )
         else:
@@ -402,8 +404,8 @@ class RoundEngine:
                 "roundIndex": active_round.round_index,
                 "status": active_round.status,
                 "timerSeconds": active_round.timer_seconds,
-                "startedAt": active_round.started_at.isoformat() if active_round.started_at else None,
-                "deadlineAt": active_round.deadline_at.isoformat() if active_round.deadline_at else None,
+                "startedAt": active_round.started_at.isoformat() + "Z" if active_round.started_at else None,
+                "deadlineAt": active_round.deadline_at.isoformat() + "Z" if active_round.deadline_at else None,
                 "revealedAnswer": active_round.revealed_answer_json,
                 "question": {
                     "questionId": str(question.get("question_id") or active_round.id),
@@ -432,8 +434,8 @@ class RoundEngine:
             "standings": standings,
             "currentPlayerResult": current_player_result,
             "presenceStates": self.presence_service.build_match_presence_states(match),
-            "startedAt": match.started_at.isoformat() if match.started_at else None,
-            "endedAt": match.ended_at.isoformat() if match.ended_at else None,
+            "startedAt": match.started_at.isoformat() + "Z" if match.started_at else None,
+            "endedAt": match.ended_at.isoformat() + "Z" if match.ended_at else None,
         }
 
     def submit_answer(

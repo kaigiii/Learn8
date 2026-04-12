@@ -13,6 +13,7 @@ from app.models.course import CourseModel, NodeModel
 from app.models.lesson import LessonModel, LessonStageModel
 from app.models.user import UserModel
 from app.models.public_course import PublicCourseModel
+from app.models.arena_question_pool import ArenaQuestionPoolModel, ArenaQuestionPoolItemModel
 
 # 定義 public_courses 目錄的絕對或相對路徑
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -169,24 +170,32 @@ class PublicCourseRegistryLoader:
             CourseModel.user_id == user.id,
             CourseModel.title == title,
         ).first()
-        if existing:
-            # Check if we actually need to update? For now, we overwrite as before.
-            db.delete(existing)
-            db.flush()
-
+        
         syllabus = self._build_syllabus_json(course_def)
-        course = CourseModel(
-            user_id=user.id,
-            title=title,
-            topic=course_def["topic"],
-            status=CourseStatus.READY,
-            folder_name=str(uuid.uuid4()),
-            profile_json={"summary": "System-generated public course."},
-            draft_json={"topic": course_def["topic"]},
-            syllabus_json=syllabus,
-        )
-        db.add(course)
-        db.flush()
+        if existing:
+            # Update attributes instead of deleting
+            existing.topic = course_def["topic"]
+            existing.syllabus_json = syllabus
+            existing.updated_at = now
+            course = existing
+            # Clean up old nodes and lessons to re-seed?
+            # For simplicity, we'll keep the course but delete its children
+            db.query(NodeModel).filter(NodeModel.course_id == course.id).delete()
+            db.query(LessonModel).filter(LessonModel.course_id == course.id).delete()
+            db.flush()
+        else:
+            course = CourseModel(
+                user_id=user.id,
+                title=title,
+                topic=course_def["topic"],
+                status=CourseStatus.READY,
+                folder_name=str(uuid.uuid4()),
+                profile_json={"summary": "System-generated public course."},
+                draft_json={"topic": course_def["topic"]},
+                syllabus_json=syllabus,
+            )
+            db.add(course)
+            db.flush()
 
         for unit_def in course_def["units"]:
             for node_def in unit_def["nodes"]:
@@ -252,30 +261,116 @@ class PublicCourseRegistryLoader:
         # Seed PublicCourseModel
         slug = title.lower().replace(" ", "-").replace("&", "and")
         public_course = db.query(PublicCourseModel).filter(PublicCourseModel.slug == slug).first()
-        if public_course:
-            db.delete(public_course)
-            db.flush()
-
+        
         final_syllabus = self._build_syllabus_json(course_def)
         for u_i, unit in enumerate(final_syllabus["units"]):
             for n_i, node in enumerate(unit["nodes"]):
                 node["stages"] = course_def["units"][u_i]["nodes"][n_i].get("stages", [])
 
-        public_course = PublicCourseModel(
-            slug=slug,
-            title=title,
-            topic=course_def["topic"],
-            description=course_def.get("description", "System generated public course"),
-            difficulty="intermediate",
-            is_published=True,
-            is_arena_enabled=True,
-            tags_json=["yaml-seeded"],
-            syllabus_json=final_syllabus,
-            created_at=now,
-            updated_at=now,
-        )
-        db.add(public_course)
+        if public_course:
+            # Update attributes instead of deleting
+            public_course.title = title
+            public_course.topic = course_def["topic"]
+            public_course.description = course_def.get("description", "System generated public course")
+            public_course.syllabus_json = final_syllabus
+            public_course.updated_at = now
+        else:
+            public_course = PublicCourseModel(
+                slug=slug,
+                title=title,
+                topic=course_def["topic"],
+                description=course_def.get("description", "System generated public course"),
+                difficulty="intermediate",
+                is_published=True,
+                is_arena_enabled=True,
+                tags_json=["yaml-seeded"],
+                syllabus_json=final_syllabus,
+                created_at=now,
+                updated_at=now,
+            )
+            db.add(public_course)
+        
+        db.flush()
+
+        # Added: Automatically seed Arena Question Pool from syllabus
+        self._seed_arena_pool(db, public_course, course_def)
+        
         db.commit()
+
+    def _seed_arena_pool(self, db: Session, public_course: PublicCourseModel, course_def: dict) -> None:
+        """從課程定義中提取互動式題目並建立 Arena 題庫。"""
+        # Create or update pool
+        slug = f"{public_course.slug}-pool"
+        pool = db.query(ArenaQuestionPoolModel).filter(
+            ArenaQuestionPoolModel.public_course_id == public_course.id,
+            ArenaQuestionPoolModel.slug == slug
+        ).first()
+
+        if pool:
+            # Update pool and clear items for re-seeding
+            pool.title = f"{public_course.title} Pool"
+            pool.updated_at = utc_now_naive()
+            db.query(ArenaQuestionPoolItemModel).filter(ArenaQuestionPoolItemModel.pool_id == pool.id).delete()
+            db.flush()
+        else:
+            pool = ArenaQuestionPoolModel(
+                public_course_id=public_course.id,
+                slug=slug,
+                title=f"{public_course.title} Pool",
+                description=f"Automated question pool for {public_course.title}",
+                is_active=True,
+                version=1,
+            )
+            db.add(pool)
+            db.flush()
+
+        # Extract items from units/nodes/stages
+        for unit in course_def.get("units", []):
+            for node in unit.get("nodes", []):
+                for idx, stage in enumerate(node.get("stages", [])):
+                    component = stage.get("component")
+                    if component not in ["MultipleChoice", "Ordering", "MatchingPairs"]:
+                        continue
+
+                    data = stage.get("data", {})
+                    question_key = f"{node['id']}-{idx}"
+                    
+                    # Normalize prompt and options based on component
+                    prompt = ""
+                    options = []
+                    correct_option_id = None
+
+                    if component == "MultipleChoice":
+                        prompt = data.get("question", "")
+                        options = data.get("options", [])
+                        correct_option_id = str(data.get("correctOptionId", ""))
+                    elif component == "MatchingPairs":
+                        prompt = data.get("question") or node["title"]
+                        options = data.get("pairs", [])
+                    elif component == "Ordering":
+                        prompt = data.get("question") or node["title"]
+                        options = data.get("steps", [])
+
+                    if not prompt:
+                        continue
+
+                    item = ArenaQuestionPoolItemModel(
+                        pool_id=pool.id,
+                        question_key=question_key,
+                        question_type=component,
+                        prompt=prompt,
+                        options_json=options,
+                        correct_option_id=correct_option_id,
+                        difficulty=stage.get("difficulty") or "normal",
+                        knowledge_tags_json=[],
+                        explanation=data.get("explanation"),
+                        source_unit_id=unit.get("unitId"),
+                        source_node_id=node.get("id"),
+                        is_active=True,
+                    )
+                    db.add(item)
+        
+        db.flush()
 
 # Singleton 實例
 registry = PublicCourseRegistryLoader()
