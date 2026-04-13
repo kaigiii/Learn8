@@ -48,6 +48,42 @@ class RoomService:
                     latest = candidate
         return latest
 
+    def sweep_stale_rooms(self, db: Session) -> int:
+        from app.domain.arena_statuses import ArenaMatchStatus, ArenaRoomStatus
+        from app.models.arena_match import ArenaMatchModel
+        
+        stale_rooms = (
+            db.query(ArenaRoomModel)
+            .filter(ArenaRoomModel.status == ArenaRoomStatus.IN_MATCH)
+            .all()
+        )
+        if not stale_rooms:
+            return 0
+            
+        count = 0
+        for room in stale_rooms:
+            # Check if the latest_match is finished or cancelled
+            if not room.latest_match_id:
+                room.status = ArenaRoomStatus.LOBBY
+                db.add(room)
+                count += 1
+                continue
+                
+            match = db.query(ArenaMatchModel).filter(ArenaMatchModel.id == room.latest_match_id).first()
+            if not match or match.status in (ArenaMatchStatus.FINISHED, ArenaMatchStatus.CANCELLED):
+                room.status = ArenaRoomStatus.LOBBY
+                # Also reset readyness for all players
+                for player in room.players:
+                    player.is_ready = False
+                    db.add(player)
+                db.add(room)
+                count += 1
+        
+        if count > 0:
+            db.commit()
+            
+        return count
+
     def _close_idle_lobby_rooms(self, db: Session) -> int:
         idle_minutes = int(getattr(settings, "ARENA_ROOM_IDLE_CLOSE_MINUTES", 0) or 0)
         if idle_minutes <= 0:
@@ -142,6 +178,18 @@ class RoomService:
 
         normalized_mode = normalize_arena_mode(mode)
         active_season = self.rank_service.get_active_season(db)
+        
+        # MUTUAL EXCLUSION: Cancel any active competitive queues
+        from app.models.arena_queue import ArenaQueueEntryModel
+        from app.domain.arena_statuses import ArenaQueueStatus
+        db.query(ArenaQueueEntryModel).filter(
+            ArenaQueueEntryModel.user_id == current_user.id,
+            ArenaQueueEntryModel.status.in_((ArenaQueueStatus.WAITING, ArenaQueueStatus.MATCHED))
+        ).update({
+            "status": ArenaQueueStatus.CANCELLED,
+            "closed_at": utc_now()
+        }, synchronize_session=False)
+
         room = ArenaRoomModel(
             room_code=self._generate_room_code(db),
             season_id=active_season.id if active_season else None,
@@ -191,6 +239,17 @@ class RoomService:
             return room
         if len(room.players) >= room.max_players:
             raise HTTPException(status_code=409, detail="Arena room is full")
+
+        # MUTUAL EXCLUSION: Cancel any active competitive queues
+        from app.models.arena_queue import ArenaQueueEntryModel
+        from app.domain.arena_statuses import ArenaQueueStatus
+        db.query(ArenaQueueEntryModel).filter(
+            ArenaQueueEntryModel.user_id == current_user.id,
+            ArenaQueueEntryModel.status.in_((ArenaQueueStatus.WAITING, ArenaQueueStatus.MATCHED))
+        ).update({
+            "status": ArenaQueueStatus.CANCELLED,
+            "closed_at": utc_now()
+        }, synchronize_session=False)
 
         db.add(
             ArenaRoomPlayerModel(

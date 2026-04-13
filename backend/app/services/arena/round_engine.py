@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.core.config import settings
 from app.core.time import utc_now, to_iso_utc
+from app.domain.arena_modes import ArenaMode
 from app.domain.arena_statuses import ArenaMatchStatus, ArenaRoundStatus, ArenaRoomStatus
 from app.models.arena_match import ArenaMatchModel, ArenaMatchPlayerModel
 from app.models.arena_round import ArenaAnswerModel, ArenaRoundModel
@@ -129,6 +130,7 @@ class RoundEngine:
                     "roundIndex": active_round.round_index,
                     "timerSeconds": active_round.timer_seconds,
                     "deadlineAt": to_iso_utc(active_round.deadline_at),
+                    "activeRound": self._build_active_round_payload(active_round),
                 },
             )
 
@@ -156,6 +158,12 @@ class RoundEngine:
         return next((round_item for round_item in rounds if round_item.status == ArenaRoundStatus.ACTIVE), None)
 
     def _ensure_round_progress(self, db: Session, match: ArenaMatchModel) -> ArenaMatchModel:
+        # Check for player forfeits/abandonment first
+        if match.status == ArenaMatchStatus.IN_PROGRESS:
+            match = self._check_forfeits(db, match)
+            if match.status == ArenaMatchStatus.FINISHED:
+                return match
+
         rounds = self._get_rounds(db, match.id)
         active_round = self._get_active_round(rounds)
         if active_round and active_round.deadline_at and active_round.deadline_at <= utc_now():
@@ -199,6 +207,7 @@ class RoundEngine:
                 self._close_round(db, match, active_round)
             
             self._finalize_match_if_needed(db, match, rounds)
+            self._deactivate_match_queue_entries(db, match.id)
             count += 1
             
         # 2. Handle pending matches (expired acceptance deadline)
@@ -214,6 +223,7 @@ class RoundEngine:
             match.status = ArenaMatchStatus.CANCELLED
             match.ended_at = now
             db.add(match)
+            self._deactivate_match_queue_entries(db, match.id)
             self.realtime_gateway.publish_event(
                 db,
                 stream_type="match",
@@ -228,10 +238,19 @@ class RoundEngine:
         return count
 
     def confirm_match(self, db: Session, match_id: int, current_user: UserModel) -> dict:
-        match = self.get_match(db, match_id)
+        # Use with_for_update to handle simultaneous acceptance correctly
+        match = (
+            self._base_match_query(db)
+            .filter(ArenaMatchModel.id == match_id)
+            .with_for_update()
+            .first()
+        )
         if not match:
             raise HTTPException(status_code=404, detail="Match not found")
         if match.status != ArenaMatchStatus.PENDING:
+            # If already in_progress, just return current state
+            if match.status == ArenaMatchStatus.IN_PROGRESS:
+                return self.get_match_state(db, match.id, current_user)
             raise HTTPException(status_code=400, detail="Match is not in confirmation state")
         
         player = next((p for p in match.players if p.user_id == current_user.id), None)
@@ -269,7 +288,38 @@ class RoundEngine:
             )
 
         db.commit()
-        return self.get_match_state(db, match.id, current_user)
+    def forfeit_active_match(self, db: Session, user_id: int) -> None:
+        """
+        Forcefully settle any active matches for a user. Used when joining a new queue.
+        """
+        match = self.get_active_match_for_user(db, user_id)
+        if match:
+            # Settle it immediately
+            self._finalize_match_if_needed(db, match, self._get_rounds(db, match.id))
+            db.commit()
+
+    def _check_forfeits(self, db: Session, match: ArenaMatchModel) -> ArenaMatchModel:
+        self.presence_service.sweep_match_presence(db, match)
+        
+        abandoned_players = [p for p in match.players if p.suspected_abandonment]
+        if not abandoned_players:
+            return match
+            
+        # For competitive matches (usually 1v1), if at least one is abandoned, the match ends
+        if match.mode == ArenaMode.COMPETITIVE and len(match.players) == 2:
+            # If all players are abandoned/offline, end it too
+            self._finalize_match_if_needed(db, match, self._get_rounds(db, match.id))
+            db.commit()
+            return self.get_match(db, match.id)
+            
+        # For other modes, if EVERYONE is gone, end it
+        all_gone = all(p.suspected_abandonment or p.connection_state == "disconnected" for p in match.players)
+        if all_gone:
+            self._finalize_match_if_needed(db, match, self._get_rounds(db, match.id))
+            db.commit()
+            return self.get_match(db, match.id)
+
+        return match
 
     def _finalize_match_if_needed(
         self,
@@ -291,6 +341,7 @@ class RoundEngine:
         match.status = ArenaMatchStatus.FINISHED
         match.ended_at = match.ended_at or utc_now()
         db.add(match)
+        self._deactivate_match_queue_entries(db, match.id)
         self.realtime_gateway.publish_event(
             db,
             stream_type="match",
@@ -303,6 +354,22 @@ class RoundEngine:
                 "recovered": True,
             },
         )
+
+    def _deactivate_match_queue_entries(self, db: Session, match_id: int):
+        from app.models.arena_queue import ArenaQueueEntryModel
+        from app.domain.arena_statuses import ArenaQueueStatus
+        entries = db.query(ArenaQueueEntryModel).filter(ArenaQueueEntryModel.match_id == match_id).all()
+        for entry in entries:
+            if entry.status == ArenaQueueStatus.MATCHED:
+                entry.status = ArenaQueueStatus.CANCELLED
+                entry.closed_at = utc_now()
+                db.add(entry)
+        
+        # CLEANUP: Remove match player presence records to keep DB lean
+        db.query(ArenaMatchPlayerModel).filter(ArenaMatchPlayerModel.match_id == match_id).update({
+            "connection_state": "disconnected",
+            "last_seen_at": utc_now()
+        })
 
     def _close_round(self, db: Session, match: ArenaMatchModel, round_model: ArenaRoundModel) -> None:
         if round_model.status != ArenaRoundStatus.ACTIVE:
@@ -395,6 +462,7 @@ class RoundEngine:
                     "roundIndex": next_round.round_index,
                     "timerSeconds": next_round.timer_seconds,
                     "deadlineAt": to_iso_utc(next_round.deadline_at),
+                    "activeRound": self._build_active_round_payload(next_round),
                 },
             )
         else:
@@ -477,45 +545,51 @@ class RoundEngine:
             row["rank"] = index
         return rows
 
-    def get_match_state(self, db: Session, match_id: int, current_user: UserModel) -> dict:
-        match = self.get_match(db, match_id)
-        if not match:
-            raise HTTPException(status_code=404, detail="Arena match not found")
-        self._ensure_participant(match, current_user)
+    def _build_active_round_payload(self, active_round: ArenaRoundModel, current_user_id: int | None = None) -> dict:
+        question = active_round.question_snapshot_json if isinstance(active_round.question_snapshot_json, dict) else {}
+        return {
+            "roundId": active_round.id,
+            "roundIndex": active_round.round_index,
+            "status": active_round.status,
+            "timerSeconds": active_round.timer_seconds,
+            "startedAt": to_iso_utc(active_round.started_at),
+            "deadlineAt": to_iso_utc(active_round.deadline_at),
+            "revealedAnswer": active_round.revealed_answer_json,
+            "question": {
+                "questionId": str(question.get("question_id") or active_round.id),
+                "questionType": str(question.get("question_type") or "MultipleChoice"),
+                "prompt": str(question.get("prompt") or ""),
+                "options": list(question.get("options") or []),
+                "difficulty": question.get("difficulty"),
+                "knowledgeTags": list(question.get("knowledge_tags") or []),
+            },
+            "submittedPlayerIds": [answer.user_id for answer in active_round.answers],
+            "hasSubmitted": any(answer.user_id == current_user_id for answer in active_round.answers) if current_user_id else False,
+        }
 
-        match = self._ensure_round_progress(db, match)
-        self.presence_service.touch_match_presence(db, match, current_user)
-        db.flush()
-        rounds = self._get_rounds(db, match.id)
+    def _build_match_sync_payload(
+        self, 
+        db: Session, 
+        match: ArenaMatchModel, 
+        rounds: list[ArenaRoundModel], 
+        current_user_id: int | None = None
+    ) -> dict:
         active_round = self._get_active_round(rounds)
-        standings = match.standings_json if isinstance(match.standings_json, list) and match.status == ArenaMatchStatus.FINISHED else self._build_standings(match, rounds)
-        current_player_result = next(
-            (row for row in standings if int(row.get("userId", 0)) == current_user.id),
-            None,
+        standings = (
+            match.standings_json 
+            if isinstance(match.standings_json, list) and match.status == ArenaMatchStatus.FINISHED 
+            else self._build_standings(match, rounds)
         )
+        current_player_result = None
+        if current_user_id:
+            current_player_result = next(
+                (row for row in standings if int(row.get("userId", 0)) == current_user_id),
+                None,
+            )
 
         active_round_payload = None
         if active_round:
-            question = active_round.question_snapshot_json if isinstance(active_round.question_snapshot_json, dict) else {}
-            active_round_payload = {
-                "roundId": active_round.id,
-                "roundIndex": active_round.round_index,
-                "status": active_round.status,
-                "timerSeconds": active_round.timer_seconds,
-                "startedAt": to_iso_utc(active_round.started_at),
-                "deadlineAt": to_iso_utc(active_round.deadline_at),
-                "revealedAnswer": active_round.revealed_answer_json,
-                "question": {
-                    "questionId": str(question.get("question_id") or active_round.id),
-                    "questionType": str(question.get("question_type") or "MultipleChoice"),
-                    "prompt": str(question.get("prompt") or ""),
-                    "options": list(question.get("options") or []),
-                    "difficulty": question.get("difficulty"),
-                    "knowledgeTags": list(question.get("knowledge_tags") or []),
-                },
-                "submittedPlayerIds": [answer.user_id for answer in active_round.answers],
-                "hasSubmitted": any(answer.user_id == current_user.id for answer in active_round.answers),
-            }
+            active_round_payload = self._build_active_round_payload(active_round, current_user_id)
 
         current_round_index = active_round.round_index if active_round else max((round_item.round_index for round_item in rounds), default=0)
 
@@ -536,6 +610,18 @@ class RoundEngine:
             "deadlineAt": to_iso_utc(match.deadline_at),
             "endedAt": to_iso_utc(match.ended_at),
         }
+
+    def get_match_state(self, db: Session, match_id: int, current_user: UserModel) -> dict:
+        match = self.get_match(db, match_id)
+        if not match:
+            raise HTTPException(status_code=404, detail="Arena match not found")
+        self._ensure_participant(match, current_user)
+
+        match = self._ensure_round_progress(db, match)
+        self.presence_service.touch_match_presence(db, match, current_user)
+        db.flush()
+        rounds = self._get_rounds(db, match.id)
+        return self._build_match_sync_payload(db, match, rounds, current_user.id)
 
     def submit_answer(
         self,
@@ -668,6 +754,7 @@ class RoundEngine:
                 "userId": current_user.id,
                 "selectedOptionId": selected_option_id,
                 "answerPayload": answer_payload,
+                "activeRound": self._build_active_round_payload(round_model),
             },
         )
 

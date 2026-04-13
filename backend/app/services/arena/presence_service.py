@@ -11,7 +11,7 @@ from app.services.arena.realtime_gateway import RealtimeGateway
 
 class PresenceService:
     DISCONNECT_AFTER_SECONDS = 12
-    ABANDON_AFTER_SECONDS = 45
+    ABANDON_AFTER_SECONDS = 30
     SUSPICIOUS_LOW_LATENCY_MS = 350
     SUSPICIOUS_STREAK_THRESHOLD = 3
 

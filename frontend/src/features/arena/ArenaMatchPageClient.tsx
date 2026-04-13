@@ -67,10 +67,10 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
   }, [match?.activeRound?.hasSubmitted, setSelectedOptionId]);
 
   useEffect(() => {
-    if (match?.status === "finished") {
+    if (match?.status === "finished" && match.matchId === matchId) {
       router.replace(`/arena/result/${match.matchId}`);
     }
-  }, [match?.matchId, match?.status, router]);
+  }, [match?.matchId, match?.status, matchId, router]);
 
   const latestReveal = useMemo(() => {
     return [...events].reverse().find((event) => event.eventType === "round.revealed") ?? null;
@@ -92,6 +92,12 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
     if (!match?.activeRound || !selectedOptionId) return;
     setSubmitting(true);
     setSubmitNotice(null);
+
+    // OPTIMISTIC UI: Instantly show as submitted locally
+    useArenaMatchStore.getState().patchMatch({
+      activeRound: match?.activeRound ? { ...match.activeRound, hasSubmitted: true } : null
+    });
+
     try {
       const result = await submitArenaAnswer(match.matchId, {
         roundId: match.activeRound.roundId,
@@ -107,6 +113,12 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
       if (result.matchFinished) {
         router.push(`/arena/result/${result.state.matchId}`);
       }
+    } catch (err) {
+      // Rollback optimism on error
+      useArenaMatchStore.getState().patchMatch({
+        activeRound: match?.activeRound ? { ...match.activeRound, hasSubmitted: false } : null
+      });
+      console.error("Submission failed:", err);
     } finally {
       setSubmitting(false);
     }

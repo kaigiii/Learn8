@@ -31,6 +31,8 @@ class CompetitiveService:
         self.topic_catalog_service = topic_catalog_service or TopicCatalogService()
         self.rank_service = RankService()
         self.gateway = RealtimeGateway()
+        from app.services.arena.round_engine import RoundEngine
+        self.round_engine = RoundEngine()
 
     def join_queue(
         self,
@@ -46,14 +48,25 @@ class CompetitiveService:
             raise HTTPException(status_code=404, detail="Arena public course not found")
 
         self._expire_stale_entries(db)
-        existing = self._get_active_entry_for_user(db, current_user.id)
-        if existing:
-            if existing.public_course_id != public_course_id:
-                raise HTTPException(
-                    status_code=409,
-                    detail="You already have an active Arena competition queue entry for another topic",
-                )
-            return existing
+        
+        # ABSOLUTE CLEANUP: Forfeit any active matches to prevent "Ghost Results"
+        self.round_engine.forfeit_active_match(db, current_user.id)
+        
+        # Force cancel ANY previous entries for this user to ensure a clean state
+        previous_entries = db.query(ArenaQueueEntryModel).filter(
+            ArenaQueueEntryModel.user_id == current_user.id,
+            ArenaQueueEntryModel.status.in_((ArenaQueueStatus.WAITING, ArenaQueueStatus.MATCHED))
+        ).all()
+        for old_entry in previous_entries:
+            old_entry.status = ArenaQueueStatus.CANCELLED
+            old_entry.closed_at = utc_now()
+            db.add(old_entry)
+
+        # ALSO: Exit any active rooms to prevent state conflicts
+        from app.models.arena_room import ArenaRoomPlayerModel
+        db.query(ArenaRoomPlayerModel).filter(ArenaRoomPlayerModel.user_id == current_user.id).delete()
+        
+        db.flush()
 
         opponent = self._find_waiting_opponent(db, current_user.id, public_course_id)
         active_season = self.rank_service.get_active_season(db)
@@ -157,7 +170,10 @@ class CompetitiveService:
         }
 
     def _get_active_entry_for_user(self, db: Session, user_id: int) -> ArenaQueueEntryModel | None:
-        return (
+        from app.models.arena_match import ArenaMatchModel
+        from app.domain.arena_statuses import ArenaMatchStatus
+
+        entry = (
             db.query(ArenaQueueEntryModel)
             .filter(
                 ArenaQueueEntryModel.user_id == user_id,
@@ -166,6 +182,17 @@ class CompetitiveService:
             .order_by(ArenaQueueEntryModel.created_at.desc())
             .first()
         )
+        if not entry:
+            return None
+        
+        # If matched, verify the match is still active
+        if entry.status == ArenaQueueStatus.MATCHED and entry.match_id:
+            match = db.query(ArenaMatchModel).filter(ArenaMatchModel.id == entry.match_id).first()
+            if match and match.status in (ArenaMatchStatus.FINISHED, ArenaMatchStatus.CANCELLED):
+                # This is a stale entry, ignore it
+                return None
+        
+        return entry
 
     def _find_waiting_opponent(
         self,
@@ -336,7 +363,10 @@ class CompetitiveService:
         )
         return {player.user_id for player in other_players}
 
-    def _expire_stale_entries(self, db: Session) -> None:
+    def sweep_stale_queue_entries(self, db: Session) -> int:
+        return self._expire_stale_entries(db)
+
+    def _expire_stale_entries(self, db: Session) -> int:
         now = utc_now()
         stale_entries = (
             db.query(ArenaQueueEntryModel)
@@ -359,16 +389,23 @@ class CompetitiveService:
             .all()
         )
         if not stale_entries and not matched_entries:
-            return
-
+            return 0
+            
+        count = 0
         for entry in stale_entries:
             entry.status = ArenaQueueStatus.EXPIRED
-            entry.expires_at = None
             entry.closed_at = now
             db.add(entry)
+            count += 1
+            
         for entry in matched_entries:
-            entry.status = ArenaQueueStatus.EXPIRED
+            entry.status = ArenaQueueStatus.CANCELLED
             entry.expires_at = None
             entry.closed_at = now
             db.add(entry)
-        db.commit()
+            count += 1
+
+        if count > 0:
+            db.commit()
+            
+        return count

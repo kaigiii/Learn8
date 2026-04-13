@@ -33,18 +33,29 @@ class ArenaMaintenanceService:
         round_engine = RoundEngine()
         while cls._running:
             try:
-                # Wait before the first run and between runs
-                await asyncio.sleep(60)
-                
                 db = SessionLocal()
                 try:
                     count = round_engine.sweep_stale_matches(db)
                     if count > 0:
                         logger.info(f"Arena Maintenance: Automatically finalized {count} stale matches.")
+                    
+                    from app.services.arena.competitive_service import CompetitiveService
+                    q_count = CompetitiveService().sweep_stale_queue_entries(db)
+                    if q_count > 0:
+                        logger.info(f"Arena Maintenance: Automatically expired {q_count} queue entries.")
+                        
+                    from app.services.arena.room_service import RoomService
+                    r_count = RoomService().sweep_stale_rooms(db)
+                    if r_count > 0:
+                        logger.info(f"Arena Maintenance: Reset {r_count} stale rooms to lobby.")
+                        
                 except Exception as e:
                     logger.error(f"Error during Arena maintenance sweep: {e}")
                 finally:
                     db.close()
+
+                # Wait between runs (moved to end to ensure immediate first run)
+                await asyncio.sleep(60)
             except asyncio.CancelledError:
                 break
             except Exception as e:
