@@ -3,6 +3,7 @@ import os
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from typing import Optional, List, Dict, Any
+from app.core.time import to_iso_utc
 
 # Configure log directory (backend/logs)
 # __file__ is at backend/app/services/commons/activity_logger.py (4 levels deep)
@@ -89,7 +90,7 @@ class ActivityLogger:
     @staticmethod
     def log_account_locked(user_id: int, user_email: str, until: datetime):
         activity_logger.warning(
-            f"ACCOUNT_LOCKED | {ActivityLogger._format_user(user_id, user_email)} locked until {until.isoformat()}"
+            f"ACCOUNT_LOCKED | {ActivityLogger._format_user(user_id, user_email)} locked until {to_iso_utc(until)}"
         )
 
     @staticmethod

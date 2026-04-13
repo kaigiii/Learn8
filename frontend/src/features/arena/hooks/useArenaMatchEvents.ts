@@ -97,7 +97,20 @@ export function useArenaMatchEvents(matchId: number | null) {
       },
     });
 
-    return () => watcher.close();
+    // 5s Polling Fallback (for Dev/Proxy stability)
+    const pollInterval = window.setInterval(async () => {
+      try {
+        const refreshedMatch = await fetchArenaMatch(matchId);
+        setMatch(refreshedMatch);
+      } catch (err) {
+        console.error("Match fallback poll failed:", err);
+      }
+    }, 5000);
+
+    return () => {
+      watcher.close();
+      window.clearInterval(pollInterval);
+    };
   }, [
     appendEvents,
     matchId,

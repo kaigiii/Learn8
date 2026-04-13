@@ -56,6 +56,7 @@ class ArenaPresenceStateResponse(BaseModel):
     disconnectedAt: Optional[str] = None
     disconnectCount: int = 0
     suspectedAbandonment: bool = False
+    isAccepted: bool = False
 
 
 class ArenaMatchStateResponse(BaseModel):
@@ -72,6 +73,7 @@ class ArenaMatchStateResponse(BaseModel):
     currentPlayerResult: Optional[ArenaStandingEntry] = None
     presenceStates: List[ArenaPresenceStateResponse] = Field(default_factory=list)
     startedAt: Optional[str] = None
+    deadlineAt: Optional[str] = None
     endedAt: Optional[str] = None
 
 

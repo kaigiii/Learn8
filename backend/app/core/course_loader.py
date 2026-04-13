@@ -5,7 +5,7 @@ from pathlib import Path
 import yaml
 from sqlalchemy.orm import Session
 
-from app.core.time import utc_now_naive
+from app.core.time import utc_now
 from app.db import registry as _registry  # noqa: F401
 from app.db.session import SessionLocal
 from app.domain.statuses import CourseStatus, NodeStatus
@@ -163,7 +163,7 @@ class PublicCourseRegistryLoader:
 
     def _seed_one_course(self, db: Session, user: UserModel, course_def: dict) -> None:
         title = course_def["title"]
-        now = utc_now_naive()
+        now = utc_now()
 
         # Upsert: delete existing to allow re-seeding
         existing = db.query(CourseModel).filter(
@@ -309,7 +309,7 @@ class PublicCourseRegistryLoader:
         if pool:
             # Update pool and clear items for re-seeding
             pool.title = f"{public_course.title} Pool"
-            pool.updated_at = utc_now_naive()
+            pool.updated_at = utc_now()
             db.query(ArenaQuestionPoolItemModel).filter(ArenaQuestionPoolItemModel.pool_id == pool.id).delete()
             db.flush()
         else:

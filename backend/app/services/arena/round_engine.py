@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.config import settings
-from app.core.time import utc_now_naive
+from app.core.time import utc_now, to_iso_utc
 from app.domain.arena_statuses import ArenaMatchStatus, ArenaRoundStatus, ArenaRoomStatus
 from app.models.arena_match import ArenaMatchModel, ArenaMatchPlayerModel
 from app.models.arena_round import ArenaAnswerModel, ArenaRoundModel
@@ -54,7 +54,7 @@ class RoundEngine:
             .join(ArenaMatchModel, ArenaMatchModel.id == ArenaMatchPlayerModel.match_id)
             .filter(
                 ArenaMatchPlayerModel.user_id == user_id,
-                ArenaMatchModel.status == ArenaMatchStatus.IN_PROGRESS,
+                ArenaMatchModel.status.in_((ArenaMatchStatus.IN_PROGRESS, ArenaMatchStatus.PENDING)),
             )
             .order_by(ArenaMatchModel.started_at.desc(), ArenaMatchModel.id.desc())
             .first()
@@ -105,7 +105,7 @@ class RoundEngine:
                 timer_seconds=timer_seconds,
             )
             if index == 0:
-                now = utc_now_naive()
+                now = utc_now()
                 round_model.started_at = now
                 round_model.deadline_at = now + self._seconds_delta(timer_seconds)
             db.add(round_model)
@@ -128,7 +128,7 @@ class RoundEngine:
                     "roundId": active_round.id,
                     "roundIndex": active_round.round_index,
                     "timerSeconds": active_round.timer_seconds,
-                    "deadlineAt": active_round.deadline_at.isoformat() + "Z" if active_round.deadline_at else None,
+                    "deadlineAt": to_iso_utc(active_round.deadline_at),
                 },
             )
 
@@ -158,7 +158,7 @@ class RoundEngine:
     def _ensure_round_progress(self, db: Session, match: ArenaMatchModel) -> ArenaMatchModel:
         rounds = self._get_rounds(db, match.id)
         active_round = self._get_active_round(rounds)
-        if active_round and active_round.deadline_at and active_round.deadline_at <= utc_now_naive():
+        if active_round and active_round.deadline_at and active_round.deadline_at <= utc_now():
             self._close_round(db, match, active_round)
             db.commit()
             return self.get_match(db, match.id)
@@ -167,11 +167,109 @@ class RoundEngine:
                 self._finalize_match_if_needed(db, match, rounds)
                 db.commit()
                 return self.get_match(db, match.id)
-            if match.started_at and (utc_now_naive() - match.started_at).total_seconds() > self.STALE_MATCH_FINALIZE_SECONDS:
+            if match.started_at and (utc_now() - match.started_at).total_seconds() > self.STALE_MATCH_FINALIZE_SECONDS:
                 self._finalize_match_if_needed(db, match, rounds)
                 db.commit()
                 return self.get_match(db, match.id)
         return match
+
+    def sweep_stale_matches(self, db: Session) -> int:
+        """
+        Global maintenance: finds all in_progress matches that should be finished.
+        Returns the number of matches finalized.
+        """
+        now = utc_now()
+        stale_threshold = self._seconds_delta(self.STALE_MATCH_FINALIZE_SECONDS)
+        
+        # 1. Handle in_progress matches (stale rounds)
+        stale_matches = (
+            db.query(ArenaMatchModel)
+            .filter(
+                ArenaMatchModel.status == ArenaMatchStatus.IN_PROGRESS,
+                ArenaMatchModel.started_at < now - stale_threshold
+            )
+            .all()
+        )
+        
+        count = 0
+        for match in stale_matches:
+            rounds = self._get_rounds(db, match.id)
+            active_round = self._get_active_round(rounds)
+            if active_round:
+                self._close_round(db, match, active_round)
+            
+            self._finalize_match_if_needed(db, match, rounds)
+            count += 1
+            
+        # 2. Handle pending matches (expired acceptance deadline)
+        expired_pending = (
+            db.query(ArenaMatchModel)
+            .filter(
+                ArenaMatchModel.status == ArenaMatchStatus.PENDING,
+                ArenaMatchModel.deadline_at < now
+            )
+            .all()
+        )
+        for match in expired_pending:
+            match.status = ArenaMatchStatus.CANCELLED
+            match.ended_at = now
+            db.add(match)
+            self.realtime_gateway.publish_event(
+                db,
+                stream_type="match",
+                match_id=match.id,
+                event_type="match.cancelled",
+                payload={"reason": "acceptance_timeout"},
+            )
+            count += 1
+
+        if count > 0:
+            db.commit()
+        return count
+
+    def confirm_match(self, db: Session, match_id: int, current_user: UserModel) -> dict:
+        match = self.get_match(db, match_id)
+        if not match:
+            raise HTTPException(status_code=404, detail="Match not found")
+        if match.status != ArenaMatchStatus.PENDING:
+            raise HTTPException(status_code=400, detail="Match is not in confirmation state")
+        
+        player = next((p for p in match.players if p.user_id == current_user.id), None)
+        if not player:
+            raise HTTPException(status_code=403, detail="You are not part of this match")
+        
+        if player.accepted_at:
+            return self.get_match_state(db, match.id, current_user)
+
+        player.accepted_at = utc_now()
+        db.add(player)
+        db.flush()
+
+        # Check if all players have accepted
+        all_accepted = all(p.accepted_at is not None for p in match.players)
+        if all_accepted:
+            match.status = ArenaMatchStatus.IN_PROGRESS
+            match.started_at = utc_now()
+            db.add(match)
+            self.initialize_match_rounds(db, match.id)
+            self.realtime_gateway.publish_event(
+                db,
+                stream_type="match",
+                match_id=match.id,
+                event_type="match.confirmed",
+                payload={"matchId": match.id, "status": match.status},
+            )
+        else:
+            self.realtime_gateway.publish_event(
+                db,
+                stream_type="match",
+                match_id=match.id,
+                event_type="match.player_accepted",
+                payload={"userId": current_user.id},
+            )
+
+        db.commit()
+        return self.get_match_state(db, match.id, current_user)
 
     def _finalize_match_if_needed(
         self,
@@ -191,7 +289,7 @@ class RoundEngine:
             top_user_id = top_row.get("userId")
             match.winner_user_id = int(top_user_id) if top_user_id is not None else None
         match.status = ArenaMatchStatus.FINISHED
-        match.ended_at = match.ended_at or utc_now_naive()
+        match.ended_at = match.ended_at or utc_now()
         db.add(match)
         self.realtime_gateway.publish_event(
             db,
@@ -229,7 +327,7 @@ class RoundEngine:
                     is_correct=False,
                     score_awarded=0,
                     response_time_ms=None,
-                    submitted_at=utc_now_naive(),
+                    submitted_at=utc_now(),
                 )
             )
         db.flush()
@@ -249,7 +347,7 @@ class RoundEngine:
             .count()
         )
         round_model.status = ArenaRoundStatus.CLOSED
-        round_model.closed_at = utc_now_naive()
+        round_model.closed_at = utc_now()
         round_model.revealed_answer_json = {
             "correctOptionId": question.get("correct_option_id"),
             "explanation": question.get("explanation") or "",
@@ -282,7 +380,7 @@ class RoundEngine:
         )
         if next_round:
             next_round.status = ArenaRoundStatus.ACTIVE
-            next_round.started_at = utc_now_naive()
+            next_round.started_at = utc_now()
             next_round.deadline_at = next_round.started_at + self._seconds_delta(next_round.timer_seconds)
             db.add(next_round)
             self.realtime_gateway.publish_event(
@@ -296,13 +394,13 @@ class RoundEngine:
                     "roundId": next_round.id,
                     "roundIndex": next_round.round_index,
                     "timerSeconds": next_round.timer_seconds,
-                    "deadlineAt": next_round.deadline_at.isoformat() + "Z" if next_round.deadline_at else None,
+                    "deadlineAt": to_iso_utc(next_round.deadline_at),
                 },
             )
         else:
             final_standings = self._build_standings(match, self._get_rounds(db, match.id))
             match.status = ArenaMatchStatus.FINISHED
-            match.ended_at = utc_now_naive()
+            match.ended_at = utc_now()
             match.completed_round_count = max(int(match.completed_round_count or 0), len(all_rounds))
             match.standings_json = self.rating_service.settle_match(db, match, final_standings)
             if isinstance(match.standings_json, list) and match.standings_json:
@@ -404,8 +502,8 @@ class RoundEngine:
                 "roundIndex": active_round.round_index,
                 "status": active_round.status,
                 "timerSeconds": active_round.timer_seconds,
-                "startedAt": active_round.started_at.isoformat() + "Z" if active_round.started_at else None,
-                "deadlineAt": active_round.deadline_at.isoformat() + "Z" if active_round.deadline_at else None,
+                "startedAt": to_iso_utc(active_round.started_at),
+                "deadlineAt": to_iso_utc(active_round.deadline_at),
                 "revealedAnswer": active_round.revealed_answer_json,
                 "question": {
                     "questionId": str(question.get("question_id") or active_round.id),
@@ -434,8 +532,9 @@ class RoundEngine:
             "standings": standings,
             "currentPlayerResult": current_player_result,
             "presenceStates": self.presence_service.build_match_presence_states(match),
-            "startedAt": match.started_at.isoformat() + "Z" if match.started_at else None,
-            "endedAt": match.ended_at.isoformat() + "Z" if match.ended_at else None,
+            "startedAt": to_iso_utc(match.started_at),
+            "deadlineAt": to_iso_utc(match.deadline_at),
+            "endedAt": to_iso_utc(match.ended_at),
         }
 
     def submit_answer(
@@ -486,7 +585,7 @@ class RoundEngine:
                 "state": state,
             }
 
-        if round_model.deadline_at and round_model.deadline_at <= utc_now_naive():
+        if round_model.deadline_at and round_model.deadline_at <= utc_now():
             self._close_round(db, match, round_model)
             db.commit()
             state = self.get_match_state(db, match.id, current_user)
@@ -503,7 +602,7 @@ class RoundEngine:
         is_correct = selected_option_id == correct_option_id
         response_time_ms = None
         if round_model.started_at:
-            response_time_ms = max(0, int((utc_now_naive() - round_model.started_at).total_seconds() * 1000))
+            response_time_ms = max(0, int((utc_now() - round_model.started_at).total_seconds() * 1000))
         self.presence_service.record_answer_submission(
             db,
             match=match,
@@ -526,7 +625,7 @@ class RoundEngine:
                     is_correct=is_correct,
                     score_awarded=score_awarded,
                     response_time_ms=response_time_ms,
-                    submitted_at=utc_now_naive(),
+                    submitted_at=utc_now(),
                 )
             )
             db.flush()

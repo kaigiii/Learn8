@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
-from app.core.time import utc_now_naive
+from app.core.time import utc_now, to_iso_utc
 from app.domain.arena_statuses import ArenaMatchStatus, ArenaQueueStatus
 from app.models.arena_match import ArenaMatchModel, ArenaMatchPlayerModel
 from app.models.arena_queue import ArenaQueueEntryModel
@@ -12,7 +12,7 @@ class TelemetryService:
     STALE_MATCH_SECONDS = 900
 
     def build_admin_health_snapshot(self, db: Session) -> dict:
-        now = utc_now_naive()
+        now = utc_now()
         waiting_count = (
             db.query(ArenaQueueEntryModel)
             .filter(ArenaQueueEntryModel.status == ArenaQueueStatus.WAITING)
@@ -74,5 +74,5 @@ class TelemetryService:
             "suspiciousLatencyCount": suspicious_latency_count,
             "disconnectInstabilityCount": disconnect_instability_count,
             "alertFlags": alert_flags,
-            "generatedAt": now.isoformat(),
+            "generatedAt": to_iso_utc(now),
         }

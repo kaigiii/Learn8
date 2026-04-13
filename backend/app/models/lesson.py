@@ -11,7 +11,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 from app.db.base import Base
-from app.core.time import utc_now_naive
+from app.core.time import utc_now
 from app.domain.statuses import (
     LessonFailedStageStatus,
     LessonSessionPhase,
@@ -44,8 +44,8 @@ class LessonModel(Base):
     generator_provider = Column(String, nullable=True)
     generator_model = Column(String, nullable=True)
     generation_metadata_json = Column(JSON, nullable=True)
-    created_at = Column(DateTime, default=utc_now_naive)
-    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive)
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
 
     user = relationship("UserModel", back_populates="lessons")
     course = relationship("CourseModel")
@@ -90,8 +90,8 @@ class LessonStageModel(Base):
     validation_json = Column(JSON, nullable=False, default=dict)
     feedback_json = Column(JSON, nullable=False, default=dict)
     stage_snapshot_json = Column(JSON, nullable=True)
-    created_at = Column(DateTime, default=utc_now_naive)
-    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive)
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
 
     lesson = relationship("LessonModel", back_populates="stages")
     session_stages = relationship(
@@ -134,7 +134,7 @@ class LessonAttempt(Base):
     stage_snapshot_json = Column(JSON, nullable=True)
     is_correct_bool = Column(Boolean, nullable=True)
     response_time_ms = Column(Integer, nullable=True)
-    timestamp = Column(DateTime, default=utc_now_naive)
+    timestamp = Column(DateTime(timezone=True), default=utc_now)
 
     lesson_session = relationship("LessonSessionModel", back_populates="attempts")
     lesson_session_stage = relationship("LessonSessionStageModel", back_populates="attempts")
@@ -163,10 +163,10 @@ class LessonSessionModel(Base):
     schema_version = Column(Integer, nullable=False, default=2)
     hints_used_count = Column(Integer, nullable=False, default=0)
     reward_eligible = Column(Boolean, nullable=False, default=True)
-    started_at = Column(DateTime, default=utc_now_naive)
-    completed_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=utc_now_naive)
-    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive)
+    started_at = Column(DateTime(timezone=True), default=utc_now)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
 
     user = relationship("UserModel", back_populates="lesson_sessions")
     course = relationship("CourseModel", back_populates="lesson_sessions")
@@ -246,10 +246,10 @@ class LessonSessionStageModel(Base):
     validation_json = Column(JSON, nullable=False, default=dict)
     feedback_json = Column(JSON, nullable=False, default=dict)
     stage_snapshot_json = Column(JSON, nullable=True)
-    started_at = Column(DateTime, nullable=True)
-    completed_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=utc_now_naive)
-    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive)
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
 
     lesson_session = relationship("LessonSessionModel", back_populates="session_stages")
     lesson_stage = relationship("LessonStageModel", back_populates="session_stages")
@@ -294,9 +294,9 @@ class LessonFailedStageModel(Base):
     stage_snapshot_json = Column(JSON, nullable=False)
     user_input_json = Column(JSON, nullable=True)
     evaluation_json = Column(JSON, nullable=True)
-    created_at = Column(DateTime, default=utc_now_naive)
-    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive)
-    resolved_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
 
     lesson_session = relationship("LessonSessionModel", back_populates="failed_stages")
     lesson_session_stage = relationship("LessonSessionStageModel", back_populates="failed_stage_records")
@@ -317,8 +317,8 @@ class LessonRemedialModel(Base):
     question_count = Column(Integer, nullable=False, default=0)
     estimated_duration_minutes = Column(Integer, nullable=True)
     schema_version = Column(Integer, nullable=False, default=2)
-    created_at = Column(DateTime, default=utc_now_naive)
-    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive)
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
 
     user = relationship("UserModel", back_populates="lesson_remedials")
     course = relationship("CourseModel", back_populates="lesson_remedials")
@@ -367,8 +367,8 @@ class LessonRemedialStageModel(Base):
     validation_json = Column(JSON, nullable=False, default=dict)
     feedback_json = Column(JSON, nullable=False, default=dict)
     stage_snapshot_json = Column(JSON, nullable=True)
-    created_at = Column(DateTime, default=utc_now_naive)
-    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive)
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
 
     remedial = relationship("LessonRemedialModel", back_populates="stages")
     session_stages = relationship(

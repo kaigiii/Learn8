@@ -3,7 +3,7 @@ from datetime import datetime
 from fastapi import HTTPException
 from sqlalchemy.orm import Session, selectinload
 
-from app.core.time import utc_now_naive
+from app.core.time import utc_now, to_iso_utc
 from app.domain.arena_statuses import ArenaMatchStatus
 from app.models.arena_match import ArenaMatchModel, ArenaMatchPlayerModel
 from app.models.arena_question_pool import ArenaQuestionPoolItemModel, ArenaQuestionPoolModel
@@ -107,8 +107,8 @@ class AdminService:
                 "correctCount": match_player.correct_count,
                 "incorrectCount": match_player.incorrect_count,
                 "ratingDelta": match_player.rating_delta,
-                "startedAt": match.started_at.isoformat() if match.started_at else None,
-                "endedAt": match.ended_at.isoformat() if match.ended_at else None,
+                "startedAt": to_iso_utc(match.started_at),
+                "endedAt": to_iso_utc(match.ended_at),
             }
             for match_player, match, user, public_course in rows
         ]
@@ -386,8 +386,8 @@ class AdminService:
             "name": season.name,
             "status": season.status,
             "isActive": bool(season.is_active),
-            "startedAt": season.started_at.isoformat() if season.started_at else None,
-            "endedAt": season.ended_at.isoformat() if season.ended_at else None,
+            "startedAt": to_iso_utc(season.started_at),
+            "endedAt": to_iso_utc(season.ended_at),
             "leaderboardConfig": dict(season.leaderboard_config_json or {}),
             "rewardConfig": dict(season.reward_config_json or {}),
         }
@@ -434,7 +434,7 @@ class AdminService:
         if (
             match.status == ArenaMatchStatus.IN_PROGRESS
             and match.started_at
-            and (utc_now_naive() - match.started_at).total_seconds() > 1800
+            and (utc_now() - match.started_at).total_seconds() > 1800
         ):
             anomaly_flags.append("stalled_match")
         if match.status == ArenaMatchStatus.FINISHED and not isinstance(match.standings_json, list):
@@ -462,8 +462,8 @@ class AdminService:
             "answerCount": answer_count,
             "timedOutCount": timed_out_count,
             "anomalyFlags": anomaly_flags,
-            "startedAt": match.started_at.isoformat() if match.started_at else None,
-            "endedAt": match.ended_at.isoformat() if match.ended_at else None,
+            "startedAt": to_iso_utc(match.started_at),
+            "endedAt": to_iso_utc(match.ended_at),
         }
 
     def _parse_optional_datetime(self, value: str | None) -> datetime | None:
@@ -473,6 +473,6 @@ class AdminService:
         if not normalized:
             return None
         try:
-            return datetime.fromisoformat(normalized.replace("Z", "+00:00")).replace(tzinfo=None)
+            return datetime.fromisoformat(normalized.replace("Z", "+00:00"))
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=f"Invalid datetime value: {value}") from exc

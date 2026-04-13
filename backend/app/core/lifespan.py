@@ -3,6 +3,7 @@ from fastapi import FastAPI
 
 from app.core.config import settings
 from app.services.jobs.job_registry import JobRegistry
+from app.services.arena.maintenance_service import ArenaMaintenanceService
 
 @asynccontextmanager
 async def application_lifespan(app: FastAPI):
@@ -12,6 +13,7 @@ async def application_lifespan(app: FastAPI):
     # 1. Background Jobs Setup
     JobRegistry.cleanup_on_startup()
     JobRegistry.start_monitor()
+    ArenaMaintenanceService.start()
 
     # 2. Automatic Synchronization of Public Courses
     from app.core.course_loader import registry as course_registry
@@ -30,3 +32,4 @@ async def application_lifespan(app: FastAPI):
 
     # 3. Shutdown Logic
     JobRegistry.stop_monitor()
+    ArenaMaintenanceService.stop()

@@ -133,6 +133,12 @@ export function submitArenaAnswer(
   });
 }
 
+export function confirmArenaMatch(matchId: number) {
+  return apiFetch<ArenaMatchState>(`/arena/matches/${matchId}/confirm`, {
+    method: "POST",
+  });
+}
+
 export function fetchArenaRoomEvents(roomCode: string, afterCursor = 0, limit = 100) {
   return apiFetch<ArenaEventListResponse>(
     `/arena/rooms/${roomCode}/events?after_cursor=${afterCursor}&limit=${limit}`

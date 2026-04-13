@@ -1,7 +1,7 @@
 from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import relationship
 
-from app.core.time import utc_now_naive
+from app.core.time import utc_now
 from app.db.base import Base
 from app.domain.arena_modes import ArenaMode
 from app.domain.arena_statuses import ArenaQueueStatus
@@ -22,11 +22,11 @@ class ArenaQueueEntryModel(Base):
     status = Column(String, nullable=False, default=ArenaQueueStatus.WAITING, index=True)
     matched_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     match_id = Column(Integer, ForeignKey("arena_matches.id", ondelete="SET NULL"), nullable=True, index=True)
-    match_found_at = Column(DateTime, nullable=True)
-    closed_at = Column(DateTime, nullable=True)
-    expires_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=utc_now_naive)
-    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive)
+    match_found_at = Column(DateTime(timezone=True), nullable=True)
+    closed_at = Column(DateTime(timezone=True), nullable=True)
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
 
     public_course = relationship("PublicCourseModel")
     user = relationship("UserModel", foreign_keys=[user_id])

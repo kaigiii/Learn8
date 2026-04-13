@@ -1,7 +1,7 @@
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Index, Integer, JSON, String, UniqueConstraint
 from sqlalchemy.orm import relationship
 
-from app.core.time import utc_now_naive
+from app.core.time import utc_now
 from app.db.base import Base
 
 
@@ -19,8 +19,8 @@ class ArenaQuestionPoolModel(Base):
     is_active = Column(Boolean, nullable=False, default=True, index=True)
     version = Column(Integer, nullable=False, default=1)
     metadata_json = Column(JSON, nullable=True)
-    created_at = Column(DateTime, default=utc_now_naive)
-    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive)
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
 
     public_course = relationship("PublicCourseModel")
     items = relationship(
@@ -51,7 +51,7 @@ class ArenaQuestionPoolItemModel(Base):
     source_unit_id = Column(String, nullable=True)
     source_node_id = Column(String, nullable=True)
     is_active = Column(Boolean, nullable=False, default=True, index=True)
-    created_at = Column(DateTime, default=utc_now_naive)
-    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive)
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
 
     pool = relationship("ArenaQuestionPoolModel", back_populates="items")

@@ -6,7 +6,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.config import settings
-from app.core.time import utc_now_naive
+from app.core.time import utc_now, to_iso_utc
 from app.domain.arena_modes import normalize_arena_mode
 from app.domain.arena_statuses import ArenaMatchStatus, ArenaRoomStatus
 from app.models.arena_match import ArenaMatchModel, ArenaMatchPlayerModel
@@ -41,7 +41,7 @@ class RoomService:
         )
 
     def _latest_room_activity_at(self, room: ArenaRoomModel):
-        latest = room.updated_at or room.created_at or utc_now_naive()
+        latest = room.updated_at or room.created_at or utc_now()
         for player in room.players:
             for candidate in (player.last_seen_at, player.updated_at, player.joined_at):
                 if candidate and candidate > latest:
@@ -53,7 +53,7 @@ class RoomService:
         if idle_minutes <= 0:
             return 0
 
-        now = utc_now_naive()
+        now = utc_now()
         cutoff = now - timedelta(minutes=idle_minutes)
         candidate_rooms = (
             self._base_room_query(db)
@@ -162,7 +162,7 @@ class RoomService:
                 user_id=current_user.id,
                 is_ready=False,
                 connection_state="connected",
-                last_seen_at=utc_now_naive(),
+                last_seen_at=utc_now(),
             )
         )
         db.commit()
@@ -198,7 +198,7 @@ class RoomService:
                 user_id=current_user.id,
                 is_ready=False,
                 connection_state="connected",
-                last_seen_at=utc_now_naive(),
+                last_seen_at=utc_now(),
             )
         )
         db.commit()
@@ -244,7 +244,7 @@ class RoomService:
         )
         if not remaining_players:
             room.status = ArenaRoomStatus.CLOSED
-            room.closed_at = utc_now_naive()
+            room.closed_at = utc_now()
         elif room.host_user_id == current_user.id:
             room.host_user_id = remaining_players[0].user_id
 
@@ -340,7 +340,7 @@ class RoomService:
             completed_round_count=0,
             room_snapshot_json=room_snapshot,
             rules_snapshot_json=rules_snapshot,
-            started_at=utc_now_naive(),
+            started_at=utc_now(),
         )
         db.add(match)
         db.flush()
@@ -410,12 +410,12 @@ class RoomService:
                     "isHost": player.user_id == room.host_user_id,
                     "isReady": bool(player.is_ready),
                     "team": player.team,
-                    "joinedAt": player.joined_at.isoformat(),
+                    "joinedAt": to_iso_utc(player.joined_at),
                     "connectionState": presence_map.get(player.user_id, {}).get("connectionState"),
                 }
                 for player in sorted_players
             ],
             "latestMatchId": room.latest_match_id,
-            "createdAt": room.created_at.isoformat(),
-            "updatedAt": room.updated_at.isoformat(),
+            "createdAt": to_iso_utc(room.created_at),
+            "updatedAt": to_iso_utc(room.updated_at),
         }

@@ -10,7 +10,7 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from app.api.dependencies import get_db, get_current_user
 from app.core.config import settings
-from app.core.time import utc_now_naive
+from app.core.time import utc_now
 from app.domain.statuses import (
     ACTIVE_JOB_STATUSES,
     ACTIVE_LESSON_SESSION_STATUSES,
@@ -434,7 +434,7 @@ def _build_session_summary_payload(
             incorrect_count += 1
 
     accuracy = _compute_session_accuracy(correct_count, incorrect_count)
-    completed_at = session.completed_at or utc_now_naive()
+    completed_at = session.completed_at or utc_now()
     started_at = session.started_at or completed_at
     elapsed_seconds = max(0, int((completed_at - started_at).total_seconds()))
     primary_stages, remedial_stages = _resolve_session_stage_lists(session)
@@ -625,7 +625,7 @@ def _apply_course_node_completion(
         )
         if db_node:
             db_node.status = nstatus
-            db_node.updated_at = utc_now_naive()
+            db_node.updated_at = utc_now()
 
     db.commit()
     db.refresh(course_record)
@@ -1164,9 +1164,9 @@ async def submit_answer(
     if session_stage:
         session_stage.status = "completed" if result != "incorrect" else "failed"
         if session_stage.started_at is None:
-            session_stage.started_at = utc_now_naive()
-        session_stage.completed_at = utc_now_naive()
-        session_stage.updated_at = utc_now_naive()
+            session_stage.started_at = utc_now()
+        session_stage.completed_at = utc_now()
+        session_stage.updated_at = utc_now()
         db.add(session_stage)
 
     recorded_failure = False
@@ -1207,7 +1207,7 @@ async def submit_answer(
             existing_failed_stage.stage_snapshot_json = stage.model_dump()
             existing_failed_stage.user_input_json = normalized_input
             existing_failed_stage.evaluation_json = evaluation
-            existing_failed_stage.updated_at = utc_now_naive()
+            existing_failed_stage.updated_at = utc_now()
         else:
             db.add(
                 LessonFailedStageModel(
@@ -1287,7 +1287,7 @@ async def complete_primary_lesson_session(
     if not failed_records:
         session.status = LessonSessionStatus.COMPLETED
         session.active_phase = LessonSessionPhase.PRIMARY
-        session.completed_at = utc_now_naive()
+        session.completed_at = utc_now()
         _award_session_completion_rewards(db, session, current_user)
         db.commit()
         _apply_course_node_completion(db, session.course_id, session.node_id, current_user.id)
@@ -1383,7 +1383,7 @@ async def complete_remedial_lesson_session(
 
     session.hints_used_count = max(0, int(request.hintsUsed or 0))
 
-    now = utc_now_naive()
+    now = utc_now()
     failed_records = (
         db.query(LessonFailedStageModel)
         .filter(

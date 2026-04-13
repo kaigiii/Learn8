@@ -6,7 +6,7 @@ from app.domain.statuses import (
     LessonSessionPhase,
     LessonSessionStatus,
 )
-from app.core.time import utc_now_naive
+from app.core.time import utc_now
 from app.db.session import SessionLocal
 from app.models.job import JobModel
 from app.models.user import UserModel
@@ -188,7 +188,7 @@ async def run_lesson_generation_job(
                 if settings.LLM_PROVIDER == "google"
                 else settings.LMSTUDIO_MODEL
             )
-            existing_lesson.created_at = utc_now_naive()
+            existing_lesson.created_at = utc_now()
             db.add(existing_lesson)
             db.flush()
             sync_lesson_stages(db, lesson=existing_lesson, stages=stages)

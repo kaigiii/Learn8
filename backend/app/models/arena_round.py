@@ -1,7 +1,7 @@
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Index, Integer, JSON, String, UniqueConstraint
 from sqlalchemy.orm import relationship
 
-from app.core.time import utc_now_naive
+from app.core.time import utc_now
 from app.db.base import Base
 from app.domain.arena_statuses import ArenaRoundStatus
 
@@ -31,11 +31,11 @@ class ArenaRoundModel(Base):
     question_snapshot_json = Column(JSON, nullable=False, default=dict)
     timer_seconds = Column(Integer, nullable=False, default=30)
     revealed_answer_json = Column(JSON, nullable=True)
-    started_at = Column(DateTime, nullable=True)
-    deadline_at = Column(DateTime, nullable=True)
-    closed_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=utc_now_naive)
-    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive)
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    deadline_at = Column(DateTime(timezone=True), nullable=True)
+    closed_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
 
     match = relationship("ArenaMatchModel")
     answers = relationship(
@@ -62,7 +62,7 @@ class ArenaAnswerModel(Base):
     is_correct = Column(Boolean, nullable=False, default=False)
     score_awarded = Column(Integer, nullable=False, default=0)
     response_time_ms = Column(Integer, nullable=True)
-    submitted_at = Column(DateTime, default=utc_now_naive, nullable=False)
+    submitted_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
 
     round = relationship("ArenaRoundModel", back_populates="answers")
     user = relationship("UserModel")

@@ -4,7 +4,7 @@ from typing import Iterable
 
 from sqlalchemy.orm import Session
 
-from app.core.time import utc_now_naive
+from app.core.time import utc_now
 from app.domain.statuses import LessonSessionPhase
 from app.models.lesson import (
     LessonModel,
@@ -55,7 +55,7 @@ def sync_lesson_stages(
     lesson: LessonModel,
     stages: list[LessonStage],
 ) -> list[LessonStageModel]:
-    now = utc_now_naive()
+    now = utc_now()
     db.query(LessonStageModel).filter(LessonStageModel.lesson_id == lesson.id).delete()
 
     lesson_stages: list[LessonStageModel] = []
@@ -100,7 +100,7 @@ def sync_session_stages(
     lesson_stage_by_uid: dict[str, LessonStageModel] | None = None,
     remedial_stage_by_uid: dict[str, LessonRemedialStageModel] | None = None,
 ) -> list[LessonSessionStageModel]:
-    now = utc_now_naive()
+    now = utc_now()
     db.query(LessonSessionStageModel).filter(
         LessonSessionStageModel.lesson_session_id == session.id,
         LessonSessionStageModel.phase == phase,
@@ -163,7 +163,7 @@ def sync_remedial_stages(
     remedial: LessonRemedialModel,
     stages: list[LessonStage],
 ) -> list[LessonRemedialStageModel]:
-    now = utc_now_naive()
+    now = utc_now()
     db.query(LessonRemedialStageModel).filter(
         LessonRemedialStageModel.lesson_remedial_id == remedial.id
     ).delete()

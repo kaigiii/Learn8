@@ -482,6 +482,7 @@ export interface ArenaPresenceState {
   disconnectedAt?: string | null;
   disconnectCount: number;
   suspectedAbandonment: boolean;
+  isAccepted: boolean;
 }
 
 export interface ArenaMatchState {
@@ -498,6 +499,7 @@ export interface ArenaMatchState {
   currentPlayerResult?: ArenaStandingEntry | null;
   presenceStates: ArenaPresenceState[];
   startedAt?: string | null;
+  deadlineAt?: string | null;
   endedAt?: string | null;
 }
 
