@@ -3,12 +3,12 @@ from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user, get_db
 from app.models.user import UserModel
-from app.schemas.arena_rank_schema import (
+from app.arena.schemas.arena_rank_schema import (
     ArenaLeaderboardResponse,
     ArenaProfileResponse,
     ArenaRankHistoryResponse,
 )
-from app.services.arena.rank_service import RankService
+from app.arena.services.rank_service import RankService
 
 router = APIRouter()
 

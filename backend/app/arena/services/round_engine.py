@@ -2,38 +2,43 @@ from __future__ import annotations
 
 from statistics import mean
 
-from fastapi import HTTPException
+from fastapi import HTTPException, BackgroundTasks
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.config import settings
+from app.arena.config import arena_settings
 from app.core.time import utc_now, to_iso_utc
-from app.domain.arena_modes import ArenaMode
-from app.domain.arena_statuses import ArenaMatchStatus, ArenaRoundStatus, ArenaRoomStatus
-from app.models.arena_match import ArenaMatchModel, ArenaMatchPlayerModel
-from app.models.arena_round import ArenaAnswerModel, ArenaRoundModel
-from app.models.arena_room import ArenaRoomModel, ArenaRoomPlayerModel
+from app.arena.domain.arena_modes import ArenaMode
+from app.arena.domain.arena_statuses import ArenaMatchStatus, ArenaRoundStatus, ArenaRoomStatus
+from app.arena.models.arena_match import ArenaMatchModel, ArenaMatchPlayerModel
+from app.arena.models.arena_round import ArenaAnswerModel, ArenaRoundModel
+from app.arena.models.arena_room import ArenaRoomModel, ArenaRoomPlayerModel
 from app.models.public_course import PublicCourseModel
 from app.models.user import UserModel
-from app.services.arena.presence_service import PresenceService
-from app.services.arena.question_pool_service import QuestionPoolService
-from app.services.arena.rating_service import RatingService
-from app.services.arena.realtime_gateway import RealtimeGateway
-from app.services.arena.scoring_service import ScoringService
+from app.arena.services.presence_service import PresenceService
+from app.arena.services.realtime_gateway import RealtimeGateway
+from app.arena.services.question_pool_service import QuestionPoolService
+from app.arena.services.rating_service import RatingService
+from app.arena.services.scoring_service import ScoringService
+from app.arena.services.reward_service import ArenaRewardService
 
 
 class RoundEngine:
-    STALE_MATCH_FINALIZE_SECONDS = settings.ARENA_MATCH_STALE_FINALIZE_SECONDS
+    STALE_MATCH_FINALIZE_SECONDS = arena_settings.ARENA_MATCH_STALE_FINALIZE_SECONDS
 
     def __init__(
         self,
         question_pool_service: QuestionPoolService | None = None,
         scoring_service: ScoringService | None = None,
         rating_service: RatingService | None = None,
+        background_tasks: BackgroundTasks | None = None,
     ):
         self.question_pool_service = question_pool_service or QuestionPoolService()
         self.scoring_service = scoring_service or ScoringService()
         self.rating_service = rating_service or RatingService()
+        self.reward_service = ArenaRewardService()
+        self.background_tasks = background_tasks
         self.realtime_gateway = RealtimeGateway()
         self.presence_service = PresenceService(self.realtime_gateway)
 
@@ -354,10 +359,20 @@ class RoundEngine:
                 "recovered": True,
             },
         )
+        
+        # Trigger background reward processing
+        if self.background_tasks:
+            from app.db.session import SessionLocal
+            def _run_award():
+                # background_tasks runs after response, so we need a fresh session
+                with SessionLocal() as bg_db:
+                    self.reward_service.process_match_rewards(bg_db, match.id)
+            
+            self.background_tasks.add_task(_run_award)
 
     def _deactivate_match_queue_entries(self, db: Session, match_id: int):
-        from app.models.arena_queue import ArenaQueueEntryModel
-        from app.domain.arena_statuses import ArenaQueueStatus
+        from app.arena.models.arena_queue import ArenaQueueEntryModel
+        from app.arena.domain.arena_statuses import ArenaQueueStatus
         entries = db.query(ArenaQueueEntryModel).filter(ArenaQueueEntryModel.match_id == match_id).all()
         for entry in entries:
             if entry.status == ArenaQueueStatus.MATCHED:
@@ -531,7 +546,11 @@ class RoundEngine:
             rows.append(
                 {
                     "userId": player.user_id,
-                    "displayName": player.user.full_name or player.user.email.split("@")[0],
+                    "displayName": (player.user_snapshot_json or {}).get("displayName") 
+                        or player.user.full_name 
+                        or player.user.email.split("@")[0],
+                    "avatarUrl": (player.user_snapshot_json or {}).get("avatarUrl") or player.user.avatar_url,
+                    "level": (player.user_snapshot_json or {}).get("level") or player.user.level,
                     "score": score,
                     "correctCount": correct_count,
                     "incorrectCount": incorrect_count,

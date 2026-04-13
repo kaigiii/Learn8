@@ -3,8 +3,8 @@ from sqlalchemy.orm import relationship
 
 from app.core.time import utc_now
 from app.db.base import Base
-from app.domain.arena_modes import ArenaMode
-from app.domain.arena_statuses import ArenaQueueStatus
+from app.arena.domain.arena_modes import ArenaMode
+from app.arena.domain.arena_statuses import ArenaQueueStatus
 
 
 class ArenaQueueEntryModel(Base):

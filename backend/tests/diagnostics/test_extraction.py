@@ -1,6 +1,6 @@
 import pytest
 from app.db.session import SessionLocal
-from app.services.arena.admin_service import AdminService
+from app.arena.services.admin_service import AdminService
 from app.models.public_course import PublicCourseModel
 
 def test_extraction():

@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(case_sensitive=True, env_file=".env")
+    model_config = SettingsConfigDict(case_sensitive=True, env_file=".env", extra="ignore")
 
     PROJECT_NAME: str = "Learn8"
     API_V1_STR: str = "/api/v1"
@@ -22,8 +22,6 @@ class Settings(BaseSettings):
     AUTH_ENABLE_DEV_LOGIN: bool = False
     AUTH_DEV_LOGIN_EMAIL: str = "dev@learn8.ai"
     AUTH_DEV_LOGIN_PASSWORD: str = "dev_password"
-    ARENA_ADMIN_EMAILS: str = ""
-    ARENA_ROOM_IDLE_CLOSE_MINUTES: int = 15
     JOB_STALE_TIMEOUT_MINUTES: int = 10
 
     # Database
@@ -47,8 +45,6 @@ class Settings(BaseSettings):
 
     # Workflow Settings
     SYLLABUS_CONCURRENCY_LIMIT: int = 3
-    ARENA_QUEUE_EXPIRE_MINUTES: int = 3
-    ARENA_MATCH_STALE_FINALIZE_SECONDS: int = 900
 
     # Document Processing & Vision
     PDF_PARSE_STRATEGY: str = "hybrid"  # basic | vision | hybrid

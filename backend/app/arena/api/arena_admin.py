@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_arena_admin, get_db
 from app.models.user import UserModel
-from app.schemas.arena_admin_schema import (
+from app.arena.schemas.arena_admin_schema import (
     ArenaAdminHealthSnapshotResponse,
     ArenaAdminMatchReviewResponse,
     ArenaAdminPlayerMatchRecordResponse,
@@ -15,8 +15,8 @@ from app.schemas.arena_admin_schema import (
     ArenaAdminSeasonUpsertRequest,
     ArenaAdminSyllabusQuestionResponse,
 )
-from app.services.arena.admin_service import AdminService
-from app.services.arena.telemetry_service import TelemetryService
+from app.arena.services.admin_service import AdminService
+from app.arena.services.telemetry_service import TelemetryService
 
 router = APIRouter()
 

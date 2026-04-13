@@ -3,7 +3,7 @@ from fastapi import FastAPI
 
 from app.core.config import settings
 from app.services.jobs.job_registry import JobRegistry
-from app.services.arena.maintenance_service import ArenaMaintenanceService
+from app.arena.services.maintenance_service import ArenaMaintenanceService
 
 @asynccontextmanager
 async def application_lifespan(app: FastAPI):

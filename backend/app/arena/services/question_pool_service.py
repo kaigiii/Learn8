@@ -3,7 +3,7 @@ import random
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from app.models.arena_question_pool import ArenaQuestionPoolItemModel, ArenaQuestionPoolModel
+from app.arena.models.arena_question_pool import ArenaQuestionPoolItemModel, ArenaQuestionPoolModel
 from app.models.public_course import PublicCourseModel
 
 

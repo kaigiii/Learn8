@@ -2,18 +2,17 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
-from app.domain.arena_modes import RANKED_ARENA_MODES
-from app.domain.arena_ranks import resolve_arena_rank_tier
-from app.models.arena_match import ArenaMatchModel, ArenaMatchPlayerModel
-from app.models.arena_rating import (
+from app.arena.domain.arena_modes import RANKED_ARENA_MODES
+from app.arena.domain.arena_ranks import resolve_arena_rank_tier
+from app.arena.models.arena_match import ArenaMatchModel, ArenaMatchPlayerModel
+from app.arena.models.arena_rating import (
     ArenaPlayerTopicRatingModel,
     ArenaRankHistoryModel,
     ArenaRatingModel,
 )
-from app.models.arena_season import ArenaSeasonModel
+from app.arena.models.arena_season import ArenaSeasonModel
 from app.models.user import UserModel
-from app.services.arena.rank_service import RankService
-from app.services.commons.user_economy import award_arena_match_reward
+from app.arena.services.rank_service import RankService
 
 
 class RatingService:
@@ -112,25 +111,14 @@ class RatingService:
 
             xp_reward = self._compute_xp_reward(placement, len(standings))
             credits_reward = self._compute_credit_reward(placement, len(standings))
-            reward_result = award_arena_match_reward(
-                db,
-                user,
-                match_id=match.id,
-                placement=placement,
-                xp_amount=xp_reward,
-                credits_amount=credits_reward,
-                mode=match.mode,
-                public_course_id=match.public_course_id,
-            )
-
             accuracy = (
                 round((int(row["correctCount"]) / max(int(row["answeredCount"]), 1)) * 100)
                 if int(row["answeredCount"]) > 0
                 else 0
             )
             metadata = {
-                "xp_gained": reward_result.event.xp_delta if reward_result.event else xp_reward,
-                "credits_gained": reward_result.event.credits_delta if reward_result.event else credits_reward,
+                "xp_gained": xp_reward,
+                "credits_gained": credits_reward,
                 "rating_before": rating_before,
                 "rating_after": arena_rating.rating,
                 "rank_tier_before": rank_tier_before,

@@ -1,7 +1,7 @@
 import json
 from app.db.session import SessionLocal
 from app.models.public_course import PublicCourseModel
-from app.models.arena_question_pool import ArenaQuestionPoolModel, ArenaQuestionPoolItemModel
+from app.arena.models.arena_question_pool import ArenaQuestionPoolModel, ArenaQuestionPoolItemModel
 from app.models.course import CourseModel
 from app.models.lesson import LessonModel, LessonStageModel
 from app.models.user import UserModel

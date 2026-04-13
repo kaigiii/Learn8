@@ -3,7 +3,8 @@ from sqlalchemy.orm import relationship
 
 from app.core.time import utc_now
 from app.db.base import Base
-from app.domain.arena_statuses import ArenaRoundStatus
+from app.arena.config import arena_settings
+from app.arena.domain.arena_statuses import ArenaRoundStatus
 
 
 class ArenaRoundModel(Base):
@@ -29,7 +30,7 @@ class ArenaRoundModel(Base):
     answered_count = Column(Integer, nullable=False, default=0)
     correct_count = Column(Integer, nullable=False, default=0)
     question_snapshot_json = Column(JSON, nullable=False, default=dict)
-    timer_seconds = Column(Integer, nullable=False, default=30)
+    timer_seconds = Column(Integer, nullable=False, default=arena_settings.ARENA_DEFAULT_ROUND_TIME_SECONDS)
     revealed_answer_json = Column(JSON, nullable=True)
     started_at = Column(DateTime(timezone=True), nullable=True)
     deadline_at = Column(DateTime(timezone=True), nullable=True)

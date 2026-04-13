@@ -3,10 +3,10 @@ from __future__ import annotations
 from sqlalchemy.orm import Session
 
 from app.core.time import utc_now, to_iso_utc
-from app.models.arena_match import ArenaMatchModel, ArenaMatchPlayerModel
-from app.models.arena_room import ArenaRoomModel, ArenaRoomPlayerModel
+from app.arena.models.arena_match import ArenaMatchModel, ArenaMatchPlayerModel
+from app.arena.models.arena_room import ArenaRoomModel, ArenaRoomPlayerModel
 from app.models.user import UserModel
-from app.services.arena.realtime_gateway import RealtimeGateway
+from app.arena.services.realtime_gateway import RealtimeGateway
 
 
 class PresenceService:
@@ -43,7 +43,9 @@ class PresenceService:
                     "scope": "room",
                     "roomCode": room.room_code,
                     "userId": current_user.id,
-                    "displayName": current_user.full_name or current_user.email.split("@")[0],
+                    "displayName": (player.user_snapshot_json or {}).get("displayName") 
+                        or current_user.full_name 
+                        or current_user.email.split("@")[0],
                 },
             )
 
@@ -101,7 +103,9 @@ class PresenceService:
                     "scope": "match",
                     "matchId": match.id,
                     "userId": current_user.id,
-                    "displayName": current_user.full_name or current_user.email.split("@")[0],
+                    "displayName": (player.user_snapshot_json or {}).get("displayName") 
+                        or current_user.full_name 
+                        or current_user.email.split("@")[0],
                 },
             )
 
@@ -133,7 +137,9 @@ class PresenceService:
                     "scope": "match",
                     "matchId": match.id,
                     "userId": player.user_id,
-                    "displayName": player.user.full_name or player.user.email.split("@")[0],
+                    "displayName": (player.user_snapshot_json or {}).get("displayName") 
+                        or player.user.full_name 
+                        or player.user.email.split("@")[0],
                 },
             )
 
@@ -195,6 +201,9 @@ class PresenceService:
         }
 
     def _display_name_for_room_player(self, player: ArenaRoomPlayerModel | None) -> str:
-        if player and player.user:
-            return player.user.full_name or player.user.email.split("@")[0]
+        if player:
+            if player.user_snapshot_json and player.user_snapshot_json.get("displayName"):
+                return player.user_snapshot_json["displayName"]
+            if player.user:
+                return player.user.full_name or player.user.email.split("@")[0]
         return "Player"

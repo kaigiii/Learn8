@@ -2,7 +2,7 @@ import asyncio
 import json
 
 import asyncpg
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -10,31 +10,31 @@ from app.api.dependencies import get_current_user, get_current_user_for_stream, 
 from app.core.config import settings
 from app.core.time import utc_now, to_iso_utc
 from app.models.user import UserModel
-from app.schemas.arena_event_schema import ArenaEventEnvelope, ArenaEventListResponse
-from app.schemas.arena_competitive_schema import (
+from app.arena.schemas.arena_event_schema import ArenaEventEnvelope, ArenaEventListResponse
+from app.arena.schemas.arena_competitive_schema import (
     ArenaCompetitiveQueueJoinRequest,
     ArenaCompetitiveQueueResponse,
 )
-from app.schemas.arena_resume_schema import ArenaResumeResponse
-from app.schemas.arena_room_schema import (
+from app.arena.schemas.arena_resume_schema import ArenaResumeResponse
+from app.arena.schemas.arena_room_schema import (
     ArenaRoomCreateRequest,
     ArenaRoomJoinRequest,
     ArenaRoomReadyRequest,
     ArenaRoomResponse,
     ArenaRoomStartResponse,
 )
-from app.schemas.arena_match_schema import (
+from app.arena.schemas.arena_match_schema import (
     ArenaAnswerSubmitRequest,
     ArenaAnswerSubmitResponse,
     ArenaMatchStateResponse,
 )
-from app.schemas.arena_schema import ArenaPublicCourseSummary, ArenaSeasonSummary
-from app.services.arena.rank_service import RankService
-from app.services.arena.competitive_service import CompetitiveService
-from app.services.arena.realtime_gateway import ARENA_EVENT_CHANNEL, RealtimeGateway, serialize_arena_event
-from app.services.arena.round_engine import RoundEngine
-from app.services.arena.room_service import RoomService
-from app.services.arena.topic_catalog_service import TopicCatalogService
+from app.arena.schemas.arena_schema import ArenaPublicCourseSummary, ArenaSeasonSummary
+from app.arena.services.rank_service import RankService
+from app.arena.services.competitive_service import CompetitiveService
+from app.arena.services.realtime_gateway import ARENA_EVENT_CHANNEL, RealtimeGateway, serialize_arena_event
+from app.arena.services.round_engine import RoundEngine
+from app.arena.services.room_service import RoomService
+from app.arena.services.topic_catalog_service import TopicCatalogService
 
 router = APIRouter()
 
@@ -131,8 +131,8 @@ def get_arena_resume_target(
     queue_entry = competitive_service.get_current_entry(db, current_user)
     if queue_entry:
         if queue_entry.match_id:
-            from app.models.arena_match import ArenaMatchModel
-            from app.domain.arena_statuses import ArenaMatchStatus
+            from app.arena.models.arena_match import ArenaMatchModel
+            from app.arena.domain.arena_statuses import ArenaMatchStatus
             match = db.query(ArenaMatchModel).filter(ArenaMatchModel.id == queue_entry.match_id).first()
             if match and match.status in (ArenaMatchStatus.IN_PROGRESS, ArenaMatchStatus.PENDING):
                 return ArenaResumeResponse(
@@ -149,8 +149,8 @@ def get_arena_resume_target(
     if active_room:
         match_active = False
         if active_room.latest_match_id:
-            from app.models.arena_match import ArenaMatchModel
-            from app.domain.arena_statuses import ArenaMatchStatus
+            from app.arena.models.arena_match import ArenaMatchModel
+            from app.arena.domain.arena_statuses import ArenaMatchStatus
             match = db.query(ArenaMatchModel).filter(ArenaMatchModel.id == active_room.latest_match_id).first()
             if match and match.status in (ArenaMatchStatus.IN_PROGRESS, ArenaMatchStatus.PENDING):
                 match_active = True
@@ -453,11 +453,12 @@ def get_match_state(
 
 @router.post("/matches/{match_id}/confirm", response_model=ArenaMatchStateResponse)
 def confirm_match(
+    background_tasks: BackgroundTasks,
     match_id: int,
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_user),
 ):
-    round_engine = RoundEngine()
+    round_engine = RoundEngine(background_tasks=background_tasks)
     return ArenaMatchStateResponse(**round_engine.confirm_match(db, match_id, current_user))
 
 
@@ -479,12 +480,13 @@ def heartbeat_match_presence(
 
 @router.post("/matches/{match_id}/answers", response_model=ArenaAnswerSubmitResponse)
 def submit_match_answer(
+    background_tasks: BackgroundTasks,
     match_id: int,
     payload: ArenaAnswerSubmitRequest,
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_user),
 ):
-    round_engine = RoundEngine()
+    round_engine = RoundEngine(background_tasks=background_tasks)
     result = round_engine.submit_answer(
         db,
         match_id=match_id,

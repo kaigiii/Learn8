@@ -4,26 +4,26 @@ from fastapi import HTTPException
 
 from app.core.config import settings
 from app.core.time import utc_now_naive
-from app.domain.arena_modes import ArenaMode
-from app.domain.arena_statuses import ArenaMatchStatus, ArenaRoomStatus
-from app.models.arena_match import ArenaMatchModel, ArenaMatchPlayerModel
-from app.models.arena_question_pool import ArenaQuestionPoolItemModel, ArenaQuestionPoolModel
-from app.models.arena_queue import ArenaQueueEntryModel
-from app.models.arena_round import ArenaAnswerModel, ArenaRoundModel
-from app.models.arena_room import ArenaRoomPlayerModel
-from app.models.arena_rating import ArenaRankHistoryModel, ArenaRatingModel
-from app.models.arena_season import ArenaSeasonModel
+from app.arena.domain.arena_modes import ArenaMode
+from app.arena.domain.arena_statuses import ArenaMatchStatus, ArenaRoomStatus
+from app.arena.models.arena_match import ArenaMatchModel, ArenaMatchPlayerModel
+from app.arena.models.arena_question_pool import ArenaQuestionPoolItemModel, ArenaQuestionPoolModel
+from app.arena.models.arena_queue import ArenaQueueEntryModel
+from app.arena.models.arena_round import ArenaAnswerModel, ArenaRoundModel
+from app.arena.models.arena_room import ArenaRoomPlayerModel
+from app.arena.models.arena_rating import ArenaRankHistoryModel, ArenaRatingModel
+from app.arena.models.arena_season import ArenaSeasonModel
 from app.models.public_course import PublicCourseModel
 from app.models.user import UserModel
-from app.services.arena.admin_service import AdminService
-from app.services.arena.competitive_service import CompetitiveService
-from app.services.arena.presence_service import PresenceService
-from app.services.arena.rank_service import RankService
-from app.services.arena.rating_service import RatingService
-from app.services.arena.realtime_gateway import RealtimeGateway
-from app.services.arena.round_engine import RoundEngine
-from app.services.arena.telemetry_service import TelemetryService
-from app.services.arena.room_service import RoomService
+from app.arena.services.admin_service import AdminService
+from app.arena.services.competitive_service import CompetitiveService
+from app.arena.services.presence_service import PresenceService
+from app.arena.services.rank_service import RankService
+from app.arena.services.rating_service import RatingService
+from app.arena.services.realtime_gateway import RealtimeGateway
+from app.arena.services.round_engine import RoundEngine
+from app.arena.services.telemetry_service import TelemetryService
+from app.arena.services.room_service import RoomService
 
 
 def _create_public_course(db_session):

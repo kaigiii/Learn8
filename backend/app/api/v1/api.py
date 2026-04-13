@@ -1,14 +1,12 @@
 from fastapi import APIRouter
 from app.api.v1.endpoints import (
     auth,
-    arena,
-    arena_admin,
-    arena_rank,
     courses,
     syllabus,
     lessons,
     jobs,
 )
+from app.arena.api import arena, arena_admin, arena_rank
 
 api_router = APIRouter()
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])

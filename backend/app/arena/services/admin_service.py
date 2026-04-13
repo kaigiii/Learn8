@@ -4,11 +4,11 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.time import utc_now, to_iso_utc
-from app.domain.arena_statuses import ArenaMatchStatus
-from app.models.arena_match import ArenaMatchModel, ArenaMatchPlayerModel
-from app.models.arena_question_pool import ArenaQuestionPoolItemModel, ArenaQuestionPoolModel
-from app.models.arena_round import ArenaRoundModel
-from app.models.arena_season import ArenaSeasonModel
+from app.arena.domain.arena_statuses import ArenaMatchStatus
+from app.arena.models.arena_match import ArenaMatchModel, ArenaMatchPlayerModel
+from app.arena.models.arena_question_pool import ArenaQuestionPoolItemModel, ArenaQuestionPoolModel
+from app.arena.models.arena_round import ArenaRoundModel
+from app.arena.models.arena_season import ArenaSeasonModel
 from app.models.public_course import PublicCourseModel
 from app.models.user import UserModel
 from app.models.lesson import LessonModel, LessonStageModel

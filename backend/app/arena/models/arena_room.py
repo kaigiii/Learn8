@@ -5,8 +5,9 @@ from sqlalchemy.orm import relationship
 
 from app.core.time import utc_now
 from app.db.base import Base
-from app.domain.arena_modes import ArenaMode
-from app.domain.arena_statuses import (
+from app.arena.config import arena_settings
+from app.arena.domain.arena_modes import ArenaMode
+from app.arena.domain.arena_statuses import (
     ArenaInviteStatus,
     ArenaRoomStatus,
     ArenaRoomVisibility,
@@ -27,9 +28,9 @@ class ArenaRoomModel(Base):
     mode = Column(String, nullable=False, default=ArenaMode.PRIVATE_ROOM, index=True)
     visibility = Column(String, nullable=False, default=ArenaRoomVisibility.PRIVATE)
     status = Column(String, nullable=False, default=ArenaRoomStatus.LOBBY, index=True)
-    max_players = Column(Integer, nullable=False, default=8)
-    round_count = Column(Integer, nullable=False, default=5)
-    round_time_seconds = Column(Integer, nullable=False, default=30)
+    max_players = Column(Integer, nullable=False, default=arena_settings.ARENA_DEFAULT_MAX_PLAYERS)
+    round_count = Column(Integer, nullable=False, default=arena_settings.ARENA_DEFAULT_ROUND_COUNT)
+    round_time_seconds = Column(Integer, nullable=False, default=arena_settings.ARENA_DEFAULT_ROUND_TIME_SECONDS)
     allow_rematch = Column(Boolean, nullable=False, default=True)
     room_settings_json = Column(JSON, nullable=True)
     latest_match_id = Column(Integer, nullable=True)
@@ -64,6 +65,7 @@ class ArenaRoomPlayerModel(Base):
     disconnected_at = Column(DateTime(timezone=True), nullable=True)
     reconnected_at = Column(DateTime(timezone=True), nullable=True)
     team = Column(String, nullable=True)
+    user_snapshot_json = Column(JSON, nullable=True)
     joined_at = Column(DateTime(timezone=True), default=utc_now)
     updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
 

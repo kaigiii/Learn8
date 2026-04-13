@@ -13,7 +13,7 @@ from app.models.course import CourseModel, NodeModel
 from app.models.lesson import LessonModel, LessonStageModel
 from app.models.user import UserModel
 from app.models.public_course import PublicCourseModel
-from app.models.arena_question_pool import ArenaQuestionPoolModel, ArenaQuestionPoolItemModel
+from app.arena.models.arena_question_pool import ArenaQuestionPoolModel, ArenaQuestionPoolItemModel
 
 # 定義 public_courses 目錄的絕對或相對路徑
 BASE_DIR = Path(__file__).resolve().parent.parent.parent

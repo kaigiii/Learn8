@@ -1,10 +1,10 @@
 from sqlalchemy.orm import Session
 from app.core.time import to_iso_utc
 
-from app.domain.arena_modes import RANKED_ARENA_MODES
-from app.domain.arena_ranks import resolve_arena_rank_tier
-from app.models.arena_rating import ArenaPlayerTopicRatingModel, ArenaRankHistoryModel, ArenaRatingModel
-from app.models.arena_season import ArenaSeasonModel
+from app.arena.domain.arena_modes import RANKED_ARENA_MODES
+from app.arena.domain.arena_ranks import resolve_arena_rank_tier
+from app.arena.models.arena_rating import ArenaPlayerTopicRatingModel, ArenaRankHistoryModel, ArenaRatingModel
+from app.arena.models.arena_season import ArenaSeasonModel
 from app.models.public_course import PublicCourseModel
 from app.models.user import UserModel
 

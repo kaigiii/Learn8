@@ -8,6 +8,10 @@ import {
   heartbeatArenaMatchPresence,
 } from "@/lib/arena/api";
 import { watchArenaEvents } from "@/lib/arena/realtimeClient";
+import {
+  ArenaRoundState,
+  ArenaStandingEntry,
+} from "@/lib/apiTypes";
 import { useArenaMatchStore } from "@/stores/arena/useArenaMatchStore";
 
 function getCursorStorageKey(matchId: number) {
@@ -88,11 +92,11 @@ export function useArenaMatchEvents(matchId: number | null) {
         for (const envelope of events) {
           const payload = envelope.payload;
           if (payload && payload.activeRound) {
-            patchMatch({ activeRound: payload.activeRound });
+            patchMatch({ activeRound: payload.activeRound as ArenaRoundState });
             needsFetch = false;
           }
           if (payload && payload.standings) {
-            patchMatch({ standings: payload.standings });
+            patchMatch({ standings: payload.standings as ArenaStandingEntry[] });
             needsFetch = false;
           }
           if (envelope.eventType === "match.finished") {

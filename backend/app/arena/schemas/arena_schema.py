@@ -3,8 +3,8 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
-from app.domain.arena_modes import ArenaMode
-from app.domain.arena_statuses import ArenaRoomStatus, ArenaRoomVisibility
+from app.arena.domain.arena_modes import ArenaMode
+from app.arena.domain.arena_statuses import ArenaRoomStatus, ArenaRoomVisibility
 
 
 class ArenaModeEnum(str, Enum):
