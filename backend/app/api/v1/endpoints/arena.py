@@ -134,7 +134,7 @@ def get_arena_resume_target(
             from app.models.arena_match import ArenaMatchModel
             from app.domain.arena_statuses import ArenaMatchStatus
             match = db.query(ArenaMatchModel).filter(ArenaMatchModel.id == queue_entry.match_id).first()
-            if match and match.status != ArenaMatchStatus.PENDING:
+            if match and match.status in (ArenaMatchStatus.IN_PROGRESS, ArenaMatchStatus.PENDING):
                 return ArenaResumeResponse(
                     destination="match",
                     matchId=queue_entry.match_id,
@@ -147,7 +147,15 @@ def get_arena_resume_target(
     room_service = RoomService()
     active_room = room_service.get_active_room_for_user(db, current_user.id)
     if active_room:
-        if active_room.status == "in_match" and active_room.latest_match_id:
+        match_active = False
+        if active_room.latest_match_id:
+            from app.models.arena_match import ArenaMatchModel
+            from app.domain.arena_statuses import ArenaMatchStatus
+            match = db.query(ArenaMatchModel).filter(ArenaMatchModel.id == active_room.latest_match_id).first()
+            if match and match.status in (ArenaMatchStatus.IN_PROGRESS, ArenaMatchStatus.PENDING):
+                match_active = True
+        
+        if active_room.status == "in_match" and match_active:
             return ArenaResumeResponse(
                 destination="match",
                 roomCode=active_room.room_code,
@@ -156,7 +164,7 @@ def get_arena_resume_target(
         return ArenaResumeResponse(
             destination="lobby",
             roomCode=active_room.room_code,
-            matchId=active_room.latest_match_id,
+            matchId=active_room.latest_match_id if match_active else None,
         )
 
     return ArenaResumeResponse(destination="none")
@@ -377,6 +385,8 @@ async def _make_arena_event_stream(
             yield f"data: {json.dumps(payload)}\n\n"
 
     def notification_handler(connection, pid, channel, payload):
+        # logging.info(f"[SSE] Received notification on {channel}: {payload}")
+        print(f"\n>>> [SSE] Event Notify Received: {payload}")
         asyncio.create_task(queue.put(payload))
 
     await conn.add_listener(ARENA_EVENT_CHANNEL, notification_handler)

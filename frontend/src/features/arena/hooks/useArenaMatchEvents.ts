@@ -38,6 +38,7 @@ export function useArenaMatchEvents(matchId: number | null) {
   const setLastCursor = useArenaMatchStore((state) => state.setLastCursor);
   const setConnectionStatus = useArenaMatchStore((state) => state.setConnectionStatus);
   const setRecovering = useArenaMatchStore((state) => state.setRecovering);
+  const patchMatch = useArenaMatchStore((state) => state.patchMatch);
 
   useEffect(() => {
     if (!matchId) {
@@ -80,8 +81,33 @@ export function useArenaMatchEvents(matchId: number | null) {
           writeStoredCursor(matchId, newestCursor);
           setLastCursor(newestCursor);
         }
+
+        // OPTIMIZATION: Try to patch the store directly from event payloads 
+        // to avoid a full fetch if the data is already there.
+        let needsFetch = true;
+        for (const envelope of events) {
+          const payload = envelope.payload;
+          if (payload && payload.activeRound) {
+            patchMatch({ activeRound: payload.activeRound });
+            needsFetch = false;
+          }
+          if (payload && payload.standings) {
+            patchMatch({ standings: payload.standings });
+            needsFetch = false;
+          }
+          if (envelope.eventType === "match.finished") {
+            patchMatch({ status: "finished" });
+            needsFetch = false;
+          }
+        }
+
+        if (!needsFetch) return;
+
         const refreshedMatch = await fetchArenaMatch(matchId);
-        setMatch(refreshedMatch);
+        // CRITICAL PROTECTION: Only update the store if this match matches the hook's ID
+        if (refreshedMatch.matchId === matchId) {
+          setMatch(refreshedMatch);
+        }
       },
       onStatusChange: (status) => {
         setConnectionStatus(status);
@@ -89,7 +115,9 @@ export function useArenaMatchEvents(matchId: number | null) {
       onResync: async () => {
         setRecovering(true);
         const refreshedMatch = await fetchArenaMatch(matchId);
-        setMatch(refreshedMatch);
+        if (refreshedMatch.matchId === matchId) {
+          setMatch(refreshedMatch);
+        }
         setRecovering(false);
       },
       onError: () => {
@@ -97,15 +125,17 @@ export function useArenaMatchEvents(matchId: number | null) {
       },
     });
 
-    // 5s Polling Fallback (for Dev/Proxy stability)
+    // 10s Polling Fallback (Secondary to SSE)
     const pollInterval = window.setInterval(async () => {
       try {
         const refreshedMatch = await fetchArenaMatch(matchId);
-        setMatch(refreshedMatch);
+        if (refreshedMatch.matchId === matchId) {
+          setMatch(refreshedMatch);
+        }
       } catch (err) {
         console.error("Match fallback poll failed:", err);
       }
-    }, 5000);
+    }, 10000);
 
     return () => {
       watcher.close();
@@ -118,6 +148,7 @@ export function useArenaMatchEvents(matchId: number | null) {
     setLastCursor,
     setMatch,
     setRecovering,
+    patchMatch,
   ]);
 
   useEffect(() => {

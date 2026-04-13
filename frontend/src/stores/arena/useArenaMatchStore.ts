@@ -18,6 +18,7 @@ interface ArenaMatchStoreState {
   setRecovering: (isRecovering: boolean) => void;
   setSelectedOptionId: (optionId: string | null) => void;
   setSubmitting: (submitting: boolean) => void;
+  patchMatch: (partial: Partial<ArenaMatchState>) => void;
   reset: () => void;
 }
 
@@ -44,5 +45,9 @@ export const useArenaMatchStore = create<ArenaMatchStoreState>()((set) => ({
   setRecovering: (isRecovering) => set({ isRecovering }),
   setSelectedOptionId: (selectedOptionId) => set({ selectedOptionId }),
   setSubmitting: (submitting) => set({ submitting }),
+  patchMatch: (partial) =>
+    set((state) => ({
+      match: state.match ? { ...state.match, ...partial } : (partial as ArenaMatchState),
+    })),
   reset: () => set(INITIAL_STATE),
 }));

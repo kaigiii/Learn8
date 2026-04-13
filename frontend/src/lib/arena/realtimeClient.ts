@@ -89,6 +89,7 @@ export function watchArenaEvents({
 
     source = new EventSource(buildArenaStreamUrl(streamPath, cursor));
     source.onopen = () => {
+      console.log(`[SSE] Connected to Arena stream: ${streamPath}`);
       reconnectAttempts = 0;
       hasOpened = true;
       setStatus("connected");
@@ -96,13 +97,16 @@ export function watchArenaEvents({
     source.onmessage = (event) => {
       try {
         const payload = JSON.parse(event.data) as ArenaEventEnvelope;
+        console.log(`[SSE] Event Received: ${payload.eventType}`, payload);
         cursor = Math.max(cursor, payload.cursor);
         void onEvents([payload]);
       } catch (error) {
+        console.error("[SSE] Parse Error:", error);
         onError?.(error);
       }
     };
     source.onerror = (event) => {
+      console.warn("[SSE] Connection Error/Closed. Reconnecting...");
       onError?.(event);
       scheduleReconnect();
     };

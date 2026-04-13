@@ -50,9 +50,10 @@ export default function ArenaQueuePageClient() {
             router.replace(`/arena/match/${current.matchId}`);
             return;
           }
-          if (match.status === "cancelled") {
-            setError("The match was cancelled or a player declined.");
+          if (match.status === "finished" || match.status === "cancelled") {
+            // Stale match detected in the queue entry, clear it
             setMatchState(null);
+            setAccepting(false);
             return;
           }
         } else {
@@ -86,6 +87,7 @@ export default function ArenaQueuePageClient() {
     }
 
     const calculate = () => {
+      if (!matchState?.deadlineAt) return;
       const deadline = new Date(matchState.deadlineAt).getTime();
       const diff = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
       setAcceptTimer(diff);
