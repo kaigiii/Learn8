@@ -2,7 +2,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
-from app.schemas.arena_schema import ArenaModeEnum, ArenaRoomStatusEnum, ArenaRoomVisibilityEnum
+from app.arena.schemas.arena_schema import ArenaModeEnum, ArenaRoomStatusEnum, ArenaRoomVisibilityEnum
 
 
 class ArenaRoomCreateRequest(BaseModel):

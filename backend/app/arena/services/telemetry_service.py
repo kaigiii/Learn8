@@ -3,9 +3,9 @@ from __future__ import annotations
 from sqlalchemy.orm import Session
 
 from app.core.time import utc_now, to_iso_utc
-from app.domain.arena_statuses import ArenaMatchStatus, ArenaQueueStatus
-from app.models.arena_match import ArenaMatchModel, ArenaMatchPlayerModel
-from app.models.arena_queue import ArenaQueueEntryModel
+from app.arena.domain.arena_statuses import ArenaMatchStatus, ArenaQueueStatus
+from app.arena.models.arena_match import ArenaMatchModel, ArenaMatchPlayerModel
+from app.arena.models.arena_queue import ArenaQueueEntryModel
 
 
 class TelemetryService:

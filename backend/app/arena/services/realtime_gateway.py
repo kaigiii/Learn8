@@ -8,7 +8,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.core.time import to_iso_utc
-from app.models.arena_event import ArenaEventModel
+from app.arena.models.arena_event import ArenaEventModel
 
 logger = logging.getLogger(__name__)
 

@@ -3,7 +3,8 @@ from sqlalchemy.orm import relationship
 
 from app.core.time import utc_now
 from app.db.base import Base
-from app.domain.arena_ranks import ArenaRankTier
+from app.arena.domain.arena_ranks import ArenaRankTier
+from app.arena.config import arena_settings
 
 
 class ArenaRatingModel(Base):
@@ -15,7 +16,7 @@ class ArenaRatingModel(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    rating = Column(Integer, nullable=False, default=1000)
+    rating = Column(Integer, nullable=False, default=arena_settings.ARENA_DEFAULT_RATING)
     rank_tier = Column(String, nullable=False, default=ArenaRankTier.BRONZE, index=True)
     wins = Column(Integer, nullable=False, default=0)
     losses = Column(Integer, nullable=False, default=0)
@@ -37,7 +38,7 @@ class ArenaPlayerTopicRatingModel(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     public_course_id = Column(Integer, ForeignKey("public_courses.id", ondelete="CASCADE"), nullable=False, index=True)
-    rating = Column(Integer, nullable=False, default=1000)
+    rating = Column(Integer, nullable=False, default=arena_settings.ARENA_DEFAULT_RATING)
     rank_tier = Column(String, nullable=False, default=ArenaRankTier.BRONZE)
     updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
     created_at = Column(DateTime(timezone=True), default=utc_now)
@@ -52,8 +53,8 @@ class ArenaRankHistoryModel(Base):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     season_id = Column(Integer, ForeignKey("arena_seasons.id", ondelete="SET NULL"), nullable=True, index=True)
     match_id = Column(Integer, ForeignKey("arena_matches.id", ondelete="SET NULL"), nullable=True, index=True)
-    rating_before = Column(Integer, nullable=False, default=1000)
-    rating_after = Column(Integer, nullable=False, default=1000)
+    rating_before = Column(Integer, nullable=False, default=arena_settings.ARENA_DEFAULT_RATING)
+    rating_after = Column(Integer, nullable=False, default=arena_settings.ARENA_DEFAULT_RATING)
     rating_delta = Column(Integer, nullable=False, default=0)
     rank_tier_before = Column(String, nullable=False, default=ArenaRankTier.BRONZE)
     rank_tier_after = Column(String, nullable=False, default=ArenaRankTier.BRONZE)

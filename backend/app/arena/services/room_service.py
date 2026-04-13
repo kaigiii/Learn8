@@ -6,16 +6,18 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.config import settings
+from app.arena.config import arena_settings
 from app.core.time import utc_now, to_iso_utc
-from app.domain.arena_modes import normalize_arena_mode
-from app.domain.arena_statuses import ArenaMatchStatus, ArenaRoomStatus
-from app.models.arena_match import ArenaMatchModel, ArenaMatchPlayerModel
-from app.models.arena_room import ArenaRoomModel, ArenaRoomPlayerModel
+from app.arena.domain.arena_modes import normalize_arena_mode
+from app.arena.domain.arena_statuses import ArenaMatchStatus, ArenaRoomStatus
+from app.arena.models.arena_match import ArenaMatchModel, ArenaMatchPlayerModel
+from app.arena.models.arena_room import ArenaRoomModel, ArenaRoomPlayerModel
 from app.models.user import UserModel
-from app.services.arena.presence_service import PresenceService
-from app.services.arena.rank_service import RankService
-from app.services.arena.realtime_gateway import RealtimeGateway
-from app.services.arena.topic_catalog_service import TopicCatalogService
+from app.arena.services.presence_service import PresenceService
+from app.arena.services.rank_service import RankService
+from app.arena.services.realtime_gateway import RealtimeGateway
+from app.arena.services.topic_catalog_service import TopicCatalogService
+from app.arena.utils.profile_utils import build_user_snapshot
 
 
 class RoomService:
@@ -49,8 +51,8 @@ class RoomService:
         return latest
 
     def sweep_stale_rooms(self, db: Session) -> int:
-        from app.domain.arena_statuses import ArenaMatchStatus, ArenaRoomStatus
-        from app.models.arena_match import ArenaMatchModel
+        from app.arena.domain.arena_statuses import ArenaMatchStatus, ArenaRoomStatus
+        from app.arena.models.arena_match import ArenaMatchModel
         
         stale_rooms = (
             db.query(ArenaRoomModel)
@@ -85,7 +87,7 @@ class RoomService:
         return count
 
     def _close_idle_lobby_rooms(self, db: Session) -> int:
-        idle_minutes = int(getattr(settings, "ARENA_ROOM_IDLE_CLOSE_MINUTES", 0) or 0)
+        idle_minutes = arena_settings.ARENA_ROOM_IDLE_CLOSE_MINUTES
         if idle_minutes <= 0:
             return 0
 
@@ -180,8 +182,8 @@ class RoomService:
         active_season = self.rank_service.get_active_season(db)
         
         # MUTUAL EXCLUSION: Cancel any active competitive queues
-        from app.models.arena_queue import ArenaQueueEntryModel
-        from app.domain.arena_statuses import ArenaQueueStatus
+        from app.arena.models.arena_queue import ArenaQueueEntryModel
+        from app.arena.domain.arena_statuses import ArenaQueueStatus
         db.query(ArenaQueueEntryModel).filter(
             ArenaQueueEntryModel.user_id == current_user.id,
             ArenaQueueEntryModel.status.in_((ArenaQueueStatus.WAITING, ArenaQueueStatus.MATCHED))
@@ -211,6 +213,7 @@ class RoomService:
                 is_ready=False,
                 connection_state="connected",
                 last_seen_at=utc_now(),
+                user_snapshot_json=build_user_snapshot(current_user),
             )
         )
         db.commit()
@@ -241,8 +244,8 @@ class RoomService:
             raise HTTPException(status_code=409, detail="Arena room is full")
 
         # MUTUAL EXCLUSION: Cancel any active competitive queues
-        from app.models.arena_queue import ArenaQueueEntryModel
-        from app.domain.arena_statuses import ArenaQueueStatus
+        from app.arena.models.arena_queue import ArenaQueueEntryModel
+        from app.arena.domain.arena_statuses import ArenaQueueStatus
         db.query(ArenaQueueEntryModel).filter(
             ArenaQueueEntryModel.user_id == current_user.id,
             ArenaQueueEntryModel.status.in_((ArenaQueueStatus.WAITING, ArenaQueueStatus.MATCHED))
@@ -258,6 +261,7 @@ class RoomService:
                 is_ready=False,
                 connection_state="connected",
                 last_seen_at=utc_now(),
+                user_snapshot_json=build_user_snapshot(current_user),
             )
         )
         db.commit()
@@ -417,6 +421,7 @@ class RoomService:
                     suspected_abandonment=False,
                     suspicious_low_latency_count=0,
                     low_latency_streak=0,
+                    user_snapshot_json=player.user_snapshot_json,
                 )
             )
 
@@ -465,7 +470,11 @@ class RoomService:
             "players": [
                 {
                     "userId": player.user_id,
-                    "displayName": player.user.full_name or player.user.email.split("@")[0],
+                    "displayName": (player.user_snapshot_json or {}).get("displayName") 
+                        or player.user.full_name 
+                        or player.user.email.split("@")[0],
+                    "avatarUrl": (player.user_snapshot_json or {}).get("avatarUrl") or player.user.avatar_url,
+                    "level": (player.user_snapshot_json or {}).get("level") or player.user.level,
                     "isHost": player.user_id == room.host_user_id,
                     "isReady": bool(player.is_ready),
                     "team": player.team,

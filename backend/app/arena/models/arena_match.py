@@ -3,7 +3,7 @@ from sqlalchemy.orm import relationship
 
 from app.core.time import utc_now
 from app.db.base import Base
-from app.domain.arena_statuses import ArenaMatchStatus
+from app.arena.domain.arena_statuses import ArenaMatchStatus
 
 
 class ArenaMatchModel(Base):
@@ -28,6 +28,7 @@ class ArenaMatchModel(Base):
     started_at = Column(DateTime(timezone=True), nullable=True)
     deadline_at = Column(DateTime(timezone=True), nullable=True)
     ended_at = Column(DateTime(timezone=True), nullable=True)
+    reward_awarded_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), default=utc_now)
     updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
 
@@ -65,6 +66,7 @@ class ArenaMatchPlayerModel(Base):
     suspicious_low_latency_count = Column(Integer, nullable=False, default=0)
     low_latency_streak = Column(Integer, nullable=False, default=0)
     last_answer_response_ms = Column(Integer, nullable=True)
+    user_snapshot_json = Column(JSON, nullable=True)
     metadata_json = Column(JSON, nullable=True)
     created_at = Column(DateTime(timezone=True), default=utc_now)
 

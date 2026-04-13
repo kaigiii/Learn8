@@ -2,7 +2,7 @@ import sys
 from datetime import timedelta
 from sqlalchemy import text
 from app.db.session import SessionLocal
-from app.services.arena.round_engine import RoundEngine
+from app.arena.services.round_engine import RoundEngine
 from app.core.time import utc_now
 from app.models.user import UserModel
 from app.models.public_course import PublicCourseModel
@@ -16,19 +16,19 @@ from app.models.lesson import (
     LessonFailedStageModel,
     LessonRemedialModel,
 )
-from app.models.arena_match import ArenaMatchModel, ArenaMatchPlayerModel
-from app.models.arena_round import ArenaRoundModel
-from app.models.arena_event import ArenaEventModel
-from app.models.arena_queue import ArenaQueueEntryModel
-from app.models.arena_rating import ArenaRatingModel
-from app.models.arena_season import ArenaSeasonModel
-from app.models.arena_room import ArenaRoomModel, ArenaRoomPlayerModel, ArenaInviteModel
+from app.arena.models.arena_match import ArenaMatchModel, ArenaMatchPlayerModel
+from app.arena.models.arena_round import ArenaRoundModel
+from app.arena.models.arena_event import ArenaEventModel
+from app.arena.models.arena_queue import ArenaQueueEntryModel
+from app.arena.models.arena_rating import ArenaRatingModel
+from app.arena.models.arena_season import ArenaSeasonModel
+from app.arena.models.arena_room import ArenaRoomModel, ArenaRoomPlayerModel, ArenaInviteModel
 from app.models.password_reset import PasswordResetTokenModel
 from app.models.user_ledger_event import UserLedgerEventModel
 from app.models.course_media_asset import CourseMediaAssetModel
 from app.models.lesson_generation_preference import LessonGenerationPreferenceModel
-from app.domain.arena_statuses import ArenaMatchStatus
-from app.domain.arena_modes import ArenaMode
+from app.arena.domain.arena_statuses import ArenaMatchStatus
+from app.arena.domain.arena_modes import ArenaMode
 
 def test_acceptance_flow():
     db = SessionLocal()
@@ -108,8 +108,8 @@ def test_acceptance_flow():
         print(f"Total matches swept: {swept}")
 
         # 7. Test Decline Flow (Cancel via CompetitiveService)
-        from app.services.arena.competitive_service import CompetitiveService
-        from app.domain.arena_statuses import ArenaQueueStatus
+        from app.arena.services.competitive_service import CompetitiveService
+        from app.arena.domain.arena_statuses import ArenaQueueStatus
         comp_service = CompetitiveService()
         
         print("\nTesting Decline Flow (Cancellation)...")

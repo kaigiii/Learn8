@@ -5,6 +5,7 @@ from jose import jwt, JWTError
 from sqlalchemy.orm import Session
 from app.db.session import SessionLocal
 from app.core.config import settings
+from app.arena.config import arena_settings
 from app.models.user import UserModel
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login")
@@ -72,7 +73,7 @@ def get_current_arena_admin(
 ) -> UserModel:
     allowed_emails = {
         email.strip().lower()
-        for email in settings.ARENA_ADMIN_EMAILS.split(",")
+        for email in arena_settings.ARENA_ADMIN_EMAILS.split(",")
         if email.strip()
     }
 

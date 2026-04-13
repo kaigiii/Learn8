@@ -6,17 +6,19 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.arena.config import arena_settings
 from app.core.time import utc_now, to_iso_utc
-from app.domain.arena_modes import ArenaMode, RANKED_ARENA_MODES
-from app.domain.arena_statuses import ArenaMatchStatus, ArenaQueueStatus
-from app.models.arena_match import ArenaMatchModel, ArenaMatchPlayerModel
-from app.models.arena_queue import ArenaQueueEntryModel
-from app.models.arena_rating import ArenaRatingModel
+from app.arena.domain.arena_modes import ArenaMode, RANKED_ARENA_MODES
+from app.arena.domain.arena_statuses import ArenaMatchStatus, ArenaQueueStatus
+from app.arena.models.arena_match import ArenaMatchModel, ArenaMatchPlayerModel
+from app.arena.models.arena_queue import ArenaQueueEntryModel
+from app.arena.models.arena_rating import ArenaRatingModel
 from app.models.public_course import PublicCourseModel
 from app.models.user import UserModel
-from app.services.arena.rank_service import RankService
-from app.services.arena.topic_catalog_service import TopicCatalogService
-from app.services.arena.realtime_gateway import RealtimeGateway
+from app.arena.services.rank_service import RankService
+from app.arena.services.topic_catalog_service import TopicCatalogService
+from app.arena.services.realtime_gateway import RealtimeGateway
+from app.arena.utils.profile_utils import build_user_snapshot
 
 
 class CompetitiveService:
@@ -31,7 +33,7 @@ class CompetitiveService:
         self.topic_catalog_service = topic_catalog_service or TopicCatalogService()
         self.rank_service = RankService()
         self.gateway = RealtimeGateway()
-        from app.services.arena.round_engine import RoundEngine
+        from app.arena.services.round_engine import RoundEngine
         self.round_engine = RoundEngine()
 
     def join_queue(
@@ -63,7 +65,7 @@ class CompetitiveService:
             db.add(old_entry)
 
         # ALSO: Exit any active rooms to prevent state conflicts
-        from app.models.arena_room import ArenaRoomPlayerModel
+        from app.arena.models.arena_room import ArenaRoomPlayerModel
         db.query(ArenaRoomPlayerModel).filter(ArenaRoomPlayerModel.user_id == current_user.id).delete()
         
         db.flush()
@@ -77,7 +79,7 @@ class CompetitiveService:
             mode=ArenaMode.COMPETITIVE,
             status=ArenaQueueStatus.WAITING,
             expires_at=utc_now()
-            + timedelta(minutes=settings.ARENA_QUEUE_EXPIRE_MINUTES),
+            + timedelta(minutes=arena_settings.ARENA_QUEUE_EXPIRE_MINUTES),
         )
         db.add(queue_entry)
         db.flush()
@@ -135,8 +137,8 @@ class CompetitiveService:
             
         # Allow cancellation if WAITING or if MATCHED but the match is still PENDING (Decline)
         if entry.status == ArenaQueueStatus.MATCHED and entry.match_id:
-            from app.models.arena_match import ArenaMatchModel
-            from app.domain.arena_statuses import ArenaMatchStatus
+            from app.arena.models.arena_match import ArenaMatchModel
+            from app.arena.domain.arena_statuses import ArenaMatchStatus
             match = db.query(ArenaMatchModel).filter(ArenaMatchModel.id == entry.match_id).first()
             if match and match.status == ArenaMatchStatus.PENDING:
                 # Cancel the match as well since one player declined
@@ -170,8 +172,8 @@ class CompetitiveService:
         }
 
     def _get_active_entry_for_user(self, db: Session, user_id: int) -> ArenaQueueEntryModel | None:
-        from app.models.arena_match import ArenaMatchModel
-        from app.domain.arena_statuses import ArenaMatchStatus
+        from app.arena.models.arena_match import ArenaMatchModel
+        from app.arena.domain.arena_statuses import ArenaMatchStatus
 
         entry = (
             db.query(ArenaQueueEntryModel)
@@ -292,6 +294,9 @@ class CompetitiveService:
         db.add(match)
         db.flush()
 
+        users = db.query(UserModel).filter(UserModel.id.in_([first_user_id, second_user_id])).all()
+        user_map = {u.id: u for u in users}
+        
         db.add_all(
             [
                 ArenaMatchPlayerModel(
@@ -300,6 +305,7 @@ class CompetitiveService:
                     connection_state="connected",
                     last_seen_at=match.started_at,
                     accepted_at=None,
+                    user_snapshot_json=build_user_snapshot(user_map[first_user_id]) if first_user_id in user_map else None,
                 ),
                 ArenaMatchPlayerModel(
                     match_id=match.id,
@@ -307,6 +313,7 @@ class CompetitiveService:
                     connection_state="connected",
                     last_seen_at=match.started_at,
                     accepted_at=None,
+                    user_snapshot_json=build_user_snapshot(user_map[second_user_id]) if second_user_id in user_map else None,
                 ),
             ]
         )
@@ -319,7 +326,7 @@ class CompetitiveService:
             .filter(ArenaRatingModel.user_id == user_id)
             .scalar()
         )
-        return int(rating) if rating is not None else 1000
+        return int(rating) if rating is not None else arena_settings.ARENA_DEFAULT_RATING
 
     def _compute_allowed_rating_gap(
         self,
