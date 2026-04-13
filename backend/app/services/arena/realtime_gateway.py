@@ -7,6 +7,7 @@ from typing import Optional
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.core.time import to_iso_utc
 from app.models.arena_event import ArenaEventModel
 
 logger = logging.getLogger(__name__)
@@ -89,5 +90,5 @@ def serialize_arena_event(event: ArenaEventModel) -> dict:
         "eventType": event.event_type,
         "version": event.version,
         "payload": event.payload_json if isinstance(event.payload_json, dict) else {},
-        "createdAt": event.created_at.isoformat() + "Z",
+        "createdAt": to_iso_utc(event.created_at),
     }

@@ -6,7 +6,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.time import utc_now_naive
+from app.core.time import utc_now, to_iso_utc
 from app.domain.arena_modes import ArenaMode, RANKED_ARENA_MODES
 from app.domain.arena_statuses import ArenaMatchStatus, ArenaQueueStatus
 from app.models.arena_match import ArenaMatchModel, ArenaMatchPlayerModel
@@ -16,6 +16,7 @@ from app.models.public_course import PublicCourseModel
 from app.models.user import UserModel
 from app.services.arena.rank_service import RankService
 from app.services.arena.topic_catalog_service import TopicCatalogService
+from app.services.arena.realtime_gateway import RealtimeGateway
 
 
 class CompetitiveService:
@@ -23,12 +24,13 @@ class CompetitiveService:
     RATING_WINDOW_EXPANSION = 75
     RATING_WINDOW_STEP_SECONDS = 20
     MAX_RATING_WINDOW = 450
-    RECENT_REMATCH_LOOKBACK = 3
-    REMATCH_RELAX_AFTER_SECONDS = 75
+    RECENT_REMATCH_LOOKBACK = 0
+    REMATCH_RELAX_AFTER_SECONDS = 10
 
     def __init__(self, topic_catalog_service: TopicCatalogService | None = None):
         self.topic_catalog_service = topic_catalog_service or TopicCatalogService()
         self.rank_service = RankService()
+        self.gateway = RealtimeGateway()
 
     def join_queue(
         self,
@@ -61,7 +63,7 @@ class CompetitiveService:
             public_course_id=public_course_id,
             mode=ArenaMode.COMPETITIVE,
             status=ArenaQueueStatus.WAITING,
-            expires_at=utc_now_naive()
+            expires_at=utc_now()
             + timedelta(minutes=settings.ARENA_QUEUE_EXPIRE_MINUTES),
         )
         db.add(queue_entry)
@@ -79,7 +81,7 @@ class CompetitiveService:
             opponent.status = ArenaQueueStatus.MATCHED
             opponent.matched_user_id = current_user.id
             opponent.match_id = match.id
-            opponent.match_found_at = utc_now_naive()
+            opponent.match_found_at = utc_now()
             opponent.expires_at = None
 
             queue_entry.status = ArenaQueueStatus.MATCHED
@@ -90,6 +92,20 @@ class CompetitiveService:
 
             db.add(opponent)
             db.add(queue_entry)
+            db.flush()
+
+            # Publish event to notify players via the match stream
+            self.gateway.publish_event(
+                db,
+                stream_type="match",
+                match_id=match.id,
+                event_type="match.found",
+                payload={
+                    "matchId": match.id,
+                    "playerIds": [opponent.user_id, current_user.id],
+                    "status": match.status,
+                },
+            )
 
         db.commit()
         db.refresh(queue_entry)
@@ -103,12 +119,26 @@ class CompetitiveService:
         entry = self.get_current_entry(db, current_user)
         if entry is None:
             return
-        if entry.status != ArenaQueueStatus.WAITING:
+            
+        # Allow cancellation if WAITING or if MATCHED but the match is still PENDING (Decline)
+        if entry.status == ArenaQueueStatus.MATCHED and entry.match_id:
+            from app.models.arena_match import ArenaMatchModel
+            from app.domain.arena_statuses import ArenaMatchStatus
+            match = db.query(ArenaMatchModel).filter(ArenaMatchModel.id == entry.match_id).first()
+            if match and match.status == ArenaMatchStatus.PENDING:
+                # Cancel the match as well since one player declined
+                match.status = ArenaMatchStatus.CANCELLED
+                match.ended_at = utc_now()
+                db.add(match)
+                # Fall through to cancel entry
+            else:
+                raise HTTPException(status_code=409, detail="Started Arena matches cannot be cancelled")
+        elif entry.status != ArenaQueueStatus.WAITING:
             raise HTTPException(status_code=409, detail="Matched Arena competition entries cannot be cancelled")
 
         entry.status = ArenaQueueStatus.CANCELLED
         entry.expires_at = None
-        entry.closed_at = utc_now_naive()
+        entry.closed_at = utc_now()
         db.add(entry)
         db.commit()
 
@@ -120,8 +150,8 @@ class CompetitiveService:
             "publicCourseId": entry.public_course_id,
             "publicCourseTitle": course.title if course else "Unknown",
             "mode": entry.mode,
-            "queuedAt": entry.created_at.isoformat(),
-            "expiresAt": entry.expires_at.isoformat() if entry.expires_at else None,
+            "queuedAt": to_iso_utc(entry.created_at),
+            "expiresAt": to_iso_utc(entry.expires_at),
             "matchId": entry.match_id,
             "matchedUserId": entry.matched_user_id,
         }
@@ -157,7 +187,7 @@ class CompetitiveService:
         if not candidates:
             return None
 
-        now = utc_now_naive()
+        now = utc_now()
         current_user_rating = self._get_player_rating_value(db, current_user_id)
         recent_opponent_ids = self._get_recent_opponent_ids(db, current_user_id)
 
@@ -205,12 +235,14 @@ class CompetitiveService:
         round_time_seconds: int,
     ) -> ArenaMatchModel:
         active_season = self.rank_service.get_active_season(db)
+        status = ArenaMatchStatus.PENDING
+        deadline_at = utc_now() + timedelta(seconds=60)
         match = ArenaMatchModel(
             room_id=None,
             season_id=active_season.id if active_season else None,
             public_course_id=public_course.id,
             mode=ArenaMode.COMPETITIVE,
-            status=ArenaMatchStatus.IN_PROGRESS,
+            status=status,
             player_count=2,
             round_count=round_count,
             completed_round_count=0,
@@ -227,7 +259,8 @@ class CompetitiveService:
                 "max_players": 2,
                 "mode": ArenaMode.COMPETITIVE,
             },
-            started_at=utc_now_naive(),
+            started_at=utc_now(),
+            deadline_at=deadline_at,
         )
         db.add(match)
         db.flush()
@@ -239,12 +272,14 @@ class CompetitiveService:
                     user_id=first_user_id,
                     connection_state="connected",
                     last_seen_at=match.started_at,
+                    accepted_at=None,
                 ),
                 ArenaMatchPlayerModel(
                     match_id=match.id,
                     user_id=second_user_id,
                     connection_state="connected",
                     last_seen_at=match.started_at,
+                    accepted_at=None,
                 ),
             ]
         )
@@ -302,7 +337,7 @@ class CompetitiveService:
         return {player.user_id for player in other_players}
 
     def _expire_stale_entries(self, db: Session) -> None:
-        now = utc_now_naive()
+        now = utc_now()
         stale_entries = (
             db.query(ArenaQueueEntryModel)
             .filter(

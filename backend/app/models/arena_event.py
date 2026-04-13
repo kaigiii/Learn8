@@ -2,7 +2,7 @@ import uuid
 
 from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, JSON, String, UniqueConstraint
 
-from app.core.time import utc_now_naive
+from app.core.time import utc_now
 from app.db.base import Base
 
 
@@ -22,4 +22,4 @@ class ArenaEventModel(Base):
     event_type = Column(String, nullable=False, index=True)
     version = Column(Integer, nullable=False, default=1)
     payload_json = Column(JSON, nullable=False, default=dict)
-    created_at = Column(DateTime, default=utc_now_naive, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)

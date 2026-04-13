@@ -1,7 +1,7 @@
 from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String, UniqueConstraint
 from sqlalchemy.orm import relationship
 
-from app.core.time import utc_now_naive
+from app.core.time import utc_now
 from app.db.base import Base
 from app.domain.arena_ranks import ArenaRankTier
 
@@ -22,8 +22,8 @@ class ArenaRatingModel(Base):
     draws = Column(Integer, nullable=False, default=0)
     ranked_matches = Column(Integer, nullable=False, default=0)
     best_rank_tier = Column(String, nullable=False, default=ArenaRankTier.BRONZE)
-    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive)
-    created_at = Column(DateTime, default=utc_now_naive)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+    created_at = Column(DateTime(timezone=True), default=utc_now)
 
     user = relationship("UserModel")
 
@@ -39,8 +39,8 @@ class ArenaPlayerTopicRatingModel(Base):
     public_course_id = Column(Integer, ForeignKey("public_courses.id", ondelete="CASCADE"), nullable=False, index=True)
     rating = Column(Integer, nullable=False, default=1000)
     rank_tier = Column(String, nullable=False, default=ArenaRankTier.BRONZE)
-    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive)
-    created_at = Column(DateTime, default=utc_now_naive)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+    created_at = Column(DateTime(timezone=True), default=utc_now)
 
     public_course = relationship("PublicCourseModel")
 
@@ -57,5 +57,5 @@ class ArenaRankHistoryModel(Base):
     rating_delta = Column(Integer, nullable=False, default=0)
     rank_tier_before = Column(String, nullable=False, default=ArenaRankTier.BRONZE)
     rank_tier_after = Column(String, nullable=False, default=ArenaRankTier.BRONZE)
-    created_at = Column(DateTime, default=utc_now_naive)
+    created_at = Column(DateTime(timezone=True), default=utc_now)
 

@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from app.api.dependencies import get_db, get_current_user
+from app.core.time import to_iso_utc
 from app.core.security import (
     create_access_token,
     create_reset_token,
@@ -291,7 +292,7 @@ def read_user_ledger(
                 xp_balance_after=event.xp_balance_after,
                 level_after=event.level_after,
                 metadata_json=event.metadata_json,
-                created_at=event.created_at.isoformat(),
+                created_at=to_iso_utc(event.created_at),
             )
             for event in events
         ],

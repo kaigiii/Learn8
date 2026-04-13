@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user, get_current_user_for_stream, get_db
 from app.core.config import settings
+from app.core.time import utc_now, to_iso_utc
 from app.models.user import UserModel
 from app.schemas.arena_event_schema import ArenaEventEnvelope, ArenaEventListResponse
 from app.schemas.arena_competitive_schema import (
@@ -105,8 +106,8 @@ def get_active_season(
         name=season.name,
         status=season.status,
         isActive=season.is_active,
-        startedAt=season.started_at.isoformat() if season.started_at else None,
-        endedAt=season.ended_at.isoformat() if season.ended_at else None,
+        startedAt=to_iso_utc(season.started_at),
+        endedAt=to_iso_utc(season.ended_at),
     )
 
 
@@ -130,10 +131,14 @@ def get_arena_resume_target(
     queue_entry = competitive_service.get_current_entry(db, current_user)
     if queue_entry:
         if queue_entry.match_id:
-            return ArenaResumeResponse(
-                destination="match",
-                matchId=queue_entry.match_id,
-            )
+            from app.models.arena_match import ArenaMatchModel
+            from app.domain.arena_statuses import ArenaMatchStatus
+            match = db.query(ArenaMatchModel).filter(ArenaMatchModel.id == queue_entry.match_id).first()
+            if match and match.status != ArenaMatchStatus.PENDING:
+                return ArenaResumeResponse(
+                    destination="match",
+                    matchId=queue_entry.match_id,
+                )
         return ArenaResumeResponse(
             destination="queue",
             queueId=queue_entry.id,
@@ -171,10 +176,6 @@ def join_competitive_queue(
         round_count=payload.roundCount,
         round_time_seconds=payload.roundTimeSeconds,
     )
-    if entry.match_id:
-        round_engine = RoundEngine()
-        round_engine.initialize_match_rounds(db, entry.match_id)
-        entry = service.get_current_entry(db, current_user) or entry
     return ArenaCompetitiveQueueResponse(**service.serialize_entry(entry))
 
 
@@ -334,6 +335,66 @@ def list_match_events(
     return ArenaEventListResponse(items=[ArenaEventEnvelope(**serialize_arena_event(event)) for event in events])
 
 
+async def _make_arena_event_stream(
+    filter_type: str,  # 'room' or 'match'
+    filter_value: str | int,
+    after_cursor: int = 0,
+):
+    db_url = _normalize_asyncpg_db_url()
+    conn = await asyncpg.connect(db_url)
+    queue: asyncio.Queue[str] = asyncio.Queue()
+    cursor = max(after_cursor, 0)
+
+    async def emit_backlog():
+        nonlocal cursor
+        where_clause = "room_code = $1" if filter_type == "room" else "match_id = $1"
+        query_val = filter_value.upper() if filter_type == "room" else filter_value
+        
+        rows = await conn.fetch(
+            f"""
+            SELECT id, event_id, stream_type, room_code, match_id, event_type, version, payload_json, created_at
+            FROM arena_events
+            WHERE {where_clause} AND id > $2
+            ORDER BY id ASC
+            LIMIT 200
+            """,
+            query_val,
+            cursor,
+        )
+        for row in rows:
+            payload = {
+                "cursor": row["id"],
+                "eventId": row["event_id"],
+                "streamType": row["stream_type"],
+                "roomCode": row["room_code"],
+                "matchId": row["match_id"],
+                "eventType": row["event_type"],
+                "version": row["version"],
+                "payload": row["payload_json"] if isinstance(row["payload_json"], dict) else {},
+                "createdAt": to_iso_utc(row["created_at"]),
+            }
+            cursor = row["id"]
+            yield f"data: {json.dumps(payload)}\n\n"
+
+    def notification_handler(connection, pid, channel, payload):
+        asyncio.create_task(queue.put(payload))
+
+    await conn.add_listener(ARENA_EVENT_CHANNEL, notification_handler)
+    try:
+        async for item in emit_backlog():
+            yield item
+        while True:
+            try:
+                await asyncio.wait_for(queue.get(), timeout=10.0)
+                async for item in emit_backlog():
+                    yield item
+            except asyncio.TimeoutError:
+                yield ": heartbeat\n\n"
+    finally:
+        await conn.remove_listener(ARENA_EVENT_CHANNEL, notification_handler)
+        await conn.close()
+
+
 @router.get("/rooms/{room_code}/stream")
 async def stream_room_events(
     room_code: str,
@@ -341,56 +402,15 @@ async def stream_room_events(
     current_user: UserModel = Depends(get_current_user_for_stream),
 ):
     del current_user
-    async def event_generator():
-        db_url = _normalize_asyncpg_db_url()
-        conn = await asyncpg.connect(db_url)
-        queue: asyncio.Queue[str] = asyncio.Queue()
-        cursor = max(after_cursor, 0)
-
-        async def emit_backlog():
-            nonlocal cursor
-            rows = await conn.fetch(
-                """
-                SELECT id, event_id, stream_type, room_code, match_id, event_type, version, payload_json, created_at
-                FROM arena_events
-                WHERE room_code = $1 AND id > $2
-                ORDER BY id ASC
-                LIMIT 200
-                """,
-                room_code.upper(),
-                cursor,
-            )
-            for row in rows:
-                payload = {
-                    "cursor": row["id"],
-                    "eventId": row["event_id"],
-                    "streamType": row["stream_type"],
-                    "roomCode": row["room_code"],
-                    "matchId": row["match_id"],
-                    "eventType": row["event_type"],
-                    "version": row["version"],
-                    "payload": row["payload_json"] if isinstance(row["payload_json"], dict) else {},
-                    "createdAt": row["created_at"].isoformat(),
-                }
-                cursor = row["id"]
-                yield f"data: {json.dumps(payload)}\n\n"
-
-        def notification_handler(connection, pid, channel, payload):
-            asyncio.create_task(queue.put(payload))
-
-        await conn.add_listener(ARENA_EVENT_CHANNEL, notification_handler)
-        try:
-            async for item in emit_backlog():
-                yield item
-            while True:
-                await queue.get()
-                async for item in emit_backlog():
-                    yield item
-        finally:
-            await conn.remove_listener(ARENA_EVENT_CHANNEL, notification_handler)
-            await conn.close()
-
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
+    return StreamingResponse(
+        _make_arena_event_stream("room", room_code, after_cursor),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.get("/matches/{match_id}/stream")
@@ -400,56 +420,15 @@ async def stream_match_events(
     current_user: UserModel = Depends(get_current_user_for_stream),
 ):
     del current_user
-    async def event_generator():
-        db_url = _normalize_asyncpg_db_url()
-        conn = await asyncpg.connect(db_url)
-        queue: asyncio.Queue[str] = asyncio.Queue()
-        cursor = max(after_cursor, 0)
-
-        async def emit_backlog():
-            nonlocal cursor
-            rows = await conn.fetch(
-                """
-                SELECT id, event_id, stream_type, room_code, match_id, event_type, version, payload_json, created_at
-                FROM arena_events
-                WHERE match_id = $1 AND id > $2
-                ORDER BY id ASC
-                LIMIT 200
-                """,
-                match_id,
-                cursor,
-            )
-            for row in rows:
-                payload = {
-                    "cursor": row["id"],
-                    "eventId": row["event_id"],
-                    "streamType": row["stream_type"],
-                    "roomCode": row["room_code"],
-                    "matchId": row["match_id"],
-                    "eventType": row["event_type"],
-                    "version": row["version"],
-                    "payload": row["payload_json"] if isinstance(row["payload_json"], dict) else {},
-                    "createdAt": row["created_at"].isoformat(),
-                }
-                cursor = row["id"]
-                yield f"data: {json.dumps(payload)}\n\n"
-
-        def notification_handler(connection, pid, channel, payload):
-            asyncio.create_task(queue.put(payload))
-
-        await conn.add_listener(ARENA_EVENT_CHANNEL, notification_handler)
-        try:
-            async for item in emit_backlog():
-                yield item
-            while True:
-                await queue.get()
-                async for item in emit_backlog():
-                    yield item
-        finally:
-            await conn.remove_listener(ARENA_EVENT_CHANNEL, notification_handler)
-            await conn.close()
-
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
+    return StreamingResponse(
+        _make_arena_event_stream("match", match_id, after_cursor),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.get("/matches/{match_id}", response_model=ArenaMatchStateResponse)
@@ -460,6 +439,16 @@ def get_match_state(
 ):
     round_engine = RoundEngine()
     return ArenaMatchStateResponse(**round_engine.get_match_state(db, match_id, current_user))
+
+
+@router.post("/matches/{match_id}/confirm", response_model=ArenaMatchStateResponse)
+def confirm_match(
+    match_id: int,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
+    round_engine = RoundEngine()
+    return ArenaMatchStateResponse(**round_engine.confirm_match(db, match_id, current_user))
 
 
 @router.post("/matches/{match_id}/presence", status_code=status.HTTP_204_NO_CONTENT)

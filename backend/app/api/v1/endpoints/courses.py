@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.api.dependencies import get_db, get_current_user
-from app.core.time import utc_now_naive
+from app.core.time import utc_now
 from app.domain.statuses import CourseStatus, JobStatus, JobType, NodeStatus, LessonSessionStatus
 from app.models.user import UserModel
 from app.models.course import CourseModel, NodeModel
@@ -253,7 +253,7 @@ async def update_course(
     course.title = request.title.strip()
     course.syllabus_json = syllabus_data
     flag_modified(course, "syllabus_json")
-    course.updated_at = utc_now_naive()
+    course.updated_at = utc_now()
     db.commit()
     db.refresh(course)
 
@@ -624,7 +624,7 @@ async def update_node_status(
             )
             if db_node:
                 db_node.status = nstatus
-                db_node.updated_at = utc_now_naive()
+                db_node.updated_at = utc_now()
 
         db.commit()
         db.refresh(course_record)

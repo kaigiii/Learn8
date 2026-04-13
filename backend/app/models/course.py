@@ -8,7 +8,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 from app.db.base import Base
-from app.core.time import utc_now_naive
+from app.core.time import utc_now
 from app.domain.statuses import CourseStatus, NodeStatus
 
 
@@ -24,8 +24,8 @@ class CourseModel(Base):
     profile_json = Column(JSON, nullable=True)
     draft_json = Column(JSON, nullable=True)
     syllabus_json = Column(JSON, nullable=True)
-    created_at = Column(DateTime, default=utc_now_naive)
-    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive)
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
 
     user = relationship("UserModel", back_populates="courses")
     nodes = relationship(
@@ -81,6 +81,6 @@ class NodeModel(Base):
     title = Column(String)
     status = Column(String, default=NodeStatus.LOCKED)
     data = Column(JSON)
-    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
 
     course = relationship("CourseModel", back_populates="nodes")

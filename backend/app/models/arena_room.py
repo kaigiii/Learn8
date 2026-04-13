@@ -3,7 +3,7 @@ import uuid
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Index, Integer, JSON, String, UniqueConstraint
 from sqlalchemy.orm import relationship
 
-from app.core.time import utc_now_naive
+from app.core.time import utc_now
 from app.db.base import Base
 from app.domain.arena_modes import ArenaMode
 from app.domain.arena_statuses import (
@@ -33,9 +33,9 @@ class ArenaRoomModel(Base):
     allow_rematch = Column(Boolean, nullable=False, default=True)
     room_settings_json = Column(JSON, nullable=True)
     latest_match_id = Column(Integer, nullable=True)
-    created_at = Column(DateTime, default=utc_now_naive)
-    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive)
-    closed_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+    closed_at = Column(DateTime(timezone=True), nullable=True)
 
     public_course = relationship("PublicCourseModel")
     players = relationship(
@@ -60,12 +60,12 @@ class ArenaRoomPlayerModel(Base):
     is_ready = Column(Boolean, nullable=False, default=False)
     connection_state = Column(String, nullable=False, default="connected", index=True)
     disconnect_count = Column(Integer, nullable=False, default=0)
-    last_seen_at = Column(DateTime, nullable=True)
-    disconnected_at = Column(DateTime, nullable=True)
-    reconnected_at = Column(DateTime, nullable=True)
+    last_seen_at = Column(DateTime(timezone=True), nullable=True)
+    disconnected_at = Column(DateTime(timezone=True), nullable=True)
+    reconnected_at = Column(DateTime(timezone=True), nullable=True)
     team = Column(String, nullable=True)
-    joined_at = Column(DateTime, default=utc_now_naive)
-    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive)
+    joined_at = Column(DateTime(timezone=True), default=utc_now)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
 
     room = relationship("ArenaRoomModel", back_populates="players", foreign_keys=[room_id])
     user = relationship("UserModel")
@@ -83,7 +83,7 @@ class ArenaInviteModel(Base):
     inviter_user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     invitee_user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
     status = Column(String, nullable=False, default=ArenaInviteStatus.PENDING, index=True)
-    expires_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=utc_now_naive)
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=utc_now)
 
     room = relationship("ArenaRoomModel")

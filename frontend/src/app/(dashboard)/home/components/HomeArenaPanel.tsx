@@ -71,11 +71,7 @@ export function HomeArenaPanel() {
     setBusy(true);
     setError(null);
     try {
-      const queueState = await joinArenaCompetitiveQueue({ publicCourseId: selectedCourseId });
-      if (queueState.matchId) {
-        router.push(`/arena/match/${queueState.matchId}`);
-        return;
-      }
+      await joinArenaCompetitiveQueue({ publicCourseId: selectedCourseId });
       router.push("/arena/queue");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to join Arena competition");

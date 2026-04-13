@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from app.core.time import to_iso_utc
 
 from app.domain.arena_modes import RANKED_ARENA_MODES
 from app.domain.arena_ranks import resolve_arena_rank_tier
@@ -164,7 +165,7 @@ class RankService:
                 "ratingDelta": item.rating_delta,
                 "rankTierBefore": item.rank_tier_before,
                 "rankTierAfter": item.rank_tier_after,
-                "createdAt": item.created_at.isoformat(),
+                "createdAt": to_iso_utc(item.created_at),
             }
             for item in items
         ]

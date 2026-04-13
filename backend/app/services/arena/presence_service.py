@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
-from app.core.time import utc_now_naive
+from app.core.time import utc_now, to_iso_utc
 from app.models.arena_match import ArenaMatchModel, ArenaMatchPlayerModel
 from app.models.arena_room import ArenaRoomModel, ArenaRoomPlayerModel
 from app.models.user import UserModel
@@ -20,7 +20,7 @@ class PresenceService:
 
     def touch_room_presence(self, db: Session, room: ArenaRoomModel, current_user: UserModel) -> None:
         self.sweep_room_presence(db, room)
-        now = utc_now_naive()
+        now = utc_now()
         player = next((item for item in room.players if item.user_id == current_user.id), None)
         if not player:
             return
@@ -48,7 +48,7 @@ class PresenceService:
             )
 
     def sweep_room_presence(self, db: Session, room: ArenaRoomModel) -> None:
-        now = utc_now_naive()
+        now = utc_now()
         for player in room.players:
             if player.connection_state != "connected":
                 continue
@@ -82,7 +82,7 @@ class PresenceService:
         if not player:
             return
 
-        now = utc_now_naive()
+        now = utc_now()
         previous_state = player.connection_state
         player.connection_state = "connected"
         player.last_seen_at = now
@@ -106,7 +106,7 @@ class PresenceService:
             )
 
     def sweep_match_presence(self, db: Session, match: ArenaMatchModel) -> None:
-        now = utc_now_naive()
+        now = utc_now()
         for player in match.players:
             if player.connection_state != "connected":
                 continue
@@ -174,10 +174,11 @@ class PresenceService:
                 {
                     "userId": player.user_id,
                     "connectionState": player.connection_state or "unknown",
-                    "lastSeenAt": player.last_seen_at.isoformat() if player.last_seen_at else None,
-                    "disconnectedAt": player.disconnected_at.isoformat() if player.disconnected_at else None,
+                    "lastSeenAt": to_iso_utc(player.last_seen_at),
+                    "disconnectedAt": to_iso_utc(player.disconnected_at),
                     "disconnectCount": int(player.disconnect_count or 0),
                     "suspectedAbandonment": bool(player.suspected_abandonment),
+                    "isAccepted": player.accepted_at is not None,
                 }
             )
         return items
@@ -186,8 +187,8 @@ class PresenceService:
         return {
             player.user_id: {
                 "connectionState": player.connection_state or "unknown",
-                "lastSeenAt": player.last_seen_at.isoformat() if player.last_seen_at else None,
-                "disconnectedAt": player.disconnected_at.isoformat() if player.disconnected_at else None,
+                "lastSeenAt": to_iso_utc(player.last_seen_at),
+                "disconnectedAt": to_iso_utc(player.disconnected_at),
                 "disconnectCount": int(player.disconnect_count or 0),
             }
             for player in room.players

@@ -1,7 +1,7 @@
 from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, JSON, String, UniqueConstraint
 from sqlalchemy.orm import relationship
 
-from app.core.time import utc_now_naive
+from app.core.time import utc_now
 from app.db.base import Base
 
 
@@ -23,6 +23,6 @@ class UserLedgerEventModel(Base):
     xp_balance_after = Column(Integer, nullable=False, default=0)
     level_after = Column(Integer, nullable=False, default=1)
     metadata_json = Column(JSON, nullable=True)
-    created_at = Column(DateTime, default=utc_now_naive, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
 
     user = relationship("UserModel", back_populates="ledger_events")

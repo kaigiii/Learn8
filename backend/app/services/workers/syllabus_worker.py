@@ -4,7 +4,7 @@ from app.db.session import SessionLocal
 from app.models.job import JobModel
 from app.models.user import UserModel
 from app.models.course import CourseModel, NodeModel
-from app.core.time import utc_now_naive
+from app.core.time import utc_now
 from app.services.ai_agents.syllabus_agent import SyllabusAgent
 from app.services.commons.activity_logger import ActivityLogger
 from app.services.llm_clients.factory import LLMFactory
@@ -115,7 +115,7 @@ async def run_syllabus_generation_job(
         c_model.title = syllabus.courseTitle
         c_model.topic = topic
         c_model.syllabus_json = syllabus.model_dump()
-        c_model.updated_at = utc_now_naive()
+        c_model.updated_at = utc_now()
         mark_syllabus_completed(c_model)
         db.query(NodeModel).filter(NodeModel.course_id == c_model.id).delete()
 

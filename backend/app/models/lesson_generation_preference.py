@@ -1,7 +1,7 @@
 from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, JSON, String
 from sqlalchemy.orm import relationship
 
-from app.core.time import utc_now_naive
+from app.core.time import utc_now
 from app.db.base import Base
 
 
@@ -26,8 +26,8 @@ class LessonGenerationPreferenceModel(Base):
     )
     node_id = Column(String, nullable=True, index=True)
     allowed_components_json = Column(JSON, nullable=False, default=list)
-    created_at = Column(DateTime, default=utc_now_naive)
-    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive)
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
 
     user = relationship("UserModel", back_populates="lesson_generation_preferences")
     course = relationship("CourseModel", back_populates="lesson_generation_preferences")

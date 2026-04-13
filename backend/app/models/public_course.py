@@ -1,6 +1,6 @@
 from sqlalchemy import Boolean, Column, DateTime, Integer, JSON, String
 
-from app.core.time import utc_now_naive
+from app.core.time import utc_now
 from app.db.base import Base
 
 
@@ -18,6 +18,6 @@ class PublicCourseModel(Base):
     tags_json = Column(JSON, nullable=False, default=list)
     metadata_json = Column(JSON, nullable=True)
     syllabus_json = Column(JSON, nullable=True)
-    created_at = Column(DateTime, default=utc_now_naive)
-    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive)
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
 
