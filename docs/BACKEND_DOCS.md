@@ -164,6 +164,10 @@ backend/
     schemas/
     services/
       arena/
+        api/
+        models/
+        services/
+        domain/
       ai_agents/
       commons/
       knowledge_base/
@@ -226,16 +230,16 @@ flowchart TD
 Arena 現在已經是後端中的正式子系統，不再只是計劃稿。
 它目前主要落在這些模組：
 
-- `backend/app/api/v1/endpoints/arena.py`
-  玩家端 Arena API，包含 public courses、queue、room、match、presence、stream
-- `backend/app/api/v1/endpoints/arena_rank.py`
+- `backend/app/arena/api/arena.py`
+  玩家端 Arena API，包含 public courses、match、presence、stream
+- `backend/app/arena/api/arena_rank.py`
   profile、leaderboard、season leaderboard、rank history
-- `backend/app/api/v1/endpoints/arena_admin.py`
+- `backend/app/arena/api/arena_admin.py`
   官方主題、題池、season、ops review、system health
-- `backend/app/services/arena/`
-  核心商業邏輯，包含 `room_service.py`、`competitive_service.py`、`round_engine.py`、`rating_service.py`、`rank_service.py`、`presence_service.py`、`telemetry_service.py`
-- `backend/app/models/arena_*`
-  Arena rooms / matches / rounds / answers / ratings / seasons / events / queues
+- `backend/app/arena/services/`
+  核心商業邏輯，包含 `room_service.py`、`competitive_service.py`、`round_engine.py`、`rating_service.py`、`rank_service.py`、`presence_service.py`
+- `backend/app/arena/models/`
+  Arena matches / rounds / answers / ratings / seasons / events / queues
 
 Arena 目前的技術特徵：
 
@@ -244,12 +248,14 @@ Arena 目前的技術特徵：
 - `LISTEN/NOTIFY` + SSE 做即時事件串流
 - presence heartbeat + `player.disconnected` / `player.reconnected`
 - 溫和型風控與 anomaly review
+- 玩家狀態快照 (Snapshots)，保證歷史紀錄一致性
+- 事件驅動獎勵發放 (Exactly-Once delivery)
 - admin health snapshot 與部分自我修復
 
 Arena 本地開發前置：
 
-- 必須先跑 Alembic migration，否則 `public_courses`、`arena_ratings`、`arena_matches` 等表不會存在
-- 若要快速準備資料，可執行 `python3.12 -m scripts.seed_arena_demo`
+- 必須先跑 Alembic migration 或執行重置腳本
+- 若要完全初始化環境可執行：`python3.12 -m scripts.full_reset_db`
 
 #### `api/`
 

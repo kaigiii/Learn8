@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.core.config import settings
 from app.arena.config import arena_settings
 from app.core.time import utc_now, to_iso_utc
-from app.arena.domain.arena_modes import normalize_arena_mode
+from app.arena.domain.arena_modes import RANKED_ARENA_MODES
 from app.arena.domain.arena_statuses import ArenaMatchStatus, ArenaRoomStatus
 from app.arena.models.arena_match import ArenaMatchModel, ArenaMatchPlayerModel
 from app.arena.models.arena_room import ArenaRoomModel, ArenaRoomPlayerModel
@@ -178,7 +178,6 @@ class RoomService:
         if not public_course:
             raise HTTPException(status_code=404, detail="Arena public course not found")
 
-        normalized_mode = normalize_arena_mode(mode)
         active_season = self.rank_service.get_active_season(db)
         
         # MUTUAL EXCLUSION: Cancel any active competitive queues
@@ -197,7 +196,7 @@ class RoomService:
             season_id=active_season.id if active_season else None,
             host_user_id=current_user.id,
             public_course_id=public_course_id,
-            mode=normalized_mode,
+            mode=mode,
             visibility=visibility,
             max_players=max_players,
             round_count=round_count,

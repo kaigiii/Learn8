@@ -221,3 +221,11 @@ lesson_sessions
 - **Remedial Generation**
   - 來源：`generate_remedial_stages`
   - 行為：不使用全文，只吃 failed stages + prompt
+
+## Arena Content Pipeline
+
+目前的 Arena 官方內容（`PublicCourse` 與 `QuestionPool`）採取與個人課程不同的流程：
+
+- **YAML 驅動**：官方主題與題庫目前由管理員透過 YAML 文件人工審核並導入，不經過 AI 即時生成。
+- **優點**：確保競技平衡性（所有玩家面對相同難度的題庫）、保證題目內容的高準確度。
+- **未來擴展**：系統架構已預留在管理台（`ArenaAdminService`）整合 AI 生成題目的介面。
