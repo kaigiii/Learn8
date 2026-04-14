@@ -7,7 +7,7 @@ Learn8 是一個 AI 驅動的學習平台，把 `course draft -> file upload / R
 如果你想快速找到不同深度的資訊，建議這樣讀：
 
 - 專案總覽與啟動方式：本檔 [README.md](/Users/kaigiii/Coding/Learn8/README.md)
-- 後端完整架構、lifecycle、ledger、job、測試與維運說明：[BACKEND_DOCS.md](/Users/kaigiii/Coding/Learn8/BACKEND_DOCS.md)
+- 後端完整架構、lifecycle、ledger、job、測試與維運說明：[BACKEND_DOCS.md](docs/BACKEND_DOCS.md)
 
 推薦閱讀路徑：
 
@@ -33,6 +33,7 @@ Learn8 是一個 AI 驅動的學習平台，把 `course draft -> file upload / R
 9. 後端判定 `result`
 10. 若有 failed stages，進入 remedial generation
 11. remedial 完成後，lesson / node 才算真正完成
+12. (競技擴充) 使用者參與 Arena 官方主題或私人房進行即時對戰
 
 ## 快速定位
 
@@ -120,9 +121,9 @@ npm run dev
 
 所有的腳本建議在 `backend` 目錄下執行：
 
-- **同步公開課程內容**：從 YAML 導入官方教材並清理廢棄課程。
+- **完整重置資料庫**：清空所有資料表並重新建立 Schema（開發與測試首選）。
   ```bash
-  python3.12 -m scripts.seed_public_courses
+  python3.12 -m scripts.full_reset_db
   ```
 - **資料庫遷移**：將資料庫結構更新至最新版本。
   ```bash

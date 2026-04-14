@@ -1,108 +1,78 @@
-# Arena
+# Arena (競技對戰系統)
 
-這份文件整理 Arena 子系統的本地啟動、管理入口與 demo 資料準備方式。
+這份文件整理 Arena 子系統的架構、玩家快照機制、獎勵發放邏輯與維運說明。
 
 ## Arena 本地初始化
 
 Arena 現在已經依賴額外的 PostgreSQL tables。
 如果你拉了最新程式碼但還沒跑 migration，就會看到這類錯誤：
 
-- `relation "public_courses" does not exist`
+- `relation "arena_matches" does not exist`
 - `relation "arena_ratings" does not exist`
 
-這不是 API route 壞掉，而是資料庫 schema 還停在 Arena migration 之前。
+### 快速初始化 (推薦)
+如果你想獲得一個完全乾淨且同步最新 Schema 的開發環境，請在 `backend/` 目錄執行：
 
-請在 `backend/` 目錄執行：
+```bash
+python3.12 -m scripts.full_reset_db
+```
+
+### 手動遷移
+如果只想更新 Schema 而不清除現有資料：
 
 ```bash
 python3.12 -m alembic upgrade head
 ```
 
-如果想確認 Arena migration 是否已進資料庫，可用：
+---
 
-```bash
-python3.12 -m alembic current
-python3.12 -m alembic history --verbose
-```
+## 核心機制 (Core Mechanisms)
 
-你應該至少看到 Arena foundation migration：
+### 1. 玩家快照機制 (Player Profile Snapshot)
+為了確保比賽紀錄的歷史準確性（例如玩家改名或等級變動後，舊比賽紀錄不應隨之改變），Arena 實作了「快照化」儲存：
+- **存儲位置**：`ArenaRoomPlayerModel` 與 `ArenaMatchPlayerModel` 中的 `user_snapshot_json` 欄位。
+- **時機**：當使用者加入私人房或競技配對成功時，系統會立即拍攝當時的 `name`, `avatar`, `level`。
+- **優點**：前端顯示排名與狀態時直接讀取快照，不再需要關聯查詢 `UserModel`，大幅提升讀取效能並保證歷史一致性。
 
-```text
-9d3c1a4b7ef2_add_arena_foundation.py
-```
+### 2. 事件驅動獎勵系統 (Event-Driven Rewards)
+Arena 的獎勵發放（XP/積分）採用「非同步＋行級鎖」機制以確保 **Exactly-Once (精確一次)** 處理：
+- **機制**：對戰結束後，系統會標記 `reward_awarded_at`。
+- ** Exactly-Once**：透過數據庫行級鎖 (`FOR UPDATE SKIP LOCKED`) 防止多個 Worker 同時重複發放同一場比賽的獎勵。
+- **異步處理**：獎勵計算不會阻塞主遊戲迴圈，提升系統吞吐量。
 
-完成後再啟動後端：
+---
 
-```bash
-python3.12 -m uvicorn app.main:app --reload --port 8000
-```
+## Arena 系統構成
 
-## Arena Admin
+目前 Arena 以獨立模組形式封裝在 `backend/app/arena/`：
 
-Arena 管理台路徑：
+- **API 層** (`app/arena/api/`)：
+  - `arena.py`: 玩家核心對戰（Room, Match, SSE Stream）。
+  - `arena_rank.py`: 排行榜、賽季與個人競技檔案。
+  - `arena_admin.py`: 題池管理與系統監控。
+- **服務層** (`app/arena/services/`)：
+  - `round_engine.py`: 負責回合判定、計時與狀態機。
+  - `room_service.py`: 私人房間生命週期。
+  - `competitive_service.py`: 系統自動配對 (Queue) 與對戰初始化。
+- **模型層** (`app/arena/models/`)：專屬的對戰與競技數據模型。
 
-```text
-/admin/arena
-```
+---
 
-目前它可管理：
+## 多人即時同步
 
-- `PublicCourse`
-- `ArenaQuestionPool`
-- `ArenaSeason`
-- Arena 題目與選項內容
-- 玩家比賽紀錄與異常對戰檢視
-- Arena 系統健康摘要
+目前的技術設計：
+- **SSE (Server-Sent Events)**: 用於即時狀態推播（玩家加入、倒數計時、結果公佈）。
+- **Presence Heartbeat**: 每個玩家每 3-5 秒會發送一次 Presence 訊息，後端以此判定玩家是否在線。
+- **自動狀態恢復**: 玩家斷線重連後，前端會向後端請求 `SYNC` 事件，立即同步目前回合的最新狀態。
 
-Arena 玩家端目前已整合進主產品介面，主要入口是：
+---
 
-- `/home`
-  這裡可以直接選官方主題、加入即時競賽、建立私人房、輸入房號加入、查看排行榜摘要與公開主題
-- `/profile`
-  這裡會顯示 Arena 競技身份，包含 rating、rank tier、勝率、主題強度、近期 rank 變化，以及 season badge / title / placement
-- `/arena/leaderboard`
-  獨立排行榜頁，提供 season / global 與 rank / win rate / matches 等分類檢視
+## 管理入口
 
-Arena 玩家端的核心模式目前分成兩種：
+Arena 管理台預設路徑：`/admin/arena`
 
-- `私人房間`
-- `即時競賽隊列`
-
-即時競賽隊列會在相同官方主題下等待對手，成功配對後直接建立正式競賽 match。
-舊的 `/arena` 首頁已被收斂，現在會直接導回 `/home`。
-
-目前 Arena 也已具備：
-
-- SSE 重連與狀態恢復
-- room / match presence heartbeat
-- `player.disconnected` / `player.reconnected` 事件
-- 溫和型風控標記，例如 low completion、disconnect instability、suspicious latency pattern
-- 管理台健康摘要，用來觀察 queue 壓力、stale matches 與異常活動
-
-對應權限規則：
-
-- 若 `ARENA_ADMIN_EMAILS` 為空，已登入使用者都可進入管理 API
-- 若 `ARENA_ADMIN_EMAILS` 有值，只有 email 在 allowlist 內的帳號可使用
-
-## Arena Demo Data
-
-如果你想快速把 Arena 畫面跑起來，而不是手動在 `/admin/arena` 一筆一筆建立內容，可以直接執行 demo seed：
-
-```bash
-cd backend
-python3.12 -m scripts.seed_arena_demo
-```
-
-這個腳本會：
-
-- 建立或更新 3 個可用的 `PublicCourse`
-- 為每個主題建立可直接開房的 `ArenaQuestionPool`
-- 建立一個 active season
-- 幫現有使用者補 Arena rating / topic rating / rank history demo 資料
-
-如果你剛拉下最新版本，記得重新執行 migration，因為 Arena 新增了競賽配對隊列表：
-
-```bash
-cd backend
-python3.12 -m alembic upgrade head
-```
+目前可管理：
+- `PublicCourse` (官方主題)
+- `ArenaQuestionPool` (各主題題池)
+- `ArenaSeason` (賽季設定)
+- 玩家舉報與異常對戰審核

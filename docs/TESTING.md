@@ -58,3 +58,14 @@ python3.12 -m pytest tests -q
 ## 注意事項
 
 - backend 測試預設不呼叫真實 AI；要耗 token 的 smoke tests 必須手動開 `LEARN8_RUN_AI_TESTS=1`
+
+## Arena 核心流轉測試 (Match Acceptance)
+
+由於 Arena 的對戰狀態涉及多個玩家與複雜的計時邏輯，我們提供了一個專用的驗收腳本來模擬完整的對戰生命週期（包含配對、進入 Match、回合判定、超時處理與獎勵發放）：
+
+```bash
+cd backend
+python3.12 -m scripts.test_match_acceptance
+```
+
+如果在重構後對對戰邏輯有疑慮，優先跑這個腳本確保核心狀態機運作正常。

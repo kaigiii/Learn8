@@ -28,7 +28,6 @@ chromadb>=0.4.24
 
 # Document Loaders
 pymupdf>=1.24.0
-docx2txt>=0.8
 
 # Utilities
 watchfiles>=0.21.0
@@ -42,10 +41,5 @@ bcrypt==4.3.0
 # LangGraph
 langgraph>=0.0.10
 
-# OpenTelemetry fix
-opentelemetry-api>=1.39.1
-opentelemetry-sdk>=1.39.1
-opentelemetry-exporter-otlp-proto-grpc>=1.39.1
-opentelemetry-exporter-otlp-proto-http>=1.39.1
 pypdf
 PyYAML==6.0.1
