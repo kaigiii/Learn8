@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
-from app.core.time import utc_now, to_iso_utc
+from app.core.time import utc_now, to_iso_utc, ensure_aware
 from app.arena.models.arena_match import ArenaMatchModel, ArenaMatchPlayerModel
 from app.arena.models.arena_room import ArenaRoomModel, ArenaRoomPlayerModel
 from app.models.user import UserModel
@@ -54,7 +54,7 @@ class PresenceService:
         for player in room.players:
             if player.connection_state != "connected":
                 continue
-            last_seen_at = player.last_seen_at
+            last_seen_at = ensure_aware(player.last_seen_at)
             if not last_seen_at:
                 continue
             if (now - last_seen_at).total_seconds() < self.DISCONNECT_AFTER_SECONDS:
@@ -114,7 +114,7 @@ class PresenceService:
         for player in match.players:
             if player.connection_state != "connected":
                 continue
-            last_seen_at = player.last_seen_at
+            last_seen_at = ensure_aware(player.last_seen_at)
             if not last_seen_at:
                 continue
             elapsed = (now - last_seen_at).total_seconds()

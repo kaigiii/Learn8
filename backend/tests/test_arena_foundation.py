@@ -3,7 +3,8 @@ from datetime import timedelta
 from fastapi import HTTPException
 
 from app.core.config import settings
-from app.core.time import utc_now_naive
+from app.arena.config import arena_settings
+from app.core.time import utc_now
 from app.arena.domain.arena_modes import ArenaMode
 from app.arena.domain.arena_statuses import ArenaMatchStatus, ArenaRoomStatus
 from app.arena.models.arena_match import ArenaMatchModel, ArenaMatchPlayerModel
@@ -156,8 +157,8 @@ def _create_competitive_match(db_session, public_course_id: int, player_ids: lis
         status=ArenaMatchStatus.FINISHED,
         room_snapshot_json={"queue_mode": True, "player_ids": player_ids},
         rules_snapshot_json={"round_count": 5, "round_time_seconds": 30, "max_players": len(player_ids)},
-        started_at=utc_now_naive(),
-        ended_at=utc_now_naive(),
+        started_at=utc_now(),
+        ended_at=utc_now(),
     )
     db_session.add(match)
     db_session.commit()
@@ -176,7 +177,7 @@ def _create_waiting_queue_entry(db_session, user_id: int, public_course_id: int)
         public_course_id=public_course_id,
         mode=ArenaMode.COMPETITIVE,
         status="waiting",
-        expires_at=utc_now_naive() + timedelta(minutes=3),
+        expires_at=utc_now() + timedelta(minutes=3),
     )
     db_session.add(entry)
     db_session.commit()
@@ -191,7 +192,7 @@ def test_room_service_create_join_ready_and_start_flow(db_session, user):
         name="Season One",
         status="active",
         is_active=True,
-        started_at=utc_now_naive(),
+        started_at=utc_now(),
     )
     db_session.add(season)
     db_session.commit()
@@ -302,8 +303,8 @@ def test_room_service_closes_room_when_last_player_leaves(db_session, user):
 def test_room_service_auto_closes_idle_lobby_rooms(db_session, user):
     public_course = _create_public_course(db_session)
     room_service = RoomService()
-    original_idle_minutes = settings.ARENA_ROOM_IDLE_CLOSE_MINUTES
-    settings.ARENA_ROOM_IDLE_CLOSE_MINUTES = 15
+    original_idle_minutes = arena_settings.ARENA_ROOM_IDLE_CLOSE_MINUTES
+    arena_settings.ARENA_ROOM_IDLE_CLOSE_MINUTES = 15
     try:
         room = room_service.create_room(
             db_session,
@@ -316,7 +317,7 @@ def test_room_service_auto_closes_idle_lobby_rooms(db_session, user):
             round_time_seconds=30,
         )
 
-        stale_at = utc_now_naive() - timedelta(minutes=20)
+        stale_at = utc_now() - timedelta(minutes=20)
         room.status = ArenaRoomStatus.LOBBY
         room.updated_at = stale_at
         for player in room.players:
@@ -337,14 +338,14 @@ def test_room_service_auto_closes_idle_lobby_rooms(db_session, user):
         assert refreshed_room.status == ArenaRoomStatus.CLOSED
         assert refreshed_room.closed_at is not None
     finally:
-        settings.ARENA_ROOM_IDLE_CLOSE_MINUTES = original_idle_minutes
+        arena_settings.ARENA_ROOM_IDLE_CLOSE_MINUTES = original_idle_minutes
 
 
 def test_room_service_keeps_lobby_open_when_presence_is_recent(db_session, user):
     public_course = _create_public_course(db_session)
     room_service = RoomService()
-    original_idle_minutes = settings.ARENA_ROOM_IDLE_CLOSE_MINUTES
-    settings.ARENA_ROOM_IDLE_CLOSE_MINUTES = 15
+    original_idle_minutes = arena_settings.ARENA_ROOM_IDLE_CLOSE_MINUTES
+    arena_settings.ARENA_ROOM_IDLE_CLOSE_MINUTES = 15
     try:
         room = room_service.create_room(
             db_session,
@@ -357,9 +358,9 @@ def test_room_service_keeps_lobby_open_when_presence_is_recent(db_session, user)
             round_time_seconds=30,
         )
 
-        room.updated_at = utc_now_naive() - timedelta(minutes=30)
+        room.updated_at = utc_now() - timedelta(minutes=30)
         for player in room.players:
-            player.last_seen_at = utc_now_naive() - timedelta(minutes=1)
+            player.last_seen_at = utc_now() - timedelta(minutes=1)
             db_session.add(player)
         db_session.add(room)
         db_session.commit()
@@ -375,7 +376,7 @@ def test_room_service_keeps_lobby_open_when_presence_is_recent(db_session, user)
         assert refreshed_room.status == ArenaRoomStatus.LOBBY
         assert refreshed_room.closed_at is None
     finally:
-        settings.ARENA_ROOM_IDLE_CLOSE_MINUTES = original_idle_minutes
+        arena_settings.ARENA_ROOM_IDLE_CLOSE_MINUTES = original_idle_minutes
 
 
 def test_room_service_prevents_start_before_all_non_hosts_ready(db_session, user):
@@ -530,7 +531,7 @@ def test_competitive_service_expands_rating_window_for_long_waiters(db_session, 
         round_count=5,
         round_time_seconds=30,
     )
-    veteran_entry.created_at = utc_now_naive() - timedelta(seconds=80)
+    veteran_entry.created_at = utc_now() - timedelta(seconds=80)
     db_session.add(veteran_entry)
     db_session.commit()
 
@@ -1131,7 +1132,7 @@ def test_presence_service_emits_disconnect_and_reconnect_events(db_session, user
 
     presence_service.touch_match_presence(db_session, match, user)
     player = next(player for player in match.players if player.user_id == user.id)
-    player.last_seen_at = utc_now_naive() - timedelta(seconds=20)
+    player.last_seen_at = utc_now() - timedelta(seconds=20)
     player.connection_state = "connected"
     db_session.add(player)
     db_session.flush()
@@ -1181,7 +1182,7 @@ def test_competitive_service_expires_matched_entries_for_finished_match(db_sessi
         name="Ranked Season",
         status="active",
         is_active=True,
-        started_at=utc_now_naive(),
+        started_at=utc_now(),
     )
     db_session.add(season)
     db_session.commit()
@@ -1246,12 +1247,12 @@ def test_round_engine_recovers_stale_match_without_active_round(db_session, user
     round_model = db_session.query(ArenaRoundModel).filter(ArenaRoundModel.match_id == match.id).first()
     assert round_model is not None
     round_model.status = "closed"
-    round_model.closed_at = utc_now_naive()
+    round_model.closed_at = utc_now()
     db_session.add(round_model)
 
     match = db_session.query(ArenaMatchModel).filter(ArenaMatchModel.id == match.id).first()
     assert match is not None
-    match.started_at = utc_now_naive() - timedelta(minutes=20)
+    match.started_at = utc_now() - timedelta(minutes=20)
     match.status = ArenaMatchStatus.IN_PROGRESS
     db_session.add(match)
     db_session.commit()

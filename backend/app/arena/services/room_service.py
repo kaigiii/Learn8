@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.core.config import settings
 from app.arena.config import arena_settings
-from app.core.time import utc_now, to_iso_utc
+from app.core.time import utc_now, to_iso_utc, ensure_aware
 from app.arena.domain.arena_modes import RANKED_ARENA_MODES
 from app.arena.domain.arena_statuses import ArenaMatchStatus, ArenaRoomStatus
 from app.arena.models.arena_match import ArenaMatchModel, ArenaMatchPlayerModel
@@ -43,9 +43,9 @@ class RoomService:
         )
 
     def _latest_room_activity_at(self, room: ArenaRoomModel):
-        latest = room.updated_at or room.created_at or utc_now()
+        latest = ensure_aware(room.updated_at or room.created_at) or utc_now()
         for player in room.players:
-            for candidate in (player.last_seen_at, player.updated_at, player.joined_at):
+            for candidate in (ensure_aware(player.last_seen_at), ensure_aware(player.updated_at), ensure_aware(player.joined_at)):
                 if candidate and candidate > latest:
                     latest = candidate
         return latest
@@ -108,7 +108,7 @@ class RoomService:
         closed_rooms: list[ArenaRoomModel] = []
         for room in candidate_rooms:
             latest_activity_at = self._latest_room_activity_at(room)
-            if latest_activity_at > cutoff:
+            if ensure_aware(latest_activity_at) > cutoff:
                 continue
             room.status = ArenaRoomStatus.CLOSED
             room.closed_at = now
@@ -174,6 +174,8 @@ class RoomService:
         round_count: int,
         round_time_seconds: int,
     ) -> ArenaRoomModel:
+        if mode == "ranked":
+            mode = "competitive"
         public_course = self.topic_catalog_service.get_enabled_public_course(db, public_course_id)
         if not public_course:
             raise HTTPException(status_code=404, detail="Arena public course not found")

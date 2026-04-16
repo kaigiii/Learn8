@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.arena.config import arena_settings
-from app.core.time import utc_now, to_iso_utc
+from app.core.time import utc_now, to_iso_utc, ensure_aware
 from app.arena.domain.arena_modes import ArenaMode, RANKED_ARENA_MODES
 from app.arena.domain.arena_statuses import ArenaMatchStatus, ArenaQueueStatus
 from app.arena.models.arena_match import ArenaMatchModel, ArenaMatchPlayerModel
@@ -26,7 +26,7 @@ class CompetitiveService:
     RATING_WINDOW_EXPANSION = 75
     RATING_WINDOW_STEP_SECONDS = 20
     MAX_RATING_WINDOW = 450
-    RECENT_REMATCH_LOOKBACK = 0
+    RECENT_REMATCH_LOOKBACK = 1
     REMATCH_RELAX_AFTER_SECONDS = 10
 
     def __init__(self, topic_catalog_service: TopicCatalogService | None = None):
@@ -342,7 +342,7 @@ class CompetitiveService:
         )
 
     def _queued_seconds(self, queue_entry: ArenaQueueEntryModel, *, now) -> int:
-        return max(0, int((now - queue_entry.created_at).total_seconds()))
+        return max(0, int((now - ensure_aware(queue_entry.created_at)).total_seconds()))
 
     def _get_recent_opponent_ids(self, db: Session, user_id: int) -> set[int]:
         recent_matches = (
@@ -406,7 +406,7 @@ class CompetitiveService:
             count += 1
             
         for entry in matched_entries:
-            entry.status = ArenaQueueStatus.CANCELLED
+            entry.status = ArenaQueueStatus.EXPIRED
             entry.expires_at = None
             entry.closed_at = now
             db.add(entry)

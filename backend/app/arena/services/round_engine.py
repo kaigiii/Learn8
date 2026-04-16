@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.core.config import settings
 from app.arena.config import arena_settings
-from app.core.time import utc_now, to_iso_utc
+from app.core.time import utc_now, to_iso_utc, ensure_aware
 from app.arena.domain.arena_modes import ArenaMode
 from app.arena.domain.arena_statuses import ArenaMatchStatus, ArenaRoundStatus, ArenaRoomStatus
 from app.arena.models.arena_match import ArenaMatchModel, ArenaMatchPlayerModel
@@ -171,7 +171,7 @@ class RoundEngine:
 
         rounds = self._get_rounds(db, match.id)
         active_round = self._get_active_round(rounds)
-        if active_round and active_round.deadline_at and active_round.deadline_at <= utc_now():
+        if active_round and active_round.deadline_at and ensure_aware(active_round.deadline_at) <= utc_now():
             self._close_round(db, match, active_round)
             db.commit()
             return self.get_match(db, match.id)
@@ -180,7 +180,7 @@ class RoundEngine:
                 self._finalize_match_if_needed(db, match, rounds)
                 db.commit()
                 return self.get_match(db, match.id)
-            if match.started_at and (utc_now() - match.started_at).total_seconds() > self.STALE_MATCH_FINALIZE_SECONDS:
+            if match.started_at and (utc_now() - ensure_aware(match.started_at)).total_seconds() > self.STALE_MATCH_FINALIZE_SECONDS:
                 self._finalize_match_if_needed(db, match, rounds)
                 db.commit()
                 return self.get_match(db, match.id)
@@ -369,6 +369,8 @@ class RoundEngine:
                     self.reward_service.process_match_rewards(bg_db, match.id)
             
             self.background_tasks.add_task(_run_award)
+        else:
+            self.reward_service.process_match_rewards(db, match.id)
 
     def _deactivate_match_queue_entries(self, db: Session, match_id: int):
         from app.arena.models.arena_queue import ArenaQueueEntryModel
@@ -481,27 +483,7 @@ class RoundEngine:
                 },
             )
         else:
-            final_standings = self._build_standings(match, self._get_rounds(db, match.id))
-            match.status = ArenaMatchStatus.FINISHED
-            match.ended_at = utc_now()
-            match.completed_round_count = max(int(match.completed_round_count or 0), len(all_rounds))
-            match.standings_json = self.rating_service.settle_match(db, match, final_standings)
-            if isinstance(match.standings_json, list) and match.standings_json:
-                top_row = match.standings_json[0]
-                top_user_id = top_row.get("userId")
-                match.winner_user_id = int(top_user_id) if top_user_id is not None else None
-            db.add(match)
-            self.realtime_gateway.publish_event(
-                db,
-                stream_type="match",
-                room_code=match.room_snapshot_json.get("room_code") if isinstance(match.room_snapshot_json, dict) else None,
-                match_id=match.id,
-                event_type="match.finished",
-                payload={
-                    "matchId": match.id,
-                    "standings": match.standings_json,
-                },
-            )
+            self._finalize_match_if_needed(db, match, all_rounds)
             if match.room_id:
                 room = db.query(ArenaRoomModel).filter(ArenaRoomModel.id == match.room_id).first()
                 if room:
@@ -690,7 +672,7 @@ class RoundEngine:
                 "state": state,
             }
 
-        if round_model.deadline_at and round_model.deadline_at <= utc_now():
+        if round_model.deadline_at and ensure_aware(round_model.deadline_at) <= utc_now():
             self._close_round(db, match, round_model)
             db.commit()
             state = self.get_match_state(db, match.id, current_user)
@@ -707,7 +689,7 @@ class RoundEngine:
         is_correct = selected_option_id == correct_option_id
         response_time_ms = None
         if round_model.started_at:
-            response_time_ms = max(0, int((utc_now() - round_model.started_at).total_seconds() * 1000))
+            response_time_ms = max(0, int((utc_now() - ensure_aware(round_model.started_at)).total_seconds() * 1000))
         self.presence_service.record_answer_submission(
             db,
             match=match,

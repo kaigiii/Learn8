@@ -11,3 +11,11 @@ def to_iso_utc(dt: Optional[datetime]) -> Optional[str]:
         return None
     # Ensure it's in UTC, then make naive for isoformat() to avoid offset suffix, then add Z
     return dt.astimezone(UTC).replace(tzinfo=None).isoformat() + "Z"
+
+def ensure_aware(dt: Optional[datetime]) -> Optional[datetime]:
+    """Ensures a datetime object is timezone-aware (UTC)."""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC)
