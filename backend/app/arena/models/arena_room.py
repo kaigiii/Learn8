@@ -25,6 +25,7 @@ class ArenaRoomModel(Base):
     season_id = Column(Integer, ForeignKey("arena_seasons.id", ondelete="SET NULL"), nullable=True, index=True)
     host_user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     public_course_id = Column(Integer, ForeignKey("public_courses.id", ondelete="RESTRICT"), nullable=False, index=True)
+    question_pool_id = Column(Integer, ForeignKey("arena_question_pools.id", ondelete="SET NULL"), nullable=True, index=True)
     mode = Column(String, nullable=False, default=ArenaMode.PRIVATE_ROOM, index=True)
     visibility = Column(String, nullable=False, default=ArenaRoomVisibility.PRIVATE)
     status = Column(String, nullable=False, default=ArenaRoomStatus.LOBBY, index=True)
@@ -39,6 +40,7 @@ class ArenaRoomModel(Base):
     closed_at = Column(DateTime(timezone=True), nullable=True)
 
     public_course = relationship("PublicCourseModel")
+    question_pool = relationship("ArenaQuestionPoolModel")
     players = relationship(
         "ArenaRoomPlayerModel",
         back_populates="room",

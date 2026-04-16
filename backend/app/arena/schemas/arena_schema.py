@@ -24,12 +24,14 @@ class ArenaRoomStatusEnum(str, Enum):
 
 
 class ArenaPublicCourseSummary(BaseModel):
-    id: int
+    id: int  # This remains course_id for backward compatibility or becomes pool_id? 
+    poolId: int
     slug: str
-    title: str
+    title: str # User sees Pool Title
+    courseTitle: str # Secondary info
     topic: str
     description: Optional[str] = None
-    difficulty: str
+    isFeatured: bool = False
     tags: List[str] = Field(default_factory=list)
 
 

@@ -7,13 +7,19 @@ import TopStatsBar from "@/components/layout/TopStatsBar";
 import DeepGlassCard from "@/components/ui/DeepGlassCard";
 import GameButton from "@/components/ui/GameButton";
 import { useRequireAuthRedirect } from "@/lib/auth/useRequireAuthRedirect";
+import { useArenaMatchStore } from "@/stores/arena/useArenaMatchStore";
 import { useArenaMatchEvents } from "./hooks/useArenaMatchEvents";
 
 export default function ArenaResultPageClient({ matchId }: { matchId: number }) {
   const router = useRouter();
   const { isReady } = useRequireAuthRedirect();
   const match = useArenaMatchEvents(isReady ? matchId : null);
+  const reset = useArenaMatchStore((state) => state.reset);
   const result = match?.currentPlayerResult ?? null;
+
+  React.useEffect(() => {
+    return () => reset();
+  }, [reset]);
 
   return (
     <div className="min-h-screen app-shared-bg">

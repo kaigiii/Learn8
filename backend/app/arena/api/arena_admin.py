@@ -8,7 +8,6 @@ from app.arena.schemas.arena_admin_schema import (
     ArenaAdminMatchReviewResponse,
     ArenaAdminPlayerMatchRecordResponse,
     ArenaAdminPublicCourseResponse,
-    ArenaAdminPublicCourseUpsertRequest,
     ArenaAdminQuestionPoolResponse,
     ArenaAdminQuestionPoolUpsertRequest,
     ArenaAdminSeasonResponse,
@@ -67,33 +66,6 @@ def list_admin_public_courses(
     return [service.serialize_public_course(course) for course in service.list_public_courses(db)]
 
 
-@router.post("/public-courses", response_model=ArenaAdminPublicCourseResponse)
-def create_admin_public_course(
-    payload: ArenaAdminPublicCourseUpsertRequest,
-    db: Session = Depends(get_db),
-    current_user: UserModel = Depends(get_current_arena_admin),
-):
-    del current_user
-    service = AdminService()
-    course = service.upsert_public_course(db, public_course_id=None, payload=payload.model_dump())
-    return service.serialize_public_course(course)
-
-
-@router.put("/public-courses/{public_course_id}", response_model=ArenaAdminPublicCourseResponse)
-def update_admin_public_course(
-    public_course_id: int,
-    payload: ArenaAdminPublicCourseUpsertRequest,
-    db: Session = Depends(get_db),
-    current_user: UserModel = Depends(get_current_arena_admin),
-):
-    del current_user
-    service = AdminService()
-    course = service.upsert_public_course(
-        db,
-        public_course_id=public_course_id,
-        payload=payload.model_dump(),
-    )
-    return service.serialize_public_course(course)
 
 
 @router.get(

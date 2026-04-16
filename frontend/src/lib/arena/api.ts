@@ -6,7 +6,6 @@ import type {
   ArenaAdminMatchReview,
   ArenaAdminPlayerMatchRecord,
   ArenaAdminPublicCourse,
-  ArenaAdminPublicCourseUpsertRequest,
   ArenaAdminQuestionPool,
   ArenaAdminQuestionPoolUpsertRequest,
   ArenaAdminHealthSnapshot,
@@ -55,6 +54,7 @@ export function fetchArenaRankHistory(limit = 10) {
 
 export function createArenaRoom(payload: {
   publicCourseId: number;
+  poolId?: number;
   mode?: string;
   visibility?: string;
   maxPlayers?: number;
@@ -65,6 +65,7 @@ export function createArenaRoom(payload: {
     method: "POST",
     body: JSON.stringify({
       publicCourseId: payload.publicCourseId,
+      poolId: payload.poolId,
       mode: payload.mode ?? "private_room",
       visibility: payload.visibility ?? "private",
       maxPlayers: payload.maxPlayers ?? 4,
@@ -85,11 +86,6 @@ export function fetchArenaRoom(roomCode: string) {
   return apiFetch<ArenaRoom>(`/arena/rooms/${roomCode}`);
 }
 
-export function heartbeatArenaRoomPresence(roomCode: string) {
-  return apiFetch<void>(`/arena/rooms/${roomCode}/presence`, {
-    method: "POST",
-  });
-}
 
 export function setArenaRoomReady(roomCode: string, isReady: boolean) {
   return apiFetch<ArenaRoom>(`/arena/rooms/${roomCode}/ready`, {
@@ -117,21 +113,7 @@ export function fetchArenaMatch(matchId: number) {
   return apiFetch<ArenaMatchState>(`/arena/matches/${matchId}`);
 }
 
-export function heartbeatArenaMatchPresence(matchId: number) {
-  return apiFetch<void>(`/arena/matches/${matchId}/presence`, {
-    method: "POST",
-  });
-}
 
-export function submitArenaAnswer(
-  matchId: number,
-  payload: { roundId: number; selectedOptionId?: string | null; answerPayload?: any }
-) {
-  return apiFetch<ArenaAnswerSubmitResponse>(`/arena/matches/${matchId}/answers`, {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
-}
 
 export function confirmArenaMatch(matchId: number) {
   return apiFetch<ArenaMatchState>(`/arena/matches/${matchId}/confirm`, {
@@ -139,47 +121,13 @@ export function confirmArenaMatch(matchId: number) {
   });
 }
 
-export function fetchArenaRoomEvents(roomCode: string, afterCursor = 0, limit = 100) {
-  return apiFetch<ArenaEventListResponse>(
-    `/arena/rooms/${roomCode}/events?after_cursor=${afterCursor}&limit=${limit}`
-  );
-}
 
-export function fetchArenaMatchEvents(matchId: number, afterCursor = 0, limit = 100) {
-  return apiFetch<ArenaEventListResponse>(
-    `/arena/matches/${matchId}/events?after_cursor=${afterCursor}&limit=${limit}`
-  );
-}
-
-export function buildArenaRoomStreamPath(roomCode: string) {
-  const roomCodeValue = encodeURIComponent(roomCode.toUpperCase());
-  return `/arena/rooms/${roomCodeValue}/stream`;
-}
-
-export function buildArenaMatchStreamPath(matchId: number) {
-  return `/arena/matches/${matchId}/stream`;
-}
 
 export function fetchArenaAdminPublicCourses() {
   return apiFetch<ArenaAdminPublicCourse[]>("/arena/admin/public-courses");
 }
 
-export function createArenaAdminPublicCourse(payload: ArenaAdminPublicCourseUpsertRequest) {
-  return apiFetch<ArenaAdminPublicCourse>("/arena/admin/public-courses", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
-}
-
-export function updateArenaAdminPublicCourse(
-  publicCourseId: number,
-  payload: ArenaAdminPublicCourseUpsertRequest
-) {
-  return apiFetch<ArenaAdminPublicCourse>(`/arena/admin/public-courses/${publicCourseId}`, {
-    method: "PUT",
-    body: JSON.stringify(payload),
-  });
-}
+// create/updateCourse removed - YAML only
 
 // ...existing code...
 
@@ -262,6 +210,7 @@ export function updateArenaAdminSeason(
 
 export function joinArenaCompetitiveQueue(payload: {
   publicCourseId: number;
+  poolId?: number;
   roundCount?: number;
   roundTimeSeconds?: number;
 }) {
@@ -269,6 +218,7 @@ export function joinArenaCompetitiveQueue(payload: {
     method: "POST",
     body: JSON.stringify({
       publicCourseId: payload.publicCourseId,
+      poolId: payload.poolId,
       roundCount: payload.roundCount ?? 5,
       roundTimeSeconds: payload.roundTimeSeconds ?? 30,
     }),

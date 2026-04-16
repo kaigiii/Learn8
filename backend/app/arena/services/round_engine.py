@@ -92,6 +92,7 @@ class RoundEngine:
         questions = self.question_pool_service.build_round_questions(
             db,
             public_course,
+            pool_id=match.question_pool_id,
             round_count=round_count,
         )
         match.round_count = len(questions)
@@ -293,13 +294,16 @@ class RoundEngine:
             )
 
         db.commit()
+        return self.get_match_state(db, match.id, current_user)
+
     def forfeit_active_match(self, db: Session, user_id: int) -> None:
         """
         Forcefully settle any active matches for a user. Used when joining a new queue.
         """
         match = self.get_active_match_for_user(db, user_id)
         if match:
-            # Settle it immediately
+            # Quick settle: set status to finished immediately so player can re-match.
+            # Rating and rewards are handled by background task.
             self._finalize_match_if_needed(db, match, self._get_rounds(db, match.id))
             db.commit()
 
@@ -336,17 +340,13 @@ class RoundEngine:
             return
 
         standings = self._build_standings(match, rounds)
-        if not isinstance(match.standings_json, list):
-            match.standings_json = self.rating_service.settle_match(db, match, standings)
         match.completed_round_count = max(int(match.completed_round_count or 0), len(rounds))
-        if isinstance(match.standings_json, list) and match.standings_json:
-            top_row = match.standings_json[0]
-            top_user_id = top_row.get("userId")
-            match.winner_user_id = int(top_user_id) if top_user_id is not None else None
         match.status = ArenaMatchStatus.FINISHED
         match.ended_at = match.ended_at or utc_now()
         db.add(match)
         self._deactivate_match_queue_entries(db, match.id)
+        
+        # Immediate event broadcast for UI feedback
         self.realtime_gateway.publish_event(
             db,
             stream_type="match",
@@ -355,22 +355,36 @@ class RoundEngine:
             event_type="match.finished",
             payload={
                 "matchId": match.id,
-                "standings": match.standings_json,
+                "standings": standings,
                 "recovered": True,
             },
         )
         
-        # Trigger background reward processing
-        if self.background_tasks:
+        # Heavy lifting (rating settlement and rewards) moved to background
+        # Note: We pass raw standings to background task to avoid re-calculating them
+        def _settle_in_background(target_match_id: int, final_standings: list[dict]):
             from app.db.session import SessionLocal
-            def _run_award():
-                # background_tasks runs after response, so we need a fresh session
-                with SessionLocal() as bg_db:
-                    self.reward_service.process_match_rewards(bg_db, match.id)
-            
-            self.background_tasks.add_task(_run_award)
+            with SessionLocal() as bg_db:
+                bg_match = bg_db.query(ArenaMatchModel).get(target_match_id)
+                if not bg_match:
+                    return
+                # Settle ratings (heavy IO)
+                bg_match.standings_json = self.rating_service.settle_match(bg_db, bg_match, final_standings)
+                if bg_match.standings_json:
+                    top_row = bg_match.standings_json[0]
+                    top_user_id = top_row.get("userId")
+                    bg_match.winner_user_id = int(top_user_id) if top_user_id is not None else None
+                bg_db.add(bg_match)
+                bg_db.commit()
+                # Process rewards (heavy IO)
+                self.reward_service.process_match_rewards(bg_db, target_match_id)
+
+        if self.background_tasks:
+            self.background_tasks.add_task(_settle_in_background, match.id, standings)
         else:
-            self.reward_service.process_match_rewards(db, match.id)
+            # Fallback for sync contexts or testing
+            import asyncio
+            asyncio.create_task(asyncio.to_thread(_settle_in_background, match.id, standings))
 
     def _deactivate_match_queue_entries(self, db: Session, match_id: int):
         from app.arena.models.arena_queue import ArenaQueueEntryModel

@@ -22,12 +22,12 @@ from app.arena.utils.profile_utils import build_user_snapshot
 
 
 class CompetitiveService:
-    BASE_RATING_WINDOW = 150
-    RATING_WINDOW_EXPANSION = 75
-    RATING_WINDOW_STEP_SECONDS = 20
-    MAX_RATING_WINDOW = 450
-    RECENT_REMATCH_LOOKBACK = 1
-    REMATCH_RELAX_AFTER_SECONDS = 10
+    BASE_RATING_WINDOW = 9999  # Disable rating gap for dev
+    RATING_WINDOW_EXPANSION = 0
+    RATING_WINDOW_STEP_SECONDS = 1
+    MAX_RATING_WINDOW = 9999
+    RECENT_REMATCH_LOOKBACK = 0
+    REMATCH_RELAX_AFTER_SECONDS = 0 # Disable rematch cooldown
 
     def __init__(self, topic_catalog_service: TopicCatalogService | None = None):
         self.topic_catalog_service = topic_catalog_service or TopicCatalogService()
@@ -40,14 +40,36 @@ class CompetitiveService:
         self,
         db: Session,
         current_user: UserModel,
+        background_tasks: BackgroundTasks | None = None,
         *,
-        public_course_id: int,
+        public_course_id: int | None = None,
+        pool_id: int | None = None,
         round_count: int,
         round_time_seconds: int,
     ) -> ArenaQueueEntryModel:
-        public_course = self.topic_catalog_service.get_enabled_public_course(db, public_course_id)
-        if not public_course:
-            raise HTTPException(status_code=404, detail="Arena public course not found")
+        if background_tasks:
+            self.round_engine.background_tasks = background_tasks
+        if pool_id:
+            pool = self.topic_catalog_service.get_active_pool(db, pool_id)
+            if not pool:
+                raise HTTPException(status_code=404, detail="Arena question pool not found")
+            public_course = pool.public_course
+            public_course_id = pool.public_course_id
+        elif public_course_id:
+            public_course = self.topic_catalog_service.get_enabled_public_course(db, public_course_id)
+            if not public_course:
+                raise HTTPException(status_code=404, detail="Arena public course not found")
+            # Fallback: pick the first active pool for this course
+            from app.arena.models.arena_question_pool import ArenaQuestionPoolModel
+            pool = db.query(ArenaQuestionPoolModel).filter(
+                ArenaQuestionPoolModel.public_course_id == public_course_id,
+                ArenaQuestionPoolModel.is_active.is_(True)
+            ).first()
+            if not pool:
+                 raise HTTPException(status_code=404, detail="No active pool for this course")
+            pool_id = pool.id
+        else:
+             raise HTTPException(status_code=400, detail="Either pool_id or public_course_id is required")
 
         self._expire_stale_entries(db)
         
@@ -55,14 +77,13 @@ class CompetitiveService:
         self.round_engine.forfeit_active_match(db, current_user.id)
         
         # Force cancel ANY previous entries for this user to ensure a clean state
-        previous_entries = db.query(ArenaQueueEntryModel).filter(
+        db.query(ArenaQueueEntryModel).filter(
             ArenaQueueEntryModel.user_id == current_user.id,
             ArenaQueueEntryModel.status.in_((ArenaQueueStatus.WAITING, ArenaQueueStatus.MATCHED))
-        ).all()
-        for old_entry in previous_entries:
-            old_entry.status = ArenaQueueStatus.CANCELLED
-            old_entry.closed_at = utc_now()
-            db.add(old_entry)
+        ).update({
+            ArenaQueueEntryModel.status: ArenaQueueStatus.CANCELLED,
+            ArenaQueueEntryModel.closed_at: utc_now()
+        }, synchronize_session=False)
 
         # ALSO: Exit any active rooms to prevent state conflicts
         from app.arena.models.arena_room import ArenaRoomPlayerModel
@@ -70,12 +91,13 @@ class CompetitiveService:
         
         db.flush()
 
-        opponent = self._find_waiting_opponent(db, current_user.id, public_course_id)
+        opponent = self._find_waiting_opponent(db, current_user.id, public_course_id, pool_id)
         active_season = self.rank_service.get_active_season(db)
         queue_entry = ArenaQueueEntryModel(
             user_id=current_user.id,
             season_id=active_season.id if active_season else None,
             public_course_id=public_course_id,
+            question_pool_id=pool_id,
             mode=ArenaMode.COMPETITIVE,
             status=ArenaQueueStatus.WAITING,
             expires_at=utc_now()
@@ -88,6 +110,7 @@ class CompetitiveService:
             match = self._create_competitive_match(
                 db,
                 public_course=public_course,
+                pool_id=pool_id,
                 first_user_id=opponent.user_id,
                 second_user_id=current_user.id,
                 round_count=round_count,
@@ -145,7 +168,19 @@ class CompetitiveService:
                 match.status = ArenaMatchStatus.CANCELLED
                 match.ended_at = utc_now()
                 db.add(match)
-                # Fall through to cancel entry
+                
+                # IMPORTANT: Reset OTHER players in this match back to WAITING status
+                from app.arena.models.arena_queue import ArenaQueueEntryModel
+                db.query(ArenaQueueEntryModel).filter(
+                    ArenaQueueEntryModel.match_id == match.id,
+                    ArenaQueueEntryModel.user_id != current_user.id,
+                    ArenaQueueEntryModel.status == ArenaQueueStatus.MATCHED
+                ).update({
+                    "status": ArenaQueueStatus.WAITING,
+                    "match_id": None,
+                    "match_found_at": None
+                }, synchronize_session=False)
+                # Fall through to cancel the CURRENT user's entry
             else:
                 raise HTTPException(status_code=409, detail="Started Arena matches cannot be cancelled")
         elif entry.status != ArenaQueueStatus.WAITING:
@@ -164,6 +199,8 @@ class CompetitiveService:
             "status": entry.status,
             "publicCourseId": entry.public_course_id,
             "publicCourseTitle": course.title if course else "Unknown",
+            "poolId": entry.question_pool_id,
+            "poolTitle": entry.question_pool.title if entry.question_pool else None,
             "mode": entry.mode,
             "queuedAt": to_iso_utc(entry.created_at),
             "expiresAt": to_iso_utc(entry.expires_at),
@@ -201,18 +238,28 @@ class CompetitiveService:
         db: Session,
         current_user_id: int,
         public_course_id: int,
+        pool_id: int | None = None,
     ) -> ArenaQueueEntryModel | None:
+        """
+        Finds a suitable opponent and LOCKS their queue entry row to prevent race conditions.
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+
+        # 1. Fetch potential candidates
         candidates = (
             db.query(ArenaQueueEntryModel)
             .filter(
                 ArenaQueueEntryModel.user_id != current_user_id,
                 ArenaQueueEntryModel.public_course_id == public_course_id,
+                ArenaQueueEntryModel.question_pool_id == pool_id if pool_id else True,
                 ArenaQueueEntryModel.mode == ArenaMode.COMPETITIVE,
                 ArenaQueueEntryModel.status == ArenaQueueStatus.WAITING,
             )
             .order_by(ArenaQueueEntryModel.created_at.asc())
             .all()
         )
+        
         if not candidates:
             return None
 
@@ -220,37 +267,46 @@ class CompetitiveService:
         current_user_rating = self._get_player_rating_value(db, current_user_id)
         recent_opponent_ids = self._get_recent_opponent_ids(db, current_user_id)
 
-        eligible_candidates: list[tuple[int, ArenaQueueEntryModel]] = []
-        rematch_fallback_candidates: list[tuple[int, ArenaQueueEntryModel]] = []
+        # 2. Filter and rank candidates in memory (fast)
+        eligible_candidates: list[tuple[int, int]] = [] # (rating_gap, entry_id)
+        rematch_fallback_candidates: list[tuple[int, int]] = []
 
         for candidate in candidates:
             candidate_rating = self._get_player_rating_value(db, candidate.user_id)
             rating_gap = abs(current_user_rating - candidate_rating)
             allowed_gap = self._compute_allowed_rating_gap(candidate, now=now)
+            
             if rating_gap > allowed_gap:
                 continue
 
-            target_list = (
-                rematch_fallback_candidates
-                if candidate.user_id in recent_opponent_ids
-                else eligible_candidates
+            if candidate.user_id in recent_opponent_ids:
+                if self._queued_seconds(candidate, now=now) >= self.REMATCH_RELAX_AFTER_SECONDS:
+                    rematch_fallback_candidates.append((rating_gap, candidate.id))
+            else:
+                eligible_candidates.append((rating_gap, candidate.id))
+
+        # 3. Combine and sort
+        eligible_candidates.sort(key=lambda x: x[0])
+        rematch_fallback_candidates.sort(key=lambda x: x[0])
+        final_candidate_ids = [c[1] for c in eligible_candidates] + [c[1] for c in rematch_fallback_candidates]
+
+        # 4. Try to ATOMICALLY LOCK the best available candidate
+        for entry_id in final_candidate_ids:
+            locked_opponent = (
+                db.query(ArenaQueueEntryModel)
+                .filter(
+                    ArenaQueueEntryModel.id == entry_id,
+                    ArenaQueueEntryModel.status == ArenaQueueStatus.WAITING # Double check status after locking
+                )
+                .with_for_update(skip_locked=True) # ATOMIC LOCK
+                .first()
             )
-            target_list.append((rating_gap, candidate))
-
-        if eligible_candidates:
-            eligible_candidates.sort(key=lambda item: (item[0], item[1].created_at, item[1].id))
-            return eligible_candidates[0][1]
-
-        if rematch_fallback_candidates:
-            long_waiting = [
-                item
-                for item in rematch_fallback_candidates
-                if self._queued_seconds(item[1], now=now) >= self.REMATCH_RELAX_AFTER_SECONDS
-            ]
-            if long_waiting:
-                long_waiting.sort(key=lambda item: (item[0], item[1].created_at, item[1].id))
-                return long_waiting[0][1]
-
+            
+            if locked_opponent:
+                logger.info(f"User {current_user_id} matched with opponent {locked_opponent.user_id} (Entry {entry_id})")
+                return locked_opponent
+                
+        logger.info(f"User {current_user_id} found {len(final_candidate_ids)} candidates but all were locked/busy.")
         return None
 
     def _create_competitive_match(
@@ -258,6 +314,7 @@ class CompetitiveService:
         db: Session,
         *,
         public_course: PublicCourseModel,
+        pool_id: int | None,
         first_user_id: int,
         second_user_id: int,
         round_count: int,
@@ -270,6 +327,7 @@ class CompetitiveService:
             room_id=None,
             season_id=active_season.id if active_season else None,
             public_course_id=public_course.id,
+            question_pool_id=pool_id,
             mode=ArenaMode.COMPETITIVE,
             status=status,
             player_count=2,
@@ -280,6 +338,7 @@ class CompetitiveService:
                 "host_user_id": None,
                 "player_ids": [first_user_id, second_user_id],
                 "public_course_id": public_course.id,
+                "question_pool_id": pool_id,
                 "queue_mode": True,
             },
             rules_snapshot_json={
@@ -413,6 +472,6 @@ class CompetitiveService:
             count += 1
 
         if count > 0:
-            db.commit()
+            db.flush() # Ensure changes are visible within transaction
             
         return count

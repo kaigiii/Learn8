@@ -273,17 +273,31 @@ class PublicCourseRegistryLoader:
             public_course.topic = course_def["topic"]
             public_course.description = course_def.get("description", "System generated public course")
             public_course.syllabus_json = final_syllabus
+            
+            # YAML-driven visibility and featured status
+            meta = course_def.get("metadata", {})
+            public_course.is_published = meta.get("isPublished", True)
+            public_course.is_featured_arena = meta.get("isFeatured", False)
+            
+            if "tags" in meta:
+                public_course.tags_json = meta["tags"]
+            
+            # Purge legacy arena questions from metadata residuals
+            if isinstance(public_course.metadata_json, dict):
+                public_course.metadata_json.pop("arena_questions", None)
+            
             public_course.updated_at = now
         else:
+            # YAML-driven visibility and featured status for NEW records
+            meta = course_def.get("metadata", {})
             public_course = PublicCourseModel(
                 slug=slug,
                 title=title,
                 topic=course_def["topic"],
                 description=course_def.get("description", "System generated public course"),
-                difficulty="intermediate",
-                is_published=True,
-                is_arena_enabled=True,
-                tags_json=["yaml-seeded"],
+                is_published=meta.get("isPublished", True),
+                is_featured_arena=meta.get("isFeatured", False),
+                tags_json=meta.get("tags", ["yaml-seeded"]),
                 syllabus_json=final_syllabus,
                 created_at=now,
                 updated_at=now,
@@ -292,83 +306,11 @@ class PublicCourseRegistryLoader:
         
         db.flush()
 
-        # Added: Automatically seed Arena Question Pool from syllabus
-        self._seed_arena_pool(db, public_course, course_def)
+        # No longer automatically seeding Arena pool correctly here to prevent overwriting manual settings.
+        # User manages pools via the Admin Arena Pool Builder.
         
         db.commit()
 
-    def _seed_arena_pool(self, db: Session, public_course: PublicCourseModel, course_def: dict) -> None:
-        """從課程定義中提取互動式題目並建立 Arena 題庫。"""
-        # Create or update pool
-        slug = f"{public_course.slug}-pool"
-        pool = db.query(ArenaQuestionPoolModel).filter(
-            ArenaQuestionPoolModel.public_course_id == public_course.id,
-            ArenaQuestionPoolModel.slug == slug
-        ).first()
-
-        if pool:
-            # Update pool and clear items for re-seeding
-            pool.title = f"{public_course.title} Pool"
-            pool.updated_at = utc_now()
-            db.query(ArenaQuestionPoolItemModel).filter(ArenaQuestionPoolItemModel.pool_id == pool.id).delete()
-            db.flush()
-        else:
-            pool = ArenaQuestionPoolModel(
-                public_course_id=public_course.id,
-                slug=slug,
-                title=f"{public_course.title} Pool",
-                description=f"Automated question pool for {public_course.title}",
-                is_active=True,
-                version=1,
-            )
-            db.add(pool)
-            db.flush()
-
-        # Extract items from units/nodes/stages
-        for unit in course_def.get("units", []):
-            for node in unit.get("nodes", []):
-                for idx, stage in enumerate(node.get("stages", [])):
-                    component = stage.get("component")
-                    if component not in ["MultipleChoice", "Ordering", "MatchingPairs"]:
-                        continue
-
-                    data = stage.get("data", {})
-                    question_key = f"{node['id']}-{idx}"
-                    
-                    # Normalize prompt and options based on component
-                    prompt = ""
-                    options = []
-                    correct_option_id = None
-
-                    if component == "MultipleChoice":
-                        prompt = data.get("question", "")
-                        options = data.get("options", [])
-                        correct_option_id = str(data.get("correctOptionId", ""))
-                    elif component == "MatchingPairs":
-                        prompt = data.get("question") or node["title"]
-                        options = data.get("pairs", [])
-                    elif component == "Ordering":
-                        prompt = data.get("question") or node["title"]
-                        options = data.get("steps", [])
-
-                    if not prompt:
-                        continue
-
-                    item = ArenaQuestionPoolItemModel(
-                        pool_id=pool.id,
-                        question_key=question_key,
-                        question_type=component,
-                        prompt=prompt,
-                        options_json=options,
-                        correct_option_id=correct_option_id,
-                        difficulty=stage.get("difficulty") or "normal",
-                        knowledge_tags_json=[],
-                        explanation=data.get("explanation"),
-                        source_unit_id=unit.get("unitId"),
-                        source_node_id=node.get("id"),
-                        is_active=True,
-                    )
-                    db.add(item)
         
         db.flush()
 

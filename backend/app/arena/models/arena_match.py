@@ -10,12 +10,14 @@ class ArenaMatchModel(Base):
     __tablename__ = "arena_matches"
     __table_args__ = (
         Index("ix_arena_matches_public_course_status", "public_course_id", "status"),
+        Index("ix_arena_matches_pool_status", "question_pool_id", "status"),
     )
 
     id = Column(Integer, primary_key=True, index=True)
     room_id = Column(Integer, ForeignKey("arena_rooms.id", ondelete="SET NULL"), nullable=True, index=True)
     season_id = Column(Integer, ForeignKey("arena_seasons.id", ondelete="SET NULL"), nullable=True, index=True)
     public_course_id = Column(Integer, ForeignKey("public_courses.id", ondelete="RESTRICT"), nullable=False, index=True)
+    question_pool_id = Column(Integer, ForeignKey("arena_question_pools.id", ondelete="SET NULL"), nullable=True, index=True)
     mode = Column(String, nullable=False, index=True)
     status = Column(String, nullable=False, default=ArenaMatchStatus.PENDING, index=True)
     winner_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
@@ -33,6 +35,7 @@ class ArenaMatchModel(Base):
     updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
 
     public_course = relationship("PublicCourseModel")
+    question_pool = relationship("ArenaQuestionPoolModel")
     players = relationship(
         "ArenaMatchPlayerModel",
         back_populates="match",

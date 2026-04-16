@@ -167,7 +167,8 @@ class RoomService:
         db: Session,
         current_user: UserModel,
         *,
-        public_course_id: int,
+        public_course_id: int | None = None,
+        pool_id: int | None = None,
         mode: str,
         visibility: str,
         max_players: int,
@@ -176,9 +177,26 @@ class RoomService:
     ) -> ArenaRoomModel:
         if mode == "ranked":
             mode = "competitive"
-        public_course = self.topic_catalog_service.get_enabled_public_course(db, public_course_id)
-        if not public_course:
-            raise HTTPException(status_code=404, detail="Arena public course not found")
+        if pool_id:
+            pool = self.topic_catalog_service.get_active_pool(db, pool_id)
+            if not pool:
+                raise HTTPException(status_code=404, detail="Arena question pool not found")
+            public_course_id = pool.public_course_id
+        elif public_course_id:
+            public_course = self.topic_catalog_service.get_enabled_public_course(db, public_course_id)
+            if not public_course:
+                raise HTTPException(status_code=404, detail="Arena public course not found")
+            # Fallback: pick first active pool
+            from app.arena.models.arena_question_pool import ArenaQuestionPoolModel
+            pool = db.query(ArenaQuestionPoolModel).filter(
+                ArenaQuestionPoolModel.public_course_id == public_course_id,
+                ArenaQuestionPoolModel.is_active.is_(True)
+            ).first()
+            if not pool:
+                 raise HTTPException(status_code=404, detail="No active pool for this course")
+            pool_id = pool.id
+        else:
+             raise HTTPException(status_code=400, detail="Either pool_id or public_course_id is required")
 
         active_season = self.rank_service.get_active_season(db)
         
@@ -198,6 +216,7 @@ class RoomService:
             season_id=active_season.id if active_season else None,
             host_user_id=current_user.id,
             public_course_id=public_course_id,
+            question_pool_id=pool_id,
             mode=mode,
             visibility=visibility,
             max_players=max_players,
@@ -386,6 +405,7 @@ class RoomService:
             "host_user_id": room.host_user_id,
             "player_ids": [player.user_id for player in room.players],
             "public_course_id": room.public_course_id,
+            "question_pool_id": room.question_pool_id,
         }
         rules_snapshot = {
             "round_count": room.round_count,
@@ -397,6 +417,7 @@ class RoomService:
             room_id=room.id,
             season_id=room.season_id,
             public_course_id=room.public_course_id,
+            question_pool_id=room.question_pool_id,
             mode=room.mode,
             status=ArenaMatchStatus.IN_PROGRESS,
             player_count=len(room.players),
@@ -460,6 +481,8 @@ class RoomService:
             "hostUserId": room.host_user_id,
             "publicCourseId": room.public_course_id,
             "publicCourseTitle": room.public_course.title if room.public_course else "Unknown",
+            "poolId": room.question_pool_id,
+            "poolTitle": room.question_pool.title if room.question_pool else None,
             "mode": room.mode,
             "visibility": room.visibility,
             "status": room.status,

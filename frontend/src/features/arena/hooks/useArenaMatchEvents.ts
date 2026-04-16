@@ -1,139 +1,87 @@
 "use client";
 
 import { useEffect } from "react";
-
-import {
-  buildArenaMatchStreamPath,
-  fetchArenaMatch,
-  heartbeatArenaMatchPresence,
-} from "@/lib/arena/api";
-import { watchArenaEvents } from "@/lib/arena/realtimeClient";
-import {
-  ArenaRoundState,
-  ArenaStandingEntry,
-} from "@/lib/apiTypes";
+import { fetchArenaMatch } from "@/lib/arena/api";
+import { arenaWsClient } from "@/lib/arena/realtimeClient";
+import { ArenaRoundState, ArenaStandingEntry } from "@/lib/apiTypes";
 import { useArenaMatchStore } from "@/stores/arena/useArenaMatchStore";
-
-function getCursorStorageKey(matchId: number) {
-  return `arena:match:${matchId}:cursor`;
-}
-
-function readStoredCursor(matchId: number): number {
-  if (typeof window === "undefined") {
-    return 0;
-  }
-  const raw = window.sessionStorage.getItem(getCursorStorageKey(matchId));
-  const parsed = raw ? Number(raw) : 0;
-  return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
-}
-
-function writeStoredCursor(matchId: number, cursor: number) {
-  if (typeof window === "undefined") {
-    return;
-  }
-  window.sessionStorage.setItem(getCursorStorageKey(matchId), String(Math.max(0, cursor)));
-}
 
 export function useArenaMatchEvents(matchId: number | null) {
   const match = useArenaMatchStore((state) => state.match);
   const setMatch = useArenaMatchStore((state) => state.setMatch);
   const appendEvents = useArenaMatchStore((state) => state.appendEvents);
-  const lastCursor = useArenaMatchStore((state) => state.lastCursor);
-  const setLastCursor = useArenaMatchStore((state) => state.setLastCursor);
-  const setConnectionStatus = useArenaMatchStore((state) => state.setConnectionStatus);
-  const setRecovering = useArenaMatchStore((state) => state.setRecovering);
   const patchMatch = useArenaMatchStore((state) => state.patchMatch);
+  const setConnectionStatus = useArenaMatchStore((state) => state.setConnectionStatus);
 
   useEffect(() => {
-    if (!matchId) {
-      return;
-    }
+    if (!matchId) return;
 
     let cancelled = false;
-    const initialCursor = Math.max(lastCursor, readStoredCursor(matchId));
-    setLastCursor(initialCursor);
-
     void fetchArenaMatch(matchId)
       .then((data) => {
-        if (!cancelled) {
-          setMatch(data);
-          setRecovering(false);
-        }
+        if (!cancelled) setMatch(data);
       })
       .catch(() => undefined);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [matchId, setLastCursor, setMatch, setRecovering]);
+    arenaWsClient.subscribeMatch(matchId);
 
-  useEffect(() => {
-    if (!matchId) {
-      return;
-    }
-
-    const initialCursor = Math.max(lastCursor, readStoredCursor(matchId));
-    setLastCursor(initialCursor);
-
-    const watcher = watchArenaEvents({
-      initialCursor,
-      streamPath: buildArenaMatchStreamPath(matchId),
-      onEvents: async (events) => {
-        appendEvents(events);
-        const newestCursor = events[events.length - 1]?.cursor;
-        if (newestCursor) {
-          writeStoredCursor(matchId, newestCursor);
-          setLastCursor(newestCursor);
-        }
-
-        // OPTIMIZATION: Try to patch the store directly from event payloads 
-        // to avoid a full fetch if the data is already there.
-        let needsFetch = true;
-        for (const envelope of events) {
-          const payload = envelope.payload;
-          if (payload && payload.activeRound) {
-            patchMatch({ activeRound: payload.activeRound as ArenaRoundState });
-            needsFetch = false;
-          }
-          if (payload && payload.standings) {
-            patchMatch({ standings: payload.standings as ArenaStandingEntry[] });
-            needsFetch = false;
-          }
-          if (envelope.eventType === "match.finished") {
-            patchMatch({ status: "finished" });
-            needsFetch = false;
-          }
-        }
-
-        if (!needsFetch) return;
-
-        const refreshedMatch = await fetchArenaMatch(matchId);
-        // CRITICAL PROTECTION: Only update the store if this match matches the hook's ID
-        if (refreshedMatch.matchId === matchId) {
-          setMatch(refreshedMatch);
-        }
-      },
-      onStatusChange: (status) => {
-        setConnectionStatus(status);
-      },
-      onResync: async () => {
-        setRecovering(true);
-        const refreshedMatch = await fetchArenaMatch(matchId);
-        if (refreshedMatch.matchId === matchId) {
-          setMatch(refreshedMatch);
-        }
-        setRecovering(false);
-      },
-      onError: () => {
-        setRecovering(true);
-      },
+    const unsubscribeStatus = arenaWsClient.onStatusChange((status) => {
+      setConnectionStatus(status);
     });
 
-    // 10s Polling Fallback (Secondary to SSE)
-    const pollInterval = window.setInterval(async () => {
+    const unsubscribeEvents = arenaWsClient.onEvents(async (events) => {
+      const matchEvents = events.filter((e) => e.matchId === matchId);
+      if (matchEvents.length === 0 || cancelled) return;
+
+      appendEvents(matchEvents);
+
+      let needsFetch = true;
+      for (const envelope of matchEvents) {
+        const payload = envelope.payload as any;
+        // Optimization: if we already see it's finished, we don't need to do much more
+        
+        if (payload && payload.activeRound) {
+          patchMatch({ activeRound: payload.activeRound as ArenaRoundState });
+          needsFetch = false;
+        }
+        if (payload && payload.standings) {
+          patchMatch({ standings: payload.standings as ArenaStandingEntry[] });
+          needsFetch = false;
+        }
+        if (envelope.eventType === "match.finished") {
+          patchMatch({ status: "finished" });
+          needsFetch = false;
+        }
+      }
+
+      // If match is finished, we usually get a final data dump, so fetch once if needed
+      if (!needsFetch) return;
+
       try {
         const refreshedMatch = await fetchArenaMatch(matchId);
-        if (refreshedMatch.matchId === matchId) {
+        if (!cancelled && refreshedMatch.matchId === matchId) {
+          setMatch(refreshedMatch);
+        }
+      } catch (err) {
+        console.error("Failed to refresh match on event:", err);
+      }
+    });
+
+    const sendHeartbeat = () => {
+       if (cancelled) return;
+       arenaWsClient.sendAction("heartbeat", { matchId });
+    };
+
+    sendHeartbeat();
+    const intervalId = window.setInterval(sendHeartbeat, 5000);
+
+    const matchFallbackInterval = window.setInterval(async () => {
+      // Don't poll if match is already finished or we are currently connected
+      if (cancelled || arenaWsClient.getStatus() === "connected") return;
+      
+      try {
+        const refreshedMatch = await fetchArenaMatch(matchId);
+        if (!cancelled && refreshedMatch.matchId === matchId) {
           setMatch(refreshedMatch);
         }
       } catch (err) {
@@ -141,54 +89,23 @@ export function useArenaMatchEvents(matchId: number | null) {
       }
     }, 10000);
 
-    return () => {
-      watcher.close();
-      window.clearInterval(pollInterval);
-    };
-  }, [
-    appendEvents,
-    matchId,
-    setConnectionStatus,
-    setLastCursor,
-    setMatch,
-    setRecovering,
-    patchMatch,
-  ]);
-
-  useEffect(() => {
-    if (!matchId) {
-      return;
-    }
-
-    let cancelled = false;
-    const sendHeartbeat = async () => {
-      try {
-        await heartbeatArenaMatchPresence(matchId);
-      } catch {
-        if (!cancelled) {
-          setRecovering(true);
-        }
-      }
-    };
-
-    void sendHeartbeat();
-    const intervalId = window.setInterval(() => {
-      void sendHeartbeat();
-    }, 5000);
-
     const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        void sendHeartbeat();
+      if (document.visibilityState === "visible" && !cancelled) {
+        sendHeartbeat();
       }
     };
-
     document.addEventListener("visibilitychange", handleVisibilityChange);
+
     return () => {
       cancelled = true;
+      unsubscribeStatus();
+      unsubscribeEvents();
+      arenaWsClient.unsubscribeMatch(matchId);
       window.clearInterval(intervalId);
+      window.clearInterval(matchFallbackInterval);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [matchId, setRecovering]);
+  }, [matchId, appendEvents, patchMatch, setConnectionStatus, setMatch]);
 
   return match;
 }

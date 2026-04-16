@@ -1,19 +1,20 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import React, { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  FiLayout, 
-  FiBookOpen, 
-  FiCalendar, 
-  FiActivity, 
-  FiSave, 
-  FiPlus, 
-  FiTrash2, 
-  FiArrowRight, 
-  FiSearch, 
-  FiTerminal 
+import {
+  FiLayout,
+  FiBookOpen,
+  FiCalendar,
+  FiActivity,
+  FiSave,
+  FiPlus,
+  FiTrash2,
+  FiArrowRight,
+  FiSearch,
+  FiTerminal
 } from "react-icons/fi";
 
 import TopStatsBar from "@/components/layout/TopStatsBar";
@@ -23,13 +24,11 @@ import {
   fetchArenaAdminMatchReviews,
   fetchArenaAdminPlayerMatches,
   fetchArenaAdminHealthSnapshot,
-  createArenaAdminPublicCourse,
   createArenaAdminQuestionPool,
   createArenaAdminSeason,
   fetchArenaAdminPublicCourses,
   fetchArenaAdminQuestionPools,
   fetchArenaAdminSeasons,
-  updateArenaAdminPublicCourse,
   updateArenaAdminQuestionPool,
   deleteArenaAdminQuestionPool,
   updateArenaAdminSeason,
@@ -42,7 +41,6 @@ import type {
   ArenaAdminMatchReview,
   ArenaAdminPlayerMatchRecord,
   ArenaAdminPublicCourse,
-  ArenaAdminPublicCourseUpsertRequest,
   ArenaAdminQuestionPool,
   ArenaAdminQuestionPoolItemUpsertRequest,
   ArenaAdminQuestionPoolUpsertRequest,
@@ -54,16 +52,7 @@ import ArenaPoolBuilder from "./components/ArenaPoolBuilder";
 
 /* ═══════════════════ Types ═══════════════════ */
 
-type CourseFormState = {
-  slug: string;
-  title: string;
-  topic: string;
-  description: string;
-  difficulty: string;
-  tagsText: string;
-  isPublished: boolean;
-  isArenaEnabled: boolean;
-};
+// Course editing removed - YAML only
 
 type PoolOptionFormState = {
   id: string;
@@ -106,16 +95,7 @@ type SeasonFormState = {
 
 /* ═══════════════════ Constants ═══════════════════ */
 
-const EMPTY_COURSE_FORM: CourseFormState = {
-  slug: "",
-  title: "",
-  topic: "",
-  description: "",
-  difficulty: "intermediate",
-  tagsText: "",
-  isPublished: false,
-  isArenaEnabled: false,
-};
+// EMPTY_COURSE_FORM removed
 
 const EMPTY_POOL_FORM: PoolFormState = {
   publicCourseId: null,
@@ -140,6 +120,7 @@ const EMPTY_SEASON_FORM: SeasonFormState = {
 /* ═══════════════════ Main Component ═══════════════════ */
 
 export default function ArenaAdminPageClient() {
+  const router = useRouter();
   const { isReady } = useRequireAuthRedirect();
   const [courses, setCourses] = useState<ArenaAdminPublicCourse[]>([]);
   const [pools, setPools] = useState<ArenaAdminQuestionPool[]>([]);
@@ -150,11 +131,9 @@ export default function ArenaAdminPageClient() {
   const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
   const [selectedPoolId, setSelectedPoolId] = useState<number | null>(null);
   const [selectedSeasonId, setSelectedSeasonId] = useState<number | null>(null);
-  const [courseForm, setCourseForm] = useState<CourseFormState>(EMPTY_COURSE_FORM);
   const [poolForm, setPoolForm] = useState<PoolFormState>(EMPTY_POOL_FORM);
   const [seasonForm, setSeasonForm] = useState<SeasonFormState>(EMPTY_SEASON_FORM);
   const [loading, setLoading] = useState(true);
-  const [savingCourse, setSavingCourse] = useState(false);
   const [savingPool, setSavingPool] = useState(false);
   const [poolToDeleteId, setPoolToDeleteId] = useState<number | null>(null);
   const [savingSeason, setSavingSeason] = useState(false);
@@ -163,7 +142,7 @@ export default function ArenaAdminPageClient() {
   const [notice, setNotice] = useState<string | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
   const [playerMatchSearch, setPlayerMatchSearch] = useState("");
-  
+
   // UI Tabs State
   const [activeTab, setActiveTab] = useState<"builder" | "topics" | "seasons" | "operations">("builder");
   const [availableQuestions, setAvailableQuestions] = useState<ArenaAdminSyllabusQuestion[]>([]);
@@ -209,7 +188,10 @@ export default function ArenaAdminPageClient() {
         if (cancelled) return;
         if (err instanceof ApiError && err.status === 403) {
           setAccessDenied(true);
-          setError("This account is signed in, but it does not have Arena admin access.");
+          setError("This account is signed in, but it does not have Arena admin access. Redirecting...");
+          setTimeout(() => {
+            router.push("/home");
+          }, 3000);
         } else {
           setError(resolveErrorMessage(err, "Unable to load Arena admin right now."));
         }
@@ -266,22 +248,7 @@ export default function ArenaAdminPageClient() {
   );
 
   // Sync Forms with Selections
-  useEffect(() => {
-    if (!selectedCourse) {
-      setCourseForm(EMPTY_COURSE_FORM);
-      return;
-    }
-    setCourseForm({
-      slug: selectedCourse.slug,
-      title: selectedCourse.title,
-      topic: selectedCourse.topic,
-      description: selectedCourse.description ?? "",
-      difficulty: selectedCourse.difficulty,
-      tagsText: selectedCourse.tags.join(", "),
-      isPublished: selectedCourse.isPublished,
-      isArenaEnabled: selectedCourse.isArenaEnabled,
-    });
-  }, [selectedCourse]);
+  // Course form sync removed
 
   useEffect(() => {
     if (!selectedPool) {
@@ -351,6 +318,8 @@ export default function ArenaAdminPageClient() {
     setActiveTab("seasons");
   };
 
+
+
   const handleSavePool = async () => {
     setSavingPool(true);
     setError(null);
@@ -366,7 +335,7 @@ export default function ArenaAdminPageClient() {
         version: poolForm.version,
         items: poolForm.items.map((item, idx) => serializePoolItem(item, idx)),
       };
-      const saved = selectedPool 
+      const saved = selectedPool
         ? await updateArenaAdminQuestionPool(selectedPool.id, payload)
         : await createArenaAdminQuestionPool(payload);
       setPools(current => upsertById(current, saved));
@@ -449,7 +418,7 @@ export default function ArenaAdminPageClient() {
     <div className="min-h-screen app-shared-bg">
       <TopStatsBar backHref="/home" pageTitle="Arena Admin" />
       <main className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-8 md:px-8">
-        
+
         {/* Header Dashboard Card */}
         <DeepGlassCard className="relative overflow-hidden px-6 py-6 transition-all md:px-8 md:py-8">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
@@ -468,7 +437,7 @@ export default function ArenaAdminPageClient() {
             </div>
 
             <div className="z-10 flex flex-wrap gap-2">
-              <NavButton active={activeTab === "builder"} onClick={() => setActiveTab("builder")} icon={<FiLayout />} label="Pool Builder" />
+              <NavButton active={activeTab === "builder"} onClick={() => setActiveTab("builder")} icon={<FiLayout />} label="Arena Builder" />
               <NavButton active={activeTab === "seasons"} onClick={() => setActiveTab("seasons")} icon={<FiCalendar />} label="Seasons" />
               <NavButton active={activeTab === "operations"} onClick={() => setActiveTab("operations")} icon={<FiActivity />} label="Operations" />
             </div>
@@ -503,163 +472,163 @@ export default function ArenaAdminPageClient() {
           <div className="relative">
             {activeTab === "builder" && (
               <motion.div key="builder" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="grid gap-6 xl:grid-cols-[300px_1fr]">
-                
+
                 {/* Left Sidebar Menu */}
                 <DeepGlassCard className="p-5 flex flex-col max-h-[85vh]">
-                   <h2 className="font-heading text-lg font-bold text-brand-gray-700 mb-4">Content Directory</h2>
-                   <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-6">
-                     {courses.map(course => {
-                       const coursePools = pools.filter(p => p.publicCourseId === course.id);
-                       return (
-                         <div key={course.id} className="space-y-2">
-                            <div className="flex items-center justify-between">
-                               <p className="text-xs font-bold uppercase tracking-wider text-brand-gray-400 truncate pr-2" title={course.title}>
-                                 {course.title}
-                               </p>
-                               <button 
-                                 onClick={() => {
-                                   setSelectedCourseId(course.id);
-                                   handleNewPool();
-                                 }} 
-                                 className="flex items-center justify-center w-6 h-6 rounded-md bg-brand-teal/10 text-brand-teal hover:bg-brand-teal hover:text-white transition-colors"
-                                 title="New Pool for this Topc"
-                               >
-                                 <FiPlus size={12} strokeWidth={3} />
-                               </button>
-                            </div>
-                            <div className="space-y-1">
-                               {coursePools.length === 0 ? (
-                                 <p className="text-[10px] text-brand-gray-300 italic px-2">No active pools.</p>
-                               ) : (
-                                 coursePools.map(pool => (
-                                   <button
-                                     key={pool.id}
-                                     onClick={() => {
-                                       setSelectedCourseId(course.id);
-                                       setSelectedPoolId(pool.id);
-                                     }}
-                                     className={`w-full text-left px-4 py-2.5 rounded-xl transition-all text-sm font-medium ${selectedPoolId === pool.id ? "bg-brand-teal/15 text-brand-teal shadow-sm border border-brand-teal/20" : "text-brand-gray-600 hover:bg-white/60 border border-transparent"}`}
-                                   >
-                                     <div className="flex items-center justify-between">
-                                        <span className="truncate">{pool.title}</span>
-                                        {!pool.isActive && <span className="w-2 h-2 rounded-full bg-brand-gray-300"></span>}
-                                        {pool.isActive && <span className="w-2 h-2 rounded-full bg-emerald-400"></span>}
-                                     </div>
-                                   </button>
-                                 ))
-                               )}
-                            </div>
-                         </div>
-                       );
-                     })}
-                   </div>
+                  <h2 className="font-heading text-lg font-bold text-brand-gray-700 mb-4">Content Directory</h2>
+                  <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-6">
+                    {courses.map(course => {
+                      const coursePools = pools.filter(p => p.publicCourseId === course.id);
+                      return (
+                        <div key={course.id} className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs font-bold uppercase tracking-wider text-brand-gray-400 truncate pr-2" title={course.title}>
+                              {course.title}
+                            </p>
+                            <button
+                              onClick={() => {
+                                setSelectedCourseId(course.id);
+                                handleNewPool();
+                              }}
+                              className="flex items-center justify-center w-6 h-6 rounded-md bg-brand-teal/10 text-brand-teal hover:bg-brand-teal hover:text-white transition-colors"
+                              title="New Pool for this Topc"
+                            >
+                              <FiPlus size={12} strokeWidth={3} />
+                            </button>
+                          </div>
+                          <div className="space-y-1">
+                            {coursePools.length === 0 ? (
+                              <p className="text-[10px] text-brand-gray-300 italic px-2">No active pools.</p>
+                            ) : (
+                              coursePools.map(pool => (
+                                <button
+                                  key={pool.id}
+                                  onClick={() => {
+                                    setSelectedCourseId(course.id);
+                                    setSelectedPoolId(pool.id);
+                                  }}
+                                  className={`w-full text-left px-4 py-2.5 rounded-xl transition-all text-sm font-medium ${selectedPoolId === pool.id ? "bg-brand-teal/15 text-brand-teal shadow-sm border border-brand-teal/20" : "text-brand-gray-600 hover:bg-white/60 border border-transparent"}`}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <span className="truncate">{pool.title}</span>
+                                    {!pool.isActive && <span className="w-2 h-2 rounded-full bg-brand-gray-300"></span>}
+                                    {pool.isActive && <span className="w-2 h-2 rounded-full bg-emerald-400"></span>}
+                                  </div>
+                                </button>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </DeepGlassCard>
 
                 {/* Right Workspace Panel */}
                 <DeepGlassCard className="p-6 flex flex-col">
                   {(!selectedCourseId && !selectedPoolId) ? (
                     <div className="flex-1 flex flex-col items-center justify-center text-center p-12 text-brand-gray-400">
-                       <FiLayout className="w-16 h-16 mb-6 opacity-20" />
-                       <h3 className="font-heading text-xl font-bold text-brand-gray-600 mb-2">Select a Topic or Pool</h3>
-                       <p className="text-sm max-w-sm">Use the left sidebar to select an existing question pool, or create a fresh one to start dragging questions in.</p>
+                      <FiLayout className="w-16 h-16 mb-6 opacity-20" />
+                      <h3 className="font-heading text-xl font-bold text-brand-gray-600 mb-2">Select a Topic or Pool</h3>
+                      <p className="text-sm max-w-sm">Use the left sidebar to select an existing question pool, or create a fresh one to start dragging questions in.</p>
                     </div>
                   ) : (
                     <>
                       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                         <div>
                           <h2 className="font-heading text-xl font-bold text-brand-gray-700">
-                            {selectedPool ? `Editing Pool: ${selectedPool.title}` : "New Question Pool"}
+                            {selectedPool ? `Editing Pool: ${selectedPool.title}` : (selectedCourseId ? `Topic: ${selectedCourse?.title}` : "New Question Pool")}
                           </h2>
-                          <p className="text-xs text-brand-gray-500 mt-1">
-                            Topic: {courses.find(c => c.id === selectedCourseId)?.title}
-                          </p>
+                          <div className="flex items-center gap-3 mt-1">
+                            <p className="text-xs text-brand-gray-500">
+                              Manage question pools for this topic.
+                            </p>
+                          </div>
                         </div>
                       </div>
 
                       <div className="flex flex-col gap-5 mb-8 bg-white/50 backdrop-blur-md p-6 rounded-[2rem] border border-brand-teal/20 shadow-[0_8px_30px_rgba(95,179,175,0.06)] relative overflow-hidden">
-                         <div className="absolute top-0 left-0 w-1.5 h-full bg-brand-teal/40"></div>
-                         
-                         <div className="w-full">
-                           <Field label="Pool Title" hint="This defines the public name displayed to players.">
-                              <input 
-                                 className={`${inputClassName} text-base py-3`} 
-                                 value={poolForm.title} 
-                                 onChange={e => {
-                                   const title = e.target.value;
-                                   const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
-                                   setPoolForm(prev => ({...prev, title, slug}));
-                                 }} 
-                                 placeholder="E.g. The Ultimate Python Fundamentals" 
-                              />
-                           </Field>
-                         </div>
+                        <div className="absolute top-0 left-0 w-1.5 h-full bg-brand-teal/40"></div>
 
-                         <div className="flex flex-wrap items-center justify-between gap-3 mt-2 pt-5 border-t border-brand-teal/10">
-                            <div>
-                               <ToggleRow label="Enable Pool" checked={poolForm.isActive} onChange={checked => setPoolForm(prev => ({...prev, isActive: checked}))} />
-                            </div>
-                            <div className="flex gap-3">
-                               {selectedPoolId && (
-                                 <button onClick={() => setPoolToDeleteId(selectedPoolId)} disabled={savingPool} title="Delete Pool" className="flex items-center gap-2 rounded-2xl border border-rose-200 bg-white/80 px-6 py-3 text-sm font-bold text-rose-500 transition hover:bg-rose-50 hover:border-rose-300 disabled:opacity-50 shadow-sm">
-                                   <FiTrash2 /> Delete
-                                 </button>
-                               )}
-                               <GameButton onClick={() => void handleSavePool()} disabled={savingPool || !selectedCourseId} className="min-w-[160px] shadow-lg shadow-brand-teal/20">
-                                  {savingPool ? "Saving..." : <span className="flex items-center gap-2 font-bold text-sm"><FiSave /> Save Changes</span>}
-                               </GameButton>
-                            </div>
-                         </div>
+                        <div className="w-full">
+                          <Field label="Pool Title" hint="This defines the public name displayed to players.">
+                            <input
+                              className={`${inputClassName} text-base py-3`}
+                              value={poolForm.title}
+                              onChange={e => {
+                                const title = e.target.value;
+                                const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+                                setPoolForm(prev => ({ ...prev, title, slug }));
+                              }}
+                              placeholder="E.g. The Ultimate Python Fundamentals"
+                            />
+                          </Field>
+                        </div>
+
+                        <div className="flex flex-wrap items-center justify-between gap-3 mt-2 pt-5 border-t border-brand-teal/10">
+                          <div>
+                            <ToggleRow label="Enable Pool" checked={poolForm.isActive} onChange={checked => setPoolForm(prev => ({ ...prev, isActive: checked }))} />
+                          </div>
+                          <div className="flex gap-3">
+                            {selectedPoolId && (
+                              <button onClick={() => setPoolToDeleteId(selectedPoolId)} disabled={savingPool} title="Delete Pool" className="flex items-center gap-2 rounded-2xl border border-rose-200 bg-white/80 px-6 py-3 text-sm font-bold text-rose-500 transition hover:bg-rose-50 hover:border-rose-300 disabled:opacity-50 shadow-sm">
+                                <FiTrash2 /> Delete
+                              </button>
+                            )}
+                            <GameButton onClick={() => void handleSavePool()} disabled={savingPool || !selectedCourseId} className="min-w-[160px] shadow-lg shadow-brand-teal/20">
+                              {savingPool ? "Saving..." : <span className="flex items-center gap-2 font-bold text-sm"><FiSave /> Save Changes</span>}
+                            </GameButton>
+                          </div>
+                        </div>
                       </div>
 
-                      <ArenaPoolBuilder availableQuestions={availableQuestions} currentPoolItems={poolForm.items} onUpdatePool={(items) => setPoolForm(prev => ({...prev, items}))} isLoading={loadingAvailable} />
+                      <ArenaPoolBuilder availableQuestions={availableQuestions} currentPoolItems={poolForm.items} onUpdatePool={(items) => setPoolForm(prev => ({ ...prev, items }))} isLoading={loadingAvailable} />
                     </>
                   )}
                 </DeepGlassCard>
               </motion.div>
             )}
 
-
-
             {activeTab === "seasons" && (
               <motion.div key="seasons" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
-                 <DeepGlassCard className="p-6">
-                    <div className="flex items-center justify-between mb-5">
-                       <h2 className="font-heading text-2xl font-bold text-brand-gray-700">Seasons</h2>
-                       <button onClick={handleNewSeason} className="rounded-full bg-brand-teal p-2 text-white hover:scale-110 transition shadow-md"><FiPlus /></button>
+                <DeepGlassCard className="p-6">
+                  <div className="flex items-center justify-between mb-5">
+                    <h2 className="font-heading text-2xl font-bold text-brand-gray-700">Seasons</h2>
+                    <button onClick={handleNewSeason} className="rounded-full bg-brand-teal p-2 text-white hover:scale-110 transition shadow-md"><FiPlus /></button>
+                  </div>
+                  <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1 custom-scrollbar">
+                    {seasons.map(s => (
+                      <button key={s.id} onClick={() => setSelectedSeasonId(s.id)} className={`w-full rounded-[24px] border px-4 py-4 text-left transition ${s.id === selectedSeasonId ? "border-brand-teal/45 bg-brand-teal/10 shadow-lg" : "border-white/70 bg-white/68"}`}>
+                        <div className="flex items-center gap-2">
+                          <p className="font-heading font-bold text-brand-gray-700">{s.name}</p>
+                          <StatusChip label={s.isActive ? "Active" : s.status} tone={s.isActive ? "success" : "neutral"} />
+                        </div>
+                        <p className="text-[10px] text-brand-teal font-bold uppercase mt-1">
+                          {s.startedAt ? new Date(s.startedAt).toLocaleDateString() : "TBD"} &mdash; {s.endedAt ? new Date(s.endedAt).toLocaleDateString() : "TBD"}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                </DeepGlassCard>
+                <DeepGlassCard className="p-6">
+                  <div className="mb-4 flex items-center justify-between">
+                    <h3 className="font-heading text-xl font-bold text-brand-gray-700">Config</h3>
+                    <GameButton onClick={() => void handleSaveSeason()} disabled={savingSeason}>{savingSeason ? "..." : <FiSave />}</GameButton>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <Field label="Name"><input className={inputClassName} value={seasonForm.name} onChange={e => setSeasonForm(s => ({ ...s, name: e.target.value }))} /></Field>
+                      <Field label="Status"><input className={inputClassName} value={seasonForm.status} onChange={e => setSeasonForm(s => ({ ...s, status: e.target.value }))} /></Field>
                     </div>
-                    <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1 custom-scrollbar">
-                       {seasons.map(s => (
-                           <button key={s.id} onClick={() => setSelectedSeasonId(s.id)} className={`w-full rounded-[24px] border px-4 py-4 text-left transition ${s.id === selectedSeasonId ? "border-brand-teal/45 bg-brand-teal/10 shadow-lg" : "border-white/70 bg-white/68"}`}>
-                             <div className="flex items-center gap-2">
-                               <p className="font-heading font-bold text-brand-gray-700">{s.name}</p>
-                               <StatusChip label={s.isActive ? "Active" : s.status} tone={s.isActive ? "success" : "neutral"} />
-                             </div>
-                             <p className="text-[10px] text-brand-teal font-bold uppercase mt-1">
-                               {s.startedAt ? new Date(s.startedAt).toLocaleDateString() : "TBD"} &mdash; {s.endedAt ? new Date(s.endedAt).toLocaleDateString() : "TBD"}
-                             </p>
-                           </button>
-                       ))}
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <Field label="Start"><input type="datetime-local" className={inputClassName} value={seasonForm.startedAt} onChange={e => setSeasonForm(s => ({ ...s, startedAt: e.target.value }))} /></Field>
+                      <Field label="End"><input type="datetime-local" className={inputClassName} value={seasonForm.endedAt} onChange={e => setSeasonForm(s => ({ ...s, endedAt: e.target.value }))} /></Field>
                     </div>
-                 </DeepGlassCard>
-                 <DeepGlassCard className="p-6">
-                    <div className="mb-4 flex items-center justify-between">
-                       <h3 className="font-heading text-xl font-bold text-brand-gray-700">Config</h3>
-                       <GameButton onClick={() => void handleSaveSeason()} disabled={savingSeason}>{savingSeason ? "..." : <FiSave />}</GameButton>
-                    </div>
-                    <div className="space-y-4">
-                       <div className="grid gap-4 md:grid-cols-2">
-                          <Field label="Name"><input className={inputClassName} value={seasonForm.name} onChange={e => setSeasonForm(s => ({...s, name: e.target.value}))} /></Field>
-                          <Field label="Status"><input className={inputClassName} value={seasonForm.status} onChange={e => setSeasonForm(s => ({...s, status: e.target.value}))} /></Field>
-                       </div>
-                       <div className="grid gap-4 md:grid-cols-2">
-                          <Field label="Start"><input type="datetime-local" className={inputClassName} value={seasonForm.startedAt} onChange={e => setSeasonForm(s => ({...s, startedAt: e.target.value}))} /></Field>
-                          <Field label="End"><input type="datetime-local" className={inputClassName} value={seasonForm.endedAt} onChange={e => setSeasonForm(s => ({...s, endedAt: e.target.value}))} /></Field>
-                       </div>
-                       <ToggleRow label="Is Active" checked={seasonForm.isActive} onChange={checked => setSeasonForm(s => ({...s, isActive: checked}))} />
-                       <Field label="Leaderboard Config JSON"><textarea className={`${inputClassName} font-mono text-xs min-h-[100px]`} value={seasonForm.leaderboardConfigText} onChange={e => setSeasonForm(s => ({...s, leaderboardConfigText: e.target.value}))} /></Field>
-                       <Field label="Reward Config JSON"><textarea className={`${inputClassName} font-mono text-xs min-h-[100px]`} value={seasonForm.rewardConfigText} onChange={e => setSeasonForm(s => ({...s, rewardConfigText: e.target.value}))} /></Field>
-                    </div>
-                 </DeepGlassCard>
+                    <ToggleRow label="Is Active" checked={seasonForm.isActive} onChange={checked => setSeasonForm(s => ({ ...s, isActive: checked }))} />
+                    <Field label="Leaderboard Config JSON"><textarea className={`${inputClassName} font-mono text-xs min-h-[100px]`} value={seasonForm.leaderboardConfigText} onChange={e => setSeasonForm(s => ({ ...s, leaderboardConfigText: e.target.value }))} /></Field>
+                    <Field label="Reward Config JSON"><textarea className={`${inputClassName} font-mono text-xs min-h-[100px]`} value={seasonForm.rewardConfigText} onChange={e => setSeasonForm(s => ({ ...s, rewardConfigText: e.target.value }))} /></Field>
+                  </div>
+                </DeepGlassCard>
               </motion.div>
             )}
 
@@ -685,36 +654,36 @@ export default function ArenaAdminPageClient() {
                       <p className="mt-2 text-sm text-brand-gray-500">Match logs and anomaly review.</p>
                     </div>
                     <div className="flex gap-2">
-                       <input className={inputClassName} value={playerMatchSearch} onChange={e => setPlayerMatchSearch(e.target.value)} placeholder="Search players..." />
-                       <GameButton onClick={() => void handleRefreshOps()} disabled={loadingOps}>{loadingOps ? "Refreshing..." : "Refresh"}</GameButton>
+                      <input className={inputClassName} value={playerMatchSearch} onChange={e => setPlayerMatchSearch(e.target.value)} placeholder="Search players..." />
+                      <GameButton onClick={() => void handleRefreshOps()} disabled={loadingOps}>{loadingOps ? "Refreshing..." : "Refresh"}</GameButton>
                     </div>
                   </div>
                   <div className="grid gap-8 xl:grid-cols-2">
                     <div className="space-y-4">
-                       <h3 className="font-heading font-bold text-brand-gray-700 text-lg border-b pb-2">Recent Player Activity</h3>
-                       {playerMatches.map(r => (
-                         <div key={`${r.matchId}-${r.userId}`} className="rounded-2xl border border-white/70 bg-white/68 p-4 hover:shadow-sm transition">
-                            <p className="font-heading font-bold text-brand-gray-700">{r.displayName}</p>
-                            <p className="text-[10px] text-brand-gray-500 uppercase tracking-wider font-bold">Match #{r.matchId} &bull; {r.publicCourseTitle}</p>
-                            <p className="text-[10px] mt-1 text-brand-teal font-bold">{r.status.toUpperCase()} &bull; SCORE: {r.score}</p>
-                         </div>
-                       ))}
+                      <h3 className="font-heading font-bold text-brand-gray-700 text-lg border-b pb-2">Recent Player Activity</h3>
+                      {playerMatches.map(r => (
+                        <div key={`${r.matchId}-${r.userId}`} className="rounded-2xl border border-white/70 bg-white/68 p-4 hover:shadow-sm transition">
+                          <p className="font-heading font-bold text-brand-gray-700">{r.displayName}</p>
+                          <p className="text-[10px] text-brand-gray-500 uppercase tracking-wider font-bold">Match #{r.matchId} &bull; {r.publicCourseTitle}</p>
+                          <p className="text-[10px] mt-1 text-brand-teal font-bold">{r.status.toUpperCase()} &bull; SCORE: {r.score}</p>
+                        </div>
+                      ))}
                     </div>
                     <div className="space-y-4">
-                       <h3 className="font-heading font-bold text-brand-gray-700 text-lg border-b pb-2">Match Review Alerts</h3>
-                       {matchReviews.map(r => (
-                         <div key={r.matchId} className="rounded-2xl border border-white/70 bg-white/68 p-4 hover:shadow-sm transition">
-                            <div className="flex items-center justify-between">
-                               <p className="font-heading font-bold text-brand-gray-700">Match #{r.matchId}</p>
-                               <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${r.anomalyFlags.length > 0 ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'}`}>
-                                 {r.anomalyFlags.length > 0 ? 'Flagged' : 'Healthy'}
-                               </span>
-                            </div>
-                            <div className="flex flex-wrap gap-1 mt-2">
-                               {r.anomalyFlags.map(f => <span key={f} className="text-[9px] bg-sky-100 text-sky-700 px-2 py-0.5 rounded-full font-bold uppercase">{f.replaceAll('_', ' ')}</span>)}
-                            </div>
-                         </div>
-                       ))}
+                      <h3 className="font-heading font-bold text-brand-gray-700 text-lg border-b pb-2">Match Review Alerts</h3>
+                      {matchReviews.map(r => (
+                        <div key={r.matchId} className="rounded-2xl border border-white/70 bg-white/68 p-4 hover:shadow-sm transition">
+                          <div className="flex items-center justify-between">
+                            <p className="font-heading font-bold text-brand-gray-700">Match #{r.matchId}</p>
+                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${r.anomalyFlags.length > 0 ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                              {r.anomalyFlags.length > 0 ? 'Flagged' : 'Healthy'}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {r.anomalyFlags.map(f => <span key={f} className="text-[9px] bg-sky-100 text-sky-700 px-2 py-0.5 rounded-full font-bold uppercase">{f.replaceAll('_', ' ')}</span>)}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </DeepGlassCard>
@@ -727,9 +696,9 @@ export default function ArenaAdminPageClient() {
       {/* Glass Confirmation Modal */}
       <AnimatePresence>
         {poolToDeleteId && (
-          <motion.div 
-            initial={{ opacity: 0 }} 
-            animate={{ opacity: 1 }} 
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 flex items-center justify-center bg-brand-gray-900/30 backdrop-blur-sm p-4"
           >
@@ -740,24 +709,24 @@ export default function ArenaAdminPageClient() {
               className="relative w-full max-w-sm rounded-[2.5rem] border border-rose-200/50 bg-white/90 backdrop-blur-xl p-8 shadow-[0_32px_80px_rgba(225,29,72,0.15)]"
             >
               <div className="absolute top-0 inset-x-0 h-40 bg-gradient-to-b from-rose-100/50 to-transparent -z-10 rounded-t-[2.5rem]"></div>
-              
+
               <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-3xl bg-rose-100 text-rose-500 shadow-inner">
                 <FiTrash2 className="h-7 w-7" />
               </div>
-              
+
               <h2 className="font-heading text-2xl font-extrabold text-brand-gray-700 mb-2">Delete this Pool?</h2>
               <p className="text-sm font-medium text-brand-gray-500 mb-8 leading-relaxed">
                 This action is permanent and cannot be undone. Are you absolutely certain you want to destroy this question pool?
               </p>
-              
+
               <div className="flex flex-col gap-3">
-                <button 
+                <button
                   onClick={() => void handleDeletePool()}
                   className="w-full rounded-2xl bg-rose-500 py-3.5 px-6 font-bold text-white shadow-lg shadow-rose-500/30 transition-all hover:bg-rose-600 active:scale-95"
                 >
                   Yes, destroy it
                 </button>
-                <button 
+                <button
                   onClick={() => setPoolToDeleteId(null)}
                   className="w-full rounded-2xl bg-brand-gray-100 py-3.5 px-6 font-bold text-brand-gray-600 transition-all hover:bg-brand-gray-200 active:scale-95"
                 >

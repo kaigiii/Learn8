@@ -24,8 +24,9 @@ class Settings(BaseSettings):
     AUTH_DEV_LOGIN_PASSWORD: str = "dev_password"
     JOB_STALE_TIMEOUT_MINUTES: int = 10
 
-    # Database
+    # Database & Cache
     DATABASE_URL: str  # Required to be set in .env
+    REDIS_URL: str = "redis://localhost:6379/0"
 
     # AI / LLM
     GOOGLE_API_KEY: Optional[str] = None

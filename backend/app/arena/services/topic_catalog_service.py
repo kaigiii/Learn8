@@ -1,27 +1,35 @@
+from sqlalchemy import exists
 from sqlalchemy.orm import Session
 
 from app.models.public_course import PublicCourseModel
+from app.arena.models.arena_question_pool import ArenaQuestionPoolModel
 
 
 class TopicCatalogService:
-    def list_enabled_public_courses(self, db: Session) -> list[PublicCourseModel]:
+    def list_active_pools(self, db: Session) -> list[ArenaQuestionPoolModel]:
         return (
-            db.query(PublicCourseModel)
+            db.query(ArenaQuestionPoolModel)
+            .join(PublicCourseModel)
             .filter(
-                PublicCourseModel.is_published.is_(True),
-                PublicCourseModel.is_arena_enabled.is_(True),
+                ArenaQuestionPoolModel.is_active.is_(True),
+                PublicCourseModel.is_published.is_(True)
             )
-            .order_by(PublicCourseModel.title.asc())
+            .order_by(
+                PublicCourseModel.is_featured_arena.desc(),
+                PublicCourseModel.title.asc(),
+                ArenaQuestionPoolModel.id.asc()
+            )
             .all()
         )
 
-    def get_enabled_public_course(self, db: Session, public_course_id: int) -> PublicCourseModel | None:
+    def get_active_pool(self, db: Session, pool_id: int) -> ArenaQuestionPoolModel | None:
         return (
-            db.query(PublicCourseModel)
+            db.query(ArenaQuestionPoolModel)
+            .join(PublicCourseModel)
             .filter(
-                PublicCourseModel.id == public_course_id,
-                PublicCourseModel.is_published.is_(True),
-                PublicCourseModel.is_arena_enabled.is_(True),
+                ArenaQuestionPoolModel.id == pool_id,
+                ArenaQuestionPoolModel.is_active.is_(True),
+                PublicCourseModel.is_published.is_(True)
             )
             .first()
         )
