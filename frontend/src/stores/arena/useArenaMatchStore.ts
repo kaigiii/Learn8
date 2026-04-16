@@ -35,19 +35,36 @@ const INITIAL_STATE = {
 export const useArenaMatchStore = create<ArenaMatchStoreState>()((set) => ({
   ...INITIAL_STATE,
   setMatch: (match) => set({ match }),
-  appendEvents: (events) =>
-    set((state) => ({
-      events: [...state.events, ...events].slice(-150),
-      lastCursor: events.length > 0 ? events[events.length - 1].cursor : state.lastCursor,
-    })),
+  appendEvents: (newEvents) =>
+    set((state) => {
+      const existingIds = new Set(state.events.map((e) => e.eventId));
+      const filtered = newEvents.filter((e) => !existingIds.has(e.eventId));
+      if (filtered.length === 0) return state;
+
+      const updatedEvents = [...state.events, ...filtered].slice(-150);
+      return {
+        events: updatedEvents,
+        lastCursor: Math.max(state.lastCursor, ...filtered.map((e) => e.cursor)),
+      };
+    }),
   setLastCursor: (lastCursor) => set({ lastCursor }),
   setConnectionStatus: (connectionStatus) => set({ connectionStatus }),
   setRecovering: (isRecovering) => set({ isRecovering }),
   setSelectedOptionId: (selectedOptionId) => set({ selectedOptionId }),
   setSubmitting: (submitting) => set({ submitting }),
   patchMatch: (partial) =>
-    set((state) => ({
-      match: state.match ? { ...state.match, ...partial } : (partial as ArenaMatchState),
-    })),
+    set((state) => {
+      if (!state.match) return { match: partial as ArenaMatchState };
+      
+      // Basic shallow check to avoid redundant patches
+      const hasChange = Object.entries(partial).some(
+        ([key, value]) => (state.match as any)[key] !== value
+      );
+      if (!hasChange) return state;
+
+      return {
+        match: { ...state.match, ...partial },
+      };
+    }),
   reset: () => set(INITIAL_STATE),
 }));

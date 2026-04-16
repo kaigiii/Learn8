@@ -78,7 +78,10 @@ def get_current_arena_admin(
     }
 
     if not allowed_emails:
-        return current_user
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Arena admin is not configured on this server",
+        )
 
     if (current_user.email or "").strip().lower() not in allowed_emails:
         raise HTTPException(

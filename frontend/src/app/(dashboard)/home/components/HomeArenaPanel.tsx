@@ -20,7 +20,7 @@ export function HomeArenaPanel() {
   const [courses, setCourses] = useState<ArenaPublicCourse[]>([]);
   const [season, setSeason] = useState<ArenaSeasonSummary | null>(null);
   const [profile, setProfile] = useState<ArenaProfile | null>(null);
-  const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
+  const [selectedPoolId, setSelectedPoolId] = useState<number | null>(null);
   const [roomCode, setRoomCode] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -42,7 +42,7 @@ export function HomeArenaPanel() {
         setCourses(nextCourses);
         setSeason(nextSeason);
         setProfile(nextProfile);
-        setSelectedCourseId((current) => current ?? nextCourses[0]?.id ?? null);
+        setSelectedPoolId((current) => current ?? nextCourses.find(c => c.isFeatured)?.poolId ?? nextCourses[0]?.poolId ?? null);
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : "Failed to load Arena");
@@ -59,19 +59,22 @@ export function HomeArenaPanel() {
     };
   }, []);
 
-  const selectedCourse = useMemo(
-    () => courses.find((course) => course.id === selectedCourseId) ?? null,
-    [courses, selectedCourseId]
+  const selectedPool = useMemo(
+    () => courses.find((course) => course.poolId === selectedPoolId) ?? null,
+    [courses, selectedPoolId]
   );
 
   const handleJoinCompetition = async () => {
-    if (!selectedCourseId) {
+    if (!selectedPoolId || !selectedPool) {
       return;
     }
     setBusy(true);
     setError(null);
     try {
-      await joinArenaCompetitiveQueue({ publicCourseId: selectedCourseId });
+      await joinArenaCompetitiveQueue({ 
+        publicCourseId: selectedPool.id,
+        poolId: selectedPoolId 
+      });
       router.push("/arena/queue");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to join Arena competition");
@@ -81,13 +84,16 @@ export function HomeArenaPanel() {
   };
 
   const handleCreateRoom = async () => {
-    if (!selectedCourseId) {
+    if (!selectedPoolId || !selectedPool) {
       return;
     }
     setBusy(true);
     setError(null);
     try {
-      const room = await createArenaRoom({ publicCourseId: selectedCourseId });
+      const room = await createArenaRoom({ 
+        publicCourseId: selectedPool.id,
+        poolId: selectedPoolId 
+      });
       router.push(`/arena/lobby/${room.roomCode}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create room");
@@ -134,31 +140,31 @@ export function HomeArenaPanel() {
             <h3 className="font-heading text-2xl font-bold text-brand-gray-700">Official Competition</h3>
             <label className="mt-3 block">
               <span className="text-xs font-bold uppercase tracking-[0.18em] text-brand-gray-700">
-                Official Topic
+                Official Pool
               </span>
               <select
                 className="mt-2 w-full rounded-xl border border-brand-gray-200 bg-white px-4 py-3 text-sm text-brand-gray-700 outline-none"
-                value={selectedCourseId ?? ""}
+                value={selectedPoolId ?? ""}
                 onChange={(event) => {
                   const value = event.target.value;
-                  setSelectedCourseId(value ? Number(value) : null);
+                  setSelectedPoolId(value ? Number(value) : null);
                 }}
                 disabled={loading || busy || courses.length === 0}
               >
                 {courses.length === 0 ? (
-                  <option value="">{loading ? "Loading topics..." : "No topics available"}</option>
+                  <option value="">{loading ? "Loading pools..." : "No pools available"}</option>
                 ) : null}
-                {courses.map((course) => (
-                  <option key={course.id} value={course.id}>
-                    {course.title}
+                {courses.map((pool) => (
+                  <option key={pool.poolId} value={pool.poolId}>
+                    {pool.title}
                   </option>
                 ))}
               </select>
             </label>
 
-            {selectedCourse ? (
+            {selectedPool ? (
               <p className="mt-2 line-clamp-2 text-xs text-brand-gray-500">
-                {selectedCourse.description || selectedCourse.topic}
+                {selectedPool.courseTitle}
               </p>
             ) : null}
 
@@ -166,7 +172,7 @@ export function HomeArenaPanel() {
               variant="secondary"
               className="mt-3 w-full py-3 text-[1.05rem]"
               onClick={() => void handleJoinCompetition()}
-              disabled={!selectedCourseId || busy}
+              disabled={!selectedPoolId || busy}
             >
               Join Competition
             </GameButton>
@@ -179,7 +185,7 @@ export function HomeArenaPanel() {
               variant="secondary"
               className="mt-3 w-full py-3 text-[1.05rem]"
               onClick={() => void handleCreateRoom()}
-              disabled={!selectedCourseId || busy}
+              disabled={!selectedPoolId || busy}
             >
               Create Room
             </GameButton>

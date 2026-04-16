@@ -12,7 +12,7 @@ import {
   fetchArenaMatch,
   confirmArenaMatch,
 } from "@/lib/arena/api";
-import { watchArenaEvents } from "@/lib/arena/realtimeClient";
+import { arenaWsClient } from "@/lib/arena/realtimeClient";
 import { resolveErrorMessage } from "@/lib/apiClient";
 import { useAuthStore } from "@/stores/app/useAuthStore";
 import { useRequireAuthRedirect } from "@/lib/auth/useRequireAuthRedirect";
@@ -103,23 +103,26 @@ export default function ArenaQueuePageClient() {
     if (!queueState?.matchId) return;
 
     const matchId = queueState.matchId;
-    const watcher = watchArenaEvents({
-      streamPath: `/arena/matches/${matchId}/stream`,
-      onEvents: async () => {
-        // Any event in the match stream triggers a deep state sync
-        const refreshedMatch = await fetchArenaMatch(matchId);
-        setMatchState(refreshedMatch);
-        if (refreshedMatch.status === "in_progress") {
-          router.replace(`/arena/match/${matchId}`);
-        }
-        if (refreshedMatch.status === "cancelled") {
-          setMatchState(null);
-          setAccepting(false);
-        }
-      },
+    arenaWsClient.subscribeMatch(matchId);
+    const unsubscribeEvents = arenaWsClient.onEvents(async (events) => {
+      const matchEvents = events.filter((e) => e.matchId === matchId);
+      if (matchEvents.length === 0) return;
+      
+      const refreshedMatch = await fetchArenaMatch(matchId);
+      setMatchState(refreshedMatch);
+      if (refreshedMatch.status === "in_progress") {
+        router.replace(`/arena/match/${matchId}`);
+      }
+      if (refreshedMatch.status === "cancelled") {
+        setMatchState(null);
+        setAccepting(false);
+      }
     });
 
-    return () => watcher.close();
+    return () => {
+      unsubscribeEvents();
+      arenaWsClient.unsubscribeMatch(matchId);
+    };
   }, [queueState?.matchId, router]);
 
   const handleCancel = async () => {
@@ -152,7 +155,7 @@ export default function ArenaQueuePageClient() {
       <main className="mx-auto flex max-w-4xl flex-col gap-6 px-4 py-8 md:px-8">
         <DeepGlassCard className="px-6 py-6 md:px-8 md:py-8">
           <p className="text-xs font-bold uppercase tracking-[0.26em] text-brand-teal">
-            Topic Competition
+            Official Competition
           </p>
           <h1 className="mt-3 font-heading text-4xl font-extrabold text-brand-gray-700">
             Finding your next challenger
@@ -166,7 +169,7 @@ export default function ArenaQueuePageClient() {
         <DeepGlassCard className="px-6 py-6">
           <div className="grid gap-4 md:grid-cols-3">
             <QueueMetric label="Status" value={queueState?.status ?? (loading ? "loading" : "idle")} />
-            <QueueMetric label="Topic" value={queueState?.publicCourseTitle ?? "..."} />
+            <QueueMetric label="Pool" value={queueState?.poolTitle || queueState?.publicCourseTitle || "..."} />
             <QueueMetric
               label="Queued At"
               value={queueState ? new Date(queueState.queuedAt).toLocaleTimeString() : "..."}
@@ -174,11 +177,8 @@ export default function ArenaQueuePageClient() {
           </div>
 
           <div className="mt-6 flex flex-col gap-3 md:flex-row">
-            <GameButton variant="secondary" onClick={() => void handleCancel()} disabled={busy}>
-              Leave Queue
-            </GameButton>
-            <GameButton onClick={() => router.push("/home")} disabled={busy}>
-              Back To Home
+            <GameButton variant="secondary" onClick={() => void handleCancel()} disabled={busy} className="flex-1">
+              Cancel & Exit
             </GameButton>
           </div>
 
@@ -249,10 +249,31 @@ export default function ArenaQueuePageClient() {
 }
 
 function QueueMetric({ label, value }: { label: string; value: string }) {
+  const getStatusDisplay = (val: string) => {
+    switch (val.toLowerCase()) {
+      case "idle":
+        return "Searching again...";
+      case "loading":
+        return "Connecting...";
+      case "waiting":
+        return "Searching...";
+      case "matched":
+        return "Match found!";
+      case "cancelled":
+        return "Cancelled";
+      case "expired":
+        return "Timeout";
+      default:
+        return val.charAt(0).toUpperCase() + val.slice(1);
+    }
+  };
+
+  const displayValue = label === "Status" ? getStatusDisplay(value) : value;
+
   return (
     <div className="rounded-2xl border border-white/70 bg-white/68 px-4 py-4">
       <p className="text-xs font-bold uppercase tracking-[0.22em] text-brand-teal">{label}</p>
-      <p className="mt-2 font-heading text-2xl font-bold text-brand-gray-700">{value}</p>
+      <p className="mt-2 font-heading text-2xl font-bold text-brand-gray-700">{displayValue}</p>
     </div>
   );
 }

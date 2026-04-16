@@ -57,27 +57,22 @@ class RealtimeGateway:
         return query.order_by(ArenaEventModel.id.asc()).limit(min(max(limit, 1), 500)).all()
 
     def _publish_notify(self, db: Session, event: ArenaEventModel) -> None:
-        bind = db.get_bind()
-        if bind is None or bind.dialect.name != "postgresql":
-            return
-
-        payload = {
-            "cursor": event.id,
-            "event_id": event.event_id,
-            "stream_type": event.stream_type,
-            "room_code": event.room_code,
-            "match_id": event.match_id,
-            "event_type": event.event_type,
-            "version": event.version,
-        }
-        payload_str = json.dumps(payload)
+        from app.core.redis import redis_sync_client
         try:
-            db.execute(
-                text("SELECT pg_notify(:channel, :payload)"),
-                {"channel": ARENA_EVENT_CHANNEL, "payload": payload_str},
-            )
+            full_payload = serialize_arena_event(event)
+            payload_str = json.dumps(full_payload)
+            
+            if event.stream_type == "match" and event.match_id:
+                channel = f"arena:match:{event.match_id}"
+                redis_sync_client.publish(channel, payload_str)
+            elif event.stream_type == "room" and event.room_code:
+                channel = f"arena:room:{event.room_code}"
+                redis_sync_client.publish(channel, payload_str)
+            
+            # Also publish to a global channel for system-wide monitoring
+            redis_sync_client.publish("arena:global", payload_str)
         except Exception:
-            logger.exception("Failed to publish PostgreSQL NOTIFY for arena event %s", event.event_id)
+            logger.exception("Failed to publish Redis event %s", event.event_id)
 
 
 def serialize_arena_event(event: ArenaEventModel) -> dict:

@@ -99,7 +99,7 @@ export default function ArenaLobbyPageClient({ roomCode }: { roomCode: string })
                 {room?.roomCode ?? roomCode.toUpperCase()}
               </h1>
               <p className="mt-3 text-sm text-brand-gray-500">
-                {room?.publicCourseTitle ?? "Loading room topic..."}
+                {room?.poolTitle || room?.publicCourseTitle || "Loading room topic..."}
               </p>
             </div>
 

@@ -18,33 +18,6 @@ class AdminService:
     def list_public_courses(self, db: Session) -> list[PublicCourseModel]:
         return db.query(PublicCourseModel).order_by(PublicCourseModel.created_at.desc()).all()
 
-    def upsert_public_course(
-        self,
-        db: Session,
-        *,
-        public_course_id: int | None,
-        payload: dict,
-    ) -> PublicCourseModel:
-        if public_course_id is not None:
-            course = db.query(PublicCourseModel).filter(PublicCourseModel.id == public_course_id).first()
-        else:
-            course = None
-
-        if course is None:
-            course = PublicCourseModel()
-            db.add(course)
-
-        course.slug = payload["slug"].strip()
-        course.title = payload["title"].strip()
-        course.topic = payload["topic"].strip()
-        course.description = payload.get("description")
-        course.difficulty = payload.get("difficulty") or "intermediate"
-        course.is_published = bool(payload.get("isPublished"))
-        course.is_arena_enabled = bool(payload.get("isArenaEnabled"))
-        course.tags_json = list(payload.get("tags") or [])
-        db.commit()
-        db.refresh(course)
-        return course
 
     def list_question_pools(
         self,
@@ -303,19 +276,23 @@ class AdminService:
         component = stage.get("component", "Unknown")
         data = stage.get("data", {})
         
-        # Difficulty might not be explicitly set in syllabus stage block, fallback to normal
         difficulty = stage.get("difficulty") or data.get("difficulty") or "normal"
         explanation = data.get("explanation") or ""
         
+        question_id = stage.get("stageId") or f"{context['nodeId']}-{index}"
+
         item = {
             "unitId": context["unitId"],
             "unitTitle": context["unitTitle"],
             "nodeId": context["nodeId"],
             "nodeTitle": context["nodeTitle"],
-            "questionKey": f"{context['nodeId']}-{index}",
+            "questionKey": question_id,
             "questionType": component,
             "difficulty": difficulty,
             "explanation": explanation,
+            "sourceUnitId": context["unitId"],
+            "sourceNodeId": context["nodeId"],
+            "isActive": True,
         }
 
         if component == "MultipleChoice":
@@ -324,16 +301,25 @@ class AdminService:
             item["correctOptionId"] = data.get("correctOptionId") or ""
         elif component == "MatchingPairs":
             item["prompt"] = data.get("question") or context["nodeTitle"]
+            # Convert pairs list to the generic options format if needed or keep as is
             item["options"] = data.get("pairs") or []
+            item["correctOptionId"] = None
         elif component == "Ordering":
             item["prompt"] = data.get("question") or context["nodeTitle"]
-            item["options"] = data.get("steps") or []
+            # Convert steps list to the generic options format (id: step)
+            steps = data.get("steps") or []
+            item["options"] = [{"id": f"step-{i}", "text": step} if isinstance(step, str) else step for i, step in enumerate(steps)]
+            item["correctOptionId"] = None
         elif component == "FeynmanMirror":
             item["prompt"] = data.get("prompt") or context["nodeTitle"]
             item["options"] = []
+            item["correctOptionId"] = None
         elif component == "ExplainerMedia":
             item["prompt"] = data.get("title") or context["nodeTitle"]
-            item["options"] = data.get("content") or []
+            item["options"] = []
+            item["correctOptionId"] = None
+        else:
+            return {}
 
         return item
 
@@ -345,9 +331,8 @@ class AdminService:
             "title": course.title,
             "topic": course.topic,
             "description": course.description,
-            "difficulty": course.difficulty,
             "isPublished": bool(course.is_published),
-            "isArenaEnabled": bool(course.is_arena_enabled),
+            "isFeatured": bool(course.is_featured_arena),
             "tags": list(course.tags_json or []),
         }
 

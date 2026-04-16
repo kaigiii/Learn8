@@ -3,15 +3,6 @@ from typing import List, Optional, Any
 from pydantic import BaseModel, Field
 
 
-class ArenaAdminPublicCourseUpsertRequest(BaseModel):
-    slug: str = Field(min_length=1, max_length=120)
-    title: str = Field(min_length=1, max_length=200)
-    topic: str = Field(min_length=1, max_length=200)
-    description: Optional[str] = None
-    difficulty: str = "intermediate"
-    isPublished: bool = False
-    isArenaEnabled: bool = False
-    tags: List[str] = Field(default_factory=list)
 
 
 class ArenaAdminPublicCourseResponse(BaseModel):
@@ -20,9 +11,8 @@ class ArenaAdminPublicCourseResponse(BaseModel):
     title: str
     topic: str
     description: Optional[str] = None
-    difficulty: str
     isPublished: bool
-    isArenaEnabled: bool
+    isFeatured: bool
     tags: List[str] = Field(default_factory=list)
 
 

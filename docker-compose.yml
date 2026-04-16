@@ -15,9 +15,18 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - DATABASE_URL=postgresql://learn8_user:learn8_password@postgres:5432/learn8_db
+      - REDIS_URL=redis://learn8_redis:6379/0
     depends_on:
       - postgres
+      - redis
     restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: learn8_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
 
   postgres:
     image: postgres:15-alpine

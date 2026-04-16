@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import TopStatsBar from "@/components/layout/TopStatsBar";
 import DeepGlassCard from "@/components/ui/DeepGlassCard";
 import GameButton from "@/components/ui/GameButton";
-import { submitArenaAnswer } from "@/lib/arena/api";
+import { arenaWsClient } from "@/lib/arena/realtimeClient";
 import { getArenaEventLabel } from "@/lib/arena/eventTypes";
 import { useRequireAuthRedirect } from "@/lib/auth/useRequireAuthRedirect";
 import { useAuthStore } from "@/stores/app/useAuthStore";
@@ -99,7 +99,13 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
     });
 
     try {
-      const result = await submitArenaAnswer(match.matchId, {
+      const result = await arenaWsClient.sendActionWithResponse<{
+        state: any;
+        alreadySubmitted: boolean;
+        roundClosed: boolean;
+        matchFinished: boolean;
+      }>("submit_answer", {
+        matchId: match.matchId,
         roundId: match.activeRound.roundId,
         selectedOptionId,
       });

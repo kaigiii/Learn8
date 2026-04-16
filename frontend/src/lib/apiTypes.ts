@@ -226,12 +226,14 @@ export interface LessonGenerationPreferenceListResponse {
 }
 
 export interface ArenaPublicCourse {
-  id: number;
+  id: number; // Course ID
+  poolId: number;
   slug: string;
-  title: string;
+  title: string; // Pool Title
+  courseTitle: string;
   topic: string;
   description?: string | null;
-  difficulty: string;
+  isFeatured: boolean;
   tags: string[];
 }
 
@@ -240,6 +242,8 @@ export interface ArenaCompetitiveQueueState {
   status: string;
   publicCourseId: number;
   publicCourseTitle: string;
+  poolId?: number | null;
+  poolTitle?: string | null;
   mode: string;
   queuedAt: string;
   expiresAt?: string | null;
@@ -249,7 +253,6 @@ export interface ArenaCompetitiveQueueState {
 
 export interface ArenaAdminPublicCourse extends ArenaPublicCourse {
   isPublished: boolean;
-  isArenaEnabled: boolean;
 }
 
 export interface ArenaAdminSyllabusQuestion {
@@ -271,9 +274,8 @@ export interface ArenaAdminPublicCourseUpsertRequest {
   title: string;
   topic: string;
   description?: string | null;
-  difficulty: string;
   isPublished: boolean;
-  isArenaEnabled: boolean;
+  isFeatured: boolean;
   tags: string[];
 }
 
@@ -492,6 +494,8 @@ export interface ArenaMatchState {
   mode: string;
   publicCourseId: number;
   publicCourseTitle: string;
+  poolId?: number | null;
+  poolTitle?: string | null;
   totalRounds: number;
   currentRoundIndex: number;
   activeRound?: ArenaRoundState | null;

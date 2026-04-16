@@ -1,12 +1,10 @@
 import asyncio
 import json
 
-import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, Response, status, BackgroundTasks
-from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import get_current_user, get_current_user_for_stream, get_db
+from app.api.dependencies import get_current_user, get_db
 from app.core.config import settings
 from app.core.time import utc_now, to_iso_utc
 from app.models.user import UserModel
@@ -24,8 +22,6 @@ from app.arena.schemas.arena_room_schema import (
     ArenaRoomStartResponse,
 )
 from app.arena.schemas.arena_match_schema import (
-    ArenaAnswerSubmitRequest,
-    ArenaAnswerSubmitResponse,
     ArenaMatchStateResponse,
 )
 from app.arena.schemas.arena_schema import ArenaPublicCourseSummary, ArenaSeasonSummary
@@ -39,12 +35,6 @@ from app.arena.services.topic_catalog_service import TopicCatalogService
 router = APIRouter()
 
 
-def _normalize_asyncpg_db_url() -> str:
-    db_url = settings.DATABASE_URL
-    if db_url.startswith("postgresql+"):
-        return "postgresql://" + db_url.split("://", 1)[1]
-    return db_url
-
 
 @router.get("/public-courses", response_model=list[ArenaPublicCourseSummary])
 def list_public_courses(
@@ -53,18 +43,20 @@ def list_public_courses(
 ):
     del current_user
     catalog_service = TopicCatalogService()
-    courses = catalog_service.list_enabled_public_courses(db)
+    pools = catalog_service.list_active_pools(db)
     return [
         ArenaPublicCourseSummary(
-            id=course.id,
-            slug=course.slug,
-            title=course.title,
-            topic=course.topic,
-            description=course.description,
-            difficulty=course.difficulty,
-            tags=list(course.tags_json or []),
+            id=pool.public_course_id,
+            poolId=pool.id,
+            slug=pool.public_course.slug,
+            title=pool.title,
+            courseTitle=pool.public_course.title,
+            topic=pool.public_course.topic,
+            description=pool.public_course.description,
+            isFeatured=bool(pool.public_course.is_featured_arena),
+            tags=list(pool.public_course.tags_json or []),
         )
-        for course in courses
+        for pool in pools
     ]
 
 
@@ -173,6 +165,7 @@ def get_arena_resume_target(
 @router.post("/competitive/queue", response_model=ArenaCompetitiveQueueResponse)
 def join_competitive_queue(
     payload: ArenaCompetitiveQueueJoinRequest,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_user),
 ):
@@ -180,7 +173,9 @@ def join_competitive_queue(
     entry = service.join_queue(
         db,
         current_user,
+        background_tasks=background_tasks,
         public_course_id=payload.publicCourseId,
+        pool_id=payload.poolId,
         round_count=payload.roundCount,
         round_time_seconds=payload.roundTimeSeconds,
     )
@@ -298,149 +293,6 @@ def leave_room(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.get("/rooms/{room_code}/events", response_model=ArenaEventListResponse)
-def list_room_events(
-    room_code: str,
-    after_cursor: int = 0,
-    limit: int = 100,
-    db: Session = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
-):
-    del current_user
-    gateway = RealtimeGateway()
-    events = gateway.list_events(db, room_code=room_code, after_cursor=after_cursor, limit=limit)
-    return ArenaEventListResponse(items=[ArenaEventEnvelope(**serialize_arena_event(event)) for event in events])
-
-
-@router.post("/rooms/{room_code}/presence", status_code=status.HTTP_204_NO_CONTENT)
-def heartbeat_room_presence(
-    room_code: str,
-    db: Session = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
-):
-    room_service = RoomService()
-    room = room_service.get_room_by_code(db, room_code)
-    if not room:
-        raise HTTPException(status_code=404, detail="Arena room not found")
-    if not any(player.user_id == current_user.id for player in room.players):
-        raise HTTPException(status_code=403, detail="You are not part of this Arena room")
-    room_service.presence_service.touch_room_presence(db, room, current_user)
-    db.commit()
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
-
-
-@router.get("/matches/{match_id}/events", response_model=ArenaEventListResponse)
-def list_match_events(
-    match_id: int,
-    after_cursor: int = 0,
-    limit: int = 100,
-    db: Session = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
-):
-    del current_user
-    gateway = RealtimeGateway()
-    events = gateway.list_events(db, match_id=match_id, after_cursor=after_cursor, limit=limit)
-    return ArenaEventListResponse(items=[ArenaEventEnvelope(**serialize_arena_event(event)) for event in events])
-
-
-async def _make_arena_event_stream(
-    filter_type: str,  # 'room' or 'match'
-    filter_value: str | int,
-    after_cursor: int = 0,
-):
-    db_url = _normalize_asyncpg_db_url()
-    conn = await asyncpg.connect(db_url)
-    queue: asyncio.Queue[str] = asyncio.Queue()
-    cursor = max(after_cursor, 0)
-
-    async def emit_backlog():
-        nonlocal cursor
-        where_clause = "room_code = $1" if filter_type == "room" else "match_id = $1"
-        query_val = filter_value.upper() if filter_type == "room" else filter_value
-        
-        rows = await conn.fetch(
-            f"""
-            SELECT id, event_id, stream_type, room_code, match_id, event_type, version, payload_json, created_at
-            FROM arena_events
-            WHERE {where_clause} AND id > $2
-            ORDER BY id ASC
-            LIMIT 200
-            """,
-            query_val,
-            cursor,
-        )
-        for row in rows:
-            payload = {
-                "cursor": row["id"],
-                "eventId": row["event_id"],
-                "streamType": row["stream_type"],
-                "roomCode": row["room_code"],
-                "matchId": row["match_id"],
-                "eventType": row["event_type"],
-                "version": row["version"],
-                "payload": row["payload_json"] if isinstance(row["payload_json"], dict) else {},
-                "createdAt": to_iso_utc(row["created_at"]),
-            }
-            cursor = row["id"]
-            yield f"data: {json.dumps(payload)}\n\n"
-
-    def notification_handler(connection, pid, channel, payload):
-        # logging.info(f"[SSE] Received notification on {channel}: {payload}")
-        print(f"\n>>> [SSE] Event Notify Received: {payload}")
-        asyncio.create_task(queue.put(payload))
-
-    await conn.add_listener(ARENA_EVENT_CHANNEL, notification_handler)
-    try:
-        async for item in emit_backlog():
-            yield item
-        while True:
-            try:
-                await asyncio.wait_for(queue.get(), timeout=10.0)
-                async for item in emit_backlog():
-                    yield item
-            except asyncio.TimeoutError:
-                yield ": heartbeat\n\n"
-    finally:
-        await conn.remove_listener(ARENA_EVENT_CHANNEL, notification_handler)
-        await conn.close()
-
-
-@router.get("/rooms/{room_code}/stream")
-async def stream_room_events(
-    room_code: str,
-    after_cursor: int = 0,
-    current_user: UserModel = Depends(get_current_user_for_stream),
-):
-    del current_user
-    return StreamingResponse(
-        _make_arena_event_stream("room", room_code, after_cursor),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",
-        },
-    )
-
-
-@router.get("/matches/{match_id}/stream")
-async def stream_match_events(
-    match_id: int,
-    after_cursor: int = 0,
-    current_user: UserModel = Depends(get_current_user_for_stream),
-):
-    del current_user
-    return StreamingResponse(
-        _make_arena_event_stream("match", match_id, after_cursor),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",
-        },
-    )
-
-
 @router.get("/matches/{match_id}", response_model=ArenaMatchStateResponse)
 def get_match_state(
     match_id: int,
@@ -462,36 +314,81 @@ def confirm_match(
     return ArenaMatchStateResponse(**round_engine.confirm_match(db, match_id, current_user))
 
 
-@router.post("/matches/{match_id}/presence", status_code=status.HTTP_204_NO_CONTENT)
-def heartbeat_match_presence(
-    match_id: int,
-    db: Session = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
-):
-    round_engine = RoundEngine()
-    match = round_engine.get_match(db, match_id)
-    if not match:
-        raise HTTPException(status_code=404, detail="Arena match not found")
-    round_engine._ensure_participant(match, current_user)
-    round_engine.presence_service.touch_match_presence(db, match, current_user)
-    db.commit()
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
+from fastapi import WebSocket, WebSocketDisconnect
 
+@router.on_event("startup")
+async def startup_event():
+    from app.arena.services.ws_connection_manager import manager
+    await manager.start_listening()
 
-@router.post("/matches/{match_id}/answers", response_model=ArenaAnswerSubmitResponse)
-def submit_match_answer(
-    background_tasks: BackgroundTasks,
-    match_id: int,
-    payload: ArenaAnswerSubmitRequest,
-    db: Session = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+@router.websocket("/ws")
+async def arena_websocket_endpoint(
+    websocket: WebSocket,
+    access_token: str | None = None,
 ):
-    round_engine = RoundEngine(background_tasks=background_tasks)
-    result = round_engine.submit_answer(
-        db,
-        match_id=match_id,
-        round_id=payload.roundId,
-        current_user=current_user,
-        selected_option_id=payload.selectedOptionId,
-    )
-    return ArenaAnswerSubmitResponse(**result)
+    from app.api.dependencies import _resolve_current_user_from_token
+    from app.db.session import SessionLocal
+    from app.arena.services.ws_connection_manager import manager
+    
+    with SessionLocal() as db:
+        try:
+            current_user = _resolve_current_user_from_token(access_token or "", db)
+            db.expunge(current_user)  # Detach from session so we can use it safely across async boundary
+        except Exception:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+
+    await manager.connect(current_user.id, websocket)
+    try:
+        while True:
+            data = await websocket.receive_json()
+            action = data.get("action")
+            
+            if action == "heartbeat":
+                await manager.touch_presence(current_user.id)
+                await manager.send_personal_message(current_user.id, {"type": "pong"})
+            
+            elif action == "subscribe":
+                match_id = data.get("matchId")
+                room_code = data.get("roomCode")
+                if match_id:
+                    await manager.subscribe(current_user.id, f"arena:match:{match_id}")
+                if room_code:
+                    await manager.subscribe(current_user.id, f"arena:room:{room_code}")
+                    
+            elif action == "unsubscribe":
+                match_id = data.get("matchId")
+                room_code = data.get("roomCode")
+                if match_id:
+                    await manager.unsubscribe(current_user.id, f"arena:match:{match_id}")
+                if room_code:
+                    await manager.unsubscribe(current_user.id, f"arena:room:{room_code}")
+                    
+            elif action == "submit_answer":
+                match_id = data.get("matchId")
+                round_id = data.get("roundId")
+                selected_option_id = data.get("selectedOptionId")
+                req_id = data.get("reqId")
+                
+                def _submit():
+                    from app.arena.services.round_engine import RoundEngine
+                    engine = RoundEngine()
+                    with SessionLocal() as async_db:
+                        return engine.submit_answer(
+                            async_db,
+                            match_id=match_id,
+                            round_id=round_id,
+                            current_user=current_user,
+                            selected_option_id=selected_option_id,
+                            answer_payload=data.get("answerPayload")
+                        )
+                
+                result = await asyncio.to_thread(_submit)
+                await manager.send_personal_message(current_user.id, {
+                    "action": "answer_result",
+                    "reqId": req_id,
+                    "payload": result
+                })
+                
+    except WebSocketDisconnect:
+        manager.disconnect(current_user.id)

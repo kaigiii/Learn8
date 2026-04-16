@@ -19,45 +19,27 @@ class PresenceService:
         self.realtime_gateway = realtime_gateway or RealtimeGateway()
 
     def touch_room_presence(self, db: Session, room: ArenaRoomModel, current_user: UserModel) -> None:
-        self.sweep_room_presence(db, room)
-        now = utc_now()
-        player = next((item for item in room.players if item.user_id == current_user.id), None)
-        if not player:
-            return
-
-        previous_state = player.connection_state
-        player.connection_state = "connected"
-        player.last_seen_at = now
-        if previous_state == "disconnected":
-            player.reconnected_at = now
-        db.add(player)
-
-        if previous_state == "disconnected":
-            self.realtime_gateway.publish_event(
-                db,
-                stream_type="room",
-                room_code=room.room_code,
-                match_id=room.latest_match_id,
-                event_type="player.reconnected",
-                payload={
-                    "scope": "room",
-                    "roomCode": room.room_code,
-                    "userId": current_user.id,
-                    "displayName": (player.user_snapshot_json or {}).get("displayName") 
-                        or current_user.full_name 
-                        or current_user.email.split("@")[0],
-                },
-            )
+        # DB heartbeats are deprecated. Redis TTL is handled by WebSocket management.
+        from app.core.redis import redis_sync_client
+        try:
+            redis_sync_client.setex(f"presence:user:{current_user.id}", 30, "online")
+        except Exception:
+            pass
 
     def sweep_room_presence(self, db: Session, room: ArenaRoomModel) -> None:
         now = utc_now()
+        from app.core.redis import redis_sync_client
         for player in room.players:
             if player.connection_state != "connected":
                 continue
-            last_seen_at = ensure_aware(player.last_seen_at)
-            if not last_seen_at:
-                continue
-            if (now - last_seen_at).total_seconds() < self.DISCONNECT_AFTER_SECONDS:
+                
+            try:
+                is_online = redis_sync_client.exists(f"presence:user:{player.user_id}")
+            except Exception:
+                # Fail open if redis is down
+                is_online = True
+                
+            if is_online:
                 continue
 
             player.connection_state = "disconnected"
@@ -79,53 +61,34 @@ class PresenceService:
             )
 
     def touch_match_presence(self, db: Session, match: ArenaMatchModel, current_user: UserModel) -> None:
-        self.sweep_match_presence(db, match)
-        player = next((item for item in match.players if item.user_id == current_user.id), None)
-        if not player:
-            return
-
-        now = utc_now()
-        previous_state = player.connection_state
-        player.connection_state = "connected"
-        player.last_seen_at = now
-        if previous_state == "disconnected":
-            player.reconnected_at = now
-        db.add(player)
-
-        if previous_state == "disconnected":
-            self.realtime_gateway.publish_event(
-                db,
-                stream_type="match",
-                room_code=match.room_snapshot_json.get("room_code") if isinstance(match.room_snapshot_json, dict) else None,
-                match_id=match.id,
-                event_type="player.reconnected",
-                payload={
-                    "scope": "match",
-                    "matchId": match.id,
-                    "userId": current_user.id,
-                    "displayName": (player.user_snapshot_json or {}).get("displayName") 
-                        or current_user.full_name 
-                        or current_user.email.split("@")[0],
-                },
-            )
+        # DB heartbeats are deprecated. Redis TTL is handled by WebSocket management.
+        from app.core.redis import redis_sync_client
+        try:
+            redis_sync_client.setex(f"presence:user:{current_user.id}", 30, "online")
+        except Exception:
+            pass
 
     def sweep_match_presence(self, db: Session, match: ArenaMatchModel) -> None:
         now = utc_now()
+        from app.core.redis import redis_sync_client
         for player in match.players:
             if player.connection_state != "connected":
                 continue
-            last_seen_at = ensure_aware(player.last_seen_at)
-            if not last_seen_at:
-                continue
-            elapsed = (now - last_seen_at).total_seconds()
-            if elapsed < self.DISCONNECT_AFTER_SECONDS:
+                
+            try:
+                is_online = redis_sync_client.exists(f"presence:user:{player.user_id}")
+            except Exception:
+                # Fail open if redis is down
+                is_online = True
+                
+            if is_online:
                 continue
 
             player.connection_state = "disconnected"
             player.disconnected_at = now
             player.disconnect_count = int(player.disconnect_count or 0) + 1
-            if elapsed >= self.ABANDON_AFTER_SECONDS:
-                player.suspected_abandonment = True
+            # In the Redis setup, 30s TTL means they've been gone 30 seconds already
+            player.suspected_abandonment = True
             db.add(player)
             self.realtime_gateway.publish_event(
                 db,
