@@ -21,6 +21,12 @@ import {
   FiZap, 
   FiCheckCircle 
 } from "react-icons/fi";
+import MultipleChoiceQuestion from "@/components/lesson-session/MultipleChoiceQuestion";
+import MatchingPairsQuestion from "@/components/lesson-session/MatchingPairsQuestion";
+import OrderingQuestion from "@/components/lesson-session/OrderingQuestion";
+import FeynmanQuestion from "@/components/lesson-session/FeynmanQuestion";
+import ExplainerMediaCard from "@/components/lesson-session/ExplainerMediaCard";
+import { useMatchingPairsStage } from "@/features/lesson-session/hooks/useMatchingPairsStage";
 
 export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
   const router = useRouter();
@@ -38,7 +44,81 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
   const [remainingSeconds, setRemainingSeconds] = useState(0);
   const [submitNotice, setSubmitNotice] = useState<string | null>(null);
 
+  // --- Interactive Question State ---
+  const mapDifficulty = (d?: string | null): "low" | "medium" | "high" | null => {
+    if (!d) return "low";
+    const lower = d.toLowerCase();
+    if (lower === "hard" || lower === "high") return "high";
+    if (lower === "medium" || lower === "intermediate") return "medium";
+    return "low";
+  };
+
+  const activeRound = match?.activeRound ?? null;
+  const question = activeRound?.question;
+
+  // Matching Pairs Hook
+  const {
+    selectedLeftId,
+    selectedRightId,
+    matched,
+    matchedPairs,
+    shuffledRightIds,
+    allMatched,
+    pickLeft,
+    pickRight,
+    handleHint: handleMatchingHint,
+  } = useMatchingPairsStage({
+    pairs: (question?.questionType === "MatchingPairs" ? (question?.options || []).map((o: any, i: number) => ({
+      id: String(i),
+      left: o.left || "Side A",
+      right: o.right || "Side B"
+    })) : []),
+    enabled: question?.questionType === "MatchingPairs" && !activeRound?.hasSubmitted,
+    onCorrectStageComplete: (results) => {
+      setSelectedOptionId(JSON.stringify(results));
+    },
+    onHintUse: async () => true, // Arena hints are free for now or handled differently
+  });
+
+  // Ordering State
+  const [orderedItems, setOrderedItems] = useState<string[]>([]);
+  useEffect(() => {
+    if (question?.questionType === "Ordering") {
+      setOrderedItems([]);
+    }
+  }, [question?.questionId, question?.questionType]);
+
+  const handleOrderingSubmit = (items: string[]) => {
+    setOrderedItems(items);
+    setSelectedOptionId(JSON.stringify(items));
+  };
+
+  useEffect(() => {
+    if (question?.questionType === "Ordering" && activeRound && !activeRound.hasSubmitted) {
+      // Initialize with the shuffled items if not already set
+      // This allows the user to submit the initial random order if they wish
+      const rawSteps = question.options || [];
+      const shuffled = [...rawSteps].sort(() => Math.random() - 0.5);
+      const initialOrder = shuffled.map((s: any) => typeof s === "string" ? s : (s.text || s.content || s.id || "Step"));
+      setSelectedOptionId(JSON.stringify(initialOrder));
+    }
+  }, [question?.questionId, question?.questionType, activeRound?.roundId]);
+
   useEffect(() => () => reset(), [reset]);
+
+  useEffect(() => {
+    if (activeRound?.question?.questionType === "MatchingPairs" && allMatched) {
+      setSelectedOptionId(JSON.stringify(matchedPairs));
+    } else if (activeRound?.question?.questionType === "MatchingPairs" && !allMatched) {
+      setSelectedOptionId(null);
+    }
+  }, [allMatched, matchedPairs, activeRound?.question?.questionType, setSelectedOptionId]);
+
+  useEffect(() => {
+    if (activeRound?.roundId) {
+       setSelectedOptionId(null);
+    }
+  }, [activeRound?.roundId, setSelectedOptionId]);
 
   useEffect(() => {
     if (!match?.activeRound?.deadlineAt) {
@@ -89,7 +169,16 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
   }, [latestReveal]);
 
   const handleSubmit = async () => {
-    if (!match?.activeRound || !selectedOptionId) return;
+    if (!match?.activeRound) return;
+    
+    // For interactive types, ensure we have a value
+    let finalValue = selectedOptionId;
+    if (question?.questionType === "MatchingPairs" && !finalValue && allMatched) {
+      finalValue = JSON.stringify(matchedPairs);
+    }
+    
+    if (!finalValue) return;
+
     setSubmitting(true);
     setSubmitNotice(null);
 
@@ -107,7 +196,7 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
       }>("submit_answer", {
         matchId: match.matchId,
         roundId: match.activeRound.roundId,
-        selectedOptionId,
+        selectedOptionId: finalValue,
       });
       useArenaMatchStore.getState().setMatch(result.state);
       if (result.alreadySubmitted) {
@@ -130,7 +219,7 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
     }
   };
 
-  const activeRound = match?.activeRound ?? null;
+  const activeRound_ = activeRound; // to avoid shadowed name if any
   const presenceByUserId = useMemo(
     () => new Map((match?.presenceStates ?? []).map((entry) => [entry.userId, entry])),
     [match?.presenceStates]
@@ -257,82 +346,123 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
                   {activeRound.question.prompt}
                 </h2>
 
-                {activeRound.question.questionType === "MultipleChoice" && (
-                  <div className="mt-6 grid gap-3">
-                    {activeRound.question.options.map((option: any) => {
-                      const active = selectedOptionId === option.id;
-                      return (
-                        <button
-                          key={option.id}
-                          type="button"
-                          disabled={activeRound.hasSubmitted}
-                          onClick={() => setSelectedOptionId(option.id)}
-                          className={`group relative flex items-center justify-between rounded-2xl border-2 px-6 py-4 text-left transition-all ${
-                            active
-                              ? "border-brand-teal bg-brand-teal/5 shadow-lg shadow-brand-teal/5"
-                              : "border-brand-gray-100 bg-white hover:border-brand-teal/30 hover:bg-brand-gray-50/50"
-                          } ${activeRound.hasSubmitted && !active ? "opacity-50" : ""}`}
-                        >
-                          <span className={`font-bold transition-colors ${active ? "text-brand-teal" : "text-brand-gray-700"}`}>
-                            {option.text}
-                          </span>
-                          <div className={`flex h-6 w-6 items-center justify-center rounded-full border-2 transition-all ${
-                            active ? "border-brand-teal bg-brand-teal text-white" : "border-brand-gray-200"
-                          }`}>
-                            {active && <FiCheckCircle className="h-3.5 w-3.5" />}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
+                {/* ---- QUESTION RENDERERS ---- */}
 
-                {(activeRound.question.questionType === "MatchingPairs" || activeRound.question.questionType === "Ordering") && (
-                  <div className="mt-6 rounded-2xl border border-dashed border-brand-teal/30 bg-white/40 p-12 text-center text-sm text-brand-gray-500 italic">
-                    <FiLayers className="mx-auto mb-3 h-8 w-8 opacity-20" />
-                    Interactive {activeRound.question.questionType} support is launching in the next seed.
-                    <br />
-                    <span className="text-[10px] non-italic">For now, select any option to continue.</span>
-                    <div className="mt-4 grid grid-cols-2 gap-2">
-                       {activeRound.question.options.slice(0, 4).map((opt: any, i: number) => (
-                         <button 
-                            key={i} 
-                            onClick={() => setSelectedOptionId(opt.id || String(i))}
-                            className={`rounded-xl border p-2 text-[10px] ${selectedOptionId === (opt.id || String(i)) ? 'bg-brand-teal text-white' : 'bg-white'}`}
-                         >
-                           Select Path {i+1}
-                         </button>
-                       ))}
-                    </div>
-                  </div>
-                )}
-
-                {activeRound.question.questionType === "FeynmanMirror" && (
-                  <div className="mt-6 space-y-4">
-                    <textarea 
-                      className="w-full rounded-2xl border-2 border-brand-gray-100 p-4 text-sm focus:border-brand-teal focus:outline-none"
-                      placeholder="Type your explanation here..."
-                      rows={4}
-                      disabled={activeRound.hasSubmitted}
-                      onChange={(e) => setSelectedOptionId(e.target.value)}
+                {activeRound.question.questionType === "MultipleChoice" ? (
+                  <div className="mt-4">
+                    <MultipleChoiceQuestion
+                      hideChrome
+                      stageIndex={(match?.currentRoundIndex ?? 0)}
+                      totalStages={match?.totalRounds ?? 0}
+                      topic={activeRound.question.prompt}
+                      difficulty={mapDifficulty(activeRound.question.difficulty)}
+                      question={activeRound.question.prompt}
+                      options={activeRound.question.options}
+                      correctId="" // Hide correct answer in live match
+                      feedbackMsg={{ success: "", error: "", hint: "" }}
+                      onSelect={(id: string) => setSelectedOptionId(id)}
+                      onComplete={(id: string) => setSelectedOptionId(id)}
+                      onHintUse={async () => true}
                     />
                   </div>
-                )}
-
-                {activeRound.question.questionType === "ExplainerMedia" && (
-                  <div className="mt-6 space-y-4">
-                    <div className="rounded-2xl bg-sky-50 p-4 text-sm text-sky-800 border border-sky-100">
-                       Please read the explanation carefully. Point values for this round vary by speed of acknowledgement.
-                    </div>
-                    <button 
-                      onClick={() => setSelectedOptionId("acknowledged")}
-                      disabled={activeRound.hasSubmitted}
-                      className={`w-full rounded-2xl py-4 font-bold transition-all ${
-                        selectedOptionId === "acknowledged" ? "bg-emerald-500 text-white" : "bg-white border-2 border-emerald-500 text-emerald-500"
-                      }`}
-                    >
-                      {selectedOptionId === "acknowledged" ? "Read & Acknowledged" : "Click to Acknowledge"}
-                    </button>
+                ) : activeRound.question.questionType === "MatchingPairs" ? (
+                   <div className="mt-6">
+                    <MatchingPairsQuestion
+                      hideChrome
+                      stageIndex={(match?.currentRoundIndex ?? 0)}
+                      totalStages={match?.totalRounds ?? 0}
+                      topic={activeRound.question.prompt}
+                      difficulty={mapDifficulty(activeRound.question.difficulty)}
+                      question={activeRound.question.prompt}
+                      pairs={(activeRound.question.options || []).map((o: any, i: number) => ({
+                        id: String(i),
+                        left: o.left || "Side A",
+                        right: o.right || "Side B"
+                      }))}
+                      shuffledRightIds={shuffledRightIds}
+                      matched={matched}
+                      matchedPairs={matchedPairs}
+                      selectedLeftId={selectedLeftId}
+                      selectedRightId={selectedRightId}
+                      wrongPair={null}
+                      hintPairId={null}
+                      hintUsed={false}
+                      allMatched={allMatched}
+                      feedback={null}
+                      onPickLeft={pickLeft}
+                      onPickRight={pickRight}
+                      onHint={() => void handleMatchingHint()}
+                      onSubmit={() => {}} // Submission handled by Arena's button
+                      onSkip={() => {}}
+                    />
+                  </div>
+                ) : activeRound.question.questionType === "Ordering" ? (
+                  <div className="mt-6">
+                    <OrderingQuestion
+                      hideChrome
+                      stageIndex={(match?.currentRoundIndex ?? 0)}
+                      totalStages={match?.totalRounds ?? 0}
+                      topic={activeRound.question.prompt}
+                      difficulty={mapDifficulty(activeRound.question.difficulty)}
+                      stage={{
+                        stageId: activeRound.roundId.toString(),
+                        topic: activeRound.question.prompt,
+                        component: "Ordering",
+                        config: {
+                          data: { steps: activeRound.question.options },
+                          initialState: {}
+                        },
+                        feedback: { success: "", error: "" }
+                      } as any}
+                      onSubmit={async (items) => handleOrderingSubmit(items)}
+                      onChange={(items) => handleOrderingSubmit(items)}
+                      onContinue={() => {}}
+                      onSkip={() => {}}
+                    />
+                  </div>
+                ) : activeRound.question.questionType === "FeynmanMirror" ? (
+                  <div className="mt-6">
+                    <FeynmanQuestion
+                      hideChrome
+                      stageIndex={(match?.currentRoundIndex ?? 0)}
+                      totalStages={match?.totalRounds ?? 0}
+                      topic={activeRound.question.prompt}
+                      difficulty={mapDifficulty(activeRound.question.difficulty)}
+                      prompt={activeRound.question.prompt}
+                      sampleAnswer="" // Hide in live match
+                      feedbackMsg={{ success: "", error: "", hint: "Keep it simple." }}
+                      onSubmit={async (answer) => {
+                        setSelectedOptionId(answer);
+                        return { result: "correct", feedback: "Captured explanation." };
+                      }}
+                      onChange={(answer) => setSelectedOptionId(answer)}
+                      onContinue={() => {}}
+                      onHintUse={async () => true}
+                    />
+                  </div>
+                ) : activeRound.question.questionType === "ExplainerMedia" ? (
+                  <div className="mt-6">
+                    <ExplainerMediaCard
+                      hideChrome
+                      stageIndex={(match?.currentRoundIndex ?? 0)}
+                      totalStages={match?.totalRounds ?? 0}
+                      topic={activeRound.question.prompt}
+                      difficulty={mapDifficulty(activeRound.question.difficulty)}
+                      title={activeRound.question.prompt}
+                      explanation={(activeRound.question as any).explanation || "Read this carefully."}
+                      bullets={activeRound.question.options?.map((o: any) => o.text || o) || []}
+                      onContinue={() => setSelectedOptionId("acknowledged")}
+                      onMount={() => setSelectedOptionId("acknowledged")}
+                    />
+                  </div>
+                ) : (
+                  <div className="mt-8 rounded-xl border border-rose-200 bg-rose-50 p-6 text-center shadow-inner">
+                    <FiZap className="mx-auto h-8 w-8 text-rose-400 opacity-60 mb-3" />
+                    <h3 className="font-heading font-bold text-rose-800 text-lg">Unsupported App Version</h3>
+                    <p className="mt-2 text-sm font-medium text-rose-600">
+                      The pool has provided a {"'"}{activeRound.question.questionType}{"'"} component but this Arena Client does not support it. 
+                      Please update the client or remove this question from your Arena Pool.
+                    </p>
                   </div>
                 )}
 

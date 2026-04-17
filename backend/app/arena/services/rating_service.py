@@ -168,14 +168,29 @@ class RatingService:
         if topic_rating:
             return topic_rating
 
-        topic_rating = ArenaPlayerTopicRatingModel(
-            user_id=user_id,
-            public_course_id=public_course_id,
-            rating=1000,
-            rank_tier=resolve_arena_rank_tier(1000),
-        )
-        db.add(topic_rating)
-        db.flush()
+        from sqlalchemy.exc import IntegrityError
+
+        try:
+            with db.begin_nested():
+                topic_rating = ArenaPlayerTopicRatingModel(
+                    user_id=user_id,
+                    public_course_id=public_course_id,
+                    rating=1000,
+                    rank_tier=resolve_arena_rank_tier(1000),
+                )
+                db.add(topic_rating)
+                db.flush()
+        except IntegrityError:
+            # Another process might have inserted it simultaneously
+            topic_rating = (
+                db.query(ArenaPlayerTopicRatingModel)
+                .filter(
+                    ArenaPlayerTopicRatingModel.user_id == user_id,
+                    ArenaPlayerTopicRatingModel.public_course_id == public_course_id,
+                )
+                .first()
+            )
+
         return topic_rating
 
     def _compute_rating_delta(

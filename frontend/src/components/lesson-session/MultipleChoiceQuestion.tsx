@@ -25,7 +25,9 @@ export interface MultipleChoiceQuestionProps
   onError?: (selectedOptionId: string) => void;
   onCorrectAdvance?: () => void;
   onWrongAdvance?: () => void;
+  onSelect?: (id: string) => void;
   onHintUse: () => Promise<boolean>;
+  hideChrome?: boolean;
 }
 
 /* ═══════════════════ Owl ═══════════════════ */
@@ -60,8 +62,10 @@ export default function MultipleChoiceQuestion({
   onError,
   onCorrectAdvance,
   onWrongAdvance,
+  onSelect,
   onSkip,
   onHintUse,
+  hideChrome = false,
 }: MultipleChoiceQuestionProps) {
   const [selected, setSelected] = useState<string | null>(null);
   const [result, setResult] = useState<"correct" | "wrong" | null>(null);
@@ -92,17 +96,19 @@ export default function MultipleChoiceQuestion({
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
-      <div className="flex-1 overflow-y-auto min-h-0 pr-1 lesson-session-scroll">
-        <QuestionStageHeader
-          stageIndex={stageIndex}
-          totalStages={totalStages}
-          stageLabel={stageLabel}
-          topic={topic}
-          difficulty={difficulty}
-          recommendedDurationMinutes={recommendedDurationMinutes}
-          accentClassName="bg-gradient-to-br from-brand-teal to-[#5fb3af] shadow-teal-300/30"
-          accentTextClassName="text-brand-teal"
-        />
+      <div className={`flex-1 overflow-y-auto min-h-0 pr-1 ${!hideChrome ? "lesson-session-scroll" : ""}`}>
+        {!hideChrome && (
+          <QuestionStageHeader
+            stageIndex={stageIndex}
+            totalStages={totalStages}
+            stageLabel={stageLabel}
+            topic={topic}
+            difficulty={difficulty}
+            recommendedDurationMinutes={recommendedDurationMinutes}
+            accentClassName="bg-gradient-to-br from-brand-teal to-[#5fb3af] shadow-teal-300/30"
+            accentTextClassName="text-brand-teal"
+          />
+        )}
 
         {/* Question */}
         <motion.div
@@ -132,6 +138,7 @@ export default function MultipleChoiceQuestion({
                 onClick={() => {
                   if (isEliminated || result) return;
                   setSelected(opt.id);
+                  onSelect?.(opt.id);
                 }}
                 disabled={isEliminated || !!result}
                 className={`relative text-left rounded-2xl px-5 py-4 border-2 border-b-4 font-heading font-bold text-base transition-all ${
@@ -168,62 +175,63 @@ export default function MultipleChoiceQuestion({
         )}
       </div>
 
-      {/* Bottom bar */}
-      <QuestionActionBar
-        leftSlot={
-          <>
-            <OwlMascotSmall />
-            <button
-              onClick={() => void handleHint()}
-              disabled={hintUsed || !!result}
-              className={`mb-1 flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
-                hintUsed
-                  ? "cursor-not-allowed border-brand-gray-200 bg-brand-gray-100 text-brand-gray-400"
-                  : "border-amber-200 bg-amber-50 text-amber-600 hover:bg-amber-100"
-              }`}
-            >
-              💡 Hint <span className="text-[10px] opacity-60">(10 💎)</span>
-            </button>
-          </>
-        }
-        rightSlot={
-          result === "correct" ? (
-            <GameButton
-              variant="primary"
-              onClick={() => onCorrectAdvance?.()}
-              className="min-w-[140px]"
-            >
-              CONTINUE
-            </GameButton>
-          ) : result === "wrong" ? (
-            <GameButton
-              variant="primary"
-              onClick={() => onWrongAdvance?.()}
-              className="min-w-[140px]"
-            >
-              GOT IT
-            </GameButton>
-          ) : (
+      {!hideChrome && (
+        <QuestionActionBar
+          leftSlot={
             <>
-              <GameButton
-                variant="secondary"
-                onClick={() => onSkip?.()}
-                className="min-w-[120px]"
+              <OwlMascotSmall />
+              <button
+                onClick={() => void handleHint()}
+                disabled={hintUsed || !!result}
+                className={`mb-1 flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+                  hintUsed
+                    ? "cursor-not-allowed border-brand-gray-200 bg-brand-gray-100 text-brand-gray-400"
+                    : "border-amber-200 bg-amber-50 text-amber-600 hover:bg-amber-100"
+                }`}
               >
-                SKIP
-              </GameButton>
+                💡 Hint <span className="text-[10px] opacity-60">(10 💎)</span>
+              </button>
+            </>
+          }
+          rightSlot={
+            result === "correct" ? (
               <GameButton
                 variant="primary"
-                onClick={handleCheck}
-                disabled={!selected || result === "correct"}
+                onClick={() => onCorrectAdvance?.()}
                 className="min-w-[140px]"
               >
-                CHECK
+                CONTINUE
               </GameButton>
-            </>
-          )
-        }
-      />
+            ) : result === "wrong" ? (
+              <GameButton
+                variant="primary"
+                onClick={() => onWrongAdvance?.()}
+                className="min-w-[140px]"
+              >
+                GOT IT
+              </GameButton>
+            ) : (
+              <>
+                <GameButton
+                  variant="secondary"
+                  onClick={() => onSkip?.()}
+                  className="min-w-[120px]"
+                >
+                  SKIP
+                </GameButton>
+                <GameButton
+                  variant="primary"
+                  onClick={handleCheck}
+                  disabled={!selected || result === "correct"}
+                  className="min-w-[140px]"
+                >
+                  CHECK
+                </GameButton>
+              </>
+            )
+          }
+        />
+      )}
     </div>
   );
 }
