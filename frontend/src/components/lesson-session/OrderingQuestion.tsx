@@ -14,6 +14,8 @@ export interface OrderingQuestionProps extends QuestionStageMeta {
   onSubmit: (input: string[]) => Promise<SubmissionResponse | void>;
   onContinue: () => void;
   onSkip: () => void;
+  onChange?: (items: string[]) => void;
+  hideChrome?: boolean;
 }
 
 function getLabel(step: unknown) {
@@ -40,7 +42,12 @@ export default function OrderingQuestion({
   onSubmit,
   onContinue,
   onSkip,
+  onChange,
+  hideChrome = false,
 }: OrderingQuestionProps) {
+  const stableDataSteps = JSON.stringify(stage.config.data?.steps || []);
+  const stableInitialOrder = JSON.stringify(stage.config.initialState?.order || null);
+
   const initialItems = useMemo(() => {
     const rawSteps = Array.isArray(stage.config.data?.steps)
       ? stage.config.data.steps
@@ -53,7 +60,7 @@ export default function OrderingQuestion({
       id: `step-${index}`,
       content: getLabel(step),
     }));
-  }, [stage]);
+  }, [stableDataSteps, stableInitialOrder, stage.config.data?.steps, stage.config.initialState?.order]);
 
   const [items, setItems] = useState(initialItems);
   const [phase, setPhase] = useState<"editing" | "submitting" | "feedback">("editing");
@@ -79,21 +86,24 @@ export default function OrderingQuestion({
   const handleReorder = (nextItems: typeof items) => {
     if (phase !== "editing") return;
     setItems(nextItems);
+    onChange?.(nextItems.map(i => i.content));
   };
 
   return (
     <div className="flex flex-1 flex-col min-h-0">
-      <div className="flex-1 min-h-0 overflow-y-auto pr-1 lesson-session-scroll">
-        <QuestionStageHeader
-          stageIndex={stageIndex}
-          totalStages={totalStages}
-          stageLabel={stageLabel}
-          topic={stage.topic}
-          difficulty={difficulty}
-          recommendedDurationMinutes={recommendedDurationMinutes}
-          accentClassName="bg-gradient-to-br from-brand-teal to-[#5fb3af] shadow-teal-300/30"
-          accentTextClassName="text-brand-teal"
-        />
+      <div className={`flex-1 min-h-0 overflow-y-auto pr-1 ${!hideChrome ? "lesson-session-scroll" : ""}`}>
+        {!hideChrome && (
+          <QuestionStageHeader
+            stageIndex={stageIndex}
+            totalStages={totalStages}
+            stageLabel={stageLabel}
+            topic={stage.topic}
+            difficulty={difficulty}
+            recommendedDurationMinutes={recommendedDurationMinutes}
+            accentClassName="bg-gradient-to-br from-brand-teal to-[#5fb3af] shadow-teal-300/30"
+            accentTextClassName="text-brand-teal"
+          />
+        )}
 
         <Reorder.Group
           axis="y"
@@ -120,39 +130,40 @@ export default function OrderingQuestion({
           </p>
         ) : null}
       </div>
-
-      <QuestionActionBar
-        justify="end"
-        rightSlot={
-          phase === "feedback" ? (
-            <GameButton
-              variant="primary"
-              onClick={onContinue}
-              className="min-w-[140px]"
-            >
-              CONTINUE
-            </GameButton>
-          ) : (
-            <>
-            <GameButton
-              variant="secondary"
-              onClick={onSkip}
-              className="min-w-[120px]"
-            >
-              SKIP
-            </GameButton>
-            <GameButton
-              variant="primary"
-              onClick={() => void handleSubmit()}
-              className="min-w-[160px]"
-              disabled={phase === "submitting"}
-            >
-              {phase === "submitting" ? "CHECKING..." : "CHECK ORDER"}
-            </GameButton>
-            </>
-          )
-        }
-      />
+      {!hideChrome && (
+        <QuestionActionBar
+          justify="end"
+          rightSlot={
+            phase === "feedback" ? (
+              <GameButton
+                variant="primary"
+                onClick={onContinue}
+                className="min-w-[140px]"
+              >
+                CONTINUE
+              </GameButton>
+            ) : (
+              <>
+                <GameButton
+                  variant="secondary"
+                  onClick={onSkip}
+                  className="min-w-[120px]"
+                >
+                  SKIP
+                </GameButton>
+                <GameButton
+                  variant="primary"
+                  onClick={() => void handleSubmit()}
+                  className="min-w-[160px]"
+                  disabled={phase === "submitting"}
+                >
+                  {phase === "submitting" ? "CHECKING..." : "CHECK ORDER"}
+                </GameButton>
+              </>
+            )
+          }
+        />
+      )}
     </div>
   );
 }

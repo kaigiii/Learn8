@@ -383,8 +383,13 @@ class RoundEngine:
             self.background_tasks.add_task(_settle_in_background, match.id, standings)
         else:
             # Fallback for sync contexts or testing
-            import asyncio
-            asyncio.create_task(asyncio.to_thread(_settle_in_background, match.id, standings))
+            try:
+                import asyncio
+                loop = asyncio.get_running_loop()
+                loop.create_task(asyncio.to_thread(_settle_in_background, match.id, standings))
+            except RuntimeError:
+                import threading
+                threading.Thread(target=_settle_in_background, args=(match.id, standings), daemon=True).start()
 
     def _deactivate_match_queue_entries(self, db: Session, match_id: int):
         from app.arena.models.arena_queue import ArenaQueueEntryModel
@@ -572,7 +577,7 @@ class RoundEngine:
             "revealedAnswer": active_round.revealed_answer_json,
             "question": {
                 "questionId": str(question.get("question_id") or active_round.id),
-                "questionType": str(question.get("question_type") or "MultipleChoice"),
+                "questionType": str(question.get("question_type") or "Unknown"),
                 "prompt": str(question.get("prompt") or ""),
                 "options": list(question.get("options") or []),
                 "difficulty": question.get("difficulty"),

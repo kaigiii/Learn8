@@ -32,6 +32,7 @@ export interface MatchingPairsQuestionProps
   onHint: () => void;
   onSubmit: () => void;
   onSkip: () => void;
+  hideChrome?: boolean;
 }
 
 export default function MatchingPairsQuestion({
@@ -58,20 +59,23 @@ export default function MatchingPairsQuestion({
   onHint,
   onSubmit,
   onSkip,
+  hideChrome = false,
 }: MatchingPairsQuestionProps) {
   return (
     <>
-      <div className="flex-1 min-h-0 overflow-y-auto pr-1 lesson-session-scroll">
-        <QuestionStageHeader
-          stageIndex={stageIndex}
-          totalStages={totalStages}
-          stageLabel={stageLabel}
-          topic={question || topic}
-          difficulty={difficulty}
-          recommendedDurationMinutes={recommendedDurationMinutes}
-          accentClassName="bg-gradient-to-br from-brand-teal to-[#5fb3af] shadow-teal-300/30"
-          accentTextClassName="text-brand-teal"
-        />
+      <div className={`flex-1 min-h-0 overflow-y-auto pr-1 ${!hideChrome ? "lesson-session-scroll" : ""}`}>
+        {!hideChrome && (
+          <QuestionStageHeader
+            stageIndex={stageIndex}
+            totalStages={totalStages}
+            stageLabel={stageLabel}
+            topic={question || topic}
+            difficulty={difficulty}
+            recommendedDurationMinutes={recommendedDurationMinutes}
+            accentClassName="bg-gradient-to-br from-brand-teal to-[#5fb3af] shadow-teal-300/30"
+            accentTextClassName="text-brand-teal"
+          />
+        )}
 
         <div className="flex">
           <MatchGrid
@@ -89,41 +93,42 @@ export default function MatchingPairsQuestion({
           />
         </div>
       </div>
-
-      <QuestionActionBar
-        leftSlot={
-          <>
-            <OwlMascot />
-            <button
-              onClick={onHint}
-              disabled={hintUsed || allMatched}
-              className={`mb-1 flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
-                hintUsed
-                  ? "cursor-not-allowed border-brand-gray-200 bg-brand-gray-100 text-brand-gray-400"
-                  : "border-amber-200 bg-amber-50 text-amber-600 hover:bg-amber-100"
-              }`}
-            >
-              💡 Hint
-              <span className="text-[10px] opacity-60">(10 💎)</span>
-            </button>
-          </>
-        }
-        rightSlot={
-          <>
-            <GameButton variant="secondary" onClick={onSkip} className="min-w-[120px]">
-              SKIP
-            </GameButton>
-            <GameButton
-              variant="primary"
-              onClick={onSubmit}
-              disabled={!allMatched}
-              className="min-w-[140px]"
-            >
-              SUBMIT
-            </GameButton>
-          </>
-        }
-      />
+      {!hideChrome && (
+        <QuestionActionBar
+          leftSlot={
+            <>
+              <OwlMascot />
+              <button
+                onClick={onHint}
+                disabled={hintUsed || allMatched}
+                className={`mb-1 flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+                  hintUsed
+                    ? "cursor-not-allowed border-brand-gray-200 bg-brand-gray-100 text-brand-gray-400"
+                    : "border-amber-200 bg-amber-50 text-amber-600 hover:bg-amber-100"
+                }`}
+              >
+                💡 Hint
+                <span className="text-[10px] opacity-60">(10 💎)</span>
+              </button>
+            </>
+          }
+          rightSlot={
+            <>
+              <GameButton variant="secondary" onClick={onSkip} className="min-w-[120px]">
+                SKIP
+              </GameButton>
+              <GameButton
+                variant="primary"
+                onClick={onSubmit}
+                disabled={!allMatched}
+                className="min-w-[140px]"
+              >
+                SUBMIT
+              </GameButton>
+            </>
+          }
+        />
+      )}
     </>
   );
 }

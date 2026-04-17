@@ -105,10 +105,11 @@ def get_active_season(
 
 @router.get("/resume", response_model=ArenaResumeResponse)
 def get_arena_resume_target(
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_user),
 ):
-    round_engine = RoundEngine()
+    round_engine = RoundEngine(background_tasks=background_tasks)
     active_match = round_engine.get_active_match_for_user(db, current_user.id)
     if active_match:
         return ArenaResumeResponse(
@@ -273,7 +274,7 @@ def start_room_match(
 ):
     room_service = RoomService()
     match = room_service.start_room_match(db, current_user, room_code)
-    round_engine = RoundEngine()
+    round_engine = RoundEngine(background_tasks=None) # Start doesn't finalize yet
     round_engine.initialize_match_rounds(db, match.id)
     return ArenaRoomStartResponse(
         roomCode=room_code.upper(),
@@ -296,10 +297,11 @@ def leave_room(
 @router.get("/matches/{match_id}", response_model=ArenaMatchStateResponse)
 def get_match_state(
     match_id: int,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_user),
 ):
-    round_engine = RoundEngine()
+    round_engine = RoundEngine(background_tasks=background_tasks)
     return ArenaMatchStateResponse(**round_engine.get_match_state(db, match_id, current_user))
 
 

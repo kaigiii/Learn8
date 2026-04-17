@@ -24,7 +24,9 @@ export interface FeynmanQuestionProps
   onSubmit: (answer: string) => Promise<QuestionSubmitResponse | void>;
   onContinue: () => void;
   onError?: () => void;
+  onChange?: (answer: string) => void;
   onHintUse: () => Promise<boolean>;
+  hideChrome?: boolean;
 }
 
 /* ═══════════════════ Owl Teacher ═══════════════════ */
@@ -58,7 +60,9 @@ export default function FeynmanQuestion({
   onSubmit,
   onSkip,
   onContinue,
+  onChange,
   onHintUse,
+  hideChrome = false,
 }: FeynmanQuestionProps) {
   const [answer, setAnswer] = useState("");
   const [phase, setPhase] = useState<"writing" | "processing" | "feedback">("writing");
@@ -70,6 +74,10 @@ export default function FeynmanQuestion({
   useEffect(() => {
     textareaRef.current?.focus();
   }, []);
+
+  useEffect(() => {
+    onChange?.(answer);
+  }, [answer, onChange]);
 
   const handleSubmit = useCallback(async () => {
     if (answer.trim().length < 5 || phase !== "writing") return;
@@ -97,18 +105,20 @@ export default function FeynmanQuestion({
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
-      <div className="flex-1 overflow-y-auto min-h-0 pr-1 lesson-session-scroll">
-        <QuestionStageHeader
-          stageIndex={stageIndex}
-          totalStages={totalStages}
-          stageLabel={stageLabel}
-          topic={topic}
-          difficulty={difficulty}
-          recommendedDurationMinutes={recommendedDurationMinutes}
-          accentClassName="bg-gradient-to-br from-purple-500 to-purple-600 shadow-purple-300/30"
-          accentTextClassName="text-purple-500"
-          subtitle="— Teach Back"
-        />
+      <div className={`flex-1 overflow-y-auto min-h-0 pr-1 ${!hideChrome ? "lesson-session-scroll" : ""}`}>
+        {!hideChrome && (
+          <QuestionStageHeader
+            stageIndex={stageIndex}
+            totalStages={totalStages}
+            stageLabel={stageLabel}
+            topic={topic}
+            difficulty={difficulty}
+            recommendedDurationMinutes={recommendedDurationMinutes}
+            accentClassName="bg-gradient-to-br from-purple-500 to-purple-600 shadow-purple-300/30"
+            accentTextClassName="text-purple-500"
+            subtitle="— Teach Back"
+          />
+        )}
 
         {/* Teacher asks */}
         <motion.div
@@ -236,53 +246,54 @@ export default function FeynmanQuestion({
           )}
         </AnimatePresence>
       </div>
-
-      <QuestionActionBar
-        leftSlot={
-          phase === "writing" ? (
-            <button
-              onClick={() => void handleHint()}
-              disabled={hintUsed}
-              className={`mb-1 flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
-                hintUsed
-                  ? "cursor-not-allowed border-brand-gray-200 bg-brand-gray-100 text-brand-gray-400"
-                  : "border-amber-200 bg-amber-50 text-amber-600 hover:bg-amber-100"
-              }`}
-            >
-              💡 Hint <span className="text-[10px] opacity-60">(10 💎)</span>
-            </button>
-          ) : null
-        }
-        rightSlot={
-          phase === "writing" ? (
-            <>
-              <GameButton
-                variant="secondary"
-                onClick={() => onSkip?.()}
-                className="min-w-[120px]"
+      {!hideChrome && (
+        <QuestionActionBar
+          leftSlot={
+            phase === "writing" ? (
+              <button
+                onClick={() => void handleHint()}
+                disabled={hintUsed}
+                className={`mb-1 flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+                  hintUsed
+                    ? "cursor-not-allowed border-brand-gray-200 bg-brand-gray-100 text-brand-gray-400"
+                    : "border-amber-200 bg-amber-50 text-amber-600 hover:bg-amber-100"
+                }`}
               >
-                SKIP
-              </GameButton>
+                💡 Hint <span className="text-[10px] opacity-60">(10 💎)</span>
+              </button>
+            ) : null
+          }
+          rightSlot={
+            phase === "writing" ? (
+              <>
+                <GameButton
+                  variant="secondary"
+                  onClick={() => onSkip?.()}
+                  className="min-w-[120px]"
+                >
+                  SKIP
+                </GameButton>
+                <GameButton
+                  variant="primary"
+                  onClick={handleSubmit}
+                  disabled={answer.trim().length < 5}
+                  className="min-w-[140px]"
+                >
+                  SUBMIT
+                </GameButton>
+              </>
+            ) : phase === "feedback" ? (
               <GameButton
                 variant="primary"
-                onClick={handleSubmit}
-                disabled={answer.trim().length < 5}
+                onClick={handleComplete}
                 className="min-w-[140px]"
               >
-                SUBMIT
+                CONTINUE
               </GameButton>
-            </>
-          ) : phase === "feedback" ? (
-            <GameButton
-              variant="primary"
-              onClick={handleComplete}
-              className="min-w-[140px]"
-            >
-              CONTINUE
-            </GameButton>
-          ) : null
-        }
-      />
+            ) : null
+          }
+        />
+      )}
     </div>
   );
 }

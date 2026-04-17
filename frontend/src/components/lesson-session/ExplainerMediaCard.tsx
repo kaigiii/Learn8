@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import GameButton from "@/components/ui/GameButton";
 import { QuestionActionBar } from "./QuestionActionBar";
@@ -15,6 +16,8 @@ export interface ExplainerMediaCardProps extends QuestionStageMeta {
   mediaDescription?: string;
   mediaUrl?: string;
   onContinue: () => void;
+  onMount?: () => void;
+  hideChrome?: boolean;
 }
 
 function renderSvg(svg: string | undefined) {
@@ -44,26 +47,34 @@ export default function ExplainerMediaCard({
   mediaDescription,
   mediaUrl,
   onContinue,
+  onMount,
+  hideChrome = false,
 }: ExplainerMediaCardProps) {
   const showSvg = mediaType === "svg";
   const showImage = mediaType === "image";
   const svgBlock = showSvg ? renderSvg(mediaSvg) : null;
   const hasImage = Boolean(mediaUrl);
 
+  useEffect(() => {
+    onMount?.();
+  }, [onMount]);
+
   return (
     <div className="flex flex-1 flex-col min-h-0">
-      <div className="flex-1 min-h-0 overflow-y-auto pr-1 lesson-session-scroll">
-        <QuestionStageHeader
-          stageIndex={stageIndex}
-          totalStages={totalStages}
-          stageLabel={stageLabel}
-          topic={topic}
-          difficulty={difficulty}
-          recommendedDurationMinutes={recommendedDurationMinutes}
-          accentClassName="bg-gradient-to-br from-brand-teal to-[#5fb3af] shadow-teal-300/30"
-          accentTextClassName="text-brand-teal"
-          subtitle="Explainer"
-        />
+      <div className={`flex-1 min-h-0 overflow-y-auto pr-1 ${!hideChrome ? "lesson-session-scroll" : ""}`}>
+        {!hideChrome && (
+          <QuestionStageHeader
+            stageIndex={stageIndex}
+            totalStages={totalStages}
+            stageLabel={stageLabel}
+            topic={topic}
+            difficulty={difficulty}
+            recommendedDurationMinutes={recommendedDurationMinutes}
+            accentClassName="bg-gradient-to-br from-brand-teal to-[#5fb3af] shadow-teal-300/30"
+            accentTextClassName="text-brand-teal"
+            subtitle="Explainer"
+          />
+        )}
 
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -111,15 +122,16 @@ export default function ExplainerMediaCard({
           </div>
         ) : null}
       </div>
-
-      <QuestionActionBar
-        justify="end"
-        rightSlot={
-          <GameButton variant="primary" onClick={onContinue} className="min-w-[160px]">
-            CONTINUE
-          </GameButton>
-        }
-      />
+      {!hideChrome && (
+        <QuestionActionBar
+          justify="end"
+          rightSlot={
+            <GameButton variant="primary" onClick={onContinue} className="min-w-[160px]">
+              CONTINUE
+            </GameButton>
+          }
+        />
+      )}
     </div>
   );
 }

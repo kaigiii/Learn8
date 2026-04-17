@@ -268,7 +268,7 @@ export default function ArenaAdminPageClient() {
       version: selectedPool.version,
       items: selectedPool.items.map((item) => ({
         questionKey: item.questionKey,
-        questionType: item.questionType || "MultipleChoice",
+        questionType: item.questionType,
         prompt: item.prompt,
         correctOptionId: item.correctOptionId,
         difficulty: item.difficulty,
@@ -794,9 +794,10 @@ function MetricCard({ label, value }: { label: string; value: string }) {
 function serializePoolItem(item: PoolItemFormState, idx: number): ArenaAdminQuestionPoolItemUpsertRequest {
   if (!item.questionKey.trim()) throw new Error(`Q#${idx + 1} has no key.`);
   if (!item.prompt.trim()) throw new Error(`Q#${idx + 1} has no prompt.`);
+  if (!item.questionType) throw new Error(`Q#${idx + 1} has no question type.`);
   return {
     questionKey: item.questionKey.trim(),
-    questionType: (item as any).questionType || "MultipleChoice", // Default for legacy data
+    questionType: item.questionType,
     prompt: item.prompt.trim(),
     options: item.options.map(o => {
       if (typeof o === "string") return o;

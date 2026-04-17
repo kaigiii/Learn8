@@ -202,7 +202,12 @@ class AdminService:
                 db.add(item)
 
             item.question_key = question_key
-            item.question_type = raw_item.get("questionType", "MultipleChoice")
+            
+            qtype = raw_item.get("questionType")
+            if not qtype:
+                raise ValueError(f"Missing questionType for item {question_key}")
+            item.question_type = str(qtype)
+            
             item.prompt = raw_item["prompt"].strip()
             item.options_json = list(raw_item.get("options") or [])
             item.correct_option_id = str(raw_item.get("correctOptionId", "")).strip() if raw_item.get("correctOptionId") else None
