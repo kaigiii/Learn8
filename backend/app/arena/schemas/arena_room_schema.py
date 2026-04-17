@@ -29,6 +29,8 @@ class ArenaRoomResponse(BaseModel):
     hostUserId: int
     publicCourseId: int
     publicCourseTitle: str
+    poolId: int
+    poolTitle: Optional[str] = None
     mode: str
     visibility: str
     status: ArenaRoomStatusEnum
