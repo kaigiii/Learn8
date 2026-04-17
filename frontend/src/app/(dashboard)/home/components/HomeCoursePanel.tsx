@@ -43,7 +43,7 @@ export function HomeCoursePanel({
                 ]
               } shadow-md`}
             >
-              <HomeCourseIcon />
+              <HomeCourseIcon progress={activeProgress} />
             </div>
 
             <div className="flex min-w-0 flex-1 flex-col">
