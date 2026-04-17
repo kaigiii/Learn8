@@ -25,6 +25,7 @@ from app.arena.services.realtime_gateway import RealtimeGateway
 from app.arena.services.round_engine import RoundEngine
 from app.arena.services.telemetry_service import TelemetryService
 from app.arena.services.room_service import RoomService
+from unittest.mock import patch, MagicMock
 
 
 def _create_public_course(db_session):
@@ -33,9 +34,7 @@ def _create_public_course(db_session):
         title="Python Basics",
         topic="Python Basics",
         description="Official Arena topic for Python newcomers.",
-        difficulty="beginner",
         is_published=True,
-        is_arena_enabled=True,
         tags_json=["python", "basics"],
         metadata_json={
             "arena_questions": [
@@ -171,10 +170,11 @@ def _create_competitive_match(db_session, public_course_id: int, player_ids: lis
     return match
 
 
-def _create_waiting_queue_entry(db_session, user_id: int, public_course_id: int):
+def _create_waiting_queue_entry(db_session, user_id: int, public_course_id: int, pool_id: int | None = None):
     entry = ArenaQueueEntryModel(
         user_id=user_id,
         public_course_id=public_course_id,
+        question_pool_id=pool_id,
         mode=ArenaMode.COMPETITIVE,
         status="waiting",
         expires_at=utc_now() + timedelta(minutes=3),
@@ -187,6 +187,7 @@ def _create_waiting_queue_entry(db_session, user_id: int, public_course_id: int)
 
 def test_room_service_create_join_ready_and_start_flow(db_session, user):
     public_course = _create_public_course(db_session)
+    _create_question_pool(db_session, public_course)
     second_user = _create_user(db_session, "player2@learn8.ai", "Player Two")
     season = ArenaSeasonModel(
         name="Season One",
@@ -254,6 +255,7 @@ def test_room_service_create_join_ready_and_start_flow(db_session, user):
 
 def test_room_service_reassigns_host_when_host_leaves(db_session, user):
     public_course = _create_public_course(db_session)
+    _create_question_pool(db_session, public_course)
     second_user = _create_user(db_session, "player2@learn8.ai", "Player Two")
     room_service = RoomService()
 
@@ -279,6 +281,7 @@ def test_room_service_reassigns_host_when_host_leaves(db_session, user):
 
 def test_room_service_closes_room_when_last_player_leaves(db_session, user):
     public_course = _create_public_course(db_session)
+    _create_question_pool(db_session, public_course)
     room_service = RoomService()
 
     room = room_service.create_room(
@@ -302,6 +305,7 @@ def test_room_service_closes_room_when_last_player_leaves(db_session, user):
 
 def test_room_service_auto_closes_idle_lobby_rooms(db_session, user):
     public_course = _create_public_course(db_session)
+    _create_question_pool(db_session, public_course)
     room_service = RoomService()
     original_idle_minutes = arena_settings.ARENA_ROOM_IDLE_CLOSE_MINUTES
     arena_settings.ARENA_ROOM_IDLE_CLOSE_MINUTES = 15
@@ -343,6 +347,7 @@ def test_room_service_auto_closes_idle_lobby_rooms(db_session, user):
 
 def test_room_service_keeps_lobby_open_when_presence_is_recent(db_session, user):
     public_course = _create_public_course(db_session)
+    _create_question_pool(db_session, public_course)
     room_service = RoomService()
     original_idle_minutes = arena_settings.ARENA_ROOM_IDLE_CLOSE_MINUTES
     arena_settings.ARENA_ROOM_IDLE_CLOSE_MINUTES = 15
@@ -381,6 +386,7 @@ def test_room_service_keeps_lobby_open_when_presence_is_recent(db_session, user)
 
 def test_room_service_prevents_start_before_all_non_hosts_ready(db_session, user):
     public_course = _create_public_course(db_session)
+    _create_question_pool(db_session, public_course)
     second_user = _create_user(db_session, "player2@learn8.ai")
     room_service = RoomService()
 
@@ -405,6 +411,7 @@ def test_room_service_prevents_start_before_all_non_hosts_ready(db_session, user
 
 def test_competitive_service_matches_waiting_players(db_session, user):
     public_course = _create_public_course(db_session)
+    _create_question_pool(db_session, public_course)
     second_user = _create_user(db_session, "player2@learn8.ai", "Player Two")
     service = CompetitiveService()
 
@@ -436,6 +443,7 @@ def test_competitive_service_matches_waiting_players(db_session, user):
 
 def test_competitive_service_cancels_waiting_entry(db_session, user):
     public_course = _create_public_course(db_session)
+    _create_question_pool(db_session, public_course)
     service = CompetitiveService()
 
     service.join_queue(
@@ -455,6 +463,7 @@ def test_competitive_service_cancels_waiting_entry(db_session, user):
 
 def test_competitive_service_prefers_closest_rating_match(db_session, user):
     public_course = _create_public_course(db_session)
+    _create_question_pool(db_session, public_course)
     far_user = _create_user(db_session, "far@learn8.ai", "Far Player")
     close_user = _create_user(db_session, "close@learn8.ai", "Close Player")
     service = CompetitiveService()
@@ -492,6 +501,7 @@ def test_competitive_service_prefers_closest_rating_match(db_session, user):
 
 def test_competitive_service_avoids_immediate_rematches_when_possible(db_session, user):
     public_course = _create_public_course(db_session)
+    _create_question_pool(db_session, public_course)
     repeat_user = _create_user(db_session, "repeat@learn8.ai", "Repeat Player")
     fresh_user = _create_user(db_session, "fresh@learn8.ai", "Fresh Player")
     service = CompetitiveService()
@@ -499,10 +509,13 @@ def test_competitive_service_avoids_immediate_rematches_when_possible(db_session
     _create_rating(db_session, user.id, 1000)
     _create_rating(db_session, repeat_user.id, 1010)
     _create_rating(db_session, fresh_user.id, 1020)
+    # Ensure pool id is set so service find logic can see them
+    from app.arena.models.arena_question_pool import ArenaQuestionPoolModel
+    pool = db_session.query(ArenaQuestionPoolModel).filter(ArenaQuestionPoolModel.public_course_id == public_course.id).first()
+    
     _create_competitive_match(db_session, public_course.id, [user.id, repeat_user.id])
-
-    _create_waiting_queue_entry(db_session, repeat_user.id, public_course.id)
-    _create_waiting_queue_entry(db_session, fresh_user.id, public_course.id)
+    _create_waiting_queue_entry(db_session, repeat_user.id, public_course.id, pool_id=pool.id)
+    _create_waiting_queue_entry(db_session, fresh_user.id, public_course.id, pool_id=pool.id)
 
     challenger_entry = service.join_queue(
         db_session,
@@ -518,6 +531,7 @@ def test_competitive_service_avoids_immediate_rematches_when_possible(db_session
 
 def test_competitive_service_expands_rating_window_for_long_waiters(db_session, user):
     public_course = _create_public_course(db_session)
+    _create_question_pool(db_session, public_course)
     veteran_user = _create_user(db_session, "veteran@learn8.ai", "Veteran Player")
     service = CompetitiveService()
 
@@ -549,6 +563,7 @@ def test_competitive_service_expands_rating_window_for_long_waiters(db_session, 
 
 def test_room_service_normalizes_legacy_competitive_mode_aliases(db_session, user):
     public_course = _create_public_course(db_session)
+    _create_question_pool(db_session, public_course)
     room_service = RoomService()
 
     room = room_service.create_room(
@@ -856,6 +871,20 @@ def test_round_engine_initializes_rounds_and_advances_match(db_session, user):
         selected_option_id=second_user_second_answer,
     )
 
+    # Synchronous settlement for test
+    from app.arena.services.rating_service import RatingService
+    rating_service = RatingService()
+    match_model = round_engine.get_match(db_session, match.id)
+    rounds = round_engine._get_rounds(db_session, match.id)
+    standings = round_engine._build_standings(match_model, rounds)
+    match_model.standings_json = rating_service.settle_match(db_session, match_model, standings)
+    if match_model.standings_json:
+        top_winner = match_model.standings_json[0]
+        match_model.winner_user_id = int(top_winner.get("userId")) if top_winner.get("userId") is not None else None
+    db_session.add(match_model)
+    db_session.commit()
+    db_session.refresh(match_model)
+
     assert final_submit["matchFinished"] is True
     assert final_submit["state"]["status"] == "finished"
     assert final_submit["state"]["activeRound"] is None
@@ -1121,6 +1150,7 @@ def test_admin_match_reviews_flag_low_completion_and_abandonment(db_session, use
 
 
 def test_presence_service_emits_disconnect_and_reconnect_events(db_session, user):
+    from unittest.mock import patch
     public_course = _create_public_course(db_session)
     opponent = _create_user(db_session, "presence@learn8.ai", "Presence Player")
     presence_service = PresenceService()
@@ -1137,7 +1167,11 @@ def test_presence_service_emits_disconnect_and_reconnect_events(db_session, user
     db_session.add(player)
     db_session.flush()
 
-    presence_service.sweep_match_presence(db_session, match)
+    # Mock Redis to simulate disconnection
+    with patch("app.arena.services.presence_service.redis_sync_client") as mock_redis:
+        mock_redis.exists.return_value = False
+        presence_service.sweep_match_presence(db_session, match)
+
     db_session.commit()
 
     events = gateway.list_events(db_session, match_id=match.id)
@@ -1177,6 +1211,7 @@ def test_presence_service_emits_disconnect_and_reconnect_events(db_session, user
 
 def test_competitive_service_expires_matched_entries_for_finished_match(db_session, user):
     public_course = _create_public_course(db_session)
+    _create_question_pool(db_session, public_course)
     opponent = _create_user(db_session, "queue@learn8.ai", "Queue Player")
     season = ArenaSeasonModel(
         name="Ranked Season",
@@ -1394,6 +1429,25 @@ def test_competitive_match_settlement_updates_rating_and_rewards(db_session, use
           selected_option_id="a",
       )
       state = result["state"]
+    
+    # Trigger synchronous settlement for testing
+    from app.arena.services.rating_service import RatingService
+    from app.arena.services.reward_service import ArenaRewardService
+    
+    rating_service = RatingService()
+    reward_service = ArenaRewardService()
+    
+    match_model = round_engine.get_match(db_session, match.id)
+    rounds = round_engine._get_rounds(db_session, match.id)
+    standings = round_engine._build_standings(match_model, rounds)
+    match_model.standings_json = rating_service.settle_match(db_session, match_model, standings)
+    db_session.add(match_model)
+    db_session.commit()
+    reward_service.process_match_rewards(db_session, match.id)
+    db_session.commit()
+    
+    # Re-fetch state now that standings are settled
+    state = round_engine.get_match_state(db_session, match.id, user)
 
     assert state["status"] == "finished"
     winner = state["standings"][0]

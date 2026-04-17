@@ -34,3 +34,13 @@ class TopicCatalogService:
             .first()
         )
 
+    def get_enabled_public_course(self, db: Session, course_id: int) -> PublicCourseModel | None:
+        return (
+            db.query(PublicCourseModel)
+            .filter(
+                PublicCourseModel.id == course_id,
+                PublicCourseModel.is_published.is_(True)
+            )
+            .first()
+        )
+
