@@ -77,9 +77,6 @@ export function MultiplayerTopicsSection({ courses }: MultiplayerTopicsSectionPr
                   <div className="mb-2">
                     <HomeCourseIcon />
                   </div>
-                  <div className="rounded-full bg-white/40 px-2 py-0.5 text-[10px] font-bold uppercase text-brand-teal">
-                    {course.difficulty}
-                  </div>
                 </div>
                 <div className="mt-2 space-y-1 text-center">
                   <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-brand-teal/80">

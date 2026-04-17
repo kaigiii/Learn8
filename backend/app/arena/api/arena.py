@@ -318,10 +318,6 @@ def confirm_match(
 
 from fastapi import WebSocket, WebSocketDisconnect
 
-@router.on_event("startup")
-async def startup_event():
-    from app.arena.services.ws_connection_manager import manager
-    await manager.start_listening()
 
 @router.websocket("/ws")
 async def arena_websocket_endpoint(

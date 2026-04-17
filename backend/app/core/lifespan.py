@@ -15,6 +15,10 @@ async def application_lifespan(app: FastAPI):
     JobRegistry.start_monitor()
     ArenaMaintenanceService.start()
 
+    # 1.5. Arena WS Setup
+    from app.arena.services.ws_connection_manager import manager
+    await manager.start_listening()
+
     # 2. Automatic Synchronization of Public Courses
     from app.core.course_loader import registry as course_registry
     from app.db.session import SessionLocal

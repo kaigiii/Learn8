@@ -7,6 +7,7 @@ from app.arena.models.arena_match import ArenaMatchModel, ArenaMatchPlayerModel
 from app.arena.models.arena_room import ArenaRoomModel, ArenaRoomPlayerModel
 from app.models.user import UserModel
 from app.arena.services.realtime_gateway import RealtimeGateway
+from app.core.redis import redis_sync_client
 
 
 class PresenceService:
@@ -20,7 +21,6 @@ class PresenceService:
 
     def touch_room_presence(self, db: Session, room: ArenaRoomModel, current_user: UserModel) -> None:
         # DB heartbeats are deprecated. Redis TTL is handled by WebSocket management.
-        from app.core.redis import redis_sync_client
         try:
             redis_sync_client.setex(f"presence:user:{current_user.id}", 30, "online")
         except Exception:
@@ -28,7 +28,6 @@ class PresenceService:
 
     def sweep_room_presence(self, db: Session, room: ArenaRoomModel) -> None:
         now = utc_now()
-        from app.core.redis import redis_sync_client
         for player in room.players:
             if player.connection_state != "connected":
                 continue
@@ -62,15 +61,35 @@ class PresenceService:
 
     def touch_match_presence(self, db: Session, match: ArenaMatchModel, current_user: UserModel) -> None:
         # DB heartbeats are deprecated. Redis TTL is handled by WebSocket management.
-        from app.core.redis import redis_sync_client
         try:
             redis_sync_client.setex(f"presence:user:{current_user.id}", 30, "online")
         except Exception:
             pass
+            
+        # Reconnect logic if they were marked disconnected in DB
+        player = next((p for p in match.players if p.user_id == current_user.id), None)
+        if player and player.connection_state == "disconnected":
+            player.connection_state = "connected"
+            player.reconnected_at = utc_now()
+            db.add(player)
+            self.realtime_gateway.publish_event(
+                db,
+                stream_type="match",
+                room_code=match.room_snapshot_json.get("room_code") if isinstance(match.room_snapshot_json, dict) else None,
+                match_id=match.id,
+                event_type="player.reconnected",
+                payload={
+                    "scope": "match",
+                    "matchId": match.id,
+                    "userId": player.user_id,
+                    "displayName": (player.user_snapshot_json or {}).get("displayName") 
+                        or player.user.full_name 
+                        or player.user.email.split("@")[0],
+                },
+            )
 
     def sweep_match_presence(self, db: Session, match: ArenaMatchModel) -> None:
         now = utc_now()
-        from app.core.redis import redis_sync_client
         for player in match.players:
             if player.connection_state != "connected":
                 continue
