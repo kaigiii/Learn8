@@ -417,6 +417,8 @@ export interface ArenaRoom {
   hostUserId: number;
   publicCourseId: number;
   publicCourseTitle: string;
+  poolId: number;
+  poolTitle?: string | null;
   mode: string;
   visibility: string;
   status: string;
