@@ -31,29 +31,24 @@ export default function ProfileSettingsDialog({ onClose }: ProfileSettingsDialog
 
   return (
     <AnimatePresence>
-      <motion.div
-        className="fixed inset-0 z-[100] flex items-center justify-center"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-      >
+      <div className="fixed inset-0 z-[100] flex items-center justify-center">
         {/* Backdrop */}
         <motion.div
-          className="absolute inset-0 bg-black/30"
+          className="absolute inset-0 bg-black/30 backdrop-blur-[6px]"
           onClick={onClose}
-          initial={{ opacity: 0, backdropFilter: "blur(0px)" }}
-          animate={{ opacity: 1, backdropFilter: "blur(6px)" }}
-          exit={{ opacity: 0, backdropFilter: "blur(0px)" }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
         />
 
         {/* Modal card */}
         <motion.div
           className="relative z-10 mx-4 w-full max-w-2xl"
-          initial={{ scale: 0.9, opacity: 0, y: 30 }}
+          initial={{ scale: 0.9, opacity: 0, y: 28 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.9, opacity: 0, y: 30 }}
-          transition={{ type: "spring", damping: 25, stiffness: 300 }}
+          exit={{ scale: 0.95, opacity: 0, y: 16 }}
+          transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
         >
           <div className="relative max-h-[86vh] overflow-y-auto rounded-[32px] border border-white/60 bg-white/90 shadow-[0_30px_70px_rgba(15,23,42,0.24)] backdrop-blur-xl">
             <button
@@ -69,9 +64,9 @@ export default function ProfileSettingsDialog({ onClose }: ProfileSettingsDialog
 
             <div className="px-5 pb-5 pt-8 sm:px-7 sm:pt-9">
               <div className="mx-auto flex w-full max-w-lg flex-col items-center text-center">
-                <div className="mb-4 flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-[#e8ddd0] shadow-lg">
+                <div className="mb-4 flex h-24 w-24 items-center justify-center overflow-hidden rounded-full shadow-lg">
                   <Image
-                    src="/homeicon.ico"
+                    src="/icon.ico"
                     alt="Home icon avatar"
                     width={96}
                     height={96}
@@ -88,20 +83,7 @@ export default function ProfileSettingsDialog({ onClose }: ProfileSettingsDialog
                   <p className="mt-1 text-xs text-brand-gray-400">{authUser.email}</p>
                 )}
 
-                <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-                  <button
-                    onClick={() => openProfilePanel("personal")}
-                    className="rounded-lg border border-brand-gray-200 bg-white px-4 py-2 text-sm font-semibold text-brand-gray-600 transition hover:border-brand-teal hover:text-brand-teal"
-                  >
-                    Personal Profile
-                  </button>
-                  <button
-                    onClick={() => openProfilePanel("wallet")}
-                    className="rounded-lg border border-brand-gray-200 bg-white px-4 py-2 text-sm font-semibold text-brand-gray-600 transition hover:border-brand-teal hover:text-brand-teal"
-                  >
-                    Wallet
-                  </button>
-                </div>
+                <div className="mt-4" />
               </div>
 
               <div className="mx-auto mt-5 w-full max-w-xl space-y-3">
@@ -132,23 +114,15 @@ export default function ProfileSettingsDialog({ onClose }: ProfileSettingsDialog
                     />
                   </div>
 
-                  <div className="mt-3 grid grid-cols-1 gap-2 rounded-2xl border border-brand-gray-100 bg-brand-gray-50/60 p-3 text-sm sm:grid-cols-2">
-                    <div className="rounded-xl bg-white/80 px-3 py-2">
-                      <p className="text-[10px] uppercase tracking-[0.14em] text-brand-gray-400">
-                        Display Name
-                      </p>
-                      <p className="mt-1 font-semibold text-brand-gray-700">
-                        {authUser?.full_name?.trim() || "Learner"}
-                      </p>
-                    </div>
-                    <div className="rounded-xl bg-white/80 px-3 py-2">
-                      <p className="text-[10px] uppercase tracking-[0.14em] text-brand-gray-400">
-                        Job Title
-                      </p>
-                      <p className="mt-1 font-semibold text-brand-gray-700">
-                        {authUser?.job_title?.trim() || "Not set"}
-                      </p>
-                    </div>
+                  <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <ProfileStatBox
+                      label="Display Name"
+                      value={authUser?.full_name?.trim() || "Learner"}
+                    />
+                    <ProfileStatBox
+                      label="Job Title"
+                      value={authUser?.job_title?.trim() || "Not set"}
+                    />
                   </div>
                 </section>
 
@@ -199,7 +173,7 @@ export default function ProfileSettingsDialog({ onClose }: ProfileSettingsDialog
             </div>
           </div>
         </motion.div>
-      </motion.div>
+      </div>
     </AnimatePresence>
   );
 }

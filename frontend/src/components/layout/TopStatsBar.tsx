@@ -48,9 +48,6 @@ export default function TopStatsBar({
   const authUser = useAuthStore((s) => s.user);
   const availableCredits = useUserStore(selectAvailableCredits);
   const creditBalance = authUser?.credits ?? availableCredits;
-  const goalLabel = authUser?.daily_learning_goal_minutes
-    ? `${authUser.daily_learning_goal_minutes} min/day`
-    : "Set Goal";
   const profileLabel =
     authUser?.full_name?.trim() ||
     authUser?.job_title?.trim() ||
@@ -118,7 +115,7 @@ export default function TopStatsBar({
             <>
               <button
                 onClick={() => setProfileOpen(true)}
-                className="relative h-10 w-10 overflow-hidden rounded-full border-2 border-brand-teal shadow-md transition hover:shadow-lg"
+                className="relative h-10 w-10 overflow-hidden rounded-full shadow-md transition hover:shadow-lg"
               >
                 <MascotAvatar
                   src={mascotSrc}
@@ -186,14 +183,6 @@ export default function TopStatsBar({
               ))}
             </div>
           ) : null}
-          {/* Streak */}
-          <div className={`${pillClassName} gap-1.5`}>
-            <span className="text-base leading-none">⏱️</span>
-            <span className="whitespace-nowrap text-sm leading-none">
-              {goalLabel}
-            </span>
-          </div>
-
           {/* Credits */}
           <Link
             href="/store"

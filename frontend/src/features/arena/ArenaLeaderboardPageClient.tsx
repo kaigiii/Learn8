@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import TopStatsBar from "@/components/layout/TopStatsBar";
 import DeepGlassCard from "@/components/ui/DeepGlassCard";
 import {
@@ -192,23 +192,23 @@ export default function ArenaLeaderboardPageClient() {
           </div>
 
           <div className="flex gap-2">
-            <select
+            <LeaderboardDropdown
               value={tab}
-              onChange={(event) => setTab(event.target.value as LeaderboardTab)}
-              className="rounded-2xl border border-white/70 bg-white/65 px-4 py-2.5 text-base font-semibold text-brand-gray-700 outline-none transition hover:bg-white/80"
-            >
-              <option value="season">Season</option>
-              <option value="global">Global</option>
-            </select>
-            <select
+              onChange={setTab}
+              options={[
+                { value: "season", label: "Season" },
+                { value: "global", label: "Global" },
+              ]}
+            />
+            <LeaderboardDropdown
               value={category}
-              onChange={(event) => setCategory(event.target.value as LeaderboardCategory)}
-              className="rounded-2xl border border-white/70 bg-white/65 px-4 py-2.5 text-base font-semibold text-brand-gray-700 outline-none transition hover:bg-white/80"
-            >
-              <option value="rating">Global</option>
-              <option value="win_rate">Win Rate</option>
-              <option value="matches">Matches</option>
-            </select>
+              onChange={setCategory}
+              options={[
+                { value: "rating", label: "Global" },
+                { value: "win_rate", label: "Win Rate" },
+                { value: "matches", label: "Matches" },
+              ]}
+            />
           </div>
         </div>
 
@@ -368,6 +368,97 @@ export default function ArenaLeaderboardPageClient() {
           </DeepGlassCard>
         </div>
       </main>
+    </div>
+  );
+}
+
+function LeaderboardDropdown<T extends string>({
+  value,
+  onChange,
+  options,
+}: {
+  value: T;
+  onChange: (next: T) => void;
+  options: Array<{ value: T; label: string }>;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const active = options.find((option) => option.value === value) ?? options[0];
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    const handlePointer = (event: MouseEvent) => {
+      if (!rootRef.current || rootRef.current.contains(event.target as Node)) {
+        return;
+      }
+      setOpen(false);
+    };
+
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    };
+
+    window.addEventListener("mousedown", handlePointer);
+    window.addEventListener("keydown", handleKey);
+    return () => {
+      window.removeEventListener("mousedown", handlePointer);
+      window.removeEventListener("keydown", handleKey);
+    };
+  }, [open]);
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className={`flex min-w-[120px] items-center justify-between gap-2 rounded-2xl border border-white/70 bg-white/85 px-4 py-2.5 text-base font-semibold text-brand-gray-700 shadow-[0_12px_24px_rgba(113,145,156,0.14)] transition hover:bg-white ${open ? "ring-2 ring-brand-teal/30" : ""}`}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        <span>{active?.label}</span>
+        <svg
+          viewBox="0 0 20 20"
+          className={`h-4 w-4 text-brand-gray-400 transition ${open ? "rotate-180" : ""}`}
+          fill="currentColor"
+          aria-hidden="true"
+        >
+          <path d="M5.25 7.5 10 12.25 14.75 7.5" />
+        </svg>
+      </button>
+      {open ? (
+        <div
+          className="absolute left-0 right-0 z-20 mt-2 rounded-2xl border border-white/80 bg-white/95 p-2 shadow-[0_18px_40px_rgba(15,23,42,0.18)]"
+          role="listbox"
+        >
+          {options.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => {
+                onChange(option.value);
+                setOpen(false);
+              }}
+              className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm font-semibold transition ${
+                option.value === value
+                  ? "bg-brand-teal/10 text-brand-gray-800"
+                  : "text-brand-gray-600 hover:bg-brand-gray-100/70"
+              }`}
+              role="option"
+              aria-selected={option.value === value}
+            >
+              <span>{option.label}</span>
+              {option.value === value ? (
+                <span className="text-xs text-brand-teal">●</span>
+              ) : null}
+            </button>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

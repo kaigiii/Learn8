@@ -6,7 +6,13 @@ import { motion } from "framer-motion";
 
 import { CourseListItem } from "@/lib/apiTypes";
 import { HomeCourseIcon } from "./HomeCourseIcon";
-import { HOME_COURSE_CARD_GRADIENTS } from "../visuals";
+
+const LIB_BG_IMAGES = [
+  "/Lib_BG/blue.png",
+  "/Lib_BG/green.png",
+  "/Lib_BG/red.png",
+  "/Lib_BG/yellow.png",
+];
 
 interface HomePublicTopicsSectionProps {
   courses: CourseListItem[];
@@ -65,9 +71,8 @@ export function HomePublicTopicsSection({ courses }: HomePublicTopicsSectionProp
         style={{ scrollbarWidth: "none" }}
       >
         {courses.map((course, index) => {
-          const gradient =
-            HOME_COURSE_CARD_GRADIENTS[index % HOME_COURSE_CARD_GRADIENTS.length] ??
-            "from-teal-100 to-cyan-50";
+          const backgroundImage =
+            LIB_BG_IMAGES[index % LIB_BG_IMAGES.length] ?? LIB_BG_IMAGES[0];
 
           return (
             <Link key={course.id} href={`/courses/${course.id}`} className="block">
@@ -76,16 +81,14 @@ export function HomePublicTopicsSection({ courses }: HomePublicTopicsSectionProp
                 className="relative w-40 shrink-0 snap-start cursor-pointer md:w-48"
               >
                 <div
-                  className={`flex h-36 flex-col items-center justify-center rounded-2xl bg-gradient-to-br shadow-md transition-all hover:shadow-lg md:h-44 ${gradient}`}
+                  className="flex h-36 flex-col items-center justify-center rounded-2xl bg-cover bg-center bg-no-repeat shadow-md transition-all hover:shadow-lg md:h-44"
+                  style={{ backgroundImage: `url(${backgroundImage})` }}
                 >
                   <div className="mb-2">
                     <HomeCourseIcon />
                   </div>
                 </div>
                 <div className="mt-2 space-y-1 text-center">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-brand-teal/80">
-                    Public Course
-                  </p>
                   <p
                     className="truncate text-sm font-semibold text-brand-gray-600"
                     title={course.title}
