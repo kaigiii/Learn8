@@ -204,7 +204,7 @@ export default function ArenaLeaderboardPageClient() {
               value={category}
               onChange={setCategory}
               options={[
-                { value: "rating", label: "Global" },
+                { value: "rating", label: "Rating" },
                 { value: "win_rate", label: "Win Rate" },
                 { value: "matches", label: "Matches" },
               ]}
@@ -289,7 +289,7 @@ export default function ArenaLeaderboardPageClient() {
               <div className="mt-3 flex flex-wrap gap-2">
                 <CategoryChip
                   active={category === "rating"}
-                  label="Rank"
+                  label="Rating"
                   onClick={() => setCategory("rating")}
                 />
                 <CategoryChip
@@ -304,7 +304,7 @@ export default function ArenaLeaderboardPageClient() {
                 />
               </div>
 
-              <div className="mt-4 grid grid-cols-[82px_minmax(0,1.6fr)_minmax(0,1fr)_minmax(128px,0.9fr)] items-center gap-2 px-2 text-xs font-semibold uppercase tracking-[0.08em] text-brand-gray-500">
+              <div className="mt-4 grid grid-cols-[82px_minmax(0,1.6fr)_minmax(0,1fr)_minmax(100px,0.85fr)] items-center gap-2 px-2 text-xs font-semibold uppercase tracking-[0.08em] text-brand-gray-500">
                 <span>Rank</span>
                 <span>Player</span>
                 <span>Tier</span>
@@ -317,9 +317,9 @@ export default function ArenaLeaderboardPageClient() {
                   return (
                     <div
                       key={entry.userId}
-                      className={`grid grid-cols-[82px_minmax(0,1.6fr)_minmax(0,1fr)_minmax(128px,0.9fr)] items-center gap-2 rounded-[22px] border px-2 py-2 ${
+                      className={`grid grid-cols-[82px_minmax(0,1.6fr)_minmax(0,1fr)_minmax(100px,0.85fr)] items-center gap-2 rounded-[22px] border px-2 py-2 ${
                         isCurrentUser
-                          ? "border-brand-teal/45 bg-brand-teal/10 shadow-[0_16px_30px_rgba(95,179,175,0.16)]"
+                          ? "border-white/70 bg-[#e3e8ee]/95 shadow-[0_18px_34px_rgba(113,145,156,0.16)]"
                           : "border-white/70 bg-white/68"
                       }`}
                     >
@@ -329,11 +329,11 @@ export default function ArenaLeaderboardPageClient() {
 
                       <div className="flex min-w-0 items-center gap-2">
                         <AvatarPlaceholder small />
-                        <p className="min-w-0 break-words text-lg font-bold leading-tight text-brand-gray-700 lg:text-xl">
+                        <p className={`min-w-0 break-words text-lg font-bold leading-tight lg:text-xl ${isCurrentUser ? "text-brand-gray-900 font-extrabold" : "text-brand-gray-700"}`}>
                           {entry.displayName}
                         </p>
                         {isCurrentUser ? (
-                          <span className="rounded-full bg-brand-teal/15 px-2 py-0.5 text-xs font-semibold text-brand-teal">
+                          <span className="rounded-full bg-[#0e758b] px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-[0.08em] text-white">
                             You
                           </span>
                         ) : null}
@@ -345,7 +345,7 @@ export default function ArenaLeaderboardPageClient() {
                       </div>
 
                       <div className="text-right">
-                        <p className="text-2xl font-bold text-brand-gray-700 lg:text-[1.85rem]">
+                        <p className={`text-2xl font-bold lg:text-[1.85rem] ${isCurrentUser ? "text-brand-gray-900" : "text-brand-gray-700"}`}>
                           {category === "win_rate"
                             ? `${entry.winRate.toFixed(0)}%`
                             : category === "matches"
@@ -499,8 +499,8 @@ function CategoryChip({
       onClick={onClick}
       className={`rounded-full border px-4 py-2 text-sm font-bold uppercase tracking-[0.08em] transition ${
         active
-          ? "bg-brand-teal/12 text-brand-teal ring-1 ring-brand-teal/20 border-transparent"
-          : "border-white/70 bg-white/60 text-brand-gray-600 hover:bg-white/85"
+          ? "border-[#d1d5db] bg-[#e5e7eb] text-brand-gray-700 shadow-[0_8px_16px_rgba(107,114,128,0.08)]"
+          : "border-[#d1d5db] bg-[#f3f4f6] text-brand-gray-600 hover:bg-[#e5e7eb]"
       }`}
     >
       {label}

@@ -3,14 +3,14 @@
 import React, { useEffect, useState } from "react";
 
 import TopStatsBar from "@/components/layout/TopStatsBar";
-import { fetchArenaPublicCourses } from "@/lib/arena/api";
-import type { ArenaPublicCourse } from "@/lib/apiTypes";
+import { fetchPublicCourses } from "@/lib/courses/api";
+import type { CourseListItem } from "@/lib/apiTypes";
 import { HomeArenaPanel } from "../home/components/HomeArenaPanel";
 import { MultiplayerTopicsSection } from "./components/MultiplayerTopicsSection";
 import { HomeBackground } from "../home/components/HomeBackground";
 
 export default function MultiplayerPage() {
-  const [courses, setCourses] = useState<ArenaPublicCourse[]>([]);
+  const [courses, setCourses] = useState<CourseListItem[]>([]);
   const [loadingCourses, setLoadingCourses] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,7 +19,7 @@ export default function MultiplayerPage() {
     setLoadingCourses(true);
     setError(null);
 
-    void fetchArenaPublicCourses()
+    void fetchPublicCourses()
       .then((items) => {
         if (!cancelled) {
           setCourses(items);
@@ -27,7 +27,7 @@ export default function MultiplayerPage() {
       })
       .catch((err) => {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load Arena topics");
+          setError(err instanceof Error ? err.message : "Failed to load topics");
         }
       })
       .finally(() => {

@@ -29,6 +29,22 @@ body {
   font-family: "Open Sans", sans-serif;
 }
 
+/* ── Hide all scrollbars globally but keep scroll behavior ── */
+html,
+body,
+* {
+  -ms-overflow-style: none;  /* IE/Edge */
+  scrollbar-width: none;     /* Firefox */
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+*::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;             /* Chrome/Safari/Opera */
+}
+
 /* Custom utility classes */
 @layer utilities {
   .app-shared-bg {

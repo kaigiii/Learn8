@@ -34,7 +34,7 @@ export default function ProfileSettingsDialog({ onClose }: ProfileSettingsDialog
       <div className="fixed inset-0 z-[100] flex items-center justify-center">
         {/* Backdrop */}
         <motion.div
-          className="absolute inset-0 bg-black/30 backdrop-blur-[6px]"
+          className="absolute inset-0 bg-black/30 backdrop-blur-[4px] will-change-[opacity]"
           onClick={onClose}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -44,13 +44,13 @@ export default function ProfileSettingsDialog({ onClose }: ProfileSettingsDialog
 
         {/* Modal card */}
         <motion.div
-          className="relative z-10 mx-4 w-full max-w-2xl"
+          className="relative z-10 mx-4 w-full max-w-2xl transform-gpu will-change-[transform,opacity]"
           initial={{ scale: 0.9, opacity: 0, y: 28 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.95, opacity: 0, y: 16 }}
           transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
         >
-          <div className="relative max-h-[86vh] overflow-y-auto rounded-[32px] border border-white/60 bg-white/90 shadow-[0_30px_70px_rgba(15,23,42,0.24)] backdrop-blur-xl">
+          <div className="relative max-h-[86vh] overflow-y-auto rounded-[32px] border border-white/60 bg-white/90 shadow-[0_30px_70px_rgba(15,23,42,0.24)] backdrop-blur-lg">
             <button
               onClick={onClose}
               className="absolute right-4 top-4 z-20 flex h-9 w-9 items-center justify-center rounded-full border border-brand-gray-200 bg-white/90 text-brand-gray-500 transition hover:text-brand-gray-700"

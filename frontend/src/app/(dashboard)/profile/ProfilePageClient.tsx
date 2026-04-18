@@ -193,10 +193,10 @@ export default function ProfilePageClient() {
                 <button
                   type="button"
                   onClick={() => setActiveOverlay("personal")}
-                  className={`min-h-[58px] rounded-xl border px-3 text-sm font-semibold transition ${
+                  className={`min-h-[58px] rounded-xl border-[1.5px] px-3 text-sm font-semibold transition ${
                     activeOverlay === "personal"
-                      ? "border-[#0a6175] bg-[#0f7f96] text-white shadow-[0_10px_20px_rgba(15,127,150,0.35)]"
-                      : "border-[#79b8c6] bg-[#d5ecf2] text-[#145d6c] hover:border-[#0e758b] hover:bg-[#86c4d1] hover:text-white"
+                      ? "border-[#d1d5db] bg-[#e5e7eb] text-brand-gray-700 shadow-[0_10px_20px_rgba(107,114,128,0.08)]"
+                      : "border-[#d1d5db] bg-[#f3f4f6] text-brand-gray-700 hover:border-[#bfdbfe] hover:bg-[#e5e7eb]"
                   }`}
                 >
                   Personal Profile
@@ -205,10 +205,10 @@ export default function ProfilePageClient() {
                 <button
                   type="button"
                   onClick={() => setActiveOverlay("wallet")}
-                  className={`min-h-[58px] rounded-xl border px-3 text-sm font-semibold transition ${
+                  className={`min-h-[58px] rounded-xl border-[1.5px] px-3 text-sm font-semibold transition ${
                     activeOverlay === "wallet"
-                      ? "border-[#0a6175] bg-[#0f7f96] text-white shadow-[0_10px_20px_rgba(15,127,150,0.35)]"
-                      : "border-[#79b8c6] bg-[#d5ecf2] text-[#145d6c] hover:border-[#0e758b] hover:bg-[#86c4d1] hover:text-white"
+                      ? "border-[#d1d5db] bg-[#e5e7eb] text-brand-gray-700 shadow-[0_10px_20px_rgba(107,114,128,0.08)]"
+                      : "border-[#d1d5db] bg-[#f3f4f6] text-brand-gray-700 hover:border-[#bfdbfe] hover:bg-[#e5e7eb]"
                   }`}
                 >
                   Wallet
