@@ -17,6 +17,8 @@ import { useResolvedLessonRoute } from "./hooks/useResolvedLessonRoute";
 import { useDelayedVisibility } from "@/lib/ui/useDelayedVisibility";
 import { LESSON_SESSION_PHASE, LESSON_SESSION_STATUS } from "@/lib/domain/statuses";
 
+const COMPACT_VIEWPORT_MEDIA_QUERY = "(max-width: 1023px)";
+
 /* ═══════════════════ Page ═══════════════════ */
 
 export default function LessonSessionPageClient({
@@ -44,8 +46,33 @@ export default function LessonSessionPageClient({
 
   // User store
   const setLastActiveNode = useUserStore((s) => s.setLastActiveNode);
+  const [isCompactViewport, setIsCompactViewport] = useState(true);
+  const [isChatPanelOpen, setIsChatPanelOpen] = useState(false);
+  const previousCompactViewportRef = React.useRef<boolean | null>(null);
 
   const [stageIdx, setStageIdx] = useState(0);
+
+  React.useEffect(() => {
+    const media = window.matchMedia(COMPACT_VIEWPORT_MEDIA_QUERY);
+    const applyViewport = (compact: boolean) => {
+      setIsCompactViewport(compact);
+      if (previousCompactViewportRef.current === null || previousCompactViewportRef.current !== compact) {
+        setIsChatPanelOpen(!compact);
+      }
+      previousCompactViewportRef.current = compact;
+    };
+
+    applyViewport(media.matches);
+    const handleChange = (event: MediaQueryListEvent) => {
+      applyViewport(event.matches);
+    };
+
+    media.addEventListener("change", handleChange);
+    return () => {
+      media.removeEventListener("change", handleChange);
+    };
+  }, []);
+
   const resetInteractiveStageState = useCallback(() => {
     setStageIdx(0);
   }, []);
@@ -254,7 +281,7 @@ export default function LessonSessionPageClient({
   return (
     <div className="relative min-h-screen max-h-screen overflow-hidden app-shared-bg flex flex-col">
       {/* ─── Top Nav ─── */}
-      <div className="flex items-center gap-3 px-8 pt-4 pb-1">
+      <div className="flex items-center gap-3 px-4 pt-4 pb-1 sm:px-6 lg:px-8">
         <button
           type="button"
           onClick={handleExitLesson}
@@ -267,10 +294,19 @@ export default function LessonSessionPageClient({
         <div className="flex-1">
           <TopProgressBar progress={progress} className="h-3" />
         </div>
+        {isCompactViewport ? (
+          <button
+            type="button"
+            onClick={() => setIsChatPanelOpen((prev) => !prev)}
+            className="h-9 rounded-full border border-white/80 bg-white/75 px-3 text-xs font-heading font-bold text-brand-gray-700 shadow-sm backdrop-blur transition hover:bg-white"
+          >
+            {isChatPanelOpen ? "Hide tutor" : "Show tutor"}
+          </button>
+        ) : null}
       </div>
 
       {/* ─── Main content: two columns ─── */}
-      <div className="flex-1 flex gap-8 px-8 pb-4 w-full min-h-0">
+      <div className="relative flex w-full min-h-0 flex-1 gap-4 px-4 pb-4 sm:px-6 lg:gap-8 lg:px-8">
         {/* ── Left: Question + Match Grid ── */}
         <div className="flex-1 flex flex-col min-w-0 min-h-0">
           {backendStage ? (
@@ -293,20 +329,40 @@ export default function LessonSessionPageClient({
         </div>
 
         {/* ── Right: AI Chat Assistant ── */}
-        <div className="w-[360px] flex-shrink-0 pt-2">
-          <LessonSessionChatPanel
-            courseId={backendCourseId ?? currentCourseId}
-            courseTopic={backendCourse?.topic || backendCourse?.courseTitle || ""}
-            courseTitle={backendCourse?.courseTitle || ""}
-            nodeId={nodeId}
-            nodeTitle={backendNode?.title || ""}
-            nodeDescription={nodeDescription}
-            lessonSession={lessonSession}
-            currentStage={backendStage}
-            stageIdx={displayStageIdx}
-            totalStages={displayTotalStages}
-          />
-        </div>
+        {isCompactViewport ? (
+          isChatPanelOpen ? (
+            <div className="absolute inset-x-4 bottom-4 top-[72px] z-30 sm:inset-x-6">
+              <LessonSessionChatPanel
+                courseId={backendCourseId ?? currentCourseId}
+                courseTopic={backendCourse?.topic || backendCourse?.courseTitle || ""}
+                courseTitle={backendCourse?.courseTitle || ""}
+                nodeId={nodeId}
+                nodeTitle={backendNode?.title || ""}
+                nodeDescription={nodeDescription}
+                lessonSession={lessonSession}
+                currentStage={backendStage}
+                stageIdx={displayStageIdx}
+                totalStages={displayTotalStages}
+                compact
+              />
+            </div>
+          ) : null
+        ) : (
+          <div className="w-[360px] flex-shrink-0 pt-2">
+            <LessonSessionChatPanel
+              courseId={backendCourseId ?? currentCourseId}
+              courseTopic={backendCourse?.topic || backendCourse?.courseTitle || ""}
+              courseTitle={backendCourse?.courseTitle || ""}
+              nodeId={nodeId}
+              nodeTitle={backendNode?.title || ""}
+              nodeDescription={nodeDescription}
+              lessonSession={lessonSession}
+              currentStage={backendStage}
+              stageIdx={displayStageIdx}
+              totalStages={displayTotalStages}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import ProfileSettingsDialog from "@/features/profile/ProfileSettingsDialog";
 import { useAuthStore } from "@/stores/app/useAuthStore";
 import useUserStore, { selectAvailableCredits } from "@/stores/app/useUserStore";
@@ -45,6 +46,7 @@ export default function TopStatsBar({
   quickLinks = [],
 }: TopStatsBarProps = {}) {
   const [profileOpen, setProfileOpen] = useState(false);
+  const pathname = usePathname();
   const authUser = useAuthStore((s) => s.user);
   const availableCredits = useUserStore(selectAvailableCredits);
   const creditBalance = authUser?.credits ?? availableCredits;
@@ -58,13 +60,16 @@ export default function TopStatsBar({
   const navChipClassName =
     "inline-flex h-9 items-center rounded-full px-3 text-[11px] font-bold uppercase tracking-[0.16em] transition";
   const quickChipClassName =
-    "inline-flex h-10 items-center gap-2 rounded-full bg-white/92 px-3 text-sm font-heading font-bold leading-none text-brand-gray-700 shadow-sm transition hover:bg-white";
+    "inline-flex h-10 items-center gap-0 rounded-full bg-white/92 px-2.5 text-sm font-heading font-bold leading-none text-brand-gray-700 shadow-sm transition hover:bg-white lg:gap-2 lg:px-3";
+  const quickActiveClassName = "bg-white ring-1 ring-brand-teal/20";
+  const isStoreActive = pathname === "/store" || pathname.startsWith("/store/");
+  const isProfileActive = pathname === "/profile" || pathname.startsWith("/profile");
 
   return (
     <>
-      <nav className="sticky top-0 z-50 flex min-h-[72px] items-center justify-between gap-3 bg-white bg-[url('/Tools_Overview.png')] bg-[length:100%_100%] bg-no-repeat px-4 py-3 shadow-[0_8px_24px_rgba(113,145,156,0.08)] md:px-8">
+      <nav className="sticky top-0 z-50 flex min-h-[72px] items-center justify-between gap-2 bg-white bg-[url('/Tools_Overview.png')] bg-[length:100%_100%] bg-no-repeat px-4 py-3 shadow-[0_8px_24px_rgba(113,145,156,0.08)] md:gap-3 md:px-8">
         {/* Left: back arrow or avatar + logo */}
-        <div className="relative flex min-w-0 items-center gap-3">
+        <div className="relative flex min-w-0 items-center gap-3 md:flex-1">
           {backHref ? (
             /* Back arrow mode (e.g. store, map) */
             <>
@@ -89,11 +94,11 @@ export default function TopStatsBar({
                   <OwlLogoSmall />
                 )
               ) : null}
-              <span className="truncate font-heading text-lg font-extrabold leading-none text-brand-gray-700 md:text-[1.35rem]">
+              <span className="min-w-0 truncate font-heading text-lg font-extrabold leading-none text-brand-gray-700 max-[420px]:hidden md:text-[1.35rem]">
                 {pageTitle}
               </span>
               {navLinks.length > 0 ? (
-                <div className="ml-2 hidden items-center gap-2 md:flex">
+                <div className="ml-2 hidden min-w-0 items-center gap-2 md:flex">
                   {navLinks.map((link) => (
                     <Link
                       key={`${link.href}-${link.label}`}
@@ -131,7 +136,7 @@ export default function TopStatsBar({
                   width={280}
                   height={112}
                   priority
-                  className="hidden h-11 w-auto object-contain sm:block md:h-12"
+                  className="h-8 w-auto object-contain sm:h-11 md:h-12"
                 />
               </Link>
             </>
@@ -139,16 +144,16 @@ export default function TopStatsBar({
         </div>
 
         {/* Right: stats */}
-        <div className="flex items-center gap-2 md:gap-3">
+        <div className="flex min-w-0 flex-none items-center gap-1.5 sm:gap-2 md:gap-3">
           {quickLinks.length > 0 ? (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               {quickLinks.map((link) => (
                 <Link
                   key={`${link.href}-${link.label}-quick`}
                   href={link.href}
                   className={`${quickChipClassName} ${
                     link.active
-                      ? "bg-white"
+                      ? quickActiveClassName
                       : ""
                   }`}
                 >
@@ -161,13 +166,13 @@ export default function TopStatsBar({
                       className="h-6 w-6 object-contain"
                     />
                   ) : null}
-                  <span className="whitespace-nowrap">{link.label}</span>
+                  <span className="hidden whitespace-nowrap lg:inline">{link.label}</span>
                 </Link>
               ))}
             </div>
           ) : null}
           {navLinks.length > 0 ? (
-            <div className="flex items-center gap-2 md:hidden">
+            <div className="flex min-w-max items-center gap-2 md:hidden">
               {navLinks.map((link) => (
                 <Link
                   key={`${link.href}-${link.label}-mobile`}
@@ -186,10 +191,12 @@ export default function TopStatsBar({
           {/* Credits */}
           <Link
             href="/store"
-            className={`${pillClassName} gap-1.5 hover:bg-white`}
+            className={`${pillClassName} flex-none gap-1.5 hover:bg-white ${
+              isStoreActive ? quickActiveClassName : ""
+            }`}
           >
             <span className="text-base leading-none">💎</span>
-            <span className="whitespace-nowrap text-sm leading-none">
+            <span className="hidden whitespace-nowrap text-sm leading-none md:inline">
               {creditBalance.toLocaleString()}
             </span>
           </Link>
@@ -197,7 +204,9 @@ export default function TopStatsBar({
           {/* Profile badge */}
           <Link
             href="/profile"
-            className="flex h-10 items-center gap-2 rounded-full border border-white/85 bg-white/92 px-2.5 shadow-sm transition hover:bg-white"
+            className={`flex h-10 flex-none items-center gap-2 rounded-full border border-white/85 bg-white/92 px-2.5 shadow-sm transition hover:bg-white ${
+              isProfileActive ? quickActiveClassName : ""
+            }`}
           >
             <div className="flex h-7 min-w-7 items-center justify-center rounded-full bg-gradient-to-br from-yellow-300 to-yellow-500 px-2 shadow-md">
               <span className="font-heading font-extrabold text-white text-[10px]">

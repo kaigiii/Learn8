@@ -14,6 +14,8 @@ import { CourseMapNodePanel } from "./components/CourseMapNodePanel";
 import { useCourseMapData, type CourseMapNode } from "./hooks/useCourseMapData";
 import { useResolvedCourseRoute } from "./hooks/useResolvedCourseRoute";
 
+const COMPACT_VIEWPORT_MEDIA_QUERY = "(max-width: 1023px)";
+
 export default function CourseMapPageClient({
   courseId: explicitCourseId,
 }: {
@@ -47,6 +49,30 @@ export default function CourseMapPageClient({
   });
   const showDelayedMapLoading = useDelayedVisibility(backendLoading, 220);
   const [selectedNodeId, setSelectedNodeId] = React.useState<string | null>(null);
+  const [isCompactViewport, setIsCompactViewport] = React.useState(true);
+  const [isNodePanelOpen, setIsNodePanelOpen] = React.useState(false);
+  const previousCompactViewportRef = React.useRef<boolean | null>(null);
+
+  React.useEffect(() => {
+    const media = window.matchMedia(COMPACT_VIEWPORT_MEDIA_QUERY);
+    const applyViewport = (compact: boolean) => {
+      setIsCompactViewport(compact);
+      if (previousCompactViewportRef.current === null || previousCompactViewportRef.current !== compact) {
+        setIsNodePanelOpen(!compact);
+      }
+      previousCompactViewportRef.current = compact;
+    };
+
+    applyViewport(media.matches);
+    const handleChange = (event: MediaQueryListEvent) => {
+      applyViewport(event.matches);
+    };
+
+    media.addEventListener("change", handleChange);
+    return () => {
+      media.removeEventListener("change", handleChange);
+    };
+  }, []);
 
   React.useEffect(() => {
     if (nodes.length === 0) {
@@ -85,24 +111,28 @@ export default function CourseMapPageClient({
       <CourseMapBackground />
 
       <div
-        className="relative z-10 mx-auto grid max-w-[1580px] gap-8 px-6"
+        className="relative z-10 mx-auto max-w-[1580px] px-3 sm:px-4 md:px-6 lg:grid lg:gap-8"
         style={{
           height: "calc(100dvh - 72px)",
           gridTemplateColumns: showAssistantPanel ? "minmax(0, 1fr) 340px 340px" : "minmax(0, 1fr) 340px",
         }}
       >
-        <div className="h-full min-h-0 pt-8 pb-8" style={{ order: 2 }}>
-          <CourseMapNodePanel
-            courseId={courseId}
-            coursePath={coursePath}
-            selectedNode={selectedNode}
-          />
-        </div>
+        {isCompactViewport ? (
+          <div className="pointer-events-none absolute right-3 top-3 z-30 sm:right-4 md:right-6">
+            <button
+              type="button"
+              onClick={() => setIsNodePanelOpen((prev) => !prev)}
+              className="pointer-events-auto inline-flex h-10 items-center gap-2 rounded-full border border-white/85 bg-white/92 px-4 text-sm font-heading font-bold text-brand-gray-700 shadow-sm backdrop-blur transition hover:bg-white"
+            >
+              <span>{isNodePanelOpen ? "Hide lesson panel" : "Show lesson panel"}</span>
+            </button>
+          </div>
+        ) : null}
 
         <div
           ref={mapContainerRef}
-          className="scrollbar-hide min-w-0 overflow-y-auto rounded-2xl"
-          style={{ cursor: "grab", order: 1 }}
+          className="scrollbar-hide h-full min-h-0 min-w-0 overflow-y-auto rounded-2xl pt-4 pb-6 lg:pt-8 lg:pb-8"
+          style={{ cursor: "grab" }}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
@@ -168,7 +198,27 @@ export default function CourseMapPageClient({
           </div>
         </div>
 
-        {showAssistantPanel && (
+        {isCompactViewport ? (
+          isNodePanelOpen ? (
+            <div className="absolute inset-x-3 bottom-3 top-16 z-20 sm:inset-x-4 md:inset-x-6">
+              <CourseMapNodePanel
+                courseId={courseId}
+                coursePath={coursePath}
+                selectedNode={selectedNode}
+              />
+            </div>
+          ) : null
+        ) : (
+          <div className="h-full min-h-0 pt-8 pb-8" style={{ order: 2 }}>
+            <CourseMapNodePanel
+              courseId={courseId}
+              coursePath={coursePath}
+              selectedNode={selectedNode}
+            />
+          </div>
+        )}
+
+        {showAssistantPanel && !isCompactViewport && (
           <div className="h-full min-h-0 translate-x-10 pt-8 pb-8" style={{ order: 3 }}>
             <CourseMapAssistantPanel
               coursePath={coursePath}
