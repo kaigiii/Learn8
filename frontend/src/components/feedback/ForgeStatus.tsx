@@ -100,7 +100,17 @@ export default function ForgeStatus({
       : `${Math.round(displayedProgress)}%`;
 
   return (
-    <div className="relative flex min-h-full flex-1 flex-col items-center justify-center overflow-hidden px-6 py-12 md:px-10">
+    <div
+      className="relative flex min-h-full flex-1 flex-col items-center justify-center overflow-hidden px-6 py-12 md:px-10"
+      style={{
+        backgroundColor: "#d9ecf6",
+        backgroundImage:
+          'linear-gradient(135deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.1)), url("/ForgingBg.png")',
+        backgroundPosition: "center",
+        backgroundSize: "cover",
+        backgroundRepeat: "no-repeat",
+      }}
+    >
       <ForgeAtmosphere />
 
       <div className="relative z-10 flex w-full max-w-5xl flex-1 flex-col items-center justify-center gap-9 px-8 py-12 md:px-14 md:py-16">

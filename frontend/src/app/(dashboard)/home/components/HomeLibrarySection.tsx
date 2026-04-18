@@ -6,7 +6,13 @@ import { motion } from "framer-motion";
 import type { CourseListItem } from "@/lib/apiTypes";
 import type { CourseModalState } from "../types";
 import { HomeCourseIcon } from "./HomeCourseIcon";
-import { HOME_COURSE_CARD_GRADIENTS } from "../visuals";
+
+const LIB_BG_IMAGES = [
+  "/Lib_BG/blue.png",
+  "/Lib_BG/green.png",
+  "/Lib_BG/red.png",
+  "/Lib_BG/yellow.png",
+];
 
 export type HomeLibraryItem =
   | {
@@ -74,10 +80,9 @@ export function HomeLibrarySection({
           className="flex snap-x gap-4 overflow-x-auto pb-4 pt-4 scrollbar-hide"
           style={{ scrollbarWidth: "none" }}
         >
-          {libraryItems.map((item) => {
-            const gradient =
-              HOME_COURSE_CARD_GRADIENTS[item.indexSeed % HOME_COURSE_CARD_GRADIENTS.length] ??
-              "from-teal-100 to-cyan-50";
+          {libraryItems.map((item, index) => {
+            const backgroundImage =
+              LIB_BG_IMAGES[index % LIB_BG_IMAGES.length] ?? LIB_BG_IMAGES[0];
 
             return (
               <motion.div
@@ -134,18 +139,12 @@ export function HomeLibrarySection({
 
                 <Link href={item.href}>
                   <div
-                    className={`flex h-36 items-center justify-center rounded-2xl bg-gradient-to-br shadow-md transition-all hover:shadow-lg md:h-44 ${gradient} ${
-                      item.kind === "draft"
-                        ? "border border-[#9ecbd4]/28 shadow-[0_14px_34px_rgba(97,163,184,0.16)]"
-                        : ""
-                    }`}
+                    className="flex h-36 items-center justify-center rounded-2xl bg-cover bg-center bg-no-repeat shadow-md transition-all hover:shadow-lg md:h-44"
+                    style={{ backgroundImage: `url(${backgroundImage})` }}
                   >
                     <HomeCourseIcon />
                   </div>
                   <div className="mt-2 space-y-1 text-center">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-brand-teal/80">
-                      {item.stateLabel}
-                    </p>
                     <p className="truncate text-sm font-semibold text-brand-gray-600">
                       {item.title}
                     </p>
