@@ -117,7 +117,7 @@ export function CourseMapAssistantPanel({
       <div className="flex items-center gap-3 px-6 pt-6 pb-4">
         <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-full shadow-md">
           <Image
-            src="/homeicon.ico"
+            src="/icon.ico"
             alt="Syllabus architect avatar"
             width={56}
             height={56}

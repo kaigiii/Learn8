@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 
 import TopStatsBar from "@/components/layout/TopStatsBar";
@@ -11,6 +11,7 @@ import GameButton from "@/components/ui/GameButton";
 import { ProfileStatBox } from "@/features/profile/components/ProfileStatBox";
 import { ProfileToggle } from "@/features/profile/components/ProfileToggle";
 import { useProfileSettings } from "@/features/profile/hooks/useProfileSettings";
+import { AnimatePresence, motion } from "framer-motion";
 import { resolveErrorMessage } from "@/lib/apiClient";
 import { fetchArenaProfile, fetchArenaRankHistory } from "@/lib/arena/api";
 import type { ArenaProfile, ArenaRankHistoryEntry, UserLedgerEvent } from "@/lib/apiTypes";
@@ -31,6 +32,31 @@ type PreferenceState = {
   darkGlass: boolean;
   difficulty: number;
 };
+
+const PREFERRED_LANGUAGES = [
+  "English",
+  "繁體中文",
+  "简体中文",
+  "日本語",
+  "한국어",
+  "Español",
+];
+
+const EDUCATION_LEVELS = [
+  "Middle School",
+  "High School",
+  "Undergraduate",
+  "Graduate",
+  "Professional",
+  "Self-Taught",
+];
+
+const DAILY_GOAL_OPTIONS = [
+  { value: "5", label: "5 min" },
+  { value: "10", label: "10 min" },
+  { value: "20", label: "20 min" },
+  { value: "30", label: "30 min" },
+];
 
 export default function ProfilePageClient() {
   const searchParams = useSearchParams();
@@ -341,31 +367,33 @@ export default function ProfilePageClient() {
         </DeepGlassCard>
       </div>
 
-      {activeOverlay && (
-        <ProfileOverlayShell
-          title={activeOverlay === "personal" ? "Personal Profile" : "Wallet"}
-          onClose={() => setActiveOverlay(null)}
-        >
-          {activeOverlay === "personal" ? (
-            <PersonalProfileContent
-              form={form}
-              setForm={setForm}
-              saving={saving}
-              error={error}
-              handleSaveProfile={handleSaveProfile}
-              preferences={preferences}
-              setPreferences={setPreferences}
-              handleLogout={handleLogout}
-            />
-          ) : (
-            <WalletContent
-              ledgerLoading={ledgerLoading}
-              ledgerItems={ledgerItems}
-              error={error}
-            />
-          )}
-        </ProfileOverlayShell>
-      )}
+      <AnimatePresence>
+        {activeOverlay ? (
+          <ProfileOverlayShell
+            title={activeOverlay === "personal" ? "Personal Profile" : "Wallet"}
+            onClose={() => setActiveOverlay(null)}
+          >
+            {activeOverlay === "personal" ? (
+              <PersonalProfileContent
+                form={form}
+                setForm={setForm}
+                saving={saving}
+                error={error}
+                handleSaveProfile={handleSaveProfile}
+                preferences={preferences}
+                setPreferences={setPreferences}
+                handleLogout={handleLogout}
+              />
+            ) : (
+              <WalletContent
+                ledgerLoading={ledgerLoading}
+                ledgerItems={ledgerItems}
+                error={error}
+              />
+            )}
+          </ProfileOverlayShell>
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 }
@@ -373,9 +401,23 @@ export default function ProfilePageClient() {
 function ProfileOverlayShell({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   return (
     <div className="fixed inset-0 z-[120]">
-      <div className="absolute inset-0 bg-slate-900/35 backdrop-blur-md" onClick={onClose} />
-      <div className="relative z-10 flex min-h-full items-center justify-center p-4">
-        <div className="w-full max-w-3xl rounded-[30px] border border-white/70 bg-white/90 shadow-[0_30px_80px_rgba(15,23,42,0.28)] backdrop-blur-xl">
+      <motion.div
+        className="absolute inset-0 bg-slate-900/35 backdrop-blur-[6px]"
+        onClick={onClose}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+      />
+      <div className="relative z-10 flex min-h-full items-center justify-center p-4" onClick={onClose}>
+        <motion.div
+          className="w-full max-w-3xl rounded-[30px] border border-white/70 bg-white/90 shadow-[0_30px_80px_rgba(15,23,42,0.28)] backdrop-blur-xl"
+          initial={{ scale: 0.9, opacity: 0, y: 28 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.95, opacity: 0, y: 16 }}
+          transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+          onClick={(event) => event.stopPropagation()}
+        >
           <div className="flex items-center justify-between border-b border-brand-gray-100 px-5 py-4 md:px-6">
             <h2 className="font-heading text-2xl font-extrabold text-brand-gray-700">{title}</h2>
             <button
@@ -391,7 +433,7 @@ function ProfileOverlayShell({ title, onClose, children }: { title: string; onCl
             </button>
           </div>
           <div className="max-h-[78vh] overflow-y-auto px-5 py-5 md:px-6 md:py-6">{children}</div>
-        </div>
+        </motion.div>
       </div>
     </div>
   );
@@ -445,34 +487,38 @@ function PersonalProfileContent({
 
         <label className="block">
           <span className="text-sm text-brand-gray-600">Education Level</span>
-          <input
-            type="text"
-            value={form.education_level}
-            onChange={(event) => setForm((prev) => ({ ...prev, education_level: event.target.value }))}
-            className="mt-1.5 w-full rounded-2xl border border-brand-gray-200 bg-white/85 px-4 py-3 text-sm text-brand-gray-700 outline-none focus:border-brand-teal"
-          />
+          <div className="mt-1.5">
+            <ProfileDropdown
+              value={form.education_level}
+              placeholder="Select level"
+              options={EDUCATION_LEVELS}
+              onChange={(next) => setForm((prev) => ({ ...prev, education_level: next }))}
+            />
+          </div>
         </label>
 
         <label className="block">
           <span className="text-sm text-brand-gray-600">Preferred Language</span>
-          <input
-            type="text"
-            value={form.preferred_language}
-            onChange={(event) => setForm((prev) => ({ ...prev, preferred_language: event.target.value }))}
-            className="mt-1.5 w-full rounded-2xl border border-brand-gray-200 bg-white/85 px-4 py-3 text-sm text-brand-gray-700 outline-none focus:border-brand-teal"
-          />
+          <div className="mt-1.5">
+            <ProfileDropdown
+              value={form.preferred_language}
+              placeholder="Select language"
+              options={PREFERRED_LANGUAGES}
+              onChange={(next) => setForm((prev) => ({ ...prev, preferred_language: next }))}
+            />
+          </div>
         </label>
 
         <label className="block">
           <span className="text-sm text-brand-gray-600">Daily Goal (min)</span>
-          <input
-            type="number"
-            min="0"
-            step="5"
-            value={form.daily_learning_goal_minutes}
-            onChange={(event) => setForm((prev) => ({ ...prev, daily_learning_goal_minutes: event.target.value }))}
-            className="mt-1.5 w-full rounded-2xl border border-brand-gray-200 bg-white/85 px-4 py-3 text-sm text-brand-gray-700 outline-none focus:border-brand-teal"
-          />
+          <div className="mt-1.5">
+            <ProfileDropdown
+              value={form.daily_learning_goal_minutes}
+              placeholder="Select goal"
+              options={DAILY_GOAL_OPTIONS}
+              onChange={(next) => setForm((prev) => ({ ...prev, daily_learning_goal_minutes: next }))}
+            />
+          </div>
         </label>
       </div>
 
@@ -703,6 +749,104 @@ function resolveRecentOutcomeTrends(history: ArenaRankHistoryEntry[]): { win: nu
     loss: lossTrend,
     draw: drawTrend,
   };
+}
+
+function ProfileDropdown({
+  value,
+  options,
+  placeholder,
+  onChange,
+}: {
+  value: string;
+  options: Array<string | { value: string; label: string }>;
+  placeholder?: string;
+  onChange: (next: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const normalizedOptions = options.map((option) =>
+    typeof option === "string" ? { value: option, label: option } : option
+  );
+  const activeLabel =
+    normalizedOptions.find((option) => option.value === value)?.label ||
+    value.trim() ||
+    placeholder ||
+    "Select";
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    const handlePointer = (event: MouseEvent) => {
+      if (!rootRef.current || rootRef.current.contains(event.target as Node)) {
+        return;
+      }
+      setOpen(false);
+    };
+
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    };
+
+    window.addEventListener("mousedown", handlePointer);
+    window.addEventListener("keydown", handleKey);
+    return () => {
+      window.removeEventListener("mousedown", handlePointer);
+      window.removeEventListener("keydown", handleKey);
+    };
+  }, [open]);
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className={`flex w-full items-center justify-between gap-2 rounded-2xl border border-brand-gray-200 bg-white/85 px-4 py-3 text-sm text-brand-gray-700 outline-none transition hover:bg-white focus:border-brand-teal ${open ? "ring-2 ring-brand-teal/30" : ""}`}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        <span className={value.trim() ? "" : "text-brand-gray-400"}>{activeLabel}</span>
+        <svg
+          viewBox="0 0 20 20"
+          className={`h-4 w-4 text-brand-gray-400 transition ${open ? "rotate-180" : ""}`}
+          fill="currentColor"
+          aria-hidden="true"
+        >
+          <path d="M5.25 7.5 10 12.25 14.75 7.5" />
+        </svg>
+      </button>
+      {open ? (
+        <div
+          className="scrollbar-hide absolute left-0 right-0 z-20 mt-2 max-h-56 overflow-auto rounded-2xl border border-white/80 bg-white/95 p-2 shadow-[0_18px_40px_rgba(15,23,42,0.18)]"
+          role="listbox"
+        >
+          {normalizedOptions.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => {
+                onChange(option.value);
+                setOpen(false);
+              }}
+              className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm font-semibold transition ${
+                option.value === value
+                  ? "bg-brand-teal/10 text-brand-gray-800"
+                  : "text-brand-gray-600 hover:bg-brand-gray-100/70"
+              }`}
+              role="option"
+              aria-selected={option.value === value}
+            >
+              <span>{option.label}</span>
+              {option.value === value ? <span className="text-xs text-brand-teal">●</span> : null}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 function ArenaSummaryMetric({

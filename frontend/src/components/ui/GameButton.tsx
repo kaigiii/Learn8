@@ -20,7 +20,7 @@ export default function GameButton({
 
   const variants = {
     primary:
-      "bg-gradient-to-b from-[#58CC02] to-[#46a302] hover:from-[#62d406] hover:to-[#4fb803] border-b-4 border-[#3a8a02]",
+      "bg-gradient-to-b from-[#7AC7C4] to-[#5fb3af] hover:from-[#88d1ce] hover:to-[#6bbdb9] border-b-4 border-[#4a9e9a]",
     secondary:
       "bg-gradient-to-b from-[#7AC7C4] to-[#5fb3af] hover:from-[#88d1ce] hover:to-[#6bbdb9] border-b-4 border-[#4a9e9a]",
   };

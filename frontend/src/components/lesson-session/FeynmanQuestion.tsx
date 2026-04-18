@@ -35,7 +35,7 @@ function OwlTeacher() {
   return (
     <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-full shadow-lg">
       <Image
-        src="/homeicon.ico"
+        src="/icon.ico"
         alt="Professor avatar"
         width={64}
         height={64}

@@ -180,7 +180,7 @@ export default function LoginPageClient() {
           <div className="mb-8 flex items-center gap-5">
             <div className="h-20 w-20 overflow-hidden rounded-full shadow-md">
               <Image
-                src="/homeicon.ico"
+                src="/icon.ico"
                 alt="Learn8 icon"
                 width={80}
                 height={80}
