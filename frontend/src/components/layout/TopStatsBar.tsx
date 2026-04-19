@@ -196,7 +196,7 @@ export default function TopStatsBar({
             }`}
           >
             <span className="text-base leading-none">💎</span>
-            <span className="hidden whitespace-nowrap text-sm leading-none md:inline">
+            <span className="whitespace-nowrap text-sm leading-none">
               {creditBalance.toLocaleString()}
             </span>
           </Link>
@@ -213,7 +213,7 @@ export default function TopStatsBar({
                 {authUser?.full_name?.trim()?.slice(0, 1).toUpperCase() || "P"}
               </span>
             </div>
-            <span className="hidden max-w-[120px] truncate font-heading text-sm font-bold leading-none text-brand-gray-700 md:inline">
+            <span className="max-w-[120px] truncate font-heading text-sm font-bold leading-none text-brand-gray-700">
               {profileLabel}
             </span>
           </Link>

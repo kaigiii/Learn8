@@ -17,11 +17,13 @@ export function CourseMapAssistantPanel({
   courseId,
   onCoursePathUpdated,
   compact = false,
+  mobileOverlay = false,
 }: {
   coursePath: CoursePath | null;
   courseId: number | null;
   onCoursePathUpdated: (coursePath: CoursePath) => void;
   compact?: boolean;
+  mobileOverlay?: boolean;
 }) {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -46,7 +48,10 @@ export function CourseMapAssistantPanel({
   }, []);
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messages.length === 0) {
+      return;
+    }
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [messages]);
 
   const handleSend = async () => {
@@ -108,11 +113,21 @@ export function CourseMapAssistantPanel({
 
   return (
     <motion.div
-      initial={{ opacity: 0, x: 40 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: 0.3, type: "spring", damping: 18 }}
+      initial={mobileOverlay ? { opacity: 0 } : { opacity: 0, x: 40 }}
+      animate={mobileOverlay ? { opacity: 1 } : { opacity: 1, x: 0 }}
+      transition={
+        mobileOverlay
+          ? { duration: 0.2, ease: "easeOut" }
+          : { delay: 0.3, type: "spring", damping: 18 }
+      }
       className="flex flex-col overflow-hidden rounded-3xl border border-white/50 bg-white/60 shadow-lg shadow-teal-200/20 backdrop-blur-xl"
-      style={compact ? { height: "100%", minHeight: 560 } : { height: "78vh", minHeight: 560 }}
+      style={
+        mobileOverlay
+          ? { height: "100%", minHeight: 0 }
+          : compact
+            ? { height: "100%", minHeight: 560 }
+            : { height: "78vh", minHeight: 560 }
+      }
     >
       <div className="flex items-center gap-3 px-6 pt-6 pb-4">
         <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-full shadow-md">

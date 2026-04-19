@@ -194,7 +194,7 @@ export default function LoginPageClient() {
               width={360}
               height={144}
               priority
-              className="h-20 w-auto object-contain"
+              className="h-20 w-auto object-contain drop-shadow-[0_2px_8px_rgba(52,144,220,0.28)]"
             />
           </div>
 

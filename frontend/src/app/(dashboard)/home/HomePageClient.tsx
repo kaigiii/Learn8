@@ -11,7 +11,6 @@ import {
 } from "@/lib/navigation/intents";
 import { useAuthStore } from "@/stores/app/useAuthStore";
 import useUserStore, { selectUserName } from "@/stores/app/useUserStore";
-import { HomeActiveJobBanner } from "./components/HomeActiveJobBanner";
 import { HomeBackground } from "./components/HomeBackground";
 import { HomeCourseModal } from "./components/HomeCourseModal";
 import { HomeCoursePanel } from "./components/HomeCoursePanel";
@@ -62,6 +61,7 @@ export default function HomePage() {
   });
   const [topic, setTopic] = useState("");
   const [publicCourses, setPublicCourses] = useState<CourseListItem[]>([]);
+  const [homeContentTab, setHomeContentTab] = useState<"library" | "public">("library");
   const {
     fileInputRef,
     fileActionMessage,
@@ -176,6 +176,21 @@ export default function HomePage() {
     });
   }, [courses, draftsByCourse]);
 
+  const resumeLibraryIndex = useMemo(() => {
+    if (!activeCourseId) {
+      return -1;
+    }
+
+    const numericActiveCourseId = Number(activeCourseId);
+    if (!Number.isFinite(numericActiveCourseId)) {
+      return -1;
+    }
+
+    return libraryItems.findIndex(
+      (item) => item.kind === "course" && item.course.id === numericActiveCourseId
+    );
+  }, [activeCourseId, libraryItems]);
+
   // Prevent browser from opening files dropped anywhere on the page
   useEffect(() => {
     const prevent = (e: DragEvent) => { e.preventDefault(); e.stopPropagation(); };
@@ -277,20 +292,13 @@ export default function HomePage() {
           </div>
         )}
 
-        {activeJob && (
-          <HomeActiveJobBanner
-            activeJob={activeJob}
-            onCancel={() => cancelActiveJob()}
-            onRetry={() => retryActiveJob()}
-          />
-        )}
-
         <div className="grid grid-cols-1 gap-8 xl:grid-cols-2">
           <HomeCoursePanel
             name={name}
             hasResumeCourse={hasResumeCourse}
             activeCourseId={activeCourseId}
             activeCourseNumericId={activeCourse?.id ?? null}
+            resumeLibraryIndex={resumeLibraryIndex}
             resumeTitle={resumeTitle}
             resumeNodeCount={resumeNodeCount}
             activeProgress={activeProgress}
@@ -309,20 +317,33 @@ export default function HomePage() {
             setTopic={setTopic}
             onFileChange={onFileChange}
             onDrop={onDrop}
-            onTopicSubmit={() => handleTopicSubmit(topic)}
+            onTopicSubmit={async () => {
+              await handleTopicSubmit(topic);
+              setTopic("");
+            }}
             onRemoveCourseFile={(file) => handleRemoveCourseFile(file)}
+            activeJob={activeJob}
+            onCancelActiveJob={() => cancelActiveJob()}
+            onRetryActiveJob={() => retryActiveJob()}
           />
         </div>
 
-        {/* Official Public Topics */}
-        <HomePublicTopicsSection courses={publicCourses} />
-
-        <HomeLibrarySection
-          scrollRef={scrollRef}
-          libraryItems={libraryItems}
-          onScrollLibrary={scrollLibrary}
-          onOpenCourseModal={openCourseModal}
-        />
+        {homeContentTab === "public" ? (
+          <HomePublicTopicsSection
+            courses={publicCourses}
+            activeTab={homeContentTab}
+            onTabChange={setHomeContentTab}
+          />
+        ) : (
+          <HomeLibrarySection
+            scrollRef={scrollRef}
+            libraryItems={libraryItems}
+            onScrollLibrary={scrollLibrary}
+            onOpenCourseModal={openCourseModal}
+            activeTab={homeContentTab}
+            onTabChange={setHomeContentTab}
+          />
+        )}
       </div>
 
       <HomeCourseModal
