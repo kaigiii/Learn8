@@ -11,7 +11,7 @@ export default function MascotHint({ message }: MascotHintProps) {
       {/* Mascot avatar */}
       <div className="shrink-0">
         <Image
-          src="/icon.ico"
+          src="/icons/icon.ico"
           alt="Mascot avatar"
           width={48}
           height={48}

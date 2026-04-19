@@ -5,10 +5,10 @@ import Image from "next/image";
 function resolveTreeIcon(progress?: number) {
   const safeProgress = Number.isFinite(progress) ? Math.min(Math.max(progress ?? 0, 0), 100) : 0;
 
-  if (safeProgress < 25) return "/tree/tree1.png";
-  if (safeProgress < 50) return "/tree/tree2.png";
-  if (safeProgress < 75) return "/tree/tree3.png";
-  return "/tree/tree4.png";
+  if (safeProgress < 25) return "/library-tree/tree1.png";
+  if (safeProgress < 50) return "/library-tree/tree2.png";
+  if (safeProgress < 75) return "/library-tree/tree3.png";
+  return "/library-tree/tree4.png";
 }
 
 export function HomeCourseIcon({ progress, className }: { progress?: number; className?: string }) {

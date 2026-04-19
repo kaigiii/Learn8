@@ -49,7 +49,7 @@ body::-webkit-scrollbar,
 @layer utilities {
   .app-shared-bg {
     background-color: #d9ecf6;
-    background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.1)), url("/MainBg.png");
+    background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.1)), url("/backgrounds/MainBg.png");
     background-position: center;
     background-size: cover;
     background-repeat: no-repeat;

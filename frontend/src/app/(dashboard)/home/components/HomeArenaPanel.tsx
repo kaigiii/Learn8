@@ -332,17 +332,17 @@ function ArenaCourseDropdown({
 function resolveRankTierBadgeVisual(rankTier?: string | null): { src: string; alt: string } {
   switch ((rankTier ?? "").trim().toLowerCase()) {
     case "silver":
-      return { src: "/season-badge-star.svg", alt: "Silver badge" };
+      return { src: "/svg/season-badge-star.svg", alt: "Silver badge" };
     case "gold":
-      return { src: "/season-badge-podium.svg", alt: "Gold badge" };
+      return { src: "/svg/season-badge-podium.svg", alt: "Gold badge" };
     case "platinum":
-      return { src: "/season-badge-elite.svg", alt: "Platinum badge" };
+      return { src: "/svg/season-badge-elite.svg", alt: "Platinum badge" };
     case "diamond":
     case "master":
     case "grandmaster":
-      return { src: "/season-badge-crown.svg", alt: "Top tier badge" };
+      return { src: "/svg/season-badge-crown.svg", alt: "Top tier badge" };
     case "bronze":
     default:
-      return { src: "/season-badge-none.svg", alt: "Bronze badge" };
+      return { src: "/svg/season-badge-none.svg", alt: "Bronze badge" };
   }
 }

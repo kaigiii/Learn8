@@ -35,7 +35,7 @@ export interface MultipleChoiceQuestionProps
 function OwlMascotSmall() {
   return (
     <Image
-      src="/full_icon.ico"
+      src="/icons/full_icon.ico"
       alt="Lesson mascot"
       width={56}
       height={56}

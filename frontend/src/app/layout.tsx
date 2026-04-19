@@ -5,7 +5,7 @@ export const metadata: Metadata = {
   title: "Learn8",
   description: "Convert your notes into a dynamic Skill Tree and master any subject through immersive mini-games.",
   icons: {
-    icon: "/favicon.ico",
+    icon: "/icons/favicon.ico",
   },
 };
 

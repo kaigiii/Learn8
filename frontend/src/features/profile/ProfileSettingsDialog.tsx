@@ -66,7 +66,7 @@ export default function ProfileSettingsDialog({ onClose }: ProfileSettingsDialog
               <div className="mx-auto flex w-full max-w-lg flex-col items-center text-center">
                 <div className="mb-4 flex h-24 w-24 items-center justify-center overflow-hidden rounded-full shadow-lg">
                   <Image
-                    src="/icon.ico"
+                    src="/icons/icon.ico"
                     alt="Home icon avatar"
                     width={96}
                     height={96}

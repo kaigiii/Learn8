@@ -67,7 +67,7 @@ export default function TopStatsBar({
 
   return (
     <>
-      <nav className="sticky top-0 z-50 flex min-h-[72px] items-center justify-between gap-2 bg-white bg-[url('/Tools_Overview.png')] bg-[length:100%_100%] bg-no-repeat px-4 py-3 shadow-[0_8px_24px_rgba(113,145,156,0.08)] md:gap-3 md:px-8">
+      <nav className="sticky top-0 z-50 flex min-h-[72px] items-center justify-between gap-2 bg-white bg-[url('/backgrounds/Tools_Overview.png')] bg-[length:100%_100%] bg-no-repeat px-4 py-3 shadow-[0_8px_24px_rgba(113,145,156,0.08)] md:gap-3 md:px-8">
         {/* Left: back arrow or avatar + logo */}
         <div className="relative flex min-w-0 items-center gap-3 md:flex-1">
           {backHref ? (
@@ -131,7 +131,7 @@ export default function TopStatsBar({
 
               <Link href="/home" className="flex items-center">
                 <Image
-                  src="/logs.png"
+                  src="/icons/logs.png"
                   alt="Learn8"
                   width={280}
                   height={112}
@@ -230,7 +230,7 @@ export default function TopStatsBar({
 
 /* ── Small mascot avatar ── */
 function MascotAvatar({
-  src = "/favicon.ico",
+  src = "/icons/favicon.ico",
   alt = "Profile mascot",
   imageClassName,
 }: {
@@ -254,7 +254,7 @@ function OwlLogoSmall() {
   return (
     <div className="h-8 w-8 overflow-hidden rounded-full">
       <Image
-        src="/favicon.ico"
+        src="/icons/favicon.ico"
         alt="Learn8 logo"
         width={32}
         height={32}
