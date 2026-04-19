@@ -40,9 +40,6 @@ export function MultiplayerTopicsSection({ courses }: MultiplayerTopicsSectionPr
           </p>
         </div>
         <div className="flex items-center gap-4">
-          <span className="hidden rounded-full bg-white/75 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-brand-teal md:inline-block">
-            {courses.length} subjects
-          </span>
           <div className="flex gap-2">
             <button
               onClick={() => scrollLibrary("left")}

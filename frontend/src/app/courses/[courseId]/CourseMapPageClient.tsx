@@ -51,6 +51,7 @@ export default function CourseMapPageClient({
   const [selectedNodeId, setSelectedNodeId] = React.useState<string | null>(null);
   const [isCompactViewport, setIsCompactViewport] = React.useState(true);
   const [isNodePanelOpen, setIsNodePanelOpen] = React.useState(false);
+  const [isAssistantPanelOpen, setIsAssistantPanelOpen] = React.useState(false);
   const previousCompactViewportRef = React.useRef<boolean | null>(null);
 
   React.useEffect(() => {
@@ -118,15 +119,40 @@ export default function CourseMapPageClient({
         }}
       >
         {isCompactViewport ? (
-          <div className="pointer-events-none absolute right-3 top-3 z-30 sm:right-4 md:right-6">
-            <button
-              type="button"
-              onClick={() => setIsNodePanelOpen((prev) => !prev)}
-              className="pointer-events-auto inline-flex h-10 items-center gap-2 rounded-full border border-white/85 bg-white/92 px-4 text-sm font-heading font-bold text-brand-gray-700 shadow-sm backdrop-blur transition hover:bg-white"
-            >
-              <span>{isNodePanelOpen ? "Hide lesson panel" : "Show lesson panel"}</span>
-            </button>
-          </div>
+          <>
+            <div className="pointer-events-none absolute right-3 top-3 z-30 flex flex-col gap-2 sm:right-4 md:right-6">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isNodePanelOpen) {
+                    setIsNodePanelOpen(true);
+                    setIsAssistantPanelOpen(false);
+                  } else {
+                    setIsNodePanelOpen(false);
+                  }
+                }}
+                className="pointer-events-auto inline-flex h-10 items-center gap-2 rounded-full border border-white/85 bg-white/92 px-4 text-sm font-heading font-bold text-brand-gray-700 shadow-sm backdrop-blur transition hover:bg-white"
+              >
+                <span>{isNodePanelOpen ? "隱藏課程小組" : "展示課程小組"}</span>
+              </button>
+              {showAssistantPanel && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!isAssistantPanelOpen) {
+                      setIsAssistantPanelOpen(true);
+                      setIsNodePanelOpen(false);
+                    } else {
+                      setIsAssistantPanelOpen(false);
+                    }
+                  }}
+                  className="pointer-events-auto inline-flex h-10 items-center gap-2 rounded-full border border-white/85 bg-white/92 px-4 text-sm font-heading font-bold text-brand-gray-700 shadow-sm backdrop-blur transition hover:bg-white"
+                >
+                  <span>{isAssistantPanelOpen ? "隱藏課程架構師" : "展示課程架構師"}</span>
+                </button>
+              )}
+            </div>
+          </>
         ) : null}
 
         <div
@@ -199,15 +225,28 @@ export default function CourseMapPageClient({
         </div>
 
         {isCompactViewport ? (
-          isNodePanelOpen ? (
-            <div className="absolute inset-x-3 bottom-3 top-16 z-20 sm:inset-x-4 md:inset-x-6">
-              <CourseMapNodePanel
-                courseId={courseId}
-                coursePath={coursePath}
-                selectedNode={selectedNode}
-              />
-            </div>
-          ) : null
+          <>
+            {isNodePanelOpen && (
+              <div className="absolute inset-x-3 bottom-3 top-16 z-20 sm:inset-x-4 md:inset-x-6">
+                <CourseMapNodePanel
+                  courseId={courseId}
+                  coursePath={coursePath}
+                  selectedNode={selectedNode}
+                />
+              </div>
+            )}
+            {showAssistantPanel && isAssistantPanelOpen && (
+              <div className="absolute inset-x-3 bottom-3 top-16 z-20 sm:inset-x-4 md:inset-x-6">
+                <CourseMapAssistantPanel
+                  coursePath={coursePath}
+                  courseId={Number(courseId) || currentCourseId}
+                  onCoursePathUpdated={setCoursePath}
+                  compact
+                  mobileOverlay
+                />
+              </div>
+            )}
+          </>
         ) : (
           <div className="h-full min-h-0 pt-8 pb-8" style={{ order: 2 }}>
             <CourseMapNodePanel
