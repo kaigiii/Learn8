@@ -172,7 +172,7 @@ export function LessonSessionChatPanel({
       <div className="flex items-center gap-3 px-6 pt-6 pb-4">
         <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-full shadow-md">
           <Image
-            src="/icon.ico"
+            src="/icons/icon.ico"
             alt="Lesson tutor avatar"
             width={56}
             height={56}

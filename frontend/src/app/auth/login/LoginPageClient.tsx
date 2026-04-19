@@ -173,14 +173,14 @@ export default function LoginPageClient() {
   };
 
   return (
-    <div className="relative flex min-h-screen flex-col overflow-hidden bg-[#d9ecf6] bg-[url('/LogInBg.png')] bg-cover bg-center bg-no-repeat">
+    <div className="relative flex min-h-screen flex-col overflow-hidden bg-[#d9ecf6] bg-[url('/backgrounds/LogInBg.png')] bg-cover bg-center bg-no-repeat">
 
       <main className="relative z-10 mx-auto flex w-full max-w-[1440px] flex-1 flex-wrap items-center justify-center gap-8 px-4 py-10 lg:flex-nowrap lg:justify-between lg:gap-20 lg:px-10">
         <section className="flex w-full max-w-xl flex-col items-start shrink-0 lg:max-w-[760px]">
           <div className="mb-8 flex items-center gap-5">
             <div className="h-20 w-20 overflow-hidden rounded-full shadow-md">
               <Image
-                src="/icon.ico"
+                src="/icons/icon.ico"
                 alt="Learn8 icon"
                 width={80}
                 height={80}
@@ -189,7 +189,7 @@ export default function LoginPageClient() {
               />
             </div>
             <Image
-              src="/logs.png"
+              src="/icons/logs.png"
               alt="Learn8"
               width={360}
               height={144}
@@ -429,7 +429,7 @@ function MascotOwl() {
   return (
     <div className="flex h-56 w-56 items-center justify-center rounded-full bg-transparent lg:h-60 lg:w-60">
       <Image
-        src="/full_icon.ico"
+        src="/icons/full_icon.ico"
         alt="Learn8 mascot"
         width={240}
         height={240}

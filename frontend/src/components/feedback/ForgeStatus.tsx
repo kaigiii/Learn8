@@ -105,7 +105,7 @@ export default function ForgeStatus({
       style={{
         backgroundColor: "#d9ecf6",
         backgroundImage:
-          'linear-gradient(135deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.1)), url("/ForgingBg.png")',
+          'linear-gradient(135deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.1)), url("/backgrounds/ForgingBg.png")',
         backgroundPosition: "center",
         backgroundSize: "cover",
         backgroundRepeat: "no-repeat",

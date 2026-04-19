@@ -22,13 +22,13 @@ export default function StorePageClient() {
           {
             href: "/multiplayer",
             label: "Multiplayer",
-            iconSrc: "/multiplayer-controller.svg",
+            iconSrc: "/svg/multiplayer-controller.svg",
             iconAlt: "Multiplayer",
           },
           {
             href: "/arena/leaderboard",
             label: "Leaderboard",
-            iconSrc: "/leaderboard-logo.svg",
+            iconSrc: "/svg/leaderboard-logo.svg",
             iconAlt: "Leaderboard",
           },
         ]}

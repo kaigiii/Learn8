@@ -8,10 +8,10 @@ import { CourseListItem } from "@/lib/apiTypes";
 import { HomeCourseIcon } from "../../home/components/HomeCourseIcon";
 
 const LIB_BG_IMAGES = [
-  "/Lib_BG/blue.png",
-  "/Lib_BG/green.png",
-  "/Lib_BG/red.png",
-  "/Lib_BG/yellow.png",
+  "/library-bg/blue.png",
+  "/library-bg/green.png",
+  "/library-bg/red.png",
+  "/library-bg/yellow.png",
 ];
 
 interface MultiplayerTopicsSectionProps {

@@ -231,20 +231,20 @@ export default function HomePage() {
   return (
     <div className="relative overflow-hidden">
       <TopStatsBar
-        mascotSrc="/icon.ico"
+        mascotSrc="/icons/icon.ico"
         mascotAlt="Home mascot"
         mascotImageClassName="scale-110"
         quickLinks={[
           {
             href: "/multiplayer",
             label: "Multiplayer",
-            iconSrc: "/multiplayer-controller.svg",
+            iconSrc: "/svg/multiplayer-controller.svg",
             iconAlt: "Multiplayer",
           },
           {
             href: "/arena/leaderboard",
             label: "Leaderboard",
-            iconSrc: "/leaderboard-logo.svg",
+            iconSrc: "/svg/leaderboard-logo.svg",
             iconAlt: "Leaderboard",
           },
         ]}

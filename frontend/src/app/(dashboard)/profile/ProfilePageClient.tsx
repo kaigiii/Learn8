@@ -155,13 +155,13 @@ export default function ProfilePageClient() {
           {
             href: "/multiplayer",
             label: "Multiplayer",
-            iconSrc: "/multiplayer-controller.svg",
+            iconSrc: "/svg/multiplayer-controller.svg",
             iconAlt: "Multiplayer",
           },
           {
             href: "/arena/leaderboard",
             label: "Leaderboard",
-            iconSrc: "/leaderboard-logo.svg",
+            iconSrc: "/svg/leaderboard-logo.svg",
             iconAlt: "Leaderboard",
           },
         ]}
@@ -233,7 +233,7 @@ export default function ProfilePageClient() {
               <div className="relative mt-4 overflow-hidden rounded-3xl border border-white/70 bg-gradient-to-br from-[#7f8fa3] via-[#9aa8b7] to-[#d6dce5] px-5 py-6 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]">
                 <div className="absolute inset-x-0 top-0 h-10 bg-white/20 blur-xl" />
                 <div className="relative">
-                  <Image src="/leaderboard-logo.svg" alt="Season emblem" width={100} height={100} className="mx-auto h-24 w-24" />
+                  <Image src="/svg/leaderboard-logo.svg" alt="Season emblem" width={100} height={100} className="mx-auto h-24 w-24" />
                   <p className="mt-3 font-heading text-3xl font-extrabold text-white">{seasonLabel}</p>
                   <p className="mt-1 text-xs uppercase tracking-[0.14em] text-white/85">
                     {arenaLoading ? "Syncing season info" : `${arenaProfile?.rankTier ?? "Bronze"} rank currently active`}
@@ -315,7 +315,7 @@ export default function ProfilePageClient() {
                         ? "Topic strengths will appear after a few Arena matches. Play to unlock."
                         : `Your best topic is ${arenaTopTopics[0].title}. Keep queueing to strengthen your top lane.`}
                   </p>
-                  <Image src="/topic-strengths.svg" alt="Topic strength visual" width={88} height={88} className="h-20 w-20 opacity-95" />
+                  <Image src="/svg/topic-strengths.svg" alt="Topic strength visual" width={88} height={88} className="h-20 w-20 opacity-95" />
                 </div>
 
                 {!arenaLoading && arenaTopTopics.length > 0 && (
@@ -344,7 +344,7 @@ export default function ProfilePageClient() {
                         ? "Your detailed ladder and rank history will appear here after ranked matches are recorded. Rank up to fill this history."
                         : "Recent shifts are now tracked below. Continue ranked matches to build your full ladder trail."}
                   </p>
-                  <Image src="/rank-history-scroll.svg" alt="Rank history visual" width={90} height={90} className="h-20 w-20 opacity-95" />
+                  <Image src="/svg/rank-history-scroll.svg" alt="Rank history visual" width={90} height={90} className="h-20 w-20 opacity-95" />
                 </div>
 
                 {!arenaLoading && arenaHistory.length > 0 && (
@@ -637,19 +637,19 @@ function LedgerActivityRow({ item }: { item: UserLedgerEvent }) {
 function resolveSeasonBadgeVisual(badge: string): { src: string; alt: string } {
   switch (badge.trim().toLowerCase()) {
     case "crown":
-      return { src: "/season-badge-crown.svg", alt: "Crown badge" };
+      return { src: "/svg/season-badge-crown.svg", alt: "Crown badge" };
     case "podium":
-      return { src: "/season-badge-podium.svg", alt: "Podium badge" };
+      return { src: "/svg/season-badge-podium.svg", alt: "Podium badge" };
     case "elite":
-      return { src: "/season-badge-elite.svg", alt: "Elite badge" };
+      return { src: "/svg/season-badge-elite.svg", alt: "Elite badge" };
     case "star":
-      return { src: "/season-badge-star.svg", alt: "Star badge" };
+      return { src: "/svg/season-badge-star.svg", alt: "Star badge" };
     case "":
     case "none":
     case "unranked":
-      return { src: "/season-badge-none.svg", alt: "Unranked badge" };
+      return { src: "/svg/season-badge-none.svg", alt: "Unranked badge" };
     default:
-      return { src: "/season-badge-none.svg", alt: `${badge} badge` };
+      return { src: "/svg/season-badge-none.svg", alt: `${badge} badge` };
   }
 }
 

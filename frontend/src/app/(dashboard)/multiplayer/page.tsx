@@ -51,13 +51,13 @@ export default function MultiplayerPage() {
             href: "/multiplayer",
             label: "Multiplayer",
             active: true,
-            iconSrc: "/multiplayer-controller.svg",
+            iconSrc: "/svg/multiplayer-controller.svg",
             iconAlt: "Multiplayer",
           },
           {
             href: "/arena/leaderboard",
             label: "Leaderboard",
-            iconSrc: "/leaderboard-logo.svg",
+            iconSrc: "/svg/leaderboard-logo.svg",
             iconAlt: "Leaderboard",
           },
         ]}
