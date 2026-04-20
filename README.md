@@ -130,6 +130,16 @@ npm run dev
   python3.12 -m alembic upgrade head
   ```
 
+## 管理入口
+
+Arena 管理台預設路徑：`/admin/arena`
+
+目前可管理：
+- `PublicCourse` (官方主題)
+- `ArenaQuestionPool` (各主題題池)
+- `ArenaSeason` (賽季設定)
+- 玩家舉報與異常對戰審核
+
 ## 相關文件
 
 - [BACKEND_DOCS.md](BACKEND_DOCS.md)
