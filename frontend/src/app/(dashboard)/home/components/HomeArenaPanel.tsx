@@ -9,16 +9,16 @@ import GameButton from "@/components/ui/GameButton";
 import {
   createArenaRoom,
   fetchArenaProfile,
+  fetchArenaPublicCourses,
   fetchArenaSeason,
   joinArenaCompetitiveQueue,
   joinArenaRoom,
 } from "@/lib/arena/api";
-import { fetchPublicCourses } from "@/lib/courses/api";
-import type { ArenaProfile, ArenaSeasonSummary, CourseListItem } from "@/lib/apiTypes";
+import type { ArenaProfile, ArenaPublicCourse, ArenaSeasonSummary } from "@/lib/apiTypes";
 
 export function HomeArenaPanel() {
   const router = useRouter();
-  const [courses, setCourses] = useState<CourseListItem[]>([]);
+  const [courses, setCourses] = useState<ArenaPublicCourse[]>([]);
   const [season, setSeason] = useState<ArenaSeasonSummary | null>(null);
   const [profile, setProfile] = useState<ArenaProfile | null>(null);
   const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
@@ -33,7 +33,7 @@ export function HomeArenaPanel() {
     void (async () => {
       try {
         const [nextCourses, nextSeason, nextProfile] = await Promise.all([
-          fetchPublicCourses(),
+          fetchArenaPublicCourses(),
           fetchArenaSeason(),
           fetchArenaProfile(),
         ]);
@@ -43,7 +43,7 @@ export function HomeArenaPanel() {
         setCourses(nextCourses);
         setSeason(nextSeason);
         setProfile(nextProfile);
-        setSelectedCourseId((current) => current ?? nextCourses[0]?.id ?? null);
+        setSelectedCourseId((current) => current ?? null);
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : "Failed to load Arena");
@@ -158,8 +158,11 @@ export function HomeArenaPanel() {
                   <div className="mt-2">
                     <ArenaCourseDropdown
                       value={selectedCourseId}
-                      options={courses.map((course) => ({ value: course.id, label: course.title }))}
-                      placeholder={loading ? "Loading courses..." : "No public courses available"}
+                      options={courses.map((course) => ({
+                        value: course.id,
+                        label: `${course.courseTitle} - ${course.title}`,
+                      }))}
+                      placeholder={loading ? "Loading competitions..." : "No competitions available"}
                       disabled={loading || busy || courses.length === 0}
                       onChange={setSelectedCourseId}
                     />
