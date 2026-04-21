@@ -74,6 +74,7 @@ Learn8 是一個 AI 驅動的學習平台，把 `course draft -> file upload / R
 - `Python 3.12`
 - `Node.js 20`
 - `PostgreSQL 14+`
+- `Redis`
 - (選用) `Docker` / `Docker Compose`
 
 ## 本地啟動
@@ -116,6 +117,17 @@ npm run dev
 
 - `.env` 需填 `GOOGLE_API_KEY` 與 `DATABASE_URL`
 - 前端 API 預設 `http://localhost:8000/api/v1`
+
+## Linux 安裝 Redis
+
+  ```bash
+  sudo apt update
+  sudo apt install redis-server -y
+  ```
+## Redis 防火牆設置
+  ```bash
+  sudo ufw allow 6379
+  ```
 
 ## 常用指令 (Useful Scripts)
 

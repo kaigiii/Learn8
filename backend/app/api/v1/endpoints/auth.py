@@ -1,7 +1,12 @@
 import re
+import io
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from urllib.parse import quote, unquote
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status, UploadFile, File
+from fastapi.responses import FileResponse
+from PIL import Image, UnidentifiedImageError
 from sqlalchemy.orm import Session
 from app.api.dependencies import get_db, get_current_user
 from app.core.time import to_iso_utc
@@ -38,6 +43,10 @@ from app.services.commons.user_progress import ensure_user_progress_fields
 
 router = APIRouter()
 EMAIL_RE = re.compile(r"^[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}$", re.IGNORECASE)
+AVATAR_FILENAME_RE = re.compile(r"^[^/\\\x00]+\.png$")
+MAX_AVATAR_UPLOAD_BYTES = 20 * 1024 * 1024
+BACKEND_ROOT_DIR = Path(__file__).resolve().parents[4]
+AVATAR_IMAGE_DIR = BACKEND_ROOT_DIR / "uploads" / "avatar"
 
 
 def _normalize_email(email: str) -> str:
@@ -60,6 +69,21 @@ def _remaining_lockout_minutes(locked_until: datetime) -> int:
     remaining = locked_until - datetime.now(timezone.utc)
     total_seconds = max(int(remaining.total_seconds()), 0)
     return max((total_seconds + 59) // 60, 1)
+
+
+def _ensure_avatar_dir() -> Path:
+    AVATAR_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
+    return AVATAR_IMAGE_DIR
+
+
+def _avatar_filename_for_user(email: str, user_id: int) -> str:
+    normalized_email = (email or "").strip().lower()
+    if not normalized_email:
+        return f"user-{user_id}.png"
+    safe_email = re.sub(r'[<>:"/\\|?*\x00-\x1F]+', "_", normalized_email).strip()
+    if not safe_email:
+        return f"user-{user_id}.png"
+    return f"{safe_email}.png"
 
 
 @router.post("/register")
@@ -335,6 +359,59 @@ def update_user_me(
         )
 
     return current_user
+
+
+@router.post("/me/avatar", response_model=UserResponse)
+async def upload_user_avatar(
+    file: UploadFile = File(...),
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    raw_bytes = await file.read()
+    if not raw_bytes:
+        raise HTTPException(status_code=400, detail="Uploaded image is empty.")
+    if len(raw_bytes) > MAX_AVATAR_UPLOAD_BYTES:
+        raise HTTPException(status_code=400, detail="Avatar image is too large (max 20MB).")
+
+    try:
+        with Image.open(io.BytesIO(raw_bytes)) as source:
+            has_alpha = source.mode in ("RGBA", "LA") or (
+                source.mode == "P" and "transparency" in source.info
+            )
+            converted = source.convert("RGBA" if has_alpha else "RGB")
+    except UnidentifiedImageError:
+        raise HTTPException(status_code=400, detail="Unsupported image format.")
+    except Exception:
+        raise HTTPException(status_code=400, detail="Failed to process avatar image.")
+
+    avatar_dir = _ensure_avatar_dir()
+    avatar_filename = _avatar_filename_for_user(current_user.email, current_user.id)
+    avatar_path = avatar_dir / avatar_filename
+    try:
+        converted.save(avatar_path, format="PNG")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to save avatar image.")
+
+    encoded_avatar_filename = quote(avatar_filename, safe="")
+    current_user.avatar_url = f"{settings.API_V1_STR}/auth/avatar-images/{encoded_avatar_filename}"
+    db.commit()
+    db.refresh(current_user)
+
+    ActivityLogger.log_profile_edit(current_user.id, current_user.email, ["avatar_url"])
+    return current_user
+
+
+@router.get("/avatar-images/{filename}")
+def get_avatar_image(filename: str):
+    decoded_filename = unquote(filename)
+    if not AVATAR_FILENAME_RE.match(decoded_filename):
+        raise HTTPException(status_code=404, detail="Avatar not found")
+
+    avatar_path = AVATAR_IMAGE_DIR / decoded_filename
+    if not avatar_path.exists() or not avatar_path.is_file():
+        raise HTTPException(status_code=404, detail="Avatar not found")
+
+    return FileResponse(path=str(avatar_path), media_type="image/png", filename=decoded_filename)
 
 
 @router.delete("/me", status_code=204)

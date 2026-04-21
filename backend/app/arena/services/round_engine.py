@@ -95,7 +95,9 @@ class RoundEngine:
             pool_id=match.question_pool_id,
             round_count=round_count,
         )
+        effective_rules = {**rules, "round_count": len(questions)}
         match.round_count = len(questions)
+        match.rules_snapshot_json = effective_rules
         match.player_count = len(match.players)
         match.completed_round_count = 0
         db.add(match)

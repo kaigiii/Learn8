@@ -29,6 +29,7 @@ chromadb>=0.4.24
 
 # Document Loaders
 pymupdf>=1.24.0
+Pillow>=10.3.0
 
 # Utilities
 watchfiles>=0.21.0
