@@ -528,6 +528,8 @@ export interface ArenaProfileTopicRating {
 export interface ArenaProfile {
   userId: number;
   displayName: string;
+  avatarUrl?: string | null;
+  avatar_url?: string | null;
   rating: number;
   rankTier: string;
   bestRankTier: string;
@@ -547,6 +549,8 @@ export interface ArenaProfile {
 export interface ArenaLeaderboardEntry {
   userId: number;
   displayName: string;
+  avatarUrl?: string | null;
+  avatar_url?: string | null;
   rating: number;
   rankTier: string;
   wins: number;

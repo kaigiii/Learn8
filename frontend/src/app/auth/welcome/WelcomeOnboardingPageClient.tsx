@@ -162,6 +162,7 @@ export default function WelcomeOnboardingPageClient() {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
   const uploadAvatarInputRef = useRef<HTMLInputElement | null>(null);
+  const hasInitializedFromProfileRef = useRef(false);
   const [isCropModalOpen, setIsCropModalOpen] = useState(false);
   const [cropSourceUrl, setCropSourceUrl] = useState<string | null>(null);
   const [cropFileName, setCropFileName] = useState("avatar.png");
@@ -186,6 +187,8 @@ export default function WelcomeOnboardingPageClient() {
 
   useEffect(() => {
     if (!authUser) return;
+    if (hasInitializedFromProfileRef.current) return;
+    hasInitializedFromProfileRef.current = true;
     setName(authUser.full_name ?? "");
     setJobTitle(authUser.job_title ?? "");
     setEducationLevel(authUser.education_level ?? "");
@@ -245,10 +248,15 @@ export default function WelcomeOnboardingPageClient() {
       setAvatarFile(croppedFile);
       setAvatarPreviewUrl(nextPreviewUrl);
       setAvatarChoice("upload");
+      await uploadAuthenticatedAvatar(croppedFile);
       setError("");
       closeCropModal();
-    } catch {
-      setError("Failed to crop image. Please try another file.");
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.detail
+          : "Failed to upload avatar. Please try another file."
+      );
     } finally {
       setIsCropping(false);
     }
@@ -445,7 +453,7 @@ export default function WelcomeOnboardingPageClient() {
                 disabled={isCropping || !cropPixels}
                 className="rounded-xl bg-brand-teal px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-55"
               >
-                {isCropping ? "Processing..." : "Set new avatar"}
+                {isCropping ? "Uploading..." : "Set new avatar"}
               </button>
             </div>
           </div>

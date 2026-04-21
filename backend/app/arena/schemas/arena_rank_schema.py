@@ -6,6 +6,7 @@ from pydantic import BaseModel
 class ArenaLeaderboardEntry(BaseModel):
     userId: int
     displayName: str
+    avatarUrl: Optional[str] = None
     rating: int
     rankTier: str
     wins: int
@@ -47,6 +48,7 @@ class ArenaProfileTopicRating(BaseModel):
 class ArenaProfileResponse(BaseModel):
     userId: int
     displayName: str
+    avatarUrl: Optional[str] = None
     rating: int
     rankTier: str
     bestRankTier: str
