@@ -23,11 +23,15 @@ export function parseMatchingPairsStage(
 
   return {
     question: data.question || stage.topic,
-    pairs: (data.pairs || []).map((pair, index) => ({
-      id: String(pair.id || `pair-${index}`),
-      left: String(pair.left || ""),
-      right: String(pair.right || ""),
-    })),
+    pairs: (data.pairs || []).map((pair: any, index) => {
+      const left = pair.left || pair.term || pair.text || pair.label || "";
+      const right = pair.right || pair.definition || pair.match || pair.answer || "";
+      return {
+        id: String(pair.id || `pair-${index}`),
+        left: String(left).trim(),
+        right: String(right).trim(),
+      };
+    }),
   };
 }
 

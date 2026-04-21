@@ -27,6 +27,7 @@ export interface FeynmanQuestionProps
   onChange?: (answer: string) => void;
   onHintUse: () => Promise<boolean>;
   hideChrome?: boolean;
+  isRevealed?: boolean;
 }
 
 /* ═══════════════════ Owl Teacher ═══════════════════ */
@@ -63,6 +64,7 @@ export default function FeynmanQuestion({
   onChange,
   onHintUse,
   hideChrome = false,
+  isRevealed = false,
 }: FeynmanQuestionProps) {
   const [answer, setAnswer] = useState("");
   const [phase, setPhase] = useState<"writing" | "processing" | "feedback">("writing");
@@ -148,7 +150,7 @@ export default function FeynmanQuestion({
 
         {/* Student answer area */}
         <AnimatePresence mode="wait">
-          {phase === "writing" && (
+          {(phase === "writing" && !isRevealed) && (
             <motion.div
               key="writing"
               initial={{ opacity: 0, y: 10 }}
@@ -203,7 +205,7 @@ export default function FeynmanQuestion({
             </motion.div>
           )}
 
-          {phase === "feedback" && (
+          {((phase === "feedback" || isRevealed) && !isRevealed) && (
             <motion.div
               key="feedback"
               initial={{ opacity: 0, y: 10 }}
@@ -217,26 +219,44 @@ export default function FeynmanQuestion({
               </div>
 
               {/* Teacher feedback */}
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-                className="flex items-start gap-4"
-              >
-                <OwlTeacher />
-                <div className="flex-1 rounded-2xl bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200/60 shadow-sm px-5 py-4">
-                  <p className="text-xs font-bold text-green-600 uppercase tracking-wider mb-2">Professor Owl&apos;s feedback:</p>
-                  <p className="text-sm text-brand-gray-700 leading-relaxed">
-                    {serverFeedback || (submissionResult === "correct" ? feedbackMsg.success : feedbackMsg.error)}
-                  </p>
-                </div>
-              </motion.div>
+              {!isRevealed && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                  className="flex items-start gap-4"
+                >
+                  <OwlTeacher />
+                  <div className="flex-1 rounded-2xl bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200/60 shadow-sm px-5 py-4">
+                    <p className="text-xs font-bold text-green-600 uppercase tracking-wider mb-2">Professor Owl&apos;s feedback:</p>
+                    <p className="text-sm text-brand-gray-700 leading-relaxed">
+                      {serverFeedback || (submissionResult === "correct" ? feedbackMsg.success : feedbackMsg.error)}
+                    </p>
+                  </div>
+                </motion.div>
+              )}
 
               {/* Sample answer */}
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.5 }}
+                className="rounded-2xl bg-purple-50/60 border border-purple-200/40 px-5 py-3"
+              >
+                <p className="text-xs font-bold text-purple-500 uppercase tracking-wider mb-1">📖 Model answer:</p>
+                <p className="text-sm text-brand-gray-600 leading-relaxed">{sampleAnswer}</p>
+              </motion.div>
+            </motion.div>
+          )}
+
+          {isRevealed && (
+            <motion.div
+              key="reveal"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="space-y-4 mb-4"
+            >
+              <motion.div
                 className="rounded-2xl bg-purple-50/60 border border-purple-200/40 px-5 py-3"
               >
                 <p className="text-xs font-bold text-purple-500 uppercase tracking-wider mb-1">📖 Model answer:</p>

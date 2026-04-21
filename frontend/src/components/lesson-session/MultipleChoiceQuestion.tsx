@@ -28,6 +28,8 @@ export interface MultipleChoiceQuestionProps
   onSelect?: (id: string) => void;
   onHintUse: () => Promise<boolean>;
   hideChrome?: boolean;
+  forceCorrectId?: string;
+  userSelectedId?: string;
 }
 
 /* ═══════════════════ Owl ═══════════════════ */
@@ -66,6 +68,8 @@ export default function MultipleChoiceQuestion({
   onSkip,
   onHintUse,
   hideChrome = false,
+  forceCorrectId,
+  userSelectedId,
 }: MultipleChoiceQuestionProps) {
   const [selected, setSelected] = useState<string | null>(null);
   const [result, setResult] = useState<"correct" | "wrong" | null>(null);
@@ -126,8 +130,9 @@ export default function MultipleChoiceQuestion({
             const isEliminated = eliminated.includes(opt.id);
             const isSelected = selected === opt.id;
             const isCorrectAnswer = opt.id === correctId;
-            const showCorrect = (result === "correct" && isCorrectAnswer) || (result === "wrong" && isCorrectAnswer);
-            const showWrong = result === "wrong" && isSelected && !isCorrectAnswer;
+            const isUserSelection = userSelectedId ? (userSelectedId === opt.id) : isSelected;
+            const showCorrect = (result === "correct" && isCorrectAnswer) || (result === "wrong" && isCorrectAnswer) || (forceCorrectId === opt.id);
+            const showWrong = (result === "wrong" && isSelected && !isCorrectAnswer) || (forceCorrectId && isUserSelection && forceCorrectId !== opt.id);
 
             return (
               <motion.button
@@ -153,13 +158,18 @@ export default function MultipleChoiceQuestion({
                     : "bg-white border-brand-gray-200 text-brand-gray-700 hover:border-brand-teal/40"
                 }`}
               >
-                <span className="mr-3 inline-flex items-center justify-center w-7 h-7 rounded-full border-2 text-sm font-extrabold flex-shrink-0 {isSelected ? 'border-brand-teal bg-brand-teal/10' : 'border-brand-gray-300'}">
+                <span className={`mr-3 inline-flex items-center justify-center w-7 h-7 rounded-full border-2 text-sm font-extrabold flex-shrink-0 ${isUserSelection ? 'border-brand-teal bg-brand-teal/10' : 'border-brand-gray-300'}`}>
                   {String.fromCharCode(65 + i)}
                 </span>
                 {opt.text}
                 {showCorrect && (
-                  <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute -top-1.5 -right-1.5 h-5 w-5 bg-brand-green rounded-full flex items-center justify-center">
-                    <svg viewBox="0 0 24 24" className="h-3 w-3 text-white" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 6L9 17l-5-5" /></svg>
+                  <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute -top-1.5 -right-1.5 h-6 w-6 bg-brand-green rounded-full flex items-center justify-center shadow-md">
+                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-white" fill="none" stroke="currentColor" strokeWidth="4"><path d="M20 6L9 17l-5-5" /></svg>
+                  </motion.span>
+                )}
+                {!showCorrect && showWrong && (
+                  <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute -top-1.5 -right-1.5 h-6 w-6 bg-red-500 rounded-full flex items-center justify-center shadow-md">
+                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-white" fill="none" stroke="currentColor" strokeWidth="4"><path d="M18 6L6 18M6 6l12 12" /></svg>
                   </motion.span>
                 )}
               </motion.button>

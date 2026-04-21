@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import TopStatsBar from "@/components/layout/TopStatsBar";
@@ -8,18 +8,73 @@ import DeepGlassCard from "@/components/ui/DeepGlassCard";
 import GameButton from "@/components/ui/GameButton";
 import { useRequireAuthRedirect } from "@/lib/auth/useRequireAuthRedirect";
 import { useArenaMatchStore } from "@/stores/arena/useArenaMatchStore";
-import { useArenaMatchEvents } from "./hooks/useArenaMatchEvents";
+import { fetchArenaMatch } from "@/lib/arena/api";
+import type { ArenaMatchState } from "@/lib/apiTypes";
 
 export default function ArenaResultPageClient({ matchId }: { matchId: number }) {
   const router = useRouter();
   const { isReady } = useRequireAuthRedirect();
-  const match = useArenaMatchEvents(isReady ? matchId : null);
-  const reset = useArenaMatchStore((state) => state.reset);
-  const result = match?.currentPlayerResult ?? null;
 
-  React.useEffect(() => {
+  // Try to reuse the match state from the store (set by ArenaMatchPageClient)
+  const storedMatch = useArenaMatchStore((state) => state.match);
+  const reset = useArenaMatchStore((state) => state.reset);
+
+  const [match, setMatch] = useState<ArenaMatchState | null>(storedMatch);
+  const [loading, setLoading] = useState(!storedMatch);
+
+  // One-shot fetch — no heartbeat, no polling
+  useEffect(() => {
+    if (!isReady) return;
+    let cancelled = false;
+
+    // If we already have the correct finished match in store, skip loading
+    if (storedMatch?.matchId === matchId && storedMatch?.status === "finished") {
+      setMatch(storedMatch);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    fetchArenaMatch(matchId)
+      .then((data) => {
+        if (!cancelled) {
+          setMatch(data);
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    // Poll every 3s until currentPlayerResult is populated (rating settlement may lag)
+    const pollInterval = window.setInterval(async () => {
+      if (cancelled) return;
+      try {
+        const data = await fetchArenaMatch(matchId);
+        if (!cancelled) {
+          setMatch(data);
+          // Stop polling once we have the player result (rating settled)
+          if (data.currentPlayerResult?.ratingDelta !== undefined && data.currentPlayerResult?.ratingDelta !== null) {
+            window.clearInterval(pollInterval);
+          }
+        }
+      } catch {
+        // silent
+      }
+    }, 3000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(pollInterval);
+    };
+  }, [isReady, matchId, storedMatch]);
+
+  // Clean up match store on unmount
+  useEffect(() => {
     return () => reset();
   }, [reset]);
+
+  const result = match?.currentPlayerResult ?? null;
 
   return (
     <div className="min-h-screen app-shared-bg">
@@ -40,18 +95,22 @@ export default function ArenaResultPageClient({ matchId }: { matchId: number }) 
         <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
           <DeepGlassCard className="px-6 py-6">
             <h2 className="font-heading text-2xl font-bold text-brand-gray-700">Your Finish</h2>
-            {result ? (
+            {loading ? (
+              <p className="mt-5 text-sm text-brand-gray-500">Loading result…</p>
+            ) : result ? (
               <div className="mt-5 space-y-4">
                 <ResultMetric label="Placement" value={`#${result.rank}`} />
                 <ResultMetric label="Score" value={String(result.score)} />
                 <ResultMetric label="Accuracy" value={`${result.accuracy ?? 0}%`} />
                 <ResultMetric
                   label="Rating Delta"
-                  value={`${result.ratingDelta && result.ratingDelta > 0 ? "+" : ""}${result.ratingDelta ?? 0}`}
+                  value={result.ratingDelta !== null && result.ratingDelta !== undefined
+                    ? `${result.ratingDelta > 0 ? "+" : ""}${result.ratingDelta}`
+                    : "Settling…"}
                 />
                 <ResultMetric
                   label="Rank Tier"
-                  value={`${result.rankTierBefore ?? "-"} -> ${result.rankTierAfter ?? "-"}`}
+                  value={`${result.rankTierBefore ?? "-"} → ${result.rankTierAfter ?? "-"}`}
                 />
                 <ResultMetric label="XP Gained" value={`+${result.xpGained ?? 0}`} />
                 <ResultMetric label="Credits Gained" value={`+${result.creditsGained ?? 0}`} />
@@ -100,7 +159,12 @@ export default function ArenaResultPageClient({ matchId }: { matchId: number }) 
                   </div>
                   <div className="mt-4 grid gap-3 md:grid-cols-4">
                     <MiniMetric label="Accuracy" value={`${entry.accuracy ?? 0}%`} />
-                    <MiniMetric label="Rating" value={`${entry.ratingDelta && entry.ratingDelta > 0 ? "+" : ""}${entry.ratingDelta ?? 0}`} />
+                    <MiniMetric
+                      label="Rating"
+                      value={entry.ratingDelta !== null && entry.ratingDelta !== undefined
+                        ? `${entry.ratingDelta > 0 ? "+" : ""}${entry.ratingDelta}`
+                        : "…"}
+                    />
                     <MiniMetric label="XP" value={`+${entry.xpGained ?? 0}`} />
                     <MiniMetric label="Credits" value={`+${entry.creditsGained ?? 0}`} />
                   </div>
