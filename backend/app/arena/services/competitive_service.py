@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-from fastapi import HTTPException
+from fastapi import BackgroundTasks, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
