@@ -323,10 +323,10 @@ export default function ArenaLeaderboardPageClient() {
               </div>
 
               <div className="mt-4 grid grid-cols-[82px_minmax(0,1.6fr)_minmax(0,1fr)_minmax(100px,0.85fr)] items-center gap-2 px-2 text-xs font-semibold uppercase tracking-[0.08em] text-brand-gray-500">
-                <span>Rank</span>
-                <span>Player</span>
+                <span className="text-right">Rank</span>
+                <span className="pl-3">Player</span>
                 <span>Tier</span>
-                <span className="text-right">Stats</span>
+                <span className="text-center">Stats</span>
               </div>
 
               <div className="scrollbar-hide mt-2 max-h-[292px] space-y-2 overflow-y-auto pr-1">
@@ -345,7 +345,7 @@ export default function ArenaLeaderboardPageClient() {
                         <RankBadge rank={index + 1} />
                       </div>
 
-                      <div className="flex min-w-0 items-center gap-2">
+                      <div className="flex min-w-0 items-center gap-2 pl-3">
                         <AvatarPlaceholder
                           small
                           src={resolveAvatarUrl(
@@ -370,7 +370,7 @@ export default function ArenaLeaderboardPageClient() {
                         <span className="break-words">{entry.rankTier}</span>
                       </div>
 
-                      <div className="text-right">
+                      <div className="text-center">
                         <p className={`text-2xl font-bold lg:text-[1.85rem] ${isCurrentUser ? "text-brand-gray-900" : "text-brand-gray-700"}`}>
                           {category === "win_rate"
                             ? `${entry.winRate.toFixed(0)}%`
@@ -540,8 +540,8 @@ function RankBadge({ rank }: { rank: number }) {
   }
 
   return (
-    <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-brand-gray-300 bg-white/80 text-2xl font-extrabold text-brand-gray-600">
-      #{rank}
+    <span className="inline-flex items-center justify-center text-4xl font-extrabold text-brand-gray-600">
+      {rank}
     </span>
   );
 }
