@@ -340,7 +340,7 @@ class RoundEngine:
         match: ArenaMatchModel,
         rounds: list[ArenaRoundModel],
     ) -> None:
-        if match.status == ArenaMatchStatus.FINISHED and isinstance(match.standings_json, list):
+        if match.status == ArenaMatchStatus.FINISHED or match.winner_user_id is not None:
             return
 
         standings = self._build_standings(match, rounds)
@@ -364,8 +364,21 @@ class RoundEngine:
             },
         )
         
-        # Heavy lifting (rating settlement and rewards) moved to background
-        # Note: We pass raw standings to background task to avoid re-calculating them
+        # Rating settlement and rewards
+        if self.INTERMISSION_SECONDS <= 0.1:
+            # Synchronous settlement for tests or low-latency modes
+            match.standings_json = self.rating_service.settle_match(db, match, standings)
+            if match.standings_json:
+                top_row = match.standings_json[0]
+                top_user_id = top_row.get("userId")
+                match.winner_user_id = int(top_user_id) if top_user_id is not None else None
+            db.add(match)
+            # Process rewards synchronously
+            self.reward_service.process_match_rewards(db, match.id)
+            db.commit()
+            return
+
+        # Heavy lifting moved to background for production
         def _settle_in_background(target_match_id: int, final_standings: list[dict]):
             from app.db.session import SessionLocal
             with SessionLocal() as bg_db:
@@ -411,7 +424,9 @@ class RoundEngine:
             "last_seen_at": utc_now()
         })
 
-    INTERMISSION_SECONDS = arena_settings.ARENA_INTERMISSION_SECONDS  # Seconds between round.revealed and the next round starting
+    @property
+    def INTERMISSION_SECONDS(self) -> int:
+        return arena_settings.ARENA_INTERMISSION_SECONDS
 
     def _close_round(self, db: Session, match: ArenaMatchModel, round_model: ArenaRoundModel) -> None:
         # 1. LOCK the round row to prevent multiple threads from closing it simultaneously
@@ -478,6 +493,8 @@ class RoundEngine:
             "explanation": question.get("explanation") or "",
         }
         db.add(round_model)
+        db.flush() # Ensure status is available for remaining_rounds query in submit_answer
+
         match.completed_round_count = max(int(match.completed_round_count or 0), round_model.round_index + 1)
         db.add(match)
         self.realtime_gateway.publish_event(
@@ -531,7 +548,7 @@ class RoundEngine:
             self._schedule_proactive_settle(match.id, next_round.id, self.INTERMISSION_SECONDS + next_round.timer_seconds + 0.5)
         else:
             # Last round finished - delay finalization by 5 seconds so users can see the answer
-            self._schedule_proactive_finalize(match.id, self.INTERMISSION_SECONDS)
+            self._schedule_proactive_finalize(db, match.id, self.INTERMISSION_SECONDS)
         self.realtime_gateway.publish_event(
             db,
             stream_type="match",
@@ -622,13 +639,21 @@ class RoundEngine:
                 None,
             )
 
+        # Return active round only if match is NOT finished and there is an active round
+        # Special case: If match is IN_PROGRESS but staying in the final intermission (no remaining rounds), 
+        # we should treat it as finished for the UI payload.
+        remaining_rounds_count = db.query(ArenaRoundModel).filter(
+            ArenaRoundModel.match_id == match.id,
+            ArenaRoundModel.status.in_((ArenaRoundStatus.ACTIVE, ArenaRoundStatus.PENDING))
+        ).count()
+
         active_round_payload = None
-        if active_round:
+        if active_round and match.status == ArenaMatchStatus.IN_PROGRESS and remaining_rounds_count > 0:
             active_round_payload = self._build_active_round_payload(active_round, current_user_id)
 
         current_round_index = active_round.round_index if active_round else max((round_item.round_index for round_item in rounds), default=0)
 
-        return {
+        match_state = {
             "matchId": match.id,
             "roomCode": match.room_snapshot_json.get("room_code") if isinstance(match.room_snapshot_json, dict) else None,
             "status": match.status,
@@ -645,6 +670,7 @@ class RoundEngine:
             "deadlineAt": to_iso_utc(match.deadline_at),
             "endedAt": to_iso_utc(match.ended_at),
         }
+        return match_state
 
     def get_match_state(self, db: Session, match_id: int, current_user: UserModel) -> dict:
         match = self.get_match(db, match_id)
@@ -829,12 +855,21 @@ class RoundEngine:
             self._close_round(db, match, refreshed_round)
 
         db.commit()
+        
+        # match_actually_finished is true if there are no more active or pending rounds
+        remaining_rounds_count = db.query(ArenaRoundModel).filter(
+            ArenaRoundModel.match_id == match.id,
+            ArenaRoundModel.status.in_((ArenaRoundStatus.ACTIVE, ArenaRoundStatus.PENDING))
+        ).count()
+        
+        match_actually_finished = (remaining_rounds_count == 0)
+
         state = self.get_match_state(db, match.id, current_user)
         return {
             "accepted": True,
             "alreadySubmitted": False,
             "roundClosed": round_closed,
-            "matchFinished": state["status"] == ArenaMatchStatus.FINISHED,
+            "matchFinished": match_actually_finished,
             "state": state,
         }
 
@@ -862,10 +897,19 @@ class RoundEngine:
         import threading
         threading.Thread(target=_proactive_task, daemon=True).start()
 
-    def _schedule_proactive_finalize(self, match_id: int, delay_seconds: float):
+    def _schedule_proactive_finalize(self, db: Session, match_id: int, delay_seconds: float):
         """
         Schedules the final match settlement after a delay (e.g., after the last round's reveal).
+        For tests (delay_seconds <= 0), it runs synchronously to avoid session isolation issues.
         """
+        if delay_seconds <= 0.1:
+            # Use the existing session for synchronous finalization
+            match = self.get_match(db, match_id)
+            if match and match.status == ArenaMatchStatus.IN_PROGRESS:
+                all_rounds = self._get_rounds(db, match_id)
+                self._finalize_match_if_needed(db, match, all_rounds)
+            return
+
         def _finalize_task():
             import time
             from app.db.session import SessionLocal
