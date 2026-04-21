@@ -172,18 +172,14 @@ export default function ProfilePageClient() {
         <DeepGlassCard className="overflow-hidden border border-white/70 bg-white/78 px-6 py-6 shadow-[0_24px_60px_rgba(31,41,55,0.12)]">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-center gap-4">
-              <div className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-[#ffd23c] to-[#f4b800] shadow-[0_18px_36px_rgba(244,184,0,0.35)]">
-                {avatarUrl ? (
-                  <Image
-                    src={avatarUrl}
-                    alt={`${displayName} avatar`}
-                    fill
-                    sizes="64px"
-                    className="object-cover"
-                  />
-                ) : (
-                  <span className="font-heading text-2xl font-extrabold text-white">{initial}</span>
-                )}
+              <div className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white">
+                <Image
+                  src={avatarUrl || "/avatar/chicken.png"}
+                  alt={`${displayName} avatar`}
+                  fill
+                  sizes="64px"
+                  className="object-cover"
+                />
               </div>
               <div>
                 <p className="font-heading text-3xl font-extrabold text-brand-gray-700">{displayName}</p>

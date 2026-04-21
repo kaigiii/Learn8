@@ -65,7 +65,7 @@ frontend/.env
 backend/learn8_db/*.db
 backend/chroma_db/
 backend/uploads/
-
+backend/upload/
 # Learn8 Specific
 projects_pool/
 uploads/
