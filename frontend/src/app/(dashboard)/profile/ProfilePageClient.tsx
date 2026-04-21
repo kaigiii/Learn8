@@ -134,7 +134,7 @@ export default function ProfilePageClient() {
   const initial = displayName.slice(0, 1).toUpperCase() || "P";
   const avatarUrl = authUser?.avatar_url?.trim() || null;
   const [profileAvatarSrc, setProfileAvatarSrc] = useState(avatarUrl || "/avatar/chicken.png");
-  const uploadAvatarInputRef = useRef<HTMLInputElement | null>(null);
+  const uploadAvatarInputRef = useRef<HTMLInputElement>(null);
   const [isCropModalOpen, setIsCropModalOpen] = useState(false);
   const [cropSourceUrl, setCropSourceUrl] = useState<string | null>(null);
   const [cropFileName, setCropFileName] = useState("avatar.png");
@@ -677,7 +677,7 @@ function PersonalProfileContent({
   preferences: PreferenceState;
   setPreferences: (patch: Partial<PreferenceState>) => void;
   handleLogout: () => void;
-  uploadAvatarInputRef: React.RefObject<HTMLInputElement | null>;
+  uploadAvatarInputRef: React.RefObject<HTMLInputElement>;
   onAvatarFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
   onAvatarButtonClick: () => void;
   avatarUploadError: string;
