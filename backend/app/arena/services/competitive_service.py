@@ -258,9 +258,8 @@ class CompetitiveService:
         current_user_rating = self._get_player_rating_value(db, current_user_id)
         recent_opponent_ids = self._get_recent_opponent_ids(db, current_user_id)
 
-        # 2. Filter and rank candidates in memory (fast)        # Group candidates into fresh vs rematches
-        eligible_candidates = []  # List of (rating_gap, entry_id)
-        rematch_fallback_candidates = []  # List of (rating_gap, entry_id)
+        # 2. Filter and score candidates in memory (fast)
+        scored_candidates: list[tuple[int, int]] = []  # List of (sort_score, entry_id)
 
         for candidate in candidates:
             candidate_rating = self._get_player_rating_value(db, candidate.user_id)
@@ -270,18 +269,24 @@ class CompetitiveService:
             if rating_gap > allowed_gap:
                 continue
 
-            if candidate.user_id in recent_opponent_ids:
-                # Only use as absolute fallback if they've waited long enough to relax the rematch rule
-                # or if we are in a low-concurrency test environment where we want to verify the grouping
+            # Calculate sort score: Rating Gap + Rematch Penalty
+            is_recent = candidate.user_id in recent_opponent_ids
+            rematch_penalty = 0
+            
+            if is_recent:
+                # Check if we should even consider this rematch (relax rule)
                 queued_secs = self._queued_seconds(candidate, now=now)
-                if queued_secs >= arena_settings.ARENA_MATCHMAKING_REMATCH_RELAX_SECONDS or "test" in str(db.bind.url).lower():
-                    rematch_fallback_candidates.append((rating_gap, candidate.id))
-            else:
-                eligible_candidates.append((rating_gap, candidate.id))
+                if queued_secs < arena_settings.ARENA_MATCHMAKING_REMATCH_RELAX_SECONDS and "test" not in str(db.bind.url).lower():
+                    # Still in the "hard cooldown" period, skip entirely
+                    continue
+                rematch_penalty = arena_settings.ARENA_MATCHMAKING_REMATCH_PRIORITY_PENALTY
 
-        # 4. Try to ATOMICALLY LOCK the best available candidate
-        # Sort each group by gap (closest first)
-        final_candidate_ids = [c[1] for c in sorted(eligible_candidates)] + [c[1] for c in sorted(rematch_fallback_candidates)]
+            sort_score = rating_gap + rematch_penalty
+            scored_candidates.append((sort_score, candidate.id))
+
+        # 3. Sort by score (lowest score = best match)
+        scored_candidates.sort(key=lambda x: x[0])
+        final_candidate_ids = [c[1] for c in scored_candidates]
         
         for entry_id in final_candidate_ids:
             # Skip locked entries to avoid blocking in high-concurrency production
@@ -407,11 +412,12 @@ class CompetitiveService:
             .subquery()
         )
         
+        from sqlalchemy import select
         # Find all other players in those matches
         other_players = (
             db.query(ArenaMatchPlayerModel.user_id)
             .filter(
-                ArenaMatchPlayerModel.match_id.in_(recent_match_ids_sub),
+                ArenaMatchPlayerModel.match_id.in_(select(recent_match_ids_sub.c.match_id)),
                 ArenaMatchPlayerModel.user_id != user_id,
             )
             .all()
