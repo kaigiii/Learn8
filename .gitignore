@@ -65,14 +65,14 @@ frontend/.env
 backend/learn8_db/*.db
 backend/chroma_db/
 backend/uploads/
+# Learn8 Specific
+projects_pool/
+uploads/
 !backend/uploads/
 backend/uploads/*
 !backend/uploads/avatar/
 backend/uploads/avatar/*
 !backend/uploads/avatar/.gitkeep
 !backend/uploads/avatar/.gitignore
-# Learn8 Specific
-projects_pool/
-uploads/
 backend/logs/
 backend/temp/
