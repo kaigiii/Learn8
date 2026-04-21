@@ -306,8 +306,19 @@ class AdminService:
             item["correctOptionId"] = data.get("correctOptionId") or ""
         elif component == "MatchingPairs":
             item["prompt"] = data.get("question") or context["nodeTitle"]
-            # Convert pairs list to the generic options format if needed or keep as is
-            item["options"] = data.get("pairs") or []
+            # Robustly extract pairs using synonyms
+            pairs = data.get("pairs") or []
+            standardized_pairs = []
+            for i, p in enumerate(pairs):
+                if not isinstance(p, dict): continue
+                left = p.get("left") or p.get("term") or p.get("text") or p.get("label") or "Side A"
+                right = p.get("right") or p.get("definition") or p.get("match") or p.get("answer") or "Side B"
+                standardized_pairs.append({
+                    "id": str(p.get("id") or i),
+                    "left": str(left),
+                    "right": str(right)
+                })
+            item["options"] = standardized_pairs
             item["correctOptionId"] = None
         elif component == "Ordering":
             item["prompt"] = data.get("question") or context["nodeTitle"]

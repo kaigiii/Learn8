@@ -412,8 +412,21 @@ class RoundEngine:
     INTERMISSION_SECONDS = arena_settings.ARENA_INTERMISSION_SECONDS  # Seconds between round.revealed and the next round starting
 
     def _close_round(self, db: Session, match: ArenaMatchModel, round_model: ArenaRoundModel) -> None:
-        if round_model.status != ArenaRoundStatus.ACTIVE:
+        # 1. LOCK the round row to prevent multiple threads from closing it simultaneously
+        # We need to re-fetch or refresh it with a lock
+        locked_round = (
+            db.query(ArenaRoundModel)
+            .filter(ArenaRoundModel.id == round_model.id)
+            .with_for_update()
+            .first()
+        )
+        
+        if not locked_round or locked_round.status != ArenaRoundStatus.ACTIVE:
+            # Round is already closed or being closed by another process
             return
+        
+        # Sync the reference for the rest of the function
+        round_model = locked_round
 
         answered_user_ids = {
             row[0]
@@ -456,6 +469,9 @@ class RoundEngine:
         round_model.status = ArenaRoundStatus.CLOSED
         round_model.closed_at = utc_now()
         round_model.revealed_answer_json = {
+            "questionType": question.get("questionType") or question.get("question_type") or question.get("component") or "Unknown",
+            "prompt": question.get("prompt") or question.get("question") or "",
+            "options": question.get("options") or question.get("pairs") or question.get("steps") or [],
             "correctOptionId": question.get("correct_option_id"),
             "explanation": question.get("explanation") or "",
         }
@@ -512,21 +528,8 @@ class RoundEngine:
             # PROACTIVE: Schedule round settlement at deadline (including intermission delay)
             self._schedule_proactive_settle(match.id, next_round.id, self.INTERMISSION_SECONDS + next_round.timer_seconds + 0.5)
         else:
-            self._finalize_match_if_needed(db, match, all_rounds)
-            if match.room_id:
-                room = db.query(ArenaRoomModel).filter(ArenaRoomModel.id == match.room_id).first()
-                if room:
-                    room.status = ArenaRoomStatus.LOBBY
-                    room.latest_match_id = match.id
-                    players = (
-                        db.query(ArenaRoomPlayerModel)
-                        .filter(ArenaRoomPlayerModel.room_id == room.id)
-                        .all()
-                    )
-                    for player in players:
-                        player.is_ready = False
-                        db.add(player)
-                    db.add(room)
+            # Last round finished - delay finalization by 5 seconds so users can see the answer
+            self._schedule_proactive_finalize(match.id, self.INTERMISSION_SECONDS)
         self.realtime_gateway.publish_event(
             db,
             stream_type="match",
@@ -856,3 +859,45 @@ class RoundEngine:
         # making it compatible with any FastAPI deployment.
         import threading
         threading.Thread(target=_proactive_task, daemon=True).start()
+
+    def _schedule_proactive_finalize(self, match_id: int, delay_seconds: float):
+        """
+        Schedules the final match settlement after a delay (e.g., after the last round's reveal).
+        """
+        def _finalize_task():
+            import time
+            from app.db.session import SessionLocal
+            
+            time.sleep(delay_seconds)
+            
+            with SessionLocal() as db:
+                match = self.get_match(db, match_id)
+                if not match or match.status != ArenaMatchStatus.IN_PROGRESS:
+                    return
+                
+                all_rounds = self._get_rounds(db, match.id)
+                self._finalize_match_if_needed(db, match, all_rounds)
+                
+                # If it's a room match, return the room to LOBBY
+                if match.room_id:
+                    from app.arena.models.arena_room import ArenaRoomModel, ArenaRoomPlayerModel
+                    from app.arena.domain.arena_statuses import ArenaRoomStatus
+                    
+                    room = db.query(ArenaRoomModel).filter(ArenaRoomModel.id == match.room_id).first()
+                    if room:
+                        room.status = ArenaRoomStatus.LOBBY
+                        room.latest_match_id = match.id
+                        players = (
+                            db.query(ArenaRoomPlayerModel)
+                            .filter(ArenaRoomPlayerModel.room_id == room.id)
+                            .all()
+                        )
+                        for player in players:
+                            player.is_ready = False
+                            db.add(player)
+                        db.add(room)
+                
+                db.commit()
+
+        import threading
+        threading.Thread(target=_finalize_task, daemon=True).start()

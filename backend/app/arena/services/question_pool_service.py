@@ -72,6 +72,7 @@ class QuestionPoolService:
         return {
             "question_id": item.question_key,
             "question_type": item.question_type,
+            "questionType": item.question_type,  # CamelCase for consistency
             "prompt": item.prompt,
             "options": options,
             "correct_option_id": item.correct_option_id,
