@@ -7,6 +7,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
+      - ./backend:/app
       - ./backend/uploads:/app/uploads
       - ./backend/learn8_db:/app/learn8_db
       - ./backend/chroma_db:/app/chroma_db
@@ -48,6 +49,10 @@ services:
     container_name: learn8_frontend
     ports:
       - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
     environment:
       - NEXT_PUBLIC_API_URL=/api/v1
       - BACKEND_REWRITE_URL=http://backend:8000

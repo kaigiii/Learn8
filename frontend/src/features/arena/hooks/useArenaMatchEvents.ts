@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { fetchArenaMatch } from "@/lib/arena/api";
 import { arenaWsClient } from "@/lib/arena/realtimeClient";
 import { ArenaRoundState, ArenaStandingEntry } from "@/lib/apiTypes";
@@ -13,13 +13,38 @@ export function useArenaMatchEvents(matchId: number | null) {
   const patchMatch = useArenaMatchStore((state) => state.patchMatch);
   const setConnectionStatus = useArenaMatchStore((state) => state.setConnectionStatus);
 
+  const refetch = async () => {
+    if (!matchId) return;
+    try {
+      const refreshedMatch = await fetchArenaMatch(matchId);
+      setMatch(refreshedMatch);
+    } catch (err) {
+      console.error("Manual match refetch failed:", err);
+    }
+  };
+
+  // Track whether the match is finished so we can stop heartbeat/polling
+  const matchFinishedRef = useRef(false);
+
+  // Keep the ref in sync with the store's match status
+  useEffect(() => {
+    if (match?.status === "finished") {
+      matchFinishedRef.current = true;
+    }
+  }, [match?.status]);
+
   useEffect(() => {
     if (!matchId) return;
 
     let cancelled = false;
+    matchFinishedRef.current = false;
+
     void fetchArenaMatch(matchId)
       .then((data) => {
-        if (!cancelled) setMatch(data);
+        if (!cancelled) {
+          setMatch(data);
+          if (data.status === "finished") matchFinishedRef.current = true;
+        }
       })
       .catch(() => undefined);
 
@@ -38,8 +63,7 @@ export function useArenaMatchEvents(matchId: number | null) {
       let needsFetch = true;
       for (const envelope of matchEvents) {
         const payload = envelope.payload as any;
-        // Optimization: if we already see it's finished, we don't need to do much more
-        
+
         if (payload && payload.activeRound) {
           patchMatch({ activeRound: payload.activeRound as ArenaRoundState });
           needsFetch = false;
@@ -50,17 +74,19 @@ export function useArenaMatchEvents(matchId: number | null) {
         }
         if (envelope.eventType === "match.finished") {
           patchMatch({ status: "finished" });
+          matchFinishedRef.current = true;
           needsFetch = false;
         }
       }
 
-      // If match is finished, we usually get a final data dump, so fetch once if needed
-      if (!needsFetch) return;
+      // Stop fetching for finished matches — the result page will do a one-time load
+      if (matchFinishedRef.current || !needsFetch) return;
 
       try {
         const refreshedMatch = await fetchArenaMatch(matchId);
         if (!cancelled && refreshedMatch.matchId === matchId) {
           setMatch(refreshedMatch);
+          if (refreshedMatch.status === "finished") matchFinishedRef.current = true;
         }
       } catch (err) {
         console.error("Failed to refresh match on event:", err);
@@ -68,21 +94,23 @@ export function useArenaMatchEvents(matchId: number | null) {
     });
 
     const sendHeartbeat = () => {
-       if (cancelled) return;
-       arenaWsClient.sendAction("heartbeat", { matchId });
+      // Stop heartbeating for finished matches
+      if (cancelled || matchFinishedRef.current) return;
+      arenaWsClient.sendAction("heartbeat", { matchId });
     };
 
     sendHeartbeat();
     const intervalId = window.setInterval(sendHeartbeat, 5000);
 
     const matchFallbackInterval = window.setInterval(async () => {
-      // Don't poll if match is already finished or we are currently connected
-      if (cancelled || arenaWsClient.getStatus() === "connected") return;
-      
+      // Don't poll if match is finished, cancelled, or connected via WS
+      if (cancelled || matchFinishedRef.current || arenaWsClient.getStatus() === "connected") return;
+
       try {
         const refreshedMatch = await fetchArenaMatch(matchId);
         if (!cancelled && refreshedMatch.matchId === matchId) {
           setMatch(refreshedMatch);
+          if (refreshedMatch.status === "finished") matchFinishedRef.current = true;
         }
       } catch (err) {
         console.error("Match fallback poll failed:", err);
@@ -107,5 +135,5 @@ export function useArenaMatchEvents(matchId: number | null) {
     };
   }, [matchId, appendEvents, patchMatch, setConnectionStatus, setMatch]);
 
-  return match;
+  return { match, refetch };
 }
