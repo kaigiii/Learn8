@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session, selectinload
@@ -435,7 +435,7 @@ class AdminService:
         if (
             match.status == ArenaMatchStatus.IN_PROGRESS
             and match.started_at
-            and (utc_now() - match.started_at).total_seconds() > 1800
+            and (utc_now() - match.started_at.replace(tzinfo=timezone.utc)).total_seconds() > 1800
         ):
             anomaly_flags.append("stalled_match")
         if match.status == ArenaMatchStatus.FINISHED and not isinstance(match.standings_json, list):

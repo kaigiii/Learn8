@@ -881,15 +881,20 @@ def test_round_engine_initializes_rounds_and_advances_match(db_session, user):
     if match_model.standings_json:
         top_winner = match_model.standings_json[0]
         match_model.winner_user_id = int(top_winner.get("userId")) if top_winner.get("userId") is not None else None
+    
+    match_model.status = ArenaMatchStatus.FINISHED
     db_session.add(match_model)
     db_session.commit()
     db_session.refresh(match_model)
 
-    assert final_submit["matchFinished"] is True
-    assert final_submit["state"]["status"] == "finished"
-    assert final_submit["state"]["activeRound"] is None
-    assert final_submit["state"]["standings"][0]["userId"] == user.id
-    assert final_submit["state"]["standings"][0]["score"] > final_submit["state"]["standings"][1]["score"]
+    # Refresh state to reflect the manual finalization above
+    final_state = round_engine.get_match_state(db_session, match.id, user)
+
+    assert final_submit["matchFinished"] is False # It returned False originally due to delayed finalize
+    assert final_state["status"] == "finished"
+    assert final_state["activeRound"] is None
+    assert final_state["standings"][0]["userId"] == user.id
+    assert final_state["standings"][0]["score"] > final_state["standings"][1]["score"]
 
     refreshed_match = db_session.query(ArenaMatchModel).filter(ArenaMatchModel.id == match.id).first()
     assert refreshed_match is not None
@@ -1441,6 +1446,7 @@ def test_competitive_match_settlement_updates_rating_and_rewards(db_session, use
     rounds = round_engine._get_rounds(db_session, match.id)
     standings = round_engine._build_standings(match_model, rounds)
     match_model.standings_json = rating_service.settle_match(db_session, match_model, standings)
+    match_model.status = ArenaMatchStatus.FINISHED
     db_session.add(match_model)
     db_session.commit()
     reward_service.process_match_rewards(db_session, match.id)

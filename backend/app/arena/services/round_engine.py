@@ -369,7 +369,7 @@ class RoundEngine:
         def _settle_in_background(target_match_id: int, final_standings: list[dict]):
             from app.db.session import SessionLocal
             with SessionLocal() as bg_db:
-                bg_match = bg_db.query(ArenaMatchModel).get(target_match_id)
+                bg_match = bg_db.get(ArenaMatchModel, target_match_id)
                 if not bg_match:
                     return
                 # Settle ratings (heavy IO)
