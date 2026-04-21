@@ -55,6 +55,8 @@ export default function TopStatsBar({
     authUser?.job_title?.trim() ||
     authUser?.education_level?.trim() ||
     "Learner";
+  const profileInitial = authUser?.full_name?.trim()?.slice(0, 1).toUpperCase() || "P";
+  const avatarUrl = authUser?.avatar_url?.trim() || null;
   const pillClassName =
     "inline-flex h-10 items-center rounded-full border border-white/85 bg-white/92 px-3 text-sm font-heading font-bold text-brand-gray-700 shadow-sm transition";
   const navChipClassName =
@@ -208,10 +210,20 @@ export default function TopStatsBar({
               isProfileActive ? quickActiveClassName : ""
             }`}
           >
-            <div className="flex h-7 min-w-7 items-center justify-center rounded-full bg-gradient-to-br from-yellow-300 to-yellow-500 px-2 shadow-md">
-              <span className="font-heading font-extrabold text-white text-[10px]">
-                {authUser?.full_name?.trim()?.slice(0, 1).toUpperCase() || "P"}
-              </span>
+            <div className="relative flex h-7 min-w-7 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-yellow-300 to-yellow-500 px-2 shadow-md">
+              {avatarUrl ? (
+                <Image
+                  src={avatarUrl}
+                  alt="Profile avatar"
+                  fill
+                  sizes="28px"
+                  className="object-cover"
+                />
+              ) : (
+                <span className="font-heading font-extrabold text-white text-[10px]">
+                  {profileInitial}
+                </span>
+              )}
             </div>
             <span className="max-w-[120px] truncate font-heading text-sm font-bold leading-none text-brand-gray-700">
               {profileLabel}
