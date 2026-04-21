@@ -70,7 +70,7 @@ export function createArenaRoom(payload: {
       visibility: payload.visibility ?? "private",
       maxPlayers: payload.maxPlayers ?? 4,
       roundCount: payload.roundCount ?? 5,
-      roundTimeSeconds: payload.roundTimeSeconds ?? 30,
+      roundTimeSeconds: payload.roundTimeSeconds ?? 15,
     }),
   });
 }
@@ -220,7 +220,7 @@ export function joinArenaCompetitiveQueue(payload: {
       publicCourseId: payload.publicCourseId,
       poolId: payload.poolId,
       roundCount: payload.roundCount ?? 5,
-      roundTimeSeconds: payload.roundTimeSeconds ?? 30,
+      roundTimeSeconds: payload.roundTimeSeconds ?? 15,
     }),
   });
 }

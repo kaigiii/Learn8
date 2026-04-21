@@ -11,7 +11,7 @@ class ArenaRoomCreateRequest(BaseModel):
     visibility: ArenaRoomVisibilityEnum = ArenaRoomVisibilityEnum.private
     maxPlayers: int = Field(default=4, ge=2, le=8)
     roundCount: int = Field(default=5, ge=1, le=20)
-    roundTimeSeconds: int = Field(default=30, ge=10, le=120)
+    roundTimeSeconds: int = Field(default=15, ge=10, le=120)
 
 
 class ArenaRoomPlayerResponse(BaseModel):

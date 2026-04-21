@@ -16,6 +16,7 @@ export interface OrderingQuestionProps extends QuestionStageMeta {
   onSkip: () => void;
   onChange?: (items: string[]) => void;
   hideChrome?: boolean;
+  isRevealed?: boolean;
 }
 
 function getLabel(step: unknown) {
@@ -44,6 +45,7 @@ export default function OrderingQuestion({
   onSkip,
   onChange,
   hideChrome = false,
+  isRevealed = false,
 }: OrderingQuestionProps) {
   const stableDataSteps = JSON.stringify(stage.config.data?.steps || []);
   const stableInitialOrder = JSON.stringify(stage.config.initialState?.order || null);
@@ -52,15 +54,19 @@ export default function OrderingQuestion({
     const rawSteps = Array.isArray(stage.config.data?.steps)
       ? stage.config.data.steps
       : [];
-    const seeded = Array.isArray(stage.config.initialState?.order)
-      ? stage.config.initialState.order
-      : [...rawSteps].sort(() => Math.random() - 0.5);
+    
+    // If revealed, use the rawSteps as the order
+    const seeded = isRevealed 
+      ? rawSteps 
+      : (Array.isArray(stage.config.initialState?.order)
+        ? stage.config.initialState.order
+        : [...rawSteps].sort(() => Math.random() - 0.5));
 
     return seeded.map((step, index) => ({
       id: `step-${index}`,
       content: getLabel(step),
     }));
-  }, [stableDataSteps, stableInitialOrder, stage.config.data?.steps, stage.config.initialState?.order]);
+  }, [stableDataSteps, stableInitialOrder, stage.config.data?.steps, stage.config.initialState?.order, isRevealed]);
 
   const [items, setItems] = useState(initialItems);
   const [phase, setPhase] = useState<"editing" | "submitting" | "feedback">("editing");
@@ -112,8 +118,12 @@ export default function OrderingQuestion({
           className="flex flex-col gap-3"
         >
           {items.map((item) => (
-            <Reorder.Item key={item.id} value={item}>
-              <div className="rounded-2xl border-2 border-b-4 border-brand-gray-200 bg-white px-5 py-4 font-heading font-bold text-brand-gray-700 shadow-sm">
+            <Reorder.Item key={item.id} value={item} drag={!isRevealed}>
+              <div className={`rounded-2xl border-2 border-b-4 px-5 py-4 font-heading font-bold shadow-sm transition-colors ${
+                isRevealed 
+                  ? "border-brand-green bg-brand-green/10 text-brand-green" 
+                  : "border-brand-gray-200 bg-white text-brand-gray-700"
+              }`}>
                 {item.content}
               </div>
             </Reorder.Item>

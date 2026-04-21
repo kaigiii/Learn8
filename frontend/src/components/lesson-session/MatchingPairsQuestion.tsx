@@ -33,6 +33,7 @@ export interface MatchingPairsQuestionProps
   onSubmit: () => void;
   onSkip: () => void;
   hideChrome?: boolean;
+  isRevealed?: boolean;
 }
 
 export default function MatchingPairsQuestion({
@@ -60,6 +61,7 @@ export default function MatchingPairsQuestion({
   onSubmit,
   onSkip,
   hideChrome = false,
+  isRevealed = false,
 }: MatchingPairsQuestionProps) {
   return (
     <>
@@ -87,9 +89,10 @@ export default function MatchingPairsQuestion({
             selectedRightId={selectedRightId}
             wrongPair={wrongPair}
             hintPairId={hintPairId}
-            feedback={feedback}
+            feedback={isRevealed ? "correct" : feedback}
             onPickLeft={onPickLeft}
             onPickRight={onPickRight}
+            isRevealed={isRevealed}
           />
         </div>
       </div>
@@ -145,6 +148,7 @@ function MatchGrid({
   feedback,
   onPickLeft,
   onPickRight,
+  isRevealed,
 }: {
   pairs: MatchPair[];
   shuffledRightIds: string[];
@@ -157,6 +161,7 @@ function MatchGrid({
   feedback: "correct" | "incorrect" | null;
   onPickLeft: (pairId: string) => void;
   onPickRight: (pairId: string) => void;
+  isRevealed?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const leftRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
@@ -172,8 +177,12 @@ function MatchGrid({
     const box = container.getBoundingClientRect();
     const nextLines: typeof lines = [];
 
-    for (const [leftId, rightId] of Object.entries(matchedPairs)) {
-      if (selectedLeftId === leftId || selectedRightId === rightId) {
+    const currentMatchedPairs = isRevealed 
+      ? Object.fromEntries(pairs.map(p => [p.id, p.id])) 
+      : matchedPairs;
+
+    for (const [leftId, rightId] of Object.entries(currentMatchedPairs)) {
+      if (!isRevealed && (selectedLeftId === leftId || selectedRightId === rightId)) {
         continue;
       }
       const leftElement = leftRefs.current.get(leftId);
@@ -187,7 +196,7 @@ function MatchGrid({
         y1: leftBox.top + leftBox.height / 2 - box.top,
         x2: rightBox.left - box.left,
         y2: rightBox.top + rightBox.height / 2 - box.top,
-        color: feedback === "correct" ? "#58CC02" : "#7AC7C4",
+        color: (feedback === "correct" || isRevealed) ? "#58CC02" : "#7AC7C4",
       });
     }
 
@@ -234,37 +243,37 @@ function MatchGrid({
 
       <div className="flex flex-1 flex-col gap-5">
         {pairs.map((pair) => {
-          const isMatched = matched.includes(pair.id);
-          const isAssigned = pair.id in matchedPairs;
-          const isSelected = selectedLeftId === pair.id;
-          const isWrong = wrongPair?.[0] === pair.id;
-          const isHint = hintPairId === pair.id;
+            const isMatchedOrRevealed = matched.includes(pair.id) || isRevealed;
+            const isAssigned = pair.id in matchedPairs;
+            const isSelected = selectedLeftId === pair.id;
+            const isWrong = wrongPair?.[0] === pair.id;
+            const isHint = hintPairId === pair.id;
 
-          return (
-            <motion.button
-              key={pair.id}
-              ref={(element) => {
-                if (element) leftRefs.current.set(pair.id, element);
-              }}
-              onClick={() => onPickLeft(pair.id)}
-              className={`relative rounded-2xl border-2 border-b-4 px-8 py-6 text-center font-heading text-xl font-bold transition-all ${
-                isMatched && feedback === "correct"
-                  ? "border-brand-green bg-brand-green/10 text-brand-green"
-                  : isWrong
-                    ? "animate-shake border-red-400 bg-red-50 text-red-500"
-                    : isSelected
-                      ? "border-brand-teal bg-brand-teal/10 text-brand-teal shadow-md"
-                    : isHint
-                      ? "border-amber-400 bg-amber-50 text-amber-600"
-                      : isAssigned
-                        ? "border-brand-teal bg-brand-teal/10 text-brand-teal"
-                        : "border-brand-gray-200 bg-white text-brand-gray-700 hover:border-brand-teal/40"
-              }`}
-              whileTap={isMatched && feedback === "correct" ? {} : { scale: 0.95 }}
-            >
-              {pair.left}
-              {isMatched && feedback === "correct" && (
-                <motion.span
+            return (
+              <motion.button
+                key={pair.id}
+                ref={(element) => {
+                  if (element) leftRefs.current.set(pair.id, element);
+                }}
+                onClick={() => onPickLeft(pair.id)}
+                className={`relative rounded-2xl border-2 border-b-4 px-8 py-6 text-center font-heading text-xl font-bold transition-all ${
+                  isMatchedOrRevealed && (feedback === "correct" || isRevealed)
+                    ? "border-brand-green bg-brand-green/10 text-brand-green"
+                    : isWrong
+                      ? "animate-shake border-red-400 bg-red-50 text-red-500"
+                      : isSelected
+                        ? "border-brand-teal bg-brand-teal/10 text-brand-teal shadow-md"
+                      : isHint
+                        ? "border-amber-400 bg-amber-50 text-amber-600"
+                        : isAssigned
+                          ? "border-brand-teal bg-brand-teal/10 text-brand-teal"
+                          : "border-brand-gray-200 bg-white text-brand-gray-700 hover:border-brand-teal/40"
+                }`}
+                whileTap={(isMatchedOrRevealed && (feedback === "correct" || isRevealed)) ? {} : { scale: 0.95 }}
+              >
+                {pair.left}
+                {(isMatchedOrRevealed && (feedback === "correct" || isRevealed)) && (
+                  <motion.span
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-brand-green"
@@ -292,34 +301,34 @@ function MatchGrid({
             return null;
           }
 
-          const isMatched = matched.includes(pairId);
-          const isAssigned = assignedRights.has(pairId);
-          const isSelected = selectedRightId === pairId;
-          const isWrong = wrongPair?.[1] === pairId;
+            const isMatchedOrRevealed = matched.includes(pairId) || isRevealed;
+            const isAssigned = assignedRights.has(pairId) || isRevealed;
+            const isSelected = selectedRightId === pairId;
+            const isWrong = wrongPair?.[1] === pairId;
 
-          return (
-            <motion.button
-              key={pair.id}
-              ref={(element) => {
-                if (element) rightRefs.current.set(pair.id, element);
-              }}
-              onClick={() => onPickRight(pair.id)}
-              className={`relative rounded-2xl border-2 border-b-4 px-8 py-6 text-center font-heading text-xl font-bold transition-all ${
-                isMatched && feedback === "correct"
-                  ? "border-brand-green bg-brand-green/10 text-brand-green"
-                  : isWrong
-                    ? "animate-shake border-red-400 bg-red-50 text-red-500"
-                    : isSelected
-                      ? "border-brand-teal bg-brand-teal/10 text-brand-teal shadow-md"
-                    : isAssigned
-                      ? "border-brand-teal bg-brand-teal/10 text-brand-teal"
-                      : "border-brand-gray-200 bg-white text-brand-gray-700 hover:border-brand-teal/40"
-              }`}
-              whileTap={isMatched && feedback === "correct" ? {} : { scale: 0.95 }}
-            >
-              {pair.right}
-              {isMatched && feedback === "correct" && (
-                <motion.span
+            return (
+              <motion.button
+                key={pair.id}
+                ref={(element) => {
+                  if (element) rightRefs.current.set(pair.id, element);
+                }}
+                onClick={() => onPickRight(pair.id)}
+                className={`relative rounded-2xl border-2 border-b-4 px-8 py-6 text-center font-heading text-xl font-bold transition-all ${
+                  isMatchedOrRevealed && (feedback === "correct" || isRevealed)
+                    ? "border-brand-green bg-brand-green/10 text-brand-green"
+                    : isWrong
+                      ? "animate-shake border-red-400 bg-red-50 text-red-500"
+                      : isSelected
+                        ? "border-brand-teal bg-brand-teal/10 text-brand-teal shadow-md"
+                      : isAssigned
+                        ? "border-brand-teal bg-brand-teal/10 text-brand-teal"
+                        : "border-brand-gray-200 bg-white text-brand-gray-700 hover:border-brand-teal/40"
+                }`}
+                whileTap={(isMatchedOrRevealed && (feedback === "correct" || isRevealed)) ? {} : { scale: 0.95 }}
+              >
+                {pair.right}
+                {(isMatchedOrRevealed && (feedback === "correct" || isRevealed)) && (
+                  <motion.span
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-brand-green"

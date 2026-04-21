@@ -801,8 +801,11 @@ function serializePoolItem(item: PoolItemFormState, idx: number): ArenaAdminQues
     prompt: item.prompt.trim(),
     options: item.options.map(o => {
       if (typeof o === "string") return o;
-      if (o && typeof o === "object" && !("id" in o) && !("text" in o)) return o; // e.g. MatchingPairs { left, right }
-      return { id: (o.id || "").trim(), text: (o.text || "").trim() };
+      // Preserve all keys (especially for MatchingPairs left/right/term/definition)
+      if (o && typeof o === "object") {
+        return { ...o };
+      }
+      return o;
     }),
     correctOptionId: item.correctOptionId ? item.correctOptionId.trim() : undefined,
     difficulty: item.difficulty || "normal",

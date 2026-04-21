@@ -88,7 +88,7 @@ class RoundEngine:
 
         rules = match.rules_snapshot_json if isinstance(match.rules_snapshot_json, dict) else {}
         round_count = int(rules.get("round_count") or 5)
-        timer_seconds = int(rules.get("round_time_seconds") or 30)
+        timer_seconds = int(rules.get("round_time_seconds") or arena_settings.ARENA_DEFAULT_ROUND_TIME_SECONDS)
         questions = self.question_pool_service.build_round_questions(
             db,
             public_course,
@@ -139,6 +139,8 @@ class RoundEngine:
                     "activeRound": self._build_active_round_payload(active_round),
                 },
             )
+            # PROACTIVE: Schedule round settlement at deadline
+            self._schedule_proactive_settle(match.id, active_round.id, active_round.timer_seconds + 0.5)
 
     def _seconds_delta(self, seconds: int):
         from datetime import timedelta
@@ -407,6 +409,8 @@ class RoundEngine:
             "last_seen_at": utc_now()
         })
 
+    INTERMISSION_SECONDS = arena_settings.ARENA_INTERMISSION_SECONDS  # Seconds between round.revealed and the next round starting
+
     def _close_round(self, db: Session, match: ArenaMatchModel, round_model: ArenaRoundModel) -> None:
         if round_model.status != ArenaRoundStatus.ACTIVE:
             return
@@ -482,9 +486,11 @@ class RoundEngine:
             None,
         )
         if next_round:
+            # Schedule next round to start after intermission (5 seconds from now)
+            next_round_start = utc_now() + self._seconds_delta(self.INTERMISSION_SECONDS)
             next_round.status = ArenaRoundStatus.ACTIVE
-            next_round.started_at = utc_now()
-            next_round.deadline_at = next_round.started_at + self._seconds_delta(next_round.timer_seconds)
+            next_round.started_at = next_round_start
+            next_round.deadline_at = next_round_start + self._seconds_delta(next_round.timer_seconds)
             db.add(next_round)
             self.realtime_gateway.publish_event(
                 db,
@@ -498,9 +504,13 @@ class RoundEngine:
                     "roundIndex": next_round.round_index,
                     "timerSeconds": next_round.timer_seconds,
                     "deadlineAt": to_iso_utc(next_round.deadline_at),
+                    "startsAt": to_iso_utc(next_round.started_at),
+                    "intermissionSeconds": self.INTERMISSION_SECONDS,
                     "activeRound": self._build_active_round_payload(next_round),
                 },
             )
+            # PROACTIVE: Schedule round settlement at deadline (including intermission delay)
+            self._schedule_proactive_settle(match.id, next_round.id, self.INTERMISSION_SECONDS + next_round.timer_seconds + 0.5)
         else:
             self._finalize_match_if_needed(db, match, all_rounds)
             if match.room_id:
@@ -703,6 +713,18 @@ class RoundEngine:
                 "state": state,
             }
 
+        # Reject early submissions during intermission (startedAt is in the future)
+        if round_model.started_at and ensure_aware(round_model.started_at) > utc_now():
+            state = self.get_match_state(db, match.id, current_user)
+            return {
+                "accepted": False,
+                "alreadySubmitted": False,
+                "roundClosed": False,
+                "matchFinished": False,
+                "earlySubmission": True,
+                "state": state,
+            }
+
         question = round_model.question_snapshot_json if isinstance(round_model.question_snapshot_json, dict) else {}
         correct_option_id = str(question.get("correct_option_id") or "")
         is_correct = selected_option_id == correct_option_id
@@ -810,3 +832,27 @@ class RoundEngine:
             "matchFinished": state["status"] == ArenaMatchStatus.FINISHED,
             "state": state,
         }
+
+    def _schedule_proactive_settle(self, match_id: int, round_id: int, delay_seconds: float):
+        """
+        Schedules a background settlement task to ensure the round closes even if no one polls.
+        """
+        def _proactive_task():
+            import time
+            from app.db.session import SessionLocal
+            
+            time.sleep(delay_seconds)
+            
+            with SessionLocal() as db:
+                match = self.get_match(db, match_id)
+                if not match or match.status != ArenaMatchStatus.IN_PROGRESS:
+                    return
+                
+                # This check internally handles dead-line closing
+                self._ensure_round_progress(db, match)
+                db.commit()
+
+        # We can use threading because it's a simple sleep-and-call,
+        # making it compatible with any FastAPI deployment.
+        import threading
+        threading.Thread(target=_proactive_task, daemon=True).start()
