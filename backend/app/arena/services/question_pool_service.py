@@ -34,15 +34,12 @@ class QuestionPoolService:
 
         normalized = [self._normalize_pool_item(item) for item in pool_items]
 
-        if len(normalized) < round_count:
-            raise HTTPException(
-                status_code=409,
-                detail="The active question pool does not have enough questions for the requested round count",
-            )
+        # Keep matches playable even when pool size is smaller than requested rounds.
+        effective_round_count = min(max(1, int(round_count)), len(normalized))
 
         shuffled = list(normalized)
         random.shuffle(shuffled)
-        return shuffled[:round_count]
+        return shuffled[:effective_round_count]
     def _load_active_pool_items(
         self,
         db: Session,
