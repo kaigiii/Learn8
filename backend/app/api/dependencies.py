@@ -77,6 +77,11 @@ def get_current_arena_admin(
         if email.strip()
     }
 
+    # In local/dev mode, allow the configured dev-login identity as Arena admin
+    # even if ARENA_ADMIN_EMAILS is accidentally left blank.
+    if settings.AUTH_ENABLE_DEV_LOGIN and settings.AUTH_DEV_LOGIN_EMAIL.strip():
+        allowed_emails.add(settings.AUTH_DEV_LOGIN_EMAIL.strip().lower())
+
     if not allowed_emails:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
