@@ -82,14 +82,7 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
   const [intermissionSeconds, setIntermissionSeconds] = useState(0);
   const isInIntermission = !!intermissionUntil && intermissionSeconds > 0;
 
-  // Snapshot of the PREVIOUS round's question — shown during intermission
-  const prevRoundRef = useRef<{
-    question: any;
-    roundIndex: number;
-    timerSeconds: number;
-    userAnswer?: string | null;
-  } | null>(null);
-
+  // No more prevRoundRef — we use latestReveal payload
   const userAnswersRef = useRef<Map<number, string>>(new Map());
 
   // ─── Revealed answer tracking ─────────────────────────────────────────────
@@ -102,6 +95,18 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
     if (!payload || typeof payload !== "object") return null;
     return (payload as Record<string, unknown>).revealedAnswer as Record<string, unknown> | null ?? null;
   }, [latestReveal]);
+
+  const revealedQuestion = useMemo(() => {
+    if (!revealedAnswer) return null;
+    return {
+      questionType: (revealedAnswer.questionType as string) || "Unknown", // Handle missing type
+      prompt: (revealedAnswer.prompt as string) || "",
+      options: (revealedAnswer.options as any[]) || [],
+      correctOptionId: (revealedAnswer.correctOptionId as string) || "",
+      explanation: (revealedAnswer.explanation as string) || "",
+      difficulty: "normal",
+    };
+  }, [revealedAnswer]);
 
   const revealedCorrectId = useMemo(() => {
     return (revealedAnswer?.correctOptionId as string | undefined) ?? undefined;
@@ -178,13 +183,7 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
       // We're in intermission — show reveal until startsAt
       setIntermissionUntil(startsAt);
     } else {
-      // We're live in the question window — save this round for the next intermission
-      prevRoundRef.current = {
-        question: activeRound.question,
-        roundIndex: activeRound.roundIndex,
-        timerSeconds: activeRound.timerSeconds,
-        userAnswer: userAnswersRef.current.get(activeRound.roundIndex) ?? null,
-      };
+      // We're live in the question window
       setIntermissionUntil(null);
     }
     activeRoundRef.current = activeRound;
@@ -455,11 +454,11 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
                 <div className="flex items-center justify-between gap-4 mb-4">
                   <div className="flex items-center gap-2">
                     <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-teal text-white">
-                      {(isInIntermission ? prevRoundRef.current?.question?.questionType : activeRound?.question?.questionType) === "MultipleChoice" && <FiList />}
-                      {(isInIntermission ? prevRoundRef.current?.question?.questionType : activeRound?.question?.questionType) === "MatchingPairs" && <FiHash />}
-                      {(isInIntermission ? prevRoundRef.current?.question?.questionType : activeRound?.question?.questionType) === "Ordering" && <FiLayers />}
-                      {(isInIntermission ? prevRoundRef.current?.question?.questionType : activeRound?.question?.questionType) === "FeynmanMirror" && <FiMessageSquare />}
-                      {(isInIntermission ? prevRoundRef.current?.question?.questionType : activeRound?.question?.questionType) === "ExplainerMedia" && <FiBookOpen />}
+                      {(isInIntermission ? revealedQuestion?.questionType : activeRound?.question?.questionType) === "MultipleChoice" && <FiList />}
+                      {(isInIntermission ? revealedQuestion?.questionType : activeRound?.question?.questionType) === "MatchingPairs" && <FiHash />}
+                      {(isInIntermission ? revealedQuestion?.questionType : activeRound?.question?.questionType) === "Ordering" && <FiLayers />}
+                      {(isInIntermission ? revealedQuestion?.questionType : activeRound?.question?.questionType) === "FeynmanMirror" && <FiMessageSquare />}
+                      {(isInIntermission ? revealedQuestion?.questionType : activeRound?.question?.questionType) === "ExplainerMedia" && <FiBookOpen />}
                     </div>
                     <div>
                       <p className="text-[10px] font-bold uppercase tracking-widest text-brand-teal">
@@ -485,7 +484,7 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
                 </div>
 
                 <h2 className="font-heading text-2xl font-bold leading-tight text-brand-gray-700">
-                  {isInIntermission ? prevRoundRef.current?.question?.prompt : activeRound?.question?.prompt}
+                  {isInIntermission ? revealedQuestion?.prompt : activeRound?.question?.prompt}
                 </h2>
 
                 {/* Optional Explanation for Intermission */}
@@ -500,16 +499,18 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
 
                 {/* ---- QUESTION RENDERERS ---- */}
                 {(() => {
-                  const q = isInIntermission ? prevRoundRef.current?.question : activeRound?.question;
-                  if (!q) return null;
+                  // Prioritize revealed question during intermission, fallback to active question ONLY if revealed is not yet available
+                  const q = isInIntermission ? (revealedQuestion || activeRound?.question) : activeRound?.question;
+                  if (!q || !q.questionType) return null;
 
                   if (q.questionType === "MultipleChoice") {
-                    const componentKey = isInIntermission ? `reveal-${prevRoundRef.current?.roundIndex}` : `live-${activeRound?.roundId}`;
+                    const rIdx = (latestReveal?.payload as any)?.roundIndex;
+                    const componentKey = isInIntermission ? `reveal-${rIdx}` : `live-${activeRound?.roundId}`;
                     return (
                       <div className="mt-4" key={componentKey}>
                         <MultipleChoiceQuestion
                           hideChrome
-                          stageIndex={isInIntermission ? (prevRoundRef.current?.roundIndex ?? 0) : (match?.currentRoundIndex ?? 0)}
+                          stageIndex={isInIntermission ? (rIdx ?? 0) : (match?.currentRoundIndex ?? 0)}
                           totalStages={match?.totalRounds ?? 0}
                           topic={q.prompt}
                           difficulty={mapDifficulty(q.difficulty)}
@@ -517,7 +518,7 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
                           options={q.options}
                           correctId="" 
                           forceCorrectId={isInIntermission ? revealedCorrectId : undefined}
-                          userSelectedId={isInIntermission ? (prevRoundRef.current?.userAnswer || undefined) : undefined}
+                          userSelectedId={isInIntermission ? (userAnswersRef.current.get(rIdx) || undefined) : undefined}
                           feedbackMsg={{ success: "", error: "", hint: "" }}
                           onSelect={(id: string) => !isInIntermission && setSelectedOptionId(id)}
                           onComplete={(id: string) => !isInIntermission && setSelectedOptionId(id)}
@@ -528,12 +529,13 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
                   }
 
                   if (q.questionType === "MatchingPairs") {
-                    const componentKey = isInIntermission ? `reveal-${prevRoundRef.current?.roundIndex}` : `live-${activeRound?.roundId}`;
+                    const rIdx = (latestReveal?.payload as any)?.roundIndex;
+                    const componentKey = isInIntermission ? `reveal-${rIdx}` : `live-${activeRound?.roundId}`;
                     return (
                       <div className="mt-6" key={componentKey}>
                         <MatchingPairsQuestion
                           hideChrome
-                          stageIndex={isInIntermission ? (prevRoundRef.current?.roundIndex ?? 0) : (match?.currentRoundIndex ?? 0)}
+                          stageIndex={isInIntermission ? (rIdx ?? 0) : (match?.currentRoundIndex ?? 0)}
                           totalStages={match?.totalRounds ?? 0}
                           topic={q.prompt}
                           difficulty={mapDifficulty(q.difficulty)}
@@ -561,18 +563,19 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
                   }
 
                   if (q.questionType === "Ordering") {
-                    const componentKey = isInIntermission ? `reveal-${prevRoundRef.current?.roundIndex}` : `live-${activeRound?.roundId}`;
+                    const rIdx = (latestReveal?.payload as any)?.roundIndex;
+                    const componentKey = isInIntermission ? `reveal-${rIdx}` : `live-${activeRound?.roundId}`;
                     return (
                       <div className="mt-6" key={componentKey}>
                         <OrderingQuestion
                           hideChrome
-                          stageIndex={isInIntermission ? (prevRoundRef.current?.roundIndex ?? 0) : (match?.currentRoundIndex ?? 0)}
+                          stageIndex={isInIntermission ? (rIdx ?? 0) : (match?.currentRoundIndex ?? 0)}
                           totalStages={match?.totalRounds ?? 0}
                           topic={q.prompt}
                           difficulty={mapDifficulty(q.difficulty)}
                           isRevealed={isInIntermission}
                           stage={{
-                            stageId: (isInIntermission ? "prev" : activeRound?.roundId.toString()) || "0",
+                            stageId: (isInIntermission ? rIdx.toString() : activeRound?.roundId.toString()) || "0",
                             topic: q.prompt,
                             component: "Ordering",
                             config: {
@@ -593,12 +596,13 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
                   }
 
                   if (q.questionType === "FeynmanMirror") {
-                    const componentKey = isInIntermission ? `reveal-${prevRoundRef.current?.roundIndex}` : `live-${activeRound?.roundId}`;
+                    const rIdx = (latestReveal?.payload as any)?.roundIndex;
+                    const componentKey = isInIntermission ? `reveal-${rIdx}` : `live-${activeRound?.roundId}`;
                     return (
                       <div className="mt-6" key={componentKey}>
                         <FeynmanQuestion
                           hideChrome
-                          stageIndex={isInIntermission ? (prevRoundRef.current?.roundIndex ?? 0) : (match?.currentRoundIndex ?? 0)}
+                          stageIndex={isInIntermission ? (rIdx ?? 0) : (match?.currentRoundIndex ?? 0)}
                           totalStages={match?.totalRounds ?? 0}
                           topic={q.prompt}
                           difficulty={mapDifficulty(q.difficulty)}
@@ -622,12 +626,13 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
                   }
 
                   if (q.questionType === "ExplainerMedia") {
-                    const componentKey = isInIntermission ? `reveal-${prevRoundRef.current?.roundIndex}` : `live-${activeRound?.roundId}`;
+                    const rIdx = (latestReveal?.payload as any)?.roundIndex;
+                    const componentKey = isInIntermission ? `reveal-${rIdx}` : `live-${activeRound?.roundId}`;
                     return (
                       <div className="mt-6" key={componentKey}>
                         <ExplainerMediaCard
                           hideChrome
-                          stageIndex={isInIntermission ? (prevRoundRef.current?.roundIndex ?? 0) : (match?.currentRoundIndex ?? 0)}
+                          stageIndex={isInIntermission ? (rIdx ?? 0) : (match?.currentRoundIndex ?? 0)}
                           totalStages={match?.totalRounds ?? 0}
                           topic={q.prompt}
                           difficulty={mapDifficulty(q.difficulty)}
