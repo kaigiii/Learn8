@@ -60,6 +60,20 @@ const DAILY_GOAL_OPTIONS = [
   { value: "30", label: "30 min" },
 ];
 
+const PRESET_AVATARS = [
+  "chicken",
+  "dog",
+  "elephant",
+  "fox",
+  "monkey",
+  "owl",
+  "panda",
+  "penguin",
+  "sheep",
+  "tiger",
+  "beer",
+];
+
 async function createImageElement(src: string) {
   return new Promise<HTMLImageElement>((resolve, reject) => {
     const image = new window.Image();
@@ -136,6 +150,8 @@ export default function ProfilePageClient() {
   const [profileAvatarSrc, setProfileAvatarSrc] = useState(avatarUrl || "/avatar/chicken.png");
   const uploadAvatarInputRef = useRef<HTMLInputElement>(null);
   const [isCropModalOpen, setIsCropModalOpen] = useState(false);
+  const [isAvatarSelectorOpen, setIsAvatarSelectorOpen] = useState(false);
+  const [selectedAvatarPreview, setSelectedAvatarPreview] = useState<string | null>(null);
   const [cropSourceUrl, setCropSourceUrl] = useState<string | null>(null);
   const [cropFileName, setCropFileName] = useState("avatar.png");
   const [cropPoint, setCropPoint] = useState({ x: 0, y: 0 });
@@ -411,9 +427,9 @@ export default function ProfilePageClient() {
 
               <section className="flex h-full flex-col rounded-[28px] border border-white/70 bg-white/68 p-4">
                 <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-gray-500">Match Summary</p>
-                <h3 className="mt-1 font-heading text-[30px] font-extrabold leading-tight text-brand-gray-700">Competitive record</h3>
+                <h3 className="mt-1 font-heading text-[26px] font-extrabold leading-tight text-brand-gray-700">Competitive record</h3>
 
-                <div className="mt-4 grid flex-1 grid-cols-1 items-stretch gap-2.5 sm:grid-cols-[repeat(3,minmax(0,1fr))]">
+                <div className="mt-4 grid flex-1 grid-cols-1 items-stretch gap-2 sm:grid-cols-[repeat(3,minmax(0,1fr))]">
                   <ArenaSummaryMetric
                     label="Wins"
                     value={arenaLoading ? "..." : String(recentOutcomeTrends.win[recentOutcomeTrends.win.length - 1] ?? 0)}
@@ -470,16 +486,16 @@ export default function ProfilePageClient() {
                 <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-gray-500">Rank History</p>
                 <h3 className="mt-1 font-heading text-[30px] font-extrabold leading-tight text-brand-gray-700">Recent ladder movement</h3>
 
+                {(arenaLoading || arenaHistory.length === 0) && (
                   <div className="mt-3 flex flex-1 items-end justify-between gap-4">
-                  <p className="max-w-[170px] text-sm text-brand-gray-500">
-                    {arenaLoading
-                      ? "Loading ladder timeline..."
-                      : arenaHistory.length === 0
-                        ? "Your detailed ladder and rank history will appear here after ranked matches are recorded. Rank up to fill this history."
-                        : "Recent shifts are now tracked below. Continue ranked matches to build your full ladder trail."}
-                  </p>
-                  <Image src="/svg/rank-history-scroll.svg" alt="Rank history visual" width={90} height={90} className="h-20 w-20 opacity-95" />
-                </div>
+                    <p className="max-w-[170px] text-sm text-brand-gray-500">
+                      {arenaLoading
+                        ? "Loading ladder timeline..."
+                        : "Your detailed ladder and rank history will appear here after ranked matches are recorded. Rank up to fill this history."}
+                    </p>
+                    <Image src="/svg/rank-history-scroll.svg" alt="Rank history visual" width={90} height={90} className="h-20 w-20 opacity-95" />
+                  </div>
+                )}
 
                 {!arenaLoading && arenaHistory.length > 0 && (
                   <div className="mt-4 space-y-2">
@@ -519,7 +535,7 @@ export default function ProfilePageClient() {
                 handleLogout={handleLogout}
                 uploadAvatarInputRef={uploadAvatarInputRef}
                 onAvatarFileChange={handleAvatarFileChange}
-                onAvatarButtonClick={() => uploadAvatarInputRef.current?.click()}
+                onAvatarButtonClick={() => setIsAvatarSelectorOpen(true)}
                 avatarUploadError={avatarUploadError}
               />
             ) : (
@@ -532,6 +548,122 @@ export default function ProfilePageClient() {
           </ProfileOverlayShell>
         ) : null}
       </AnimatePresence>
+
+      {isAvatarSelectorOpen && (
+        <div className="fixed inset-0 z-[130] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/35 backdrop-blur-[2px]"
+            onClick={() => {
+              setSelectedAvatarPreview(null);
+              setIsAvatarSelectorOpen(false);
+            }}
+          />
+
+          <div className="relative z-10 w-full max-w-2xl rounded-[28px] border border-brand-gray-200 bg-white p-5 shadow-[0_26px_60px_rgba(15,23,42,0.25)] sm:p-6">
+            <div className="flex items-center justify-between gap-4">
+              <h2 className="font-heading text-2xl font-extrabold text-brand-gray-700 sm:text-3xl">
+                Choose your avatar
+              </h2>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedAvatarPreview(null);
+                  setIsAvatarSelectorOpen(false);
+                }}
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-brand-gray-200 bg-white text-brand-gray-500 transition hover:text-brand-gray-700"
+                aria-label="Close avatar selector"
+              >
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 6L6 18" />
+                  <path d="M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <p className="mt-3 text-sm text-brand-gray-500">
+              Upload a photo or keep the default avatar for now.
+            </p>
+
+            <div className="mt-6">
+              <p className="text-sm font-semibold text-brand-gray-700">Choose an avatar</p>
+              <p className="mt-1 text-xs text-brand-gray-500">Tap the first circle to upload your own image.</p>
+
+              <div className="mt-4 grid grid-cols-6 gap-4">
+                {/* Upload button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsAvatarSelectorOpen(false);
+                    uploadAvatarInputRef.current?.click();
+                  }}
+                  className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-dashed border-brand-gray-300 bg-brand-gray-50 transition hover:border-brand-teal hover:bg-brand-teal/10"
+                  title="Upload custom avatar"
+                >
+                  <Image
+                    src="/avatar/Upload.png"
+                    alt="Upload avatar"
+                    width={64}
+                    height={64}
+                    className="h-full w-full rounded-full object-cover"
+                  />
+                </button>
+
+                {/* Preset avatars */}
+                {PRESET_AVATARS.map((avatarName) => (
+                  <button
+                    key={avatarName}
+                    type="button"
+                    onClick={() => {
+                      setSelectedAvatarPreview(`/avatar/${avatarName}.png`);
+                    }}
+                    className={`flex h-16 w-16 items-center justify-center rounded-full border-2 bg-white transition ${
+                      selectedAvatarPreview === `/avatar/${avatarName}.png`
+                        ? "border-brand-teal"
+                        : "border-brand-gray-200 hover:border-brand-teal"
+                    }`}
+                    title={`Select ${avatarName} avatar`}
+                  >
+                    <Image
+                      src={`/avatar/${avatarName}.png`}
+                      alt={`${avatarName} avatar`}
+                      width={64}
+                      height={64}
+                      className="h-full w-full rounded-full object-cover"
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-8 flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedAvatarPreview(null);
+                  setIsAvatarSelectorOpen(false);
+                }}
+                className="rounded-xl border border-brand-gray-300 px-6 py-2.5 text-sm font-semibold text-brand-gray-600 transition hover:bg-brand-gray-100"
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (selectedAvatarPreview) {
+                    setProfileAvatarSrc(selectedAvatarPreview);
+                  }
+                  setSelectedAvatarPreview(null);
+                  setIsAvatarSelectorOpen(false);
+                }}
+                className="rounded-xl bg-brand-teal px-6 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isCropModalOpen && cropSourceUrl ? (
         <div className="fixed inset-0 z-[130] flex items-center justify-center p-4">
           <div
@@ -751,11 +883,28 @@ function PersonalProfileContent({
             />
           </div>
         </label>
-        <div className="flex items-end">
-          <GameButton onClick={onAvatarButtonClick} className="w-full">
-            Change avatar
-          </GameButton>
-        </div>
+
+        <label className="block">
+          <span className="text-sm text-brand-gray-600">Avatar</span>
+          <div className="mt-1.5">
+            <button
+              type="button"
+              onClick={onAvatarButtonClick}
+              className="flex w-full items-center justify-between gap-2 rounded-2xl border border-brand-gray-200 bg-white/85 px-4 py-3 text-sm text-brand-gray-700 outline-none transition hover:bg-white focus:border-brand-teal"
+            >
+              <span>Select Avatar</span>
+              <svg
+                viewBox="0 0 20 20"
+                className="h-5 w-5 flex-shrink-0 text-brand-gray-400"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              >
+                <path d="M7 8l3 3 3-3" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          </div>
+        </label>
       </div>
       {avatarUploadError ? <p className="text-sm text-rose-500">{avatarUploadError}</p> : null}
 
@@ -1097,37 +1246,10 @@ function ArenaSummaryMetric({
   tone: "win" | "loss" | "draw";
   trendValues: number[];
 }) {
-  const chartValues = trendValues.length > 0 ? trendValues : [0, 0, 0, 0, 0];
-  const maxValue = Math.max(...chartValues, 1);
-  const viewWidth = 100;
-  const viewHeight = 24;
-  const padX = 4;
-  const padY = 3;
-  const xStep = chartValues.length > 1 ? (viewWidth - padX * 2) / (chartValues.length - 1) : 0;
-  const polylinePoints = chartValues
-    .map((point, index) => {
-      const x = padX + xStep * index;
-      const y = viewHeight - padY - (point / maxValue) * (viewHeight - padY * 2);
-      return `${x.toFixed(2)},${y.toFixed(2)}`;
-    })
-    .join(" ");
-
-  const toneStroke =
-    tone === "win"
-      ? "#63d5eb"
-      : tone === "loss"
-        ? "#d8a0bc"
-        : "#b9c2d1";
-
   return (
     <div className="flex h-full min-h-[122px] w-full min-w-0 flex-col rounded-2xl border border-[#365580] bg-gradient-to-b from-[#2d4f7b] to-[#1f385b] px-3 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
       <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/70">{label}</p>
       <p className="mt-2 truncate font-heading text-3xl font-extrabold leading-none">{value}</p>
-      <div className="mt-auto h-7 overflow-visible">
-        <svg viewBox={`0 0 ${viewWidth} ${viewHeight}`} className="h-full w-full" preserveAspectRatio="none" aria-hidden="true">
-          <polyline fill="none" stroke={toneStroke} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" points={polylinePoints} />
-        </svg>
-      </div>
     </div>
   );
 }
