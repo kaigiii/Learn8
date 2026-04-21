@@ -10,6 +10,24 @@ from app.models.user import UserModel
 
 
 class RankService:
+    def _resolve_display_name(self, user: UserModel) -> str:
+        full_name = (user.full_name or "").strip()
+        if full_name:
+            return full_name
+        email = user.email or ""
+        if "@" in email:
+            return email.split("@", 1)[0]
+        if email:
+            return email
+        return f"User {user.id}"
+
+    def _resolve_avatar_url(self, user: UserModel) -> str | None:
+        avatar = getattr(user, "avatar_url", None)
+        if avatar is None:
+            return None
+        avatar_text = str(avatar).strip()
+        return avatar_text or None
+
     def ensure_player_rating(self, db: Session, user_id: int) -> ArenaRatingModel:
         rating = (
             db.query(ArenaRatingModel)
@@ -60,7 +78,8 @@ class RankService:
 
         return {
             "userId": user.id,
-            "displayName": user.full_name or user.email.split("@")[0],
+            "displayName": self._resolve_display_name(user),
+            "avatarUrl": self._resolve_avatar_url(user),
             "rating": rating.rating,
             "rankTier": rating.rank_tier,
             "bestRankTier": rating.best_rank_tier,
@@ -97,7 +116,8 @@ class RankService:
         return [
             {
                 "userId": user.id,
-                "displayName": user.full_name or user.email.split("@")[0],
+                "displayName": self._resolve_display_name(user),
+                "avatarUrl": self._resolve_avatar_url(user),
                 "rating": rating.rating,
                 "rankTier": rating.rank_tier,
                 "wins": rating.wins,
@@ -184,7 +204,8 @@ class RankService:
             if entry is None:
                 entry = {
                     "userId": user.id,
-                    "displayName": user.full_name or user.email.split("@")[0],
+                    "displayName": self._resolve_display_name(user),
+                    "avatarUrl": self._resolve_avatar_url(user),
                     "rating": history.rating_after,
                     "rankTier": history.rank_tier_after,
                     "wins": 0,

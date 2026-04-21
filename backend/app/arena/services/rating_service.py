@@ -244,6 +244,9 @@ class RatingService:
         )
 
     def _get_total_rounds(self, match: ArenaMatchModel) -> int:
+        if isinstance(match.round_count, int) and match.round_count > 0:
+            return match.round_count
+
         rules = match.rules_snapshot_json if isinstance(match.rules_snapshot_json, dict) else {}
         round_count = rules.get("round_count")
         if isinstance(round_count, int) and round_count > 0:
