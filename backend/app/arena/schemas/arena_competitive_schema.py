@@ -7,7 +7,7 @@ class ArenaCompetitiveQueueJoinRequest(BaseModel):
     publicCourseId: int
     poolId: Optional[int] = None # Preferred
     roundCount: int = Field(default=5, ge=1, le=20)
-    roundTimeSeconds: int = Field(default=30, ge=10, le=120)
+    roundTimeSeconds: int = Field(default=15, ge=10, le=120)
 
 
 class ArenaCompetitiveQueueResponse(BaseModel):
