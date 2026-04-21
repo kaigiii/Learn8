@@ -21,6 +21,19 @@ export async function refreshAuthenticatedProfile() {
   return profile;
 }
 
+export async function uploadAuthenticatedAvatar(file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const profile = await apiFetch<UserProfile>("/auth/me/avatar", {
+    method: "POST",
+    body: formData,
+  });
+
+  syncPersistedProfile(profile);
+  return profile;
+}
+
 export async function spendAuthenticatedCredits(amount: number) {
   const idempotencyKey = createIdempotencyKey("credits-spend");
   const profile = await apiFetch<UserProfile>(

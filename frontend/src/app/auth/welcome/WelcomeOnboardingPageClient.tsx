@@ -12,7 +12,7 @@ import {
   isProfileOnboardingComplete,
   presetToGoalMinutes,
 } from "@/lib/auth/onboarding";
-import { syncPersistedProfile } from "@/lib/auth/profileSync";
+import { syncPersistedProfile, uploadAuthenticatedAvatar } from "@/lib/auth/profileSync";
 import type { UserProfile } from "@/lib/apiTypes";
 import { useAuthStore } from "@/stores/app/useAuthStore";
 import useUserStore from "@/stores/app/useUserStore";
@@ -48,6 +48,11 @@ const STEPS: Step[] = [
     key: "goal",
     title: "Set your daily goal",
     mascotMsg: "How much time can you realistically spare each day?",
+  },
+  {
+    key: "avatar",
+    title: "Choose your avatar",
+    mascotMsg: "Upload a photo or keep the default avatar for now.",
   },
 ];
 
@@ -94,6 +99,9 @@ export default function WelcomeOnboardingPageClient() {
   const [educationLevel, setEducationLevel] = useState("");
   const [preferredLanguage, setPreferredLanguage] = useState("");
   const [selectedGoal, setSelectedGoal] = useState("");
+  const [avatarChoice, setAvatarChoice] = useState<"" | "default" | "upload">("");
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -116,7 +124,40 @@ export default function WelcomeOnboardingPageClient() {
     setEducationLevel(authUser.education_level ?? "");
     setPreferredLanguage(authUser.preferred_language ?? "");
     setSelectedGoal(goalMinutesToPreset(authUser.daily_learning_goal_minutes));
+    setAvatarChoice(authUser.avatar_url?.trim() ? "default" : "");
+    setAvatarFile(null);
+    setAvatarPreviewUrl(null);
   }, [authUser]);
+
+  useEffect(() => {
+    return () => {
+      if (avatarPreviewUrl) {
+        URL.revokeObjectURL(avatarPreviewUrl);
+      }
+    };
+  }, [avatarPreviewUrl]);
+
+  const handleAvatarFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const nextFile = event.target.files?.[0] ?? null;
+    if (!nextFile) {
+      return;
+    }
+
+    if (!nextFile.type.startsWith("image/")) {
+      setError("Please choose an image file.");
+      return;
+    }
+
+    if (avatarPreviewUrl) {
+      URL.revokeObjectURL(avatarPreviewUrl);
+    }
+
+    const nextPreview = URL.createObjectURL(nextFile);
+    setError("");
+    setAvatarFile(nextFile);
+    setAvatarPreviewUrl(nextPreview);
+    setAvatarChoice("upload");
+  };
 
   const canProceed = useCallback(() => {
     if (step === 0) return name.trim().length > 0;
@@ -124,8 +165,10 @@ export default function WelcomeOnboardingPageClient() {
     if (step === 2) return educationLevel.trim().length > 0;
     if (step === 3) return preferredLanguage.trim().length > 0;
     if (step === 4) return selectedGoal !== "";
+    if (step === 5)
+      return avatarChoice === "default" || (avatarChoice === "upload" && avatarFile !== null);
     return false;
-  }, [step, name, jobTitle, educationLevel, preferredLanguage, selectedGoal]);
+  }, [step, name, jobTitle, educationLevel, preferredLanguage, selectedGoal, avatarChoice, avatarFile]);
 
   const handleNext = async () => {
     setError("");
@@ -150,6 +193,10 @@ export default function WelcomeOnboardingPageClient() {
           }),
         });
         syncPersistedProfile(profile);
+
+        if (avatarChoice === "upload" && avatarFile) {
+          await uploadAuthenticatedAvatar(avatarFile);
+        }
       }
       router.push("/home");
     } catch (err) {
@@ -296,6 +343,88 @@ export default function WelcomeOnboardingPageClient() {
                           </button>
                         );
                       })}
+                    </div>
+                  )}
+
+                  {step === 5 && (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAvatarChoice("default");
+                            if (avatarPreviewUrl) {
+                              URL.revokeObjectURL(avatarPreviewUrl);
+                            }
+                            setAvatarFile(null);
+                            setAvatarPreviewUrl(null);
+                          }}
+                          className={`rounded-2xl border px-5 py-5 text-left transition ${
+                            avatarChoice === "default"
+                              ? "border-brand-teal bg-brand-teal/10"
+                              : "border-white/50 bg-white/70 hover:border-brand-teal/40"
+                          }`}
+                        >
+                          <div className="font-semibold text-brand-gray-700">Use default avatar</div>
+                          <div className="mt-1 text-sm text-brand-gray-500">
+                            Start now and change your avatar anytime in profile settings.
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setAvatarChoice("upload")}
+                          className={`rounded-2xl border px-5 py-5 text-left transition ${
+                            avatarChoice === "upload"
+                              ? "border-brand-teal bg-brand-teal/10"
+                              : "border-white/50 bg-white/70 hover:border-brand-teal/40"
+                          }`}
+                        >
+                          <div className="font-semibold text-brand-gray-700">Upload a photo</div>
+                          <div className="mt-1 text-sm text-brand-gray-500">
+                            We will automatically convert your image to PNG.
+                          </div>
+                        </button>
+                      </div>
+
+                      {avatarChoice === "upload" ? (
+                        <div className="rounded-2xl border border-white/55 bg-white/72 px-4 py-4">
+                          <div className="flex flex-wrap items-center gap-4">
+                            <div className="relative h-16 w-16 overflow-hidden rounded-full border border-white/70 bg-[#dce6f1]">
+                              {avatarPreviewUrl ? (
+                                <img
+                                  src={avatarPreviewUrl}
+                                  alt="Avatar preview"
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <div className="flex h-full w-full items-center justify-center text-xs font-bold text-brand-gray-500">
+                                  Preview
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-semibold text-brand-gray-700">
+                                {avatarFile ? avatarFile.name : "No image selected yet"}
+                              </p>
+                              <p className="mt-1 text-xs text-brand-gray-500">
+                                Accepted: image files only. We will save it as PNG.
+                              </p>
+                            </div>
+
+                            <label className="inline-flex cursor-pointer items-center rounded-xl border border-brand-teal/45 bg-brand-teal/10 px-3 py-2 text-sm font-semibold text-brand-teal hover:bg-brand-teal/15">
+                              Choose image
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleAvatarFileChange}
+                                className="hidden"
+                              />
+                            </label>
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
                   )}
                 </div>
