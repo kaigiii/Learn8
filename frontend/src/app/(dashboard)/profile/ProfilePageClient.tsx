@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
+import Cropper, { type Area } from "react-easy-crop";
 
 import TopStatsBar from "@/components/layout/TopStatsBar";
 import DeepGlassCard from "@/components/ui/DeepGlassCard";
@@ -12,8 +13,9 @@ import { ProfileStatBox } from "@/features/profile/components/ProfileStatBox";
 import { ProfileToggle } from "@/features/profile/components/ProfileToggle";
 import { useProfileSettings } from "@/features/profile/hooks/useProfileSettings";
 import { AnimatePresence, motion } from "framer-motion";
-import { resolveErrorMessage } from "@/lib/apiClient";
+import { ApiError, resolveErrorMessage } from "@/lib/apiClient";
 import { fetchArenaProfile, fetchArenaRankHistory } from "@/lib/arena/api";
+import { uploadAuthenticatedAvatar } from "@/lib/auth/profileSync";
 import type { ArenaProfile, ArenaRankHistoryEntry, UserLedgerEvent } from "@/lib/apiTypes";
 import useUserStore, { selectUserProgression } from "@/stores/app/useUserStore";
 
@@ -58,6 +60,49 @@ const DAILY_GOAL_OPTIONS = [
   { value: "30", label: "30 min" },
 ];
 
+async function createImageElement(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new window.Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Failed to load selected image."));
+    image.src = src;
+  });
+}
+
+async function cropImageToPngBlob(imageSrc: string, cropArea: Area) {
+  const image = await createImageElement(imageSrc);
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(cropArea.width));
+  canvas.height = Math.max(1, Math.round(cropArea.height));
+
+  const context = canvas.getContext("2d");
+  if (!context) {
+    throw new Error("Failed to initialize image crop canvas.");
+  }
+
+  context.drawImage(
+    image,
+    cropArea.x,
+    cropArea.y,
+    cropArea.width,
+    cropArea.height,
+    0,
+    0,
+    cropArea.width,
+    cropArea.height
+  );
+
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        reject(new Error("Failed to generate cropped image."));
+        return;
+      }
+      resolve(blob);
+    }, "image/png");
+  });
+}
+
 export default function ProfilePageClient() {
   const searchParams = useSearchParams();
   const panelParam = searchParams.get("panel");
@@ -89,10 +134,86 @@ export default function ProfilePageClient() {
   const initial = displayName.slice(0, 1).toUpperCase() || "P";
   const avatarUrl = authUser?.avatar_url?.trim() || null;
   const [profileAvatarSrc, setProfileAvatarSrc] = useState(avatarUrl || "/avatar/chicken.png");
+  const uploadAvatarInputRef = useRef<HTMLInputElement | null>(null);
+  const [isCropModalOpen, setIsCropModalOpen] = useState(false);
+  const [cropSourceUrl, setCropSourceUrl] = useState<string | null>(null);
+  const [cropFileName, setCropFileName] = useState("avatar.png");
+  const [cropPoint, setCropPoint] = useState({ x: 0, y: 0 });
+  const [cropZoom, setCropZoom] = useState(1);
+  const [cropPixels, setCropPixels] = useState<Area | null>(null);
+  const [isCropping, setIsCropping] = useState(false);
+  const [avatarUploadError, setAvatarUploadError] = useState("");
 
   useEffect(() => {
     setProfileAvatarSrc(avatarUrl || "/avatar/chicken.png");
   }, [avatarUrl]);
+
+  useEffect(() => {
+    return () => {
+      if (cropSourceUrl) {
+        URL.revokeObjectURL(cropSourceUrl);
+      }
+    };
+  }, [cropSourceUrl]);
+
+  const closeCropModal = () => {
+    setIsCropModalOpen(false);
+    setCropPoint({ x: 0, y: 0 });
+    setCropZoom(1);
+    setCropPixels(null);
+    if (cropSourceUrl) {
+      URL.revokeObjectURL(cropSourceUrl);
+    }
+    setCropSourceUrl(null);
+    setCropFileName("avatar.png");
+  };
+
+  const handleAvatarFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const nextFile = event.target.files?.[0] ?? null;
+    if (!nextFile) {
+      return;
+    }
+    if (!nextFile.type.startsWith("image/")) {
+      setAvatarUploadError("Please choose an image file.");
+      return;
+    }
+    if (cropSourceUrl) {
+      URL.revokeObjectURL(cropSourceUrl);
+    }
+    const nextCropSourceUrl = URL.createObjectURL(nextFile);
+    setAvatarUploadError("");
+    setCropFileName(nextFile.name || "avatar.png");
+    setCropSourceUrl(nextCropSourceUrl);
+    setCropPoint({ x: 0, y: 0 });
+    setCropZoom(1);
+    setCropPixels(null);
+    setIsCropModalOpen(true);
+    event.currentTarget.value = "";
+  };
+
+  const handleConfirmAvatarCrop = async () => {
+    if (!cropSourceUrl || !cropPixels) {
+      setAvatarUploadError("Please adjust the crop area first.");
+      return;
+    }
+    setIsCropping(true);
+    try {
+      const croppedBlob = await cropImageToPngBlob(cropSourceUrl, cropPixels);
+      const normalizedBaseName = cropFileName.replace(/\.[^/.]+$/, "") || "avatar";
+      const croppedFile = new File([croppedBlob], `${normalizedBaseName}.png`, { type: "image/png" });
+      await uploadAuthenticatedAvatar(croppedFile);
+      setAvatarUploadError("");
+      closeCropModal();
+    } catch (caughtError) {
+      setAvatarUploadError(
+        caughtError instanceof ApiError
+          ? caughtError.detail
+          : "Failed to upload avatar. Please try another file."
+      );
+    } finally {
+      setIsCropping(false);
+    }
+  };
 
   const arenaTopTopics = useMemo(
     () => [...(arenaProfile?.topicRatings ?? [])].sort((left, right) => right.rating - left.rating).slice(0, 4),
@@ -396,6 +517,10 @@ export default function ProfilePageClient() {
                 preferences={preferences}
                 setPreferences={setPreferences}
                 handleLogout={handleLogout}
+                uploadAvatarInputRef={uploadAvatarInputRef}
+                onAvatarFileChange={handleAvatarFileChange}
+                onAvatarButtonClick={() => uploadAvatarInputRef.current?.click()}
+                avatarUploadError={avatarUploadError}
               />
             ) : (
               <WalletContent
@@ -407,6 +532,84 @@ export default function ProfilePageClient() {
           </ProfileOverlayShell>
         ) : null}
       </AnimatePresence>
+      {isCropModalOpen && cropSourceUrl ? (
+        <div className="fixed inset-0 z-[130] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/35 backdrop-blur-[2px]"
+            onClick={closeCropModal}
+          />
+
+          <div className="relative z-10 w-full max-w-2xl rounded-[28px] border border-brand-gray-200 bg-white p-5 shadow-[0_26px_60px_rgba(15,23,42,0.25)] sm:p-6">
+            <div className="flex items-center justify-between gap-4">
+              <h2 className="font-heading text-2xl font-extrabold text-brand-gray-700 sm:text-3xl">
+                Crop your new avatar
+              </h2>
+              <button
+                type="button"
+                onClick={closeCropModal}
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-brand-gray-200 bg-white text-brand-gray-500 transition hover:text-brand-gray-700"
+                aria-label="Close crop dialog"
+              >
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 6L6 18" />
+                  <path d="M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <p className="mt-2 text-sm text-brand-gray-500">
+              Drag the image and adjust zoom to set your visible avatar area.
+            </p>
+
+            <div className="relative mt-5 h-[320px] overflow-hidden rounded-2xl border border-brand-gray-200 bg-white">
+              <Cropper
+                image={cropSourceUrl}
+                crop={cropPoint}
+                zoom={cropZoom}
+                zoomSpeed={0.2}
+                aspect={1}
+                cropShape="round"
+                showGrid={false}
+                objectFit="horizontal-cover"
+                onCropChange={setCropPoint}
+                onZoomChange={setCropZoom}
+                onCropComplete={(_area, areaPixels) => setCropPixels(areaPixels)}
+              />
+            </div>
+
+            <div className="mt-4 flex items-center gap-3">
+              <span className="text-sm font-semibold text-brand-gray-600">Zoom</span>
+              <input
+                type="range"
+                min={1}
+                max={3}
+                step={0.005}
+                value={cropZoom}
+                onChange={(event) => setCropZoom(Number(event.target.value))}
+                className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-brand-gray-200 accent-brand-teal"
+              />
+            </div>
+
+            <div className="mt-6 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={closeCropModal}
+                className="rounded-xl border border-brand-gray-300 px-4 py-2 text-sm font-semibold text-brand-gray-600 transition hover:bg-brand-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleConfirmAvatarCrop()}
+                disabled={isCropping || !cropPixels}
+                className="rounded-xl bg-brand-teal px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-55"
+              >
+                {isCropping ? "Uploading..." : "Set new avatar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -461,6 +664,10 @@ function PersonalProfileContent({
   preferences,
   setPreferences,
   handleLogout,
+  uploadAvatarInputRef,
+  onAvatarFileChange,
+  onAvatarButtonClick,
+  avatarUploadError,
 }: {
   form: ProfileFormState;
   setForm: Dispatch<SetStateAction<ProfileFormState>>;
@@ -470,6 +677,10 @@ function PersonalProfileContent({
   preferences: PreferenceState;
   setPreferences: (patch: Partial<PreferenceState>) => void;
   handleLogout: () => void;
+  uploadAvatarInputRef: React.RefObject<HTMLInputElement | null>;
+  onAvatarFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  onAvatarButtonClick: () => void;
+  avatarUploadError: string;
 }) {
   return (
     <div className="space-y-5">
@@ -478,6 +689,13 @@ function PersonalProfileContent({
       </p>
 
       <div className="grid gap-4 md:grid-cols-2">
+        <input
+          ref={uploadAvatarInputRef}
+          type="file"
+          accept="image/*"
+          onChange={onAvatarFileChange}
+          className="hidden"
+        />
         <label className="block">
           <span className="text-sm text-brand-gray-600">Display Name</span>
           <input
@@ -533,7 +751,13 @@ function PersonalProfileContent({
             />
           </div>
         </label>
+        <div className="flex items-end">
+          <GameButton onClick={onAvatarButtonClick} className="w-full">
+            Change avatar
+          </GameButton>
+        </div>
       </div>
+      {avatarUploadError ? <p className="text-sm text-rose-500">{avatarUploadError}</p> : null}
 
       <div className="rounded-2xl border border-brand-gray-100 bg-brand-gray-50/75 p-4">
         <p className="text-sm font-semibold text-brand-gray-700">Learning preferences</p>
