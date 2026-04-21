@@ -88,6 +88,11 @@ export default function ProfilePageClient() {
   const profileLabel = authUser?.job_title?.trim() || authUser?.education_level?.trim() || title || "Learner";
   const initial = displayName.slice(0, 1).toUpperCase() || "P";
   const avatarUrl = authUser?.avatar_url?.trim() || null;
+  const [profileAvatarSrc, setProfileAvatarSrc] = useState(avatarUrl || "/avatar/chicken.png");
+
+  useEffect(() => {
+    setProfileAvatarSrc(avatarUrl || "/avatar/chicken.png");
+  }, [avatarUrl]);
 
   const arenaTopTopics = useMemo(
     () => [...(arenaProfile?.topicRatings ?? [])].sort((left, right) => right.rating - left.rating).slice(0, 4),
@@ -174,11 +179,12 @@ export default function ProfilePageClient() {
             <div className="flex items-center gap-4">
               <div className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white">
                 <Image
-                  src={avatarUrl || "/avatar/chicken.png"}
+                  src={profileAvatarSrc}
                   alt={`${displayName} avatar`}
                   fill
                   sizes="64px"
                   className="object-cover"
+                  onError={() => setProfileAvatarSrc("/avatar/chicken.png")}
                 />
               </div>
               <div>

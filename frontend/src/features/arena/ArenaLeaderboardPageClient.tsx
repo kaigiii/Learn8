@@ -1,8 +1,10 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import TopStatsBar from "@/components/layout/TopStatsBar";
 import DeepGlassCard from "@/components/ui/DeepGlassCard";
+import { useAuthStore } from "@/stores/app/useAuthStore";
 import {
   fetchArenaLeaderboard,
   fetchArenaProfile,
@@ -20,8 +22,16 @@ type RankedLeaderboardEntry = ArenaLeaderboardEntry & {
   winRate: number;
 };
 
+const DEFAULT_AVATAR_SRC = "/avatar/chicken.png";
+
+function resolveAvatarUrl(value?: string | null) {
+  const avatar = value?.trim();
+  return avatar ? avatar : DEFAULT_AVATAR_SRC;
+}
+
 export default function ArenaLeaderboardPageClient() {
   const { isReady } = useRequireAuthRedirect();
+  const authUser = useAuthStore((state) => state.user);
   const [tab, setTab] = useState<LeaderboardTab>("season");
   const [category, setCategory] = useState<LeaderboardCategory>("rating");
   const [profile, setProfile] = useState<ArenaProfile | null>(null);
@@ -146,6 +156,7 @@ export default function ArenaLeaderboardPageClient() {
     }
     return String(currentUserStanding.entry.rating);
   }, [category, currentUserStanding]);
+  const currentUserAvatar = resolveAvatarUrl(authUser?.avatar_url);
 
   const snapshotMetricLabel =
     category === "win_rate"
@@ -223,7 +234,14 @@ export default function ArenaLeaderboardPageClient() {
               <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,7fr)_minmax(0,3fr)]">
                 <div className="min-w-0 rounded-[22px] border border-white/70 bg-white/68 p-3">
                   <div className="flex items-center gap-3">
-                    <AvatarPlaceholder />
+                    <AvatarPlaceholder
+                      src={resolveAvatarUrl(
+                        profile?.avatarUrl ??
+                          profile?.avatar_url ??
+                          (profile?.userId === authUser?.id ? authUser?.avatar_url : null)
+                      )}
+                      alt={`${profile?.displayName ?? "Player"} avatar`}
+                    />
                     <div className="min-w-0">
                       <p className="font-heading break-words text-xl font-bold leading-tight text-brand-gray-700 xl:text-2xl">
                         {profile?.displayName ?? "Unknown"}
@@ -311,7 +329,7 @@ export default function ArenaLeaderboardPageClient() {
                 <span className="text-right">Stats</span>
               </div>
 
-              <div className="mt-2 space-y-2">
+              <div className="scrollbar-hide mt-2 max-h-[292px] space-y-2 overflow-y-auto pr-1">
                 {sortedBoard.map((entry, index) => {
                   const isCurrentUser = entry.userId === profile?.userId;
                   return (
@@ -328,7 +346,15 @@ export default function ArenaLeaderboardPageClient() {
                       </div>
 
                       <div className="flex min-w-0 items-center gap-2">
-                        <AvatarPlaceholder small />
+                        <AvatarPlaceholder
+                          small
+                          src={resolveAvatarUrl(
+                            entry.avatarUrl ??
+                              entry.avatar_url ??
+                              (entry.userId === authUser?.id ? currentUserAvatar : null)
+                          )}
+                          alt={`${entry.displayName} avatar`}
+                        />
                         <p className={`min-w-0 break-words text-lg font-bold leading-tight lg:text-xl ${isCurrentUser ? "text-brand-gray-900 font-extrabold" : "text-brand-gray-700"}`}>
                           {entry.displayName}
                         </p>
@@ -585,15 +611,35 @@ function MedalBadge({ place }: { place: 1 | 2 | 3 }) {
   );
 }
 
-function AvatarPlaceholder({ small = false }: { small?: boolean }) {
+function AvatarPlaceholder({
+  small = false,
+  src = DEFAULT_AVATAR_SRC,
+  alt = "Player avatar",
+}: {
+  small?: boolean;
+  src?: string;
+  alt?: string;
+}) {
+  const [imageSrc, setImageSrc] = useState(resolveAvatarUrl(src));
+
+  useEffect(() => {
+    setImageSrc(resolveAvatarUrl(src));
+  }, [src]);
+
   return (
     <div
-      className={`relative overflow-hidden rounded-full border border-brand-gray-200 bg-gradient-to-b from-[#f3f8fc] to-[#d7e5f1] ${
+      className={`relative overflow-hidden rounded-full border border-brand-gray-200 bg-white ${
         small ? "h-12 w-12" : "h-20 w-20"
       }`}
     >
-      <div className="absolute left-1/2 top-[31%] h-[36%] w-[36%] -translate-x-1/2 rounded-full bg-[#9fb4c9]" />
-      <div className="absolute left-1/2 top-[56%] h-[45%] w-[66%] -translate-x-1/2 rounded-t-[999px] bg-[#9fb4c9]" />
+      <Image
+        src={imageSrc}
+        alt={alt}
+        fill
+        sizes={small ? "48px" : "80px"}
+        className="object-cover"
+        onError={() => setImageSrc(DEFAULT_AVATAR_SRC)}
+      />
     </div>
   );
 }
