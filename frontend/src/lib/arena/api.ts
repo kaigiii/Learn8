@@ -82,6 +82,16 @@ export function joinArenaRoom(roomCode: string) {
   });
 }
 
+export function updateArenaRoomSettings(
+  roomCode: string,
+  payload: { questionType?: string; poolId?: number }
+) {
+  return apiFetch<ArenaRoom>(`/arena/rooms/${roomCode}/settings`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
 export function fetchArenaRoom(roomCode: string) {
   return apiFetch<ArenaRoom>(`/arena/rooms/${roomCode}`);
 }

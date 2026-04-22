@@ -14,6 +14,11 @@ class ArenaRoomCreateRequest(BaseModel):
     roundTimeSeconds: int = Field(default=15, ge=10, le=120)
 
 
+class ArenaRoomSettingsUpdateRequest(BaseModel):
+    questionType: Optional[str] = Field(default=None, min_length=1)
+    poolId: Optional[int] = Field(default=None, ge=1)
+
+
 class ArenaRoomPlayerResponse(BaseModel):
     userId: int
     displayName: str
@@ -32,6 +37,7 @@ class ArenaRoomResponse(BaseModel):
     publicCourseTitle: str
     poolId: int
     poolTitle: Optional[str] = None
+    selectedQuestionType: Optional[str] = None
     mode: str
     visibility: str
     status: ArenaRoomStatusEnum

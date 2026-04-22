@@ -420,6 +420,7 @@ export interface ArenaRoom {
   publicCourseTitle: string;
   poolId: number;
   poolTitle?: string | null;
+  selectedQuestionType?: string | null;
   mode: string;
   visibility: string;
   status: string;

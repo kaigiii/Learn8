@@ -93,6 +93,7 @@ class RoundEngine:
             db,
             public_course,
             pool_id=match.question_pool_id,
+            question_type=(match.room_snapshot_json or {}).get("question_type") if isinstance(match.room_snapshot_json, dict) else None,
             round_count=round_count,
         )
         effective_rules = {**rules, "round_count": len(questions)}

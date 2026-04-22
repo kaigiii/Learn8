@@ -20,6 +20,7 @@ from app.arena.schemas.arena_room_schema import (
     ArenaRoomReadyRequest,
     ArenaRoomResponse,
     ArenaRoomStartResponse,
+    ArenaRoomSettingsUpdateRequest,
 )
 from app.arena.schemas.arena_match_schema import (
     ArenaMatchStateResponse,
@@ -221,6 +222,27 @@ def create_room(
         max_players=payload.maxPlayers,
         round_count=payload.roundCount,
         round_time_seconds=payload.roundTimeSeconds,
+    )
+    return ArenaRoomResponse(**room_service.serialize_room(room))
+
+
+@router.patch("/rooms/{room_code}/settings", response_model=ArenaRoomResponse)
+def update_room_settings(
+    room_code: str,
+    payload: ArenaRoomSettingsUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
+    if payload.questionType is None and payload.poolId is None:
+        raise HTTPException(status_code=400, detail="No room settings field provided")
+
+    room_service = RoomService()
+    room = room_service.update_room_settings(
+        db,
+        current_user,
+        room_code,
+        question_type=payload.questionType,
+        pool_id=payload.poolId,
     )
     return ArenaRoomResponse(**room_service.serialize_room(room))
 
