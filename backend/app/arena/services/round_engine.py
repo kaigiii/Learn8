@@ -679,10 +679,15 @@ class RoundEngine:
         self._ensure_participant(match, current_user)
 
         match = self._ensure_round_progress(db, match)
-        self.presence_service.touch_match_presence(db, match, current_user)
+        # Presence touch is only needed while a match is still active.
+        # Skipping writes for finalized states prevents lock storms during post-match polling.
+        if match.status in (ArenaMatchStatus.PENDING, ArenaMatchStatus.IN_PROGRESS):
+            self.presence_service.touch_match_presence(db, match, current_user)
         db.flush()
         rounds = self._get_rounds(db, match.id)
-        return self._build_match_sync_payload(db, match, rounds, current_user.id)
+        payload = self._build_match_sync_payload(db, match, rounds, current_user.id)
+        db.commit()
+        return payload
 
     def submit_answer(
         self,

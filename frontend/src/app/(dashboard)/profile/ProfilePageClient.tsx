@@ -489,26 +489,26 @@ export default function ProfilePageClient() {
                 <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-gray-500">Strong Topics</p>
                 <h3 className="mt-1 font-heading text-[26px] font-extrabold leading-tight text-brand-gray-700">Topic strengths</h3>
 
-                <div className="mt-3 flex items-end justify-between gap-4">
-                  <p className="max-w-[170px] text-sm text-brand-gray-500">
-                    {arenaLoading
-                      ? "Loading topic strengths..."
-                      : arenaTopTopics.length === 0
-                        ? "Topic strengths will appear after a few Arena matches. Play to unlock."
-                        : `Your best topic is ${arenaTopTopics[0].title}. Keep queueing to strengthen your top lane.`}
-                  </p>
-                  <Image src="/svg/topic-strengths.svg" alt="Topic strength visual" width={88} height={88} className="h-20 w-20 opacity-95" />
-                </div>
+                {(arenaLoading || arenaTopTopics.length === 0) && (
+                  <div className="mt-3 flex items-end justify-between gap-4">
+                    <p className="max-w-[170px] text-sm text-brand-gray-500">
+                      {arenaLoading
+                        ? "Loading topic strengths..."
+                        : "Topic strengths will appear after a few Arena matches. Play to unlock."}
+                    </p>
+                    <Image src="/svg/topic-strengths.svg" alt="Topic strength visual" width={88} height={88} className="h-20 w-20 opacity-95" />
+                  </div>
+                )}
 
                 {!arenaLoading && arenaTopTopics.length > 0 && (
-                  <div className="mt-4 flex flex-wrap gap-2">
+                  <div className="mt-4 space-y-2">
                     {arenaTopTopics.slice(0, 2).map((topic) => (
-                      <span
+                      <div
                         key={topic.publicCourseId}
-                        className="rounded-full border border-brand-teal/20 bg-brand-teal/10 px-3 py-1 text-xs font-semibold text-brand-teal"
+                        className="rounded-xl border border-white/75 bg-white/76 px-3 py-2"
                       >
-                        {topic.title} ({topic.rating})
-                      </span>
+                        <p className="text-sm font-semibold text-brand-gray-700">{topic.title}</p>
+                      </div>
                     ))}
                   </div>
                 )}
