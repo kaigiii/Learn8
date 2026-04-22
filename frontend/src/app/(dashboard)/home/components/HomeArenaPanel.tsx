@@ -16,12 +16,14 @@ import {
 } from "@/lib/arena/api";
 import type { ArenaProfile, ArenaPublicCourse, ArenaSeasonSummary } from "@/lib/apiTypes";
 
+const RANDOM_TOPIC_ID = -1;
+
 export function HomeArenaPanel() {
   const router = useRouter();
   const [courses, setCourses] = useState<ArenaPublicCourse[]>([]);
   const [season, setSeason] = useState<ArenaSeasonSummary | null>(null);
   const [profile, setProfile] = useState<ArenaProfile | null>(null);
-  const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
+  const [selectedCourseId, setSelectedCourseId] = useState<number | null>(RANDOM_TOPIC_ID);
   const [roomCode, setRoomCode] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -43,7 +45,7 @@ export function HomeArenaPanel() {
         setCourses(nextCourses);
         setSeason(nextSeason);
         setProfile(nextProfile);
-        setSelectedCourseId((current) => current ?? null);
+        setSelectedCourseId((current) => current ?? RANDOM_TOPIC_ID);
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : "Failed to load Arena");
@@ -64,17 +66,39 @@ export function HomeArenaPanel() {
     () => courses.find((course) => course.id === selectedCourseId) ?? null,
     [courses, selectedCourseId]
   );
+
+  const dropdownOptions = useMemo(() => {
+    if (courses.length === 0) return [] as Array<{ value: number; label: string }>;
+    return [
+      { value: RANDOM_TOPIC_ID, label: "Random topic assignment" },
+      ...courses.map((course) => ({
+        value: course.id,
+        label: `${course.courseTitle} - ${course.title}`,
+      })),
+    ];
+  }, [courses]);
+
+  const resolveTargetCourse = useMemo(() => {
+    if (courses.length === 0) return null;
+    if (selectedCourseId === RANDOM_TOPIC_ID || selectedCourseId === null) {
+      const randomIndex = Math.floor(Math.random() * courses.length);
+      return courses[randomIndex] ?? null;
+    }
+    return courses.find((course) => course.id === selectedCourseId) ?? null;
+  }, [courses, selectedCourseId]);
   const rankBadge = resolveRankTierBadgeVisual(profile?.rankTier);
 
   const handleJoinCompetition = async () => {
-    if (!selectedCourseId || !selectedCourse) {
+    if (courses.length === 0) {
       return;
     }
+    const targetCourse = resolveTargetCourse;
+    if (!targetCourse) return;
     setBusy(true);
     setError(null);
     try {
       await joinArenaCompetitiveQueue({
-        publicCourseId: selectedCourse.id,
+        publicCourseId: targetCourse.id,
       });
       router.push("/arena/queue");
     } catch (err) {
@@ -85,16 +109,22 @@ export function HomeArenaPanel() {
   };
 
   const handleCreateRoom = async () => {
-    if (!selectedCourseId || !selectedCourse) {
+    if (courses.length === 0) {
       return;
     }
+    const targetCourse = resolveTargetCourse;
+    if (!targetCourse) return;
     setBusy(true);
     setError(null);
     try {
       const room = await createArenaRoom({
-        publicCourseId: selectedCourse.id,
+        publicCourseId: targetCourse.id,
       });
-      router.push(`/arena/lobby/${room.roomCode}`);
+      const topicPref =
+        selectedCourseId === RANDOM_TOPIC_ID
+          ? "random"
+          : String(targetCourse.poolId);
+      router.push(`/arena/lobby/${room.roomCode}?topic=${encodeURIComponent(topicPref)}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create room");
     } finally {
@@ -158,10 +188,7 @@ export function HomeArenaPanel() {
                   <div className="mt-2">
                     <ArenaCourseDropdown
                       value={selectedCourseId}
-                      options={courses.map((course) => ({
-                        value: course.id,
-                        label: `${course.courseTitle} - ${course.title}`,
-                      }))}
+                      options={dropdownOptions}
                       placeholder={loading ? "Loading competitions..." : "No competitions available"}
                       disabled={loading || busy || courses.length === 0}
                       onChange={setSelectedCourseId}
@@ -170,7 +197,9 @@ export function HomeArenaPanel() {
                 </label>
 
                 <p className="mt-2 min-h-[2.5rem] line-clamp-2 text-xs leading-relaxed text-brand-gray-500">
-                  {selectedCourse?.topic ?? ""}
+                  {selectedCourseId === RANDOM_TOPIC_ID
+                    ? "A random Arena topic will be assigned when you join or create."
+                    : selectedCourse?.topic ?? ""}
                 </p>
               </div>
 
@@ -178,7 +207,7 @@ export function HomeArenaPanel() {
                 variant="secondary"
                 className="w-full py-3 text-base sm:text-[1.05rem]"
                 onClick={() => void handleJoinCompetition()}
-                disabled={!selectedCourseId || busy}
+                disabled={courses.length === 0 || busy}
               >
                 Join Competition
               </GameButton>
@@ -215,7 +244,7 @@ export function HomeArenaPanel() {
                 variant="secondary"
                 className="w-full py-3 text-base sm:text-[1.05rem]"
                 onClick={() => void handleCreateRoom()}
-                disabled={!selectedCourseId || busy}
+                disabled={courses.length === 0 || busy}
               >
                 Create Room
               </GameButton>

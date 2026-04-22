@@ -14,13 +14,19 @@ class QuestionPoolService:
         public_course: PublicCourseModel,
         *,
         pool_id: int | None = None,
+        question_type: str | None = None,
         round_count: int,
     ) -> list[dict]:
         """
         Builds a set of questions for an Arena match.
         STRICTLY requires an active ArenaQuestionPool defined via the Admin Pool Builder.
         """
-        pool_items = self._load_active_pool_items(db, public_course.id, pool_id=pool_id)
+        pool_items = self._load_active_pool_items(
+            db,
+            public_course.id,
+            pool_id=pool_id,
+            question_type=question_type,
+        )
         
         if not pool_items:
             raise HTTPException(
@@ -46,6 +52,7 @@ class QuestionPoolService:
         public_course_id: int,
         set_active_only: bool = True,
         pool_id: int | None = None,
+        question_type: str | None = None,
     ) -> list[ArenaQuestionPoolItemModel]:
         query = db.query(ArenaQuestionPoolItemModel).join(ArenaQuestionPoolModel, ArenaQuestionPoolModel.id == ArenaQuestionPoolItemModel.pool_id)
         
@@ -56,6 +63,9 @@ class QuestionPoolService:
             
         if set_active_only:
             query = query.filter(ArenaQuestionPoolModel.is_active.is_(True))
+
+        if question_type:
+            query = query.filter(ArenaQuestionPoolItemModel.question_type == question_type)
             
         return (
             query

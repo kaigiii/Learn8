@@ -2,30 +2,59 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import TopStatsBar from "@/components/layout/TopStatsBar";
 import GameButton from "@/components/ui/GameButton";
-import { leaveArenaRoom, setArenaRoomReady, startArenaRoom } from "@/lib/arena/api";
+import { fetchArenaPublicCourses, leaveArenaRoom, setArenaRoomReady, startArenaRoom, updateArenaRoomSettings } from "@/lib/arena/api";
 import { resolveErrorMessage } from "@/lib/apiClient";
 import { useRequireAuthRedirect } from "@/lib/auth/useRequireAuthRedirect";
+import type { ArenaPublicCourse } from "@/lib/apiTypes";
 import { useAuthStore } from "@/stores/app/useAuthStore";
 import { useArenaLobbyStore } from "@/stores/arena/useArenaLobbyStore";
 import { useArenaRoomEvents } from "./hooks/useArenaRoomEvents";
 
+const RANDOM_TOPIC_ID = -1;
+
 export default function ArenaLobbyPageClient({ roomCode }: { roomCode: string }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { isReady } = useRequireAuthRedirect();
   const authUser = useAuthStore((state) => state.user);
   const reset = useArenaLobbyStore((state) => state.reset);
-  const events = useArenaLobbyStore((state) => state.events);
   const connectionStatus = useArenaLobbyStore((state) => state.connectionStatus);
   const isRecovering = useArenaLobbyStore((state) => state.isRecovering);
-  const room = useArenaRoomEvents(isReady ? roomCode : null);
+  const { room, refetch: refetchRoom } = useArenaRoomEvents(isReady ? roomCode : null);
   const [busy, setBusy] = useState(false);
+  const [settingsBusy, setSettingsBusy] = useState(false);
+  const [courses, setCourses] = useState<ArenaPublicCourse[]>([]);
+  const [coursesLoading, setCoursesLoading] = useState(true);
+  const [selectedTopicValue, setSelectedTopicValue] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => () => reset(), [reset]);
+
+  useEffect(() => {
+    if (!isReady) return;
+    let cancelled = false;
+    setCoursesLoading(true);
+    void fetchArenaPublicCourses()
+      .then((nextCourses) => {
+        if (!cancelled) {
+          setCourses(nextCourses);
+        }
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) {
+          setCoursesLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isReady]);
 
   useEffect(() => {
     if (!room) {
@@ -55,6 +84,38 @@ export default function ArenaLobbyPageClient({ roomCode }: { roomCode: string })
   const opponentName = opponentPlayer?.displayName || "Waiting for opponent";
   const opponentAvatar = opponentPlayer?.avatarUrl || "/avatar/chicken.png";
   const hasOpponent = Boolean(opponentPlayer);
+  const topicOptions = useMemo(
+    () => [
+      { value: RANDOM_TOPIC_ID, label: "Random topic assignment" },
+      ...courses.map((course) => ({
+        value: course.poolId,
+        label: `${course.courseTitle} - ${course.title}`,
+      })),
+    ],
+    [courses]
+  );
+
+  useEffect(() => {
+    if (selectedTopicValue !== null) {
+      return;
+    }
+
+    const topicParam = searchParams.get("topic");
+    if (topicParam === "random") {
+      setSelectedTopicValue(RANDOM_TOPIC_ID);
+      return;
+    }
+
+    const parsedPoolId = topicParam ? Number(topicParam) : NaN;
+    if (!Number.isNaN(parsedPoolId) && parsedPoolId > 0) {
+      setSelectedTopicValue(parsedPoolId);
+      return;
+    }
+
+    if (room?.poolId) {
+      setSelectedTopicValue(room.poolId);
+    }
+  }, [room?.poolId, searchParams, selectedTopicValue]);
 
   const handleReadyToggle = async () => {
     if (!room || !currentPlayer) return;
@@ -95,8 +156,30 @@ export default function ArenaLobbyPageClient({ roomCode }: { roomCode: string })
     }
   };
 
+  const handleTopicChange = async (nextPoolId: number) => {
+    if (!room || currentPlayer?.isHost !== true) return;
+    setSelectedTopicValue(nextPoolId);
+
+    const resolvedPoolId =
+      nextPoolId === RANDOM_TOPIC_ID
+        ? courses[Math.floor(Math.random() * courses.length)]?.poolId ?? null
+        : nextPoolId;
+    if (!resolvedPoolId) return;
+
+    setSettingsBusy(true);
+    setError(null);
+    try {
+      await updateArenaRoomSettings(room.roomCode, { poolId: resolvedPoolId });
+      await refetchRoom();
+    } catch (err) {
+      setError(resolveErrorMessage(err, "Unable to update room topic right now."));
+    } finally {
+      setSettingsBusy(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.85),rgba(199,229,241,0.88)_40%,rgba(168,214,233,0.94)_100%)]">
+    <div className="min-h-screen bg-[url('/backgrounds/MainBg.png')] bg-cover bg-center bg-no-repeat">
       <TopStatsBar backHref="/home" pageTitle="Arena Lobby" />
       <main className="mx-auto flex min-h-[calc(100vh-72px)] max-w-6xl flex-col items-center justify-center px-4 py-8 md:px-8">
         <div className="w-full text-center">
@@ -104,17 +187,14 @@ export default function ArenaLobbyPageClient({ roomCode }: { roomCode: string })
           <h1 className="mt-3 font-heading text-[2.7rem] font-black leading-none tracking-tight text-brand-gray-700 md:text-6xl">
             {roomLabel}
           </h1>
-          <p className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-brand-gray-600 md:text-base">
-            {room?.poolTitle || room?.publicCourseTitle || "Loading room topic..."}
-          </p>
-
-          <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
-            <span className="rounded-full border border-white/60 bg-white/50 px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-brand-gray-600 shadow-sm backdrop-blur">
-              {room?.playerCount ?? 0} / {room?.maxPlayers ?? 0} players
-            </span>
-            <span className="rounded-full border border-white/60 bg-white/50 px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-brand-gray-600 shadow-sm backdrop-blur">
-              {room?.status ?? "lobby"}
-            </span>
+          <div className="mx-auto mt-4 max-w-sm">
+            <QuestionTypeDropdown
+              value={selectedTopicValue ?? room?.poolId ?? null}
+              options={topicOptions}
+              placeholder={coursesLoading ? "Loading topics..." : "No competitions available"}
+              disabled={!currentPlayer?.isHost || room?.status !== "lobby" || settingsBusy || coursesLoading || courses.length === 0}
+              onChange={(nextValue) => void handleTopicChange(nextValue)}
+            />
           </div>
         </div>
 
@@ -160,11 +240,6 @@ export default function ArenaLobbyPageClient({ roomCode }: { roomCode: string })
         </div>
 
         <div className="mt-8 flex w-full max-w-3xl flex-col items-center gap-3">
-          <div className="flex items-center gap-2 rounded-full border border-white/60 bg-white/50 px-4 py-2 text-xs font-bold uppercase tracking-[0.24em] text-brand-gray-600 shadow-sm backdrop-blur">
-            <span className="h-2 w-2 rounded-full bg-brand-teal" />
-            Host controls the room start
-          </div>
-
           <div className="flex flex-col gap-3 sm:flex-row">
             <GameButton
               variant="secondary"
@@ -185,28 +260,100 @@ export default function ArenaLobbyPageClient({ roomCode }: { roomCode: string })
 
           {error ? <p className="text-sm text-rose-600">{error}</p> : null}
         </div>
-
-        <div className="mt-10 w-full max-w-3xl rounded-[28px] border border-white/70 bg-white/55 px-5 py-4 shadow-sm backdrop-blur-xl">
-          <p className="text-xs font-bold uppercase tracking-[0.22em] text-brand-teal">Event Feed</p>
-          <div className="mt-4 space-y-3">
-            {events.length === 0 ? (
-              <div className="rounded-2xl border border-white/70 bg-white/68 px-4 py-4 text-sm text-brand-gray-500">
-                Waiting for room activity...
-              </div>
-            ) : (
-              events
-                .slice()
-                .reverse()
-                .map((event) => (
-                  <div key={event.eventId} className="rounded-2xl border border-white/70 bg-white/68 px-4 py-3">
-                    <p className="font-semibold text-brand-gray-700">{event.eventType}</p>
-                    <p className="mt-1 text-xs text-brand-gray-500">{new Date(event.createdAt).toLocaleTimeString()}</p>
-                  </div>
-                ))
-            )}
-          </div>
-        </div>
       </main>
+    </div>
+  );
+}
+
+function QuestionTypeDropdown({
+  value,
+  options,
+  placeholder,
+  disabled,
+  onChange,
+}: {
+  value: number | null;
+  options: Array<{ value: number; label: string }>;
+  placeholder: string;
+  disabled?: boolean;
+  onChange: (nextValue: number) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = React.useRef<HTMLDivElement>(null);
+  const activeLabel = options.find((option) => option.value === value)?.label ?? placeholder;
+
+  useEffect(() => {
+    if (!open) return;
+
+    const handlePointer = (event: MouseEvent) => {
+      if (!rootRef.current || rootRef.current.contains(event.target as Node)) return;
+      setOpen(false);
+    };
+
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+
+    window.addEventListener("mousedown", handlePointer);
+    window.addEventListener("keydown", handleKey);
+    return () => {
+      window.removeEventListener("mousedown", handlePointer);
+      window.removeEventListener("keydown", handleKey);
+    };
+  }, [open]);
+
+  return (
+    <div ref={rootRef} className="relative w-full">
+      <button
+        type="button"
+        onClick={() => {
+          if (!disabled) setOpen((prev) => !prev);
+        }}
+        className={`flex h-[48px] w-full items-center justify-between rounded-[16px] border border-[#b8cfdf] bg-[#eef3f7] px-4 text-left text-sm font-semibold text-brand-gray-700 transition ${
+          disabled ? "cursor-not-allowed opacity-70" : "hover:border-[#9fc0d6]"
+        } ${open ? "ring-2 ring-[#c9dcea]" : ""}`}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        disabled={disabled}
+      >
+        <span className="truncate">{activeLabel}</span>
+        <svg
+          viewBox="0 0 20 20"
+          className={`h-4 w-4 text-[#b5bfc8] transition ${open ? "rotate-180" : ""}`}
+          fill="currentColor"
+          aria-hidden="true"
+        >
+          <path d="M5.25 7.5 10 12.25 14.75 7.5" />
+        </svg>
+      </button>
+
+      {open ? (
+        <div
+          className="absolute left-0 right-0 z-20 mt-2 max-h-64 overflow-y-auto rounded-[16px] border border-[#c7dae7] bg-[#f4f8fb] p-2 shadow-[0_8px_18px_rgba(90,129,154,0.18)]"
+          role="listbox"
+        >
+          {options.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => {
+                onChange(option.value);
+                setOpen(false);
+              }}
+              className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-semibold transition ${
+                option.value === value
+                  ? "bg-[#dfeaf2] text-brand-gray-800"
+                  : "text-brand-gray-600 hover:bg-[#e8f0f6]"
+              }`}
+              role="option"
+              aria-selected={option.value === value}
+            >
+              <span className="truncate">{option.label}</span>
+              {option.value === value ? <span className="text-xs text-[#6ea7c4]">●</span> : null}
+            </button>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

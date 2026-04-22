@@ -129,6 +129,10 @@ npm run dev
   sudo ufw allow 6379
   ```
 
+## windows wsl 啟動 redis
+  ```bash
+  sudo service redis-server start
+  ```
 ## 常用指令 (Useful Scripts)
 
 所有的腳本建議在 `backend` 目錄下執行：

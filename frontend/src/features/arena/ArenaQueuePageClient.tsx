@@ -159,7 +159,7 @@ export default function ArenaQueuePageClient() {
   };
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.85),rgba(199,229,241,0.88)_40%,rgba(168,214,233,0.94)_100%)]">
+    <div className="min-h-screen bg-[url('/backgrounds/MainBg.png')] bg-cover bg-center bg-no-repeat">
       <TopStatsBar backHref="/home" pageTitle="Arena Queue" />
       <main className="mx-auto flex min-h-[calc(100vh-72px)] max-w-6xl flex-col items-center justify-center px-4 py-8 md:px-8">
         <div className="w-full text-center">

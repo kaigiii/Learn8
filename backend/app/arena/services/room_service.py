@@ -21,6 +21,14 @@ from app.arena.utils.profile_utils import build_user_snapshot
 
 
 class RoomService:
+    ALLOWED_QUESTION_TYPES = {
+        "MultipleChoice",
+        "MatchingPairs",
+        "Ordering",
+        "FeynmanMirror",
+        "ExplainerMedia",
+    }
+
     def __init__(self, topic_catalog_service: TopicCatalogService | None = None):
         self.topic_catalog_service = topic_catalog_service or TopicCatalogService()
         self.realtime_gateway = RealtimeGateway()
@@ -222,6 +230,7 @@ class RoomService:
             max_players=max_players,
             round_count=round_count,
             round_time_seconds=round_time_seconds,
+            room_settings_json={},
         )
         db.add(room)
         db.flush()
@@ -383,6 +392,62 @@ class RoomService:
         room = self.get_room_by_code(db, room.room_code, cleanup_idle=False)
         return room
 
+    def update_room_settings(
+        self,
+        db: Session,
+        current_user: UserModel,
+        room_code: str,
+        *,
+        question_type: str | None = None,
+        pool_id: int | None = None,
+    ) -> ArenaRoomModel:
+        room = self.get_room_by_code(db, room_code)
+        if not room:
+            raise HTTPException(status_code=404, detail="Arena room not found")
+        if room.host_user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Only the host can update room settings")
+        if room.status != ArenaRoomStatus.LOBBY:
+            raise HTTPException(status_code=409, detail="Arena room settings can only be updated in lobby state")
+
+        settings = room.room_settings_json if isinstance(room.room_settings_json, dict) else {}
+
+        normalized_question_type: str | None = None
+        if question_type is not None:
+            normalized_question_type = str(question_type).strip()
+            if normalized_question_type not in self.ALLOWED_QUESTION_TYPES:
+                raise HTTPException(status_code=400, detail="Unsupported Arena question type")
+            settings["question_type"] = normalized_question_type
+
+        if pool_id is not None:
+            pool = self.topic_catalog_service.get_active_pool(db, pool_id)
+            if not pool:
+                raise HTTPException(status_code=404, detail="Arena question pool not found")
+            room.question_pool_id = pool.id
+            room.public_course_id = pool.public_course_id
+
+        room.room_settings_json = settings
+        db.add(room)
+        db.commit()
+        room = self.get_room_by_code(db, room.room_code, cleanup_idle=False)
+        self.realtime_gateway.publish_event(
+            db,
+            stream_type="room",
+            room_code=room.room_code,
+            event_type="room.settings_changed",
+            payload={
+                "roomCode": room.room_code,
+                "selectedQuestionType": normalized_question_type,
+                "poolId": room.question_pool_id,
+                "poolTitle": room.question_pool.title if room.question_pool else None,
+                "publicCourseId": room.public_course_id,
+                "publicCourseTitle": room.public_course.title if room.public_course else None,
+                "roomSettings": settings,
+            },
+        )
+        db.commit()
+        room = self.get_room_by_code(db, room.room_code, cleanup_idle=False)
+        return room
+
     def can_start_room(self, room: ArenaRoomModel) -> bool:
         if room.status != ArenaRoomStatus.LOBBY:
             return False
@@ -406,6 +471,7 @@ class RoomService:
             "player_ids": [player.user_id for player in room.players],
             "public_course_id": room.public_course_id,
             "question_pool_id": room.question_pool_id,
+            "question_type": (room.room_settings_json or {}).get("question_type") if isinstance(room.room_settings_json, dict) else None,
         }
         rules_snapshot = {
             "round_count": room.round_count,
@@ -483,6 +549,7 @@ class RoomService:
             "publicCourseTitle": room.public_course.title if room.public_course else "Unknown",
             "poolId": room.question_pool_id,
             "poolTitle": room.question_pool.title if room.question_pool else None,
+            "selectedQuestionType": (room.room_settings_json or {}).get("question_type") if isinstance(room.room_settings_json, dict) else None,
             "mode": room.mode,
             "visibility": room.visibility,
             "status": room.status,
