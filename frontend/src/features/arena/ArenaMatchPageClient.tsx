@@ -1,14 +1,14 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 
 import TopStatsBar from "@/components/layout/TopStatsBar";
 import DeepGlassCard from "@/components/ui/DeepGlassCard";
 import GameButton from "@/components/ui/GameButton";
 import { arenaWsClient } from "@/lib/arena/realtimeClient";
-import { getArenaEventLabel } from "@/lib/arena/eventTypes";
-import { ArenaAnswerSubmitResponse } from "@/lib/apiTypes";
+import { ArenaAnswerSubmitResponse, ArenaMatchState } from "@/lib/apiTypes";
 import { useRequireAuthRedirect } from "@/lib/auth/useRequireAuthRedirect";
 import { useAuthStore } from "@/stores/app/useAuthStore";
 import { useArenaMatchStore } from "@/stores/arena/useArenaMatchStore";
@@ -20,7 +20,6 @@ import {
   FiMessageSquare, 
   FiBookOpen, 
   FiZap, 
-  FiCheckCircle,
   FiClock,
 } from "react-icons/fi";
 import MultipleChoiceQuestion from "@/components/lesson-session/MultipleChoiceQuestion";
@@ -72,6 +71,27 @@ function buildRevealedQuestion(revealedAnswer: Record<string, unknown> | null) {
   };
 }
 
+const ROUND_MAX_SCORE = 1000;
+const ROUND_SWITCH_DELAY_MS = 2500;
+
+function resolveRankTierBadgeVisual(rankTier?: string | null): { src: string; alt: string } {
+  switch ((rankTier ?? "").trim().toLowerCase()) {
+    case "silver":
+      return { src: "/svg/season-badge-star.svg", alt: "Silver badge" };
+    case "gold":
+      return { src: "/svg/season-badge-podium.svg", alt: "Gold badge" };
+    case "platinum":
+      return { src: "/svg/season-badge-elite.svg", alt: "Platinum badge" };
+    case "diamond":
+    case "master":
+    case "grandmaster":
+      return { src: "/svg/season-badge-crown.svg", alt: "Top tier badge" };
+    case "bronze":
+    default:
+      return { src: "/svg/season-badge-none.svg", alt: "Bronze badge" };
+  }
+}
+
 export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
   const router = useRouter();
   const { isReady } = useRequireAuthRedirect();
@@ -89,6 +109,7 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
   // ─── Timer for the current round ──────────────────────────────────────────
   const [remainingSeconds, setRemainingSeconds] = useState(0);
   const [submitNotice, setSubmitNotice] = useState<string | null>(null);
+  const [isRoundSwitchDelay, setIsRoundSwitchDelay] = useState(false);
   const [submissionReview, setSubmissionReview] = useState<{
     roundId: number;
     isCorrect: boolean;
@@ -105,6 +126,11 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
   // No more prevRoundRef — we use latestReveal payload
   const userAnswersRef = useRef<Map<number, string>>(new Map());
   const readyRoundRef = useRef<number | null>(null);
+  const prevRoundIdRef = useRef<number | null>(null);
+  const latestActiveRoundRef = useRef<ArenaMatchState["activeRound"] | null>(null);
+  const roundSwitchTimeoutRef = useRef<number | null>(null);
+  const displayRoundShownAtMsRef = useRef<number>(Date.now());
+  const [displayRound, setDisplayRound] = useState<ArenaMatchState["activeRound"] | null>(null);
 
   // ─── Revealed answer tracking ─────────────────────────────────────────────
   const latestReveal = useMemo(() => {
@@ -120,6 +146,12 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
   const revealedQuestion = useMemo(() => {
     return buildRevealedQuestion(revealedAnswer);
   }, [revealedAnswer]);
+
+  const revealedRoundIndex = useMemo(() => {
+    const payload = latestReveal?.payload as Record<string, unknown> | undefined;
+    const value = payload?.roundIndex;
+    return typeof value === "number" ? value : null;
+  }, [latestReveal]);
 
   const revealedCorrectId = useMemo(() => {
     return (revealedAnswer?.correctOptionId as string | undefined) ?? undefined;
@@ -139,25 +171,33 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
   };
 
   const activeRound = match?.activeRound ?? null;
-  const question = activeRound?.question;
-  const isQuestionLoading = activeRound?.status === "pending";
+  latestActiveRoundRef.current = activeRound;
+  const question = displayRound?.question;
+  const isQuestionLoading = displayRound?.status === "pending";
 
-  const localRevealAnswer = submissionReview?.roundId === activeRound?.roundId
+  const localRevealAnswer = submissionReview?.roundId === displayRound?.roundId
     ? submissionReview?.revealedAnswer ?? null
     : null;
 
   const localRevealQuestion = useMemo(() => buildRevealedQuestion(localRevealAnswer), [localRevealAnswer]);
 
-  const isSelfRevealVisible = !!localRevealQuestion && !!activeRound && !isQuestionLoading;
+  const isSelfRevealVisible = !!localRevealQuestion && !!displayRound && !isQuestionLoading;
 
-  const displayRevealQuestion = isQuestionLoading ? revealedQuestion : localRevealQuestion;
-  const displayRevealCorrectId = isQuestionLoading
-    ? revealedCorrectId
-    : (localRevealQuestion?.correctOptionId || undefined);
-  const displayRevealExplanation = isQuestionLoading
-    ? revealedExplanation
-    : ((localRevealQuestion?.explanation as string | undefined) || undefined);
-  const showRevealMode = isQuestionLoading || isSelfRevealVisible;
+  const isServerRevealVisible = Boolean(
+    revealedQuestion &&
+    displayRound &&
+    revealedRoundIndex !== null &&
+    revealedRoundIndex === displayRound.roundIndex
+  );
+  const displayRevealQuestion = localRevealQuestion ?? (isServerRevealVisible ? revealedQuestion : null);
+  const displayRevealCorrectId =
+    (localRevealQuestion?.correctOptionId || undefined) ??
+    (isServerRevealVisible ? revealedCorrectId : undefined);
+  const displayRevealExplanation =
+    ((localRevealQuestion?.explanation as string | undefined) || undefined) ??
+    (isServerRevealVisible ? revealedExplanation : undefined);
+  const showRevealMode = isQuestionLoading || isSelfRevealVisible || isServerRevealVisible;
+  const isAnswerLocked = Boolean(activeRound?.hasSubmitted) || submitting || isRoundSwitchDelay;
 
   // ─── Matching Pairs Hook ──────────────────────────────────────────────────
   const {
@@ -220,6 +260,56 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
     activeRoundRef.current = activeRound;
   }, [activeRound?.roundId, activeRound?.startedAt]);
 
+  // Hold 2.5 seconds before showing the next round question.
+  useEffect(() => {
+    const currentRoundId = activeRound?.roundId ?? null;
+    if (currentRoundId === null) {
+      // Keep the last question visible briefly when match is finished.
+      if (match?.status === "finished" && displayRound) {
+        return;
+      }
+      if (roundSwitchTimeoutRef.current !== null) {
+        window.clearTimeout(roundSwitchTimeoutRef.current);
+        roundSwitchTimeoutRef.current = null;
+      }
+      prevRoundIdRef.current = null;
+      setIsRoundSwitchDelay(false);
+      setDisplayRound(null);
+      return;
+    }
+    if (prevRoundIdRef.current === null) {
+      prevRoundIdRef.current = currentRoundId;
+      displayRoundShownAtMsRef.current = Date.now();
+      setDisplayRound(activeRound);
+      return;
+    }
+    if (prevRoundIdRef.current !== currentRoundId) {
+      prevRoundIdRef.current = currentRoundId;
+      setIsRoundSwitchDelay(true);
+      if (roundSwitchTimeoutRef.current !== null) {
+        window.clearTimeout(roundSwitchTimeoutRef.current);
+      }
+      roundSwitchTimeoutRef.current = window.setTimeout(() => {
+        displayRoundShownAtMsRef.current = Date.now();
+        setDisplayRound(latestActiveRoundRef.current);
+        setIsRoundSwitchDelay(false);
+        roundSwitchTimeoutRef.current = null;
+      }, ROUND_SWITCH_DELAY_MS);
+      return;
+    }
+    if (isRoundSwitchDelay) return;
+    displayRoundShownAtMsRef.current = Date.now();
+    setDisplayRound(activeRound);
+  }, [activeRound, isRoundSwitchDelay, match?.status, displayRound]);
+
+  useEffect(() => {
+    return () => {
+      if (roundSwitchTimeoutRef.current !== null) {
+        window.clearTimeout(roundSwitchTimeoutRef.current);
+      }
+    };
+  }, []);
+
   // ─── Intermission countdown timer ────────────────────────────────────────
   useEffect(() => {
     if (!intermissionUntil) {
@@ -241,25 +331,31 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
   // deadlineAt. During intermission startedAt is in the future so we show 0
   // and the intermission countdown takes over.
   useEffect(() => {
-    if (!match?.activeRound?.deadlineAt) {
+    if (!displayRound?.deadlineAt) {
       setRemainingSeconds(0);
       return;
     }
     const tick = () => {
-      const deadlineAt = match.activeRound?.deadlineAt ?? "";
-      const startedAt = match.activeRound?.startedAt ?? "";
+      if (displayRound?.hasSubmitted) {
+        return;
+      }
+      const deadlineAt = displayRound?.deadlineAt ?? "";
+      const startedAt = displayRound?.startedAt ?? "";
       const deadline = new Date(deadlineAt).getTime();
       const startMs = startedAt ? new Date(startedAt).getTime() : 0;
-      const now = Date.now();
-      // Count down only within the question window [startedAt, deadlineAt]
-      const effective = Math.max(now, startMs);
-      const diff = Math.max(0, deadline - effective);
+      const roundDurationMs = Math.max(0, deadline - startMs);
+      if (!roundDurationMs) {
+        setRemainingSeconds(0);
+        return;
+      }
+      const elapsedSinceShown = Math.max(0, Date.now() - displayRoundShownAtMsRef.current);
+      const diff = Math.max(0, roundDurationMs - elapsedSinceShown);
       setRemainingSeconds(Math.ceil(diff / 1000));
     };
     tick();
     const intervalId = window.setInterval(tick, 200);
     return () => window.clearInterval(intervalId);
-  }, [match?.activeRound?.deadlineAt, match?.activeRound?.startedAt]);
+  }, [displayRound?.deadlineAt, displayRound?.startedAt]);
 
   // ─── Proactive re-sync when timer reaches zero ────────────────────────────
   // This triggers a manual state sync when the local timer hits 0,
@@ -322,12 +418,6 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
     handleSubmit();
   };
 
-  useEffect(() => {
-    if (match?.status === "finished" && match.matchId === matchId) {
-      router.replace(`/arena/result/${match.matchId}`);
-    }
-  }, [match?.matchId, match?.status, matchId, router]);
-
   // ─── Submit handler ───────────────────────────────────────────────────────
   const handleSubmit = async () => {
     if (!match?.activeRound || match.activeRound.status !== "active") return;
@@ -374,9 +464,6 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
       if (result.roundClosed) {
         setSelectedOptionId(null);
       }
-      if (result.matchFinished) {
-        router.push(`/arena/result/${result.state.matchId}`);
-      }
     } catch (err) {
       useArenaMatchStore.getState().patchMatch({
         activeRound: match?.activeRound ? { ...match.activeRound, hasSubmitted: false } : null
@@ -392,81 +479,353 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
     () => new Map((match?.presenceStates ?? []).map((entry) => [entry.userId, entry])),
     [match?.presenceStates]
   );
-  const submittedCount = activeRound?.submittedPlayerIds.length ?? 0;
-  const totalPlayers = match?.standings.length ?? 0;
-  const pendingPlayers = useMemo(() => {
-    if (!activeRound || !match) return [];
-    const submitted = new Set(activeRound.submittedPlayerIds);
-    return match.standings
-      .filter((entry) => !submitted.has(entry.userId))
-      .map((entry) => ({
-        displayName: entry.userId === authUser?.id ? "You" : entry.displayName,
-        disconnected: presenceByUserId.get(entry.userId)?.connectionState === "disconnected",
-      }));
-  }, [activeRound, authUser?.id, match, presenceByUserId]);
 
-  const timerBase = activeRound?.timerSeconds || 15;
-  const renderQuestion = displayRevealQuestion ?? activeRound?.question;
+  const maxPossibleScore = useMemo(() => {
+    const rounds = Math.max(match?.totalRounds ?? 1, 1);
+    return rounds * ROUND_MAX_SCORE;
+  }, [match?.totalRounds]);
+
+  const versusPlayers = useMemo(() => {
+    const ranked = [...(match?.standings ?? [])]
+      .sort((a, b) => a.rank - b.rank)
+      .slice(0, 2);
+
+    return ranked.map((entry, index) => {
+      const presence = presenceByUserId.get(entry.userId);
+      const avatarUrl = presence?.avatarUrl || "/avatar/chicken.png";
+      const fillPercent = Math.max(0, Math.min(100, (entry.score / maxPossibleScore) * 100));
+      return {
+        userId: entry.userId,
+        displayName: entry.displayName,
+        avatarUrl,
+        score: entry.score,
+        fillPercent,
+      };
+    });
+  }, [authUser?.id, match?.standings, maxPossibleScore, presenceByUserId]);
+
+  const renderQuestion = displayRevealQuestion ?? displayRound?.question;
+  const currentResult =
+    match?.currentPlayerResult ??
+    match?.standings?.find((entry) => entry.userId === authUser?.id) ??
+    null;
+  const winLoseText = currentResult
+    ? currentResult.rank === 1
+      ? "Win"
+      : "Lose"
+    : "-";
+  const normalizedRankTierBefore = (currentResult?.rankTierBefore ?? "").trim();
+  const normalizedRankTierAfter = (currentResult?.rankTierAfter ?? "").trim();
+  const rankTierBefore = normalizedRankTierBefore || normalizedRankTierAfter || "";
+  const rankTierAfter = normalizedRankTierAfter || normalizedRankTierBefore || "";
+  const rankTierText = rankTierBefore && rankTierAfter
+    ? (rankTierBefore === rankTierAfter ? rankTierAfter : `${rankTierBefore} -> ${rankTierAfter}`)
+    : "Settling...";
+  const rankTierBadge = resolveRankTierBadgeVisual(rankTierAfter || rankTierBefore || null);
   // During intermission the progress bar should be full (time starting from 0)
   // Once intermission ends, show remaining round time
   const displaySeconds = isInIntermission ? 0 : remainingSeconds;
+  const inlineQuestionInCenter = versusPlayers.length === 2;
+
+  const questionArea = (displayRound || isInIntermission || match?.status === "finished") ? (
+    <div className="relative rounded-[28px] border border-white/70 bg-white/74 p-6 shadow-xl backdrop-blur-xl">
+      {match?.status === "finished" ? (
+        <div className="space-y-4">
+          <p className="text-xs font-bold uppercase tracking-[0.22em] text-brand-teal">Match Complete</p>
+          <h2 className="font-heading text-3xl font-extrabold text-brand-gray-700">Final Summary</h2>
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="rounded-2xl border border-white/70 bg-white/68 px-4 py-4">
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-teal">Win Or Lose</p>
+              <p className="mt-2 font-heading text-2xl font-bold text-brand-gray-700">{winLoseText}</p>
+            </div>
+            <div className="rounded-2xl border border-white/70 bg-white/68 px-4 py-4">
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-teal">Credits</p>
+              <p className="mt-2 font-heading text-2xl font-bold text-brand-gray-700">+{currentResult?.creditsGained ?? 0}</p>
+            </div>
+            <div className="rounded-2xl border border-white/70 bg-white/68 px-4 py-4">
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-teal">Gained</p>
+              <p className="mt-2 font-heading text-2xl font-bold text-brand-gray-700">+{currentResult?.xpGained ?? 0} XP</p>
+            </div>
+            <div className="rounded-2xl border border-white/70 bg-white/68 px-4 py-4">
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-teal">Accuracy</p>
+              <p className="mt-2 font-heading text-2xl font-bold text-brand-gray-700">{currentResult?.accuracy ?? 0}%</p>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-white/70 bg-white/68 px-4 py-4">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-teal">Rank Tier</p>
+            <div className="mt-2 flex items-center gap-3">
+              <Image
+                src={rankTierBadge.src}
+                alt={rankTierBadge.alt}
+                width={36}
+                height={36}
+                className="h-9 w-9 object-contain"
+              />
+              <p className="font-heading text-2xl font-bold text-brand-gray-700">{rankTierText}</p>
+            </div>
+          </div>
+          <GameButton className="mt-2 w-full py-4 text-lg" onClick={() => router.push("/home")}>
+            Back To Home
+          </GameButton>
+        </div>
+      ) : (
+        <>
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-teal text-white">
+            {(renderQuestion?.questionType) === "MultipleChoice" && <FiList />}
+            {(renderQuestion?.questionType) === "MatchingPairs" && <FiHash />}
+            {(renderQuestion?.questionType) === "Ordering" && <FiLayers />}
+            {(renderQuestion?.questionType) === "FeynmanMirror" && <FiMessageSquare />}
+            {(renderQuestion?.questionType) === "ExplainerMedia" && <FiBookOpen />}
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-brand-teal">
+              {isInIntermission ? "Round Reveal" : (isSelfRevealVisible ? "Your Result" : (displayRound?.question?.questionType || "Live Question"))}
+            </p>
+          </div>
+        </div>
+        {isInIntermission ? (
+          <div className="flex animate-pulse items-center gap-2 rounded-full bg-amber-100 px-3 py-1 text-[10px] font-bold text-amber-600">
+            <FiClock className="h-3 w-3" />
+            Next Round in {intermissionSeconds}s
+          </div>
+        ) : null}
+      </div>
+
+      <h2 className="font-heading text-2xl font-bold leading-tight text-brand-gray-700">
+        {renderQuestion?.prompt}
+      </h2>
+
+      {isQuestionLoading ? (
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-[28px] bg-white/75 text-center backdrop-blur-md">
+          <div className="h-16 w-16 animate-spin rounded-full border-[6px] border-brand-teal/15 border-t-brand-teal/70" />
+          <p className="mt-5 text-lg font-bold text-brand-gray-700">Waiting for both players to load the question</p>
+          <p className="mt-2 text-sm text-brand-gray-500">The round will start once everyone enters this screen.</p>
+        </div>
+      ) : null}
+
+      {showRevealMode && displayRevealExplanation && (
+        <div className="mt-3 rounded-2xl border border-brand-teal/20 bg-brand-teal/5 px-4 py-3">
+          <p className="mb-1 text-xs font-bold uppercase tracking-widest text-brand-teal">Explanation</p>
+          <p className="text-sm leading-relaxed text-brand-gray-600">
+            {displayRevealExplanation}
+          </p>
+        </div>
+      )}
+
+      {(() => {
+        const q = renderQuestion || activeRound?.question;
+        if (!q || !q.questionType) return null;
+
+        if (q.questionType === "MultipleChoice") {
+          const rIdx = (latestReveal?.payload as any)?.roundIndex;
+          const componentKey = isInIntermission ? `reveal-${rIdx}` : `live-${displayRound?.roundId}`;
+          const selectedForReveal = isInIntermission
+            ? (userAnswersRef.current.get(rIdx) || undefined)
+            : (submissionReview?.selectedOptionId || undefined);
+          return (
+            <div className="mt-4" key={componentKey}>
+              <MultipleChoiceQuestion
+                hideChrome
+                stageIndex={isInIntermission ? (rIdx ?? 0) : (match?.currentRoundIndex ?? 0)}
+                totalStages={match?.totalRounds ?? 0}
+                topic={q.prompt}
+                difficulty={mapDifficulty(q.difficulty)}
+                question={q.prompt}
+                options={q.options}
+                correctId=""
+                forceCorrectId={displayRevealCorrectId}
+                userSelectedId={selectedForReveal}
+                isLocked={isAnswerLocked}
+                feedbackMsg={{ success: "", error: "", hint: "" }}
+                onSelect={(id: string) => !showRevealMode && !isAnswerLocked && setSelectedOptionId(id)}
+                onComplete={(id: string) => !showRevealMode && !isAnswerLocked && setSelectedOptionId(id)}
+                onHintUse={async () => true}
+              />
+            </div>
+          );
+        }
+
+        if (q.questionType === "MatchingPairs") {
+          const rIdx = (latestReveal?.payload as any)?.roundIndex;
+          const componentKey = isInIntermission ? `reveal-${rIdx}` : `live-${displayRound?.roundId}`;
+          return (
+            <div className="mt-6" key={componentKey}>
+              <MatchingPairsQuestion
+                hideChrome
+                stageIndex={isInIntermission ? (rIdx ?? 0) : (match?.currentRoundIndex ?? 0)}
+                totalStages={match?.totalRounds ?? 0}
+                topic={q.prompt}
+                difficulty={mapDifficulty(q.difficulty)}
+                question={q.prompt}
+                pairs={formatMatchingPairs(q.options || [])}
+                shuffledRightIds={isInIntermission ? formatMatchingPairs(q.options || []).map(p => p.id) : shuffledRightIds}
+                matched={isInIntermission ? formatMatchingPairs(q.options || []).map(p => p.id) : matched}
+                matchedPairs={isInIntermission ? Object.fromEntries(formatMatchingPairs(q.options || []).map(p => [p.id, p.id])) : matchedPairs}
+                selectedLeftId={isInIntermission || isAnswerLocked ? null : selectedLeftId}
+                selectedRightId={isInIntermission || isAnswerLocked ? null : selectedRightId}
+                wrongPair={null}
+                hintPairId={null}
+                hintUsed={false}
+                allMatched={showRevealMode ? true : allMatched}
+                feedback={null}
+                isRevealed={showRevealMode}
+                onPickLeft={showRevealMode || isAnswerLocked ? () => {} : pickLeft}
+                onPickRight={showRevealMode || isAnswerLocked ? () => {} : pickRight}
+                onHint={showRevealMode || isAnswerLocked ? () => {} : () => void handleMatchingHint()}
+                onSubmit={() => {}}
+                onSkip={() => {}}
+              />
+            </div>
+          );
+        }
+
+        if (q.questionType === "Ordering") {
+          const rIdx = (latestReveal?.payload as any)?.roundIndex;
+          const componentKey = isInIntermission ? `reveal-${rIdx}` : `live-${displayRound?.roundId}`;
+          return (
+            <div className="mt-6" key={componentKey}>
+              <OrderingQuestion
+                hideChrome
+                stageIndex={isInIntermission ? (rIdx ?? 0) : (match?.currentRoundIndex ?? 0)}
+                totalStages={match?.totalRounds ?? 0}
+                topic={q.prompt}
+                difficulty={mapDifficulty(q.difficulty)}
+                isRevealed={showRevealMode}
+                stage={{
+                  stageId: (isInIntermission ? rIdx.toString() : displayRound?.roundId.toString()) || "0",
+                  topic: q.prompt,
+                  component: "Ordering",
+                  config: {
+                    data: { steps: q.options || [] },
+                    initialState: { order: stableOrderedItems },
+                  },
+                  feedback: { success: "", error: "" }
+                } as any}
+                onSubmit={async (items: string[]) => {
+                  if (!showRevealMode && !isAnswerLocked) setSelectedOptionId(JSON.stringify(items));
+                }}
+                onChange={(items: string[]) => !showRevealMode && !isAnswerLocked && setSelectedOptionId(JSON.stringify(items))}
+                onContinue={() => {}}
+                onSkip={() => {}}
+              />
+            </div>
+          );
+        }
+
+        if (q.questionType === "FeynmanMirror") {
+          const rIdx = (latestReveal?.payload as any)?.roundIndex;
+          const componentKey = isInIntermission ? `reveal-${rIdx}` : `live-${displayRound?.roundId}`;
+          return (
+            <div className="mt-6" key={componentKey}>
+              <FeynmanQuestion
+                hideChrome
+                stageIndex={isInIntermission ? (rIdx ?? 0) : (match?.currentRoundIndex ?? 0)}
+                totalStages={match?.totalRounds ?? 0}
+                topic={q.prompt}
+                difficulty={mapDifficulty(q.difficulty)}
+                prompt={q.prompt}
+                sampleAnswer={displayRevealExplanation || displayRevealCorrectId || ""}
+                feedbackMsg={{ success: "", error: "", hint: "Keep it simple." }}
+                isRevealed={showRevealMode}
+                onSubmit={async (answer: string) => {
+                  if (!showRevealMode && !isAnswerLocked) {
+                    setSelectedOptionId(answer);
+                    return { result: "correct", feedback: "Captured explanation." };
+                  }
+                  return { result: "correct", feedback: "" };
+                }}
+                onChange={(answer: string) => !showRevealMode && !isAnswerLocked && setSelectedOptionId(answer)}
+                onContinue={() => {}}
+                onHintUse={async () => true}
+              />
+            </div>
+          );
+        }
+
+        if (q.questionType === "ExplainerMedia") {
+          const rIdx = (latestReveal?.payload as any)?.roundIndex;
+          const componentKey = isInIntermission ? `reveal-${rIdx}` : `live-${displayRound?.roundId}`;
+          return (
+            <div className="mt-6" key={componentKey}>
+              <ExplainerMediaCard
+                hideChrome
+                stageIndex={isInIntermission ? (rIdx ?? 0) : (match?.currentRoundIndex ?? 0)}
+                totalStages={match?.totalRounds ?? 0}
+                topic={q.prompt}
+                difficulty={mapDifficulty(q.difficulty)}
+                title={q.prompt}
+                explanation={(q as any).explanation || "Read this carefully."}
+                bullets={q.options?.map((o: any) => o.text || o) || []}
+                onContinue={() => !showRevealMode && !isAnswerLocked && setSelectedOptionId("acknowledged")}
+                onMount={() => !showRevealMode && !isAnswerLocked && setSelectedOptionId("acknowledged")}
+              />
+            </div>
+          );
+        }
+
+        return (
+          <div className="mt-8 rounded-xl border border-rose-200 bg-rose-50 p-6 text-center shadow-inner">
+            <FiZap className="mx-auto mb-3 h-8 w-8 text-rose-400 opacity-60" />
+            <h3 className="font-heading text-lg font-bold text-rose-800">Unsupported App Version</h3>
+            <p className="mt-2 text-sm font-medium text-rose-600">
+              The pool has provided a {"'"}{q.questionType}{"'"} component but this Arena Client does not support it.
+            </p>
+          </div>
+        );
+      })()}
+
+      <GameButton
+        className="mt-6 w-full py-4 text-lg"
+        onClick={() => void handleSubmit()}
+        disabled={!selectedOptionId || submitting || (activeRound?.hasSubmitted ?? false) || isInIntermission || isQuestionLoading}
+      >
+        {isQuestionLoading
+          ? "Loading question..."
+          : isInIntermission
+          ? `Next Round in ${intermissionSeconds}s`
+          : (isSelfRevealVisible ? `${submissionReview?.isCorrect ? "Correct" : "Incorrect"} · ${submissionReview?.scoreAwarded ?? 0} pts` : (activeRound?.hasSubmitted ? "Answer Locked ✓" : "Submit Challenge"))}
+      </GameButton>
+        </>
+      )}
+    </div>
+  ) : (
+    <div className="rounded-[28px] border border-white/70 bg-white/74 p-6 text-sm text-brand-gray-500">
+      This match has no active round right now.
+      {match?.status === "finished" ? " The result page is ready." : " Waiting for the next round to start."}
+      {match?.status === "finished" && (
+        <div className="mt-4">
+          <GameButton onClick={() => router.push(`/arena/result/${match.matchId}`)}>
+            View Result
+          </GameButton>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="min-h-screen app-shared-bg">
-      <TopStatsBar backHref="/home" pageTitle="Arena Match" />
-      <main className="mx-auto grid max-w-7xl gap-6 px-4 py-8 md:px-8 xl:grid-cols-[1.15fr_0.85fr]">
-        <DeepGlassCard className="px-6 py-6 md:px-8 md:py-8">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.24em] text-brand-teal">Match</p>
-              <h1 className="mt-2 font-heading text-4xl font-extrabold text-brand-gray-700">
-                {match?.publicCourseTitle ?? "Loading Arena match..."}
-              </h1>
-            </div>
-            <div className="flex gap-3">
-              <div className="rounded-2xl border border-white/70 bg-white/68 px-4 py-3 text-sm text-brand-gray-600">
-                Round {(match?.currentRoundIndex ?? 0) + 1} / {match?.totalRounds ?? 0}
-              </div>
-              <div className={`rounded-2xl border border-white/70 bg-white/68 px-4 py-3 text-sm font-bold transition-colors ${
-                isQuestionLoading || isInIntermission
-                  ? "text-amber-600 animate-pulse"
-                  : activeRound && remainingSeconds <= 5
-                  ? "text-rose-600 animate-pulse"
-                  : "text-brand-gray-700"
-              }`}>
-                {isQuestionLoading
-                  ? "Loading"
-                  : isInIntermission
-                  ? `Next in ${intermissionSeconds}s`
-                  : activeRound
-                  ? `${remainingSeconds}s`
-                  : match?.status === "finished"
-                  ? "Finished"
-                  : "Waiting"}
-              </div>
-            </div>
-          </div>
-
-          {/* Visual Progress Bar */}
-          {activeRound ? (
-            <div className="mt-6 h-2 w-full overflow-hidden rounded-full bg-brand-gray-100/50">
-              {isInIntermission ? (
-                // During intermission: amber fill counting DOWN from full
-                <div
-                  className="h-full bg-amber-400 transition-all duration-200 ease-linear"
-                  style={{ width: `${Math.min(100, (intermissionSeconds / 5) * 100)}%` }}
-                />
-              ) : (
-                <div
-                  className={`h-full transition-all duration-300 ease-linear ${
-                    remainingSeconds <= 5 ? "bg-rose-500" : "bg-brand-teal"
-                  }`}
-                  style={{ width: `${Math.min(100, (remainingSeconds / timerBase) * 100)}%` }}
-                />
-              )}
-            </div>
-          ) : null}
-
+      <TopStatsBar
+        backHref="/home"
+        pageTitle="Arena Match"
+        quickLinks={[
+          {
+            href: "/multiplayer",
+            label: "Multiplayer",
+            iconSrc: "/svg/multiplayer-controller.svg",
+            iconAlt: "Multiplayer",
+          },
+          {
+            href: "/arena/leaderboard",
+            label: "Leaderboard",
+            iconSrc: "/svg/leaderboard-logo.svg",
+            iconAlt: "Leaderboard",
+          },
+        ]}
+      />
+      <main className="mx-auto max-w-[1180px] px-3 pt-2 pb-4 md:px-6">
+        <DeepGlassCard className="px-4 pt-0 pb-4 md:px-6 md:pt-0 md:pb-6">
           {connectionStatus !== "connected" || isRecovering ? (
             <div className="mt-5 rounded-2xl border border-sky-200 bg-sky-50/90 px-4 py-3 text-sm text-sky-900">
               {connectionStatus === "reconnecting" || isRecovering
@@ -475,330 +834,94 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
             </div>
           ) : null}
 
-          {submitNotice ? (
-            <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50/90 px-4 py-3 text-sm text-emerald-800">
-              {submitNotice}
-            </div>
-          ) : null}
-
-          {activeRound ? (
-            <div className="mt-5 rounded-2xl border border-white/70 bg-white/68 px-4 py-3">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <p className="text-sm font-semibold text-brand-gray-700">
-                  {submittedCount} / {totalPlayers} players locked in
-                </p>
-                <p className="text-xs uppercase tracking-[0.16em] text-brand-teal">
-                  {pendingPlayers.length === 0 ? "All answers received" : "Waiting on players"}
-                </p>
-              </div>
-              {pendingPlayers.length > 0 ? (
-                <p className="mt-2 text-xs text-brand-gray-500">
-                  Pending:{" "}
-                  {pendingPlayers
-                    .map((player) =>
-                      player.disconnected ? `${player.displayName} (reconnecting)` : player.displayName
-                    )
-                    .join(", ")}
-                </p>
-              ) : null}
-            </div>
-          ) : null}
-
-          {/* ── QUESTION AREA ──────────────────────────────────────────── */}
-          {(activeRound || isInIntermission) ? (
-            <div className="mt-6">
-              <div className="relative rounded-[28px] border border-white/70 bg-white/74 p-6 shadow-xl backdrop-blur-xl">
-                <div className="flex items-center justify-between gap-4 mb-4">
-                  <div className="flex items-center gap-2">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-teal text-white">
-                      {(renderQuestion?.questionType) === "MultipleChoice" && <FiList />}
-                      {(renderQuestion?.questionType) === "MatchingPairs" && <FiHash />}
-                      {(renderQuestion?.questionType) === "Ordering" && <FiLayers />}
-                      {(renderQuestion?.questionType) === "FeynmanMirror" && <FiMessageSquare />}
-                      {(renderQuestion?.questionType) === "ExplainerMedia" && <FiBookOpen />}
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-brand-teal">
-                        {isInIntermission ? "Round Reveal" : (isSelfRevealVisible ? "Your Result" : (activeRound?.question?.questionType || "Live Question"))}
-                      </p>
-                    </div>
-                  </div>
-                  {isInIntermission ? (
-                    <div className="flex items-center gap-2 rounded-full bg-amber-100 px-3 py-1 text-[10px] font-bold text-amber-600 animate-pulse">
-                      <FiClock className="h-3 w-3" />
-                      Next Round in {intermissionSeconds}s
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 rounded-full bg-brand-teal/10 px-3 py-1 text-[10px] font-bold text-brand-teal">
-                      <FiZap className="h-3 w-3" />
-                      {remainingSeconds < 5 ? (
-                        <span className="text-red-500">Hurry! {remainingSeconds}s</span>
-                      ) : (
-                        "+50 Max Points"
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                <h2 className="font-heading text-2xl font-bold leading-tight text-brand-gray-700">
-                  {renderQuestion?.prompt}
-                </h2>
-
-                {isQuestionLoading ? (
-                  <div className="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-[28px] bg-white/75 text-center backdrop-blur-md">
-                    <div className="h-16 w-16 animate-spin rounded-full border-[6px] border-brand-teal/15 border-t-brand-teal/70" />
-                    <p className="mt-5 text-lg font-bold text-brand-gray-700">Waiting for both players to load the question</p>
-                    <p className="mt-2 text-sm text-brand-gray-500">The round will start once everyone enters this screen.</p>
-                  </div>
-                ) : null}
-
-                {/* Optional Explanation for Intermission */}
-                {showRevealMode && displayRevealExplanation && (
-                  <div className="mt-3 rounded-2xl border border-brand-teal/20 bg-brand-teal/5 px-4 py-3">
-                    <p className="text-xs font-bold uppercase tracking-widest text-brand-teal mb-1">Explanation</p>
-                    <p className="text-sm text-brand-gray-600 leading-relaxed">
-                      {displayRevealExplanation}
+          {versusPlayers.length === 2 ? (
+            <div className="mt-0 p-3">
+              <div className="mb-3 grid items-start gap-3 md:grid-cols-[140px_1fr_140px]">
+                <div className="mx-auto w-full max-w-[140px] md:order-1">
+                  <div className="flex w-full flex-col items-center justify-center text-center">
+                    <img
+                      src={versusPlayers[0].avatarUrl}
+                      alt={versusPlayers[0].displayName}
+                      className="h-20 w-20 rounded-full border-4 border-[#c7deec] bg-white object-cover shadow-[0_0_0_4px_rgba(226,241,248,0.9)]"
+                      onError={(event) => {
+                        event.currentTarget.src = "/avatar/chicken.png";
+                      }}
+                    />
+                    <p className="mt-2 w-full text-center font-heading text-lg font-bold text-[#0a5d9a]">
+                      {versusPlayers[0].displayName}
                     </p>
                   </div>
-                )}
+                </div>
 
-                {/* ---- QUESTION RENDERERS ---- */}
-                {(() => {
-                  // Prioritize revealed question during intermission, fallback to active question ONLY if revealed is not yet available
-                  const q = renderQuestion || activeRound?.question;
-                  if (!q || !q.questionType) return null;
+                <div className="mx-auto flex w-full max-w-[140px] flex-col items-center justify-center text-center md:order-2">
+                  <div className="relative flex h-20 w-20 items-center justify-center">
+                    <div className="absolute inset-0 rounded-full border-[6px] border-[#d2e8f2]" />
+                    <div className="absolute inset-[12px] rounded-full border-[3px] border-[#94b9c9] border-dashed" />
+                    <p className="relative z-10 font-heading text-3xl font-light leading-none text-[#2f404c]">
+                      {activeRound ? (isQuestionLoading ? "..." : displaySeconds) : (match?.status === "finished" ? "✓" : "--")}
+                    </p>
+                  </div>
+                  <p className="mt-2 w-full text-center text-sm font-bold text-brand-teal">
+                    Round {(match?.currentRoundIndex ?? 0) + 1} / {match?.totalRounds ?? 0}
+                  </p>
+                </div>
 
-                  if (q.questionType === "MultipleChoice") {
-                    const rIdx = (latestReveal?.payload as any)?.roundIndex;
-                    const componentKey = isInIntermission ? `reveal-${rIdx}` : `live-${activeRound?.roundId}`;
-                    const selectedForReveal = isInIntermission
-                      ? (userAnswersRef.current.get(rIdx) || undefined)
-                      : (submissionReview?.selectedOptionId || undefined);
-                    return (
-                      <div className="mt-4" key={componentKey}>
-                        <MultipleChoiceQuestion
-                          hideChrome
-                          stageIndex={isInIntermission ? (rIdx ?? 0) : (match?.currentRoundIndex ?? 0)}
-                          totalStages={match?.totalRounds ?? 0}
-                          topic={q.prompt}
-                          difficulty={mapDifficulty(q.difficulty)}
-                          question={q.prompt}
-                          options={q.options}
-                          correctId="" 
-                          forceCorrectId={displayRevealCorrectId}
-                          userSelectedId={selectedForReveal}
-                          feedbackMsg={{ success: "", error: "", hint: "" }}
-                          onSelect={(id: string) => !showRevealMode && setSelectedOptionId(id)}
-                          onComplete={(id: string) => !showRevealMode && setSelectedOptionId(id)}
-                          onHintUse={async () => true}
-                        />
+                <div className="mx-auto w-full max-w-[140px] md:order-3">
+                  <div className="flex w-full flex-col items-center justify-center text-center">
+                    <img
+                      src={versusPlayers[1].avatarUrl}
+                      alt={versusPlayers[1].displayName}
+                      className="h-20 w-20 rounded-full border-4 border-[#c7deec] bg-white object-cover shadow-[0_0_0_4px_rgba(226,241,248,0.9)]"
+                      onError={(event) => {
+                        event.currentTarget.src = "/avatar/chicken.png";
+                      }}
+                    />
+                    <p className="mt-2 w-full text-center font-heading text-lg font-bold text-[#0a5d9a]">
+                      {versusPlayers[1].displayName}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid items-stretch gap-3 md:grid-cols-[140px_1fr_140px]">
+                {versusPlayers.map((player, index) => (
+                  <div
+                    key={player.userId}
+                    className={`mx-auto h-full w-full max-w-[140px] rounded-[28px] border-[3px] border-[#78b7cf] bg-[#eef7ff]/85 p-2.5 shadow-md ${index === 0 ? "md:order-1" : "md:order-3"}`}
+                  >
+                    <div className="flex h-full flex-col items-center justify-between py-2">
+                      <div className="text-center">
+                        <p className="font-heading text-5xl font-bold leading-none text-[#2b3f4d]">{player.score}</p>
                       </div>
-                    );
-                  }
-
-                  if (q.questionType === "MatchingPairs") {
-                    const rIdx = (latestReveal?.payload as any)?.roundIndex;
-                    const componentKey = isInIntermission ? `reveal-${rIdx}` : `live-${activeRound?.roundId}`;
-                    return (
-                      <div className="mt-6" key={componentKey}>
-                        <MatchingPairsQuestion
-                          hideChrome
-                          stageIndex={isInIntermission ? (rIdx ?? 0) : (match?.currentRoundIndex ?? 0)}
-                          totalStages={match?.totalRounds ?? 0}
-                          topic={q.prompt}
-                          difficulty={mapDifficulty(q.difficulty)}
-                          question={q.prompt}
-                          pairs={formatMatchingPairs(q.options || [])}
-                          shuffledRightIds={isInIntermission ? formatMatchingPairs(q.options || []).map(p => p.id) : shuffledRightIds}
-                          matched={isInIntermission ? formatMatchingPairs(q.options || []).map(p => p.id) : matched}
-                          matchedPairs={isInIntermission ? Object.fromEntries(formatMatchingPairs(q.options || []).map(p => [p.id, p.id])) : matchedPairs}
-                          selectedLeftId={isInIntermission ? null : selectedLeftId}
-                          selectedRightId={isInIntermission ? null : selectedRightId}
-                          wrongPair={null}
-                          hintPairId={null}
-                          hintUsed={false}
-                          allMatched={showRevealMode ? true : allMatched}
-                          feedback={null}
-                          isRevealed={showRevealMode}
-                          onPickLeft={showRevealMode ? () => {} : pickLeft}
-                          onPickRight={showRevealMode ? () => {} : pickRight}
-                          onHint={showRevealMode ? () => {} : () => void handleMatchingHint()}
-                          onSubmit={() => {}}
-                          onSkip={() => {}}
-                        />
+                      <div className="my-2 flex min-h-[230px] flex-1 w-16 items-end justify-center rounded-[14px] bg-transparent p-1.5">
+                        <div className="relative h-full w-8 overflow-hidden rounded-[10px] bg-[#2f3840]">
+                          {player.fillPercent > 0 ? (
+                            <div
+                              className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#f4efb4] to-[#6ed3b2] transition-all duration-500"
+                              style={{ height: `${player.fillPercent}%` }}
+                            />
+                          ) : null}
+                        </div>
                       </div>
-                    );
-                  }
-
-                  if (q.questionType === "Ordering") {
-                    const rIdx = (latestReveal?.payload as any)?.roundIndex;
-                    const componentKey = isInIntermission ? `reveal-${rIdx}` : `live-${activeRound?.roundId}`;
-                    return (
-                      <div className="mt-6" key={componentKey}>
-                        <OrderingQuestion
-                          hideChrome
-                          stageIndex={isInIntermission ? (rIdx ?? 0) : (match?.currentRoundIndex ?? 0)}
-                          totalStages={match?.totalRounds ?? 0}
-                          topic={q.prompt}
-                          difficulty={mapDifficulty(q.difficulty)}
-                          isRevealed={showRevealMode}
-                          stage={{
-                            stageId: (isInIntermission ? rIdx.toString() : activeRound?.roundId.toString()) || "0",
-                            topic: q.prompt,
-                            component: "Ordering",
-                            config: {
-                              data: { steps: q.options || [] },
-                              initialState: { order: stableOrderedItems },
-                            },
-                            feedback: { success: "", error: "" }
-                          } as any}
-                          onSubmit={async (items: string[]) => {
-                            if (!showRevealMode) setSelectedOptionId(JSON.stringify(items));
-                          }}
-                          onChange={(items: string[]) => !showRevealMode && setSelectedOptionId(JSON.stringify(items))}
-                          onContinue={() => {}}
-                          onSkip={() => {}}
-                        />
+                      <div className="text-center">
+                        <p className="text-xs font-bold uppercase tracking-[0.14em] text-brand-gray-500">Score Bar</p>
+                        <p className="font-heading text-2xl font-bold text-brand-gray-700">{Math.round(player.fillPercent)}%</p>
                       </div>
-                    );
-                  }
-
-                  if (q.questionType === "FeynmanMirror") {
-                    const rIdx = (latestReveal?.payload as any)?.roundIndex;
-                    const componentKey = isInIntermission ? `reveal-${rIdx}` : `live-${activeRound?.roundId}`;
-                    return (
-                      <div className="mt-6" key={componentKey}>
-                        <FeynmanQuestion
-                          hideChrome
-                          stageIndex={isInIntermission ? (rIdx ?? 0) : (match?.currentRoundIndex ?? 0)}
-                          totalStages={match?.totalRounds ?? 0}
-                          topic={q.prompt}
-                          difficulty={mapDifficulty(q.difficulty)}
-                          prompt={q.prompt}
-                          sampleAnswer={displayRevealExplanation || displayRevealCorrectId || ""}
-                          feedbackMsg={{ success: "", error: "", hint: "Keep it simple." }}
-                          isRevealed={showRevealMode}
-                          onSubmit={async (answer: string) => {
-                            if (!showRevealMode) {
-                              setSelectedOptionId(answer);
-                              return { result: "correct", feedback: "Captured explanation." };
-                            }
-                            return { result: "correct", feedback: "" };
-                          }}
-                          onChange={(answer: string) => !showRevealMode && setSelectedOptionId(answer)}
-                          onContinue={() => {}}
-                          onHintUse={async () => true}
-                        />
-                      </div>
-                    );
-                  }
-
-                  if (q.questionType === "ExplainerMedia") {
-                    const rIdx = (latestReveal?.payload as any)?.roundIndex;
-                    const componentKey = isInIntermission ? `reveal-${rIdx}` : `live-${activeRound?.roundId}`;
-                    return (
-                      <div className="mt-6" key={componentKey}>
-                        <ExplainerMediaCard
-                          hideChrome
-                          stageIndex={isInIntermission ? (rIdx ?? 0) : (match?.currentRoundIndex ?? 0)}
-                          totalStages={match?.totalRounds ?? 0}
-                          topic={q.prompt}
-                          difficulty={mapDifficulty(q.difficulty)}
-                          title={q.prompt}
-                          explanation={(q as any).explanation || "Read this carefully."}
-                          bullets={q.options?.map((o: any) => o.text || o) || []}
-                          onContinue={() => !showRevealMode && setSelectedOptionId("acknowledged")}
-                          onMount={() => !showRevealMode && setSelectedOptionId("acknowledged")}
-                        />
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <div className="mt-8 rounded-xl border border-rose-200 bg-rose-50 p-6 text-center shadow-inner">
-                      <FiZap className="mx-auto h-8 w-8 text-rose-400 opacity-60 mb-3" />
-                      <h3 className="font-heading font-bold text-rose-800 text-lg">Unsupported App Version</h3>
-                      <p className="mt-2 text-sm font-medium text-rose-600">
-                        The pool has provided a {"'"}{q.questionType}{"'"} component but this Arena Client does not support it.
-                      </p>
                     </div>
-                  );
-                })()}
+                  </div>
+                ))}
 
-                <GameButton
-                  className="mt-6 w-full py-4 text-lg"
-                  onClick={() => void handleSubmit()}
-                  disabled={!selectedOptionId || submitting || (activeRound?.hasSubmitted ?? false) || isInIntermission || isQuestionLoading}
-                >
-                  {isQuestionLoading
-                    ? "Loading question..."
-                    : isInIntermission 
-                    ? `Next Round in ${intermissionSeconds}s` 
-                    : (isSelfRevealVisible ? `${submissionReview?.isCorrect ? "Correct" : "Incorrect"} · ${submissionReview?.scoreAwarded ?? 0} pts` : (activeRound?.hasSubmitted ? "Answer Locked ✓" : "Submit Challenge"))}
-                </GameButton>
+                <div className="flex w-full flex-col justify-center md:order-2">
+                  <div className="w-full">{questionArea}</div>
+                </div>
               </div>
             </div>
-          ) : (
-            <div className="mt-6 rounded-[28px] border border-white/70 bg-white/74 p-6 text-sm text-brand-gray-500">
-              This match has no active round right now.
-              {match?.status === "finished" ? " The result page is ready." : " Waiting for the next round to start."}
-              {match?.status === "finished" && (
-                <div className="mt-4">
-                  <GameButton onClick={() => router.push(`/arena/result/${match.matchId}`)}>
-                    View Result
-                  </GameButton>
-                </div>
-              )}
-            </div>
-          )}
+          ) : null}
+
+          {!inlineQuestionInCenter ? (
+            <div className="mt-6">{questionArea}</div>
+          ) : null}
         </DeepGlassCard>
-
-        <div className="flex flex-col gap-6">
-          <DeepGlassCard className="px-6 py-6">
-            <h2 className="font-heading text-2xl font-bold text-brand-gray-700">Standings</h2>
-            <div className="mt-5 space-y-3">
-              {match?.standings.map((entry) => (
-                <div key={entry.userId} className="flex items-center justify-between rounded-2xl border border-white/70 bg-white/68 px-4 py-3">
-                  <div>
-                    <p className="font-heading text-lg font-bold text-brand-gray-700">
-                      #{entry.rank} {entry.displayName}
-                    </p>
-                    <p className="text-xs text-brand-gray-500">
-                      {entry.correctCount} correct / {entry.answeredCount} answered
-                    </p>
-                    {presenceByUserId.get(entry.userId)?.connectionState === "disconnected" ? (
-                      <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-rose-500">
-                        Reconnecting
-                      </p>
-                    ) : null}
-                  </div>
-                  <p className="font-heading text-2xl font-bold text-brand-gray-700">{entry.score}</p>
-                </div>
-              ))}
-            </div>
-          </DeepGlassCard>
-
-          <DeepGlassCard className="px-6 py-6">
-            <h2 className="font-heading text-2xl font-bold text-brand-gray-700">Match Feed</h2>
-            <div className="mt-5 space-y-3">
-              {events.length === 0 ? (
-                <div className="rounded-2xl border border-white/70 bg-white/68 px-4 py-4 text-sm text-brand-gray-500">
-                  Waiting for match events...
-                </div>
-              ) : (
-                events
-                  .slice()
-                  .reverse()
-                  .map((event) => (
-                    <div key={event.eventId} className="rounded-2xl border border-white/70 bg-white/68 px-4 py-3">
-                      <p className="font-semibold text-brand-gray-700">{getArenaEventLabel(event)}</p>
-                      <p className="mt-1 text-xs text-brand-gray-500">{new Date(event.createdAt).toLocaleTimeString()}</p>
-                    </div>
-                  ))
-              )}
-            </div>
-          </DeepGlassCard>
-        </div>
       </main>
     </div>
   );

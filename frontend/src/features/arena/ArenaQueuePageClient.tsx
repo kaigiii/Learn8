@@ -160,7 +160,24 @@ export default function ArenaQueuePageClient() {
 
   return (
     <div className="min-h-screen bg-[url('/backgrounds/MainBg.png')] bg-cover bg-center bg-no-repeat">
-      <TopStatsBar backHref="/home" pageTitle="Arena Queue" />
+      <TopStatsBar
+        backHref="/home"
+        pageTitle="Arena Queue"
+        quickLinks={[
+          {
+            href: "/multiplayer",
+            label: "Multiplayer",
+            iconSrc: "/svg/multiplayer-controller.svg",
+            iconAlt: "Multiplayer",
+          },
+          {
+            href: "/arena/leaderboard",
+            label: "Leaderboard",
+            iconSrc: "/svg/leaderboard-logo.svg",
+            iconAlt: "Leaderboard",
+          },
+        ]}
+      />
       <main className="mx-auto flex min-h-[calc(100vh-72px)] max-w-6xl flex-col items-center justify-center px-4 py-8 md:px-8">
         <div className="w-full text-center">
           <h1 className="font-heading text-[2.7rem] font-black leading-none tracking-tight text-brand-gray-700 md:text-6xl">
@@ -169,7 +186,7 @@ export default function ArenaQueuePageClient() {
           <p className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-brand-gray-600 md:text-base">
             {matchState?.status === "pending"
               ? "Your challenger is ready. Stay on this screen while the match is being confirmed."
-              : "We are finding the next opponent for your current arena queue."}
+              : ""}
           </p>
         </div>
 
@@ -180,6 +197,7 @@ export default function ArenaQueuePageClient() {
             accent="left"
             status={currentPlayer?.isAccepted ? "READY" : "WAITING"}
             statusTone={currentPlayer?.isAccepted ? "ready" : "waiting"}
+            isAccepted={Boolean(currentPlayer?.isAccepted)}
           />
 
           <div className="flex flex-col items-center justify-center px-1 md:px-2 lg:px-3">
@@ -195,6 +213,7 @@ export default function ArenaQueuePageClient() {
             status={hasOpponent ? (opponentPlayer?.isAccepted ? "READY" : "WAITING") : "SEARCHING"}
             statusTone={hasOpponent ? (opponentPlayer?.isAccepted ? "ready" : "waiting") : "searching"}
             loading={!hasOpponent}
+            isAccepted={Boolean(opponentPlayer?.isAccepted)}
           />
         </div>
 
@@ -238,6 +257,7 @@ function PlayerDuelCard({
   status,
   statusTone,
   loading = false,
+  isAccepted = false,
 }: {
   title: string;
   avatarSrc?: string;
@@ -245,6 +265,7 @@ function PlayerDuelCard({
   status: string;
   statusTone: "ready" | "waiting" | "searching";
   loading?: boolean;
+  isAccepted?: boolean;
 }) {
   const statusClassName =
     statusTone === "ready"
@@ -263,7 +284,7 @@ function PlayerDuelCard({
             <div className="h-16 w-16 animate-spin rounded-full border-[6px] border-brand-teal/15 border-t-brand-teal/60" />
           </div>
         ) : (
-          <AvatarBubble src={avatarSrc} alt={title} />
+          <AvatarBubble src={avatarSrc} alt={title} isAccepted={isAccepted} />
         )}
       </div>
 
@@ -271,15 +292,12 @@ function PlayerDuelCard({
         <p className="truncate font-heading text-[1.55rem] font-extrabold leading-none text-brand-gray-700">
           {title}
         </p>
-        <div className={`mx-auto mt-3 inline-flex min-w-[180px] items-center justify-center rounded-full px-4 py-2 text-sm font-bold uppercase tracking-[0.16em] ${statusClassName}`}>
-          {status}
-        </div>
       </div>
     </div>
   );
 }
 
-function AvatarBubble({ src, alt }: { src?: string; alt: string }) {
+function AvatarBubble({ src, alt, isAccepted = false }: { src?: string; alt: string; isAccepted?: boolean }) {
   const imageSrc = src || "/avatar/chicken.png";
   return (
     <div className="relative flex h-[170px] w-[170px] items-center justify-center rounded-full bg-white/35 shadow-[inset_0_0_0_12px_rgba(255,255,255,0.26)]">
@@ -287,6 +305,13 @@ function AvatarBubble({ src, alt }: { src?: string; alt: string }) {
       <div className="relative h-[138px] w-[138px] overflow-hidden rounded-full bg-white shadow-[0_18px_30px_rgba(95,146,165,0.15)]">
         <Image src={imageSrc} alt={alt} fill sizes="138px" className="object-cover" />
       </div>
+      {isAccepted ? (
+        <div className="absolute bottom-1 right-1 z-10 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500 shadow-[0_10px_24px_rgba(16,185,129,0.35)] ring-4 ring-[#d8ecf4]">
+          <svg viewBox="0 0 24 24" className="h-7 w-7 text-white" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 6L9 17l-5-5" />
+          </svg>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -30,6 +30,7 @@ export interface MultipleChoiceQuestionProps
   hideChrome?: boolean;
   forceCorrectId?: string;
   userSelectedId?: string;
+  isLocked?: boolean;
 }
 
 /* ═══════════════════ Owl ═══════════════════ */
@@ -70,6 +71,7 @@ export default function MultipleChoiceQuestion({
   hideChrome = false,
   forceCorrectId,
   userSelectedId,
+  isLocked = false,
 }: MultipleChoiceQuestionProps) {
   const [selected, setSelected] = useState<string | null>(null);
   const [result, setResult] = useState<"correct" | "wrong" | null>(null);
@@ -77,7 +79,7 @@ export default function MultipleChoiceQuestion({
   const [hintUsed, setHintUsed] = useState(false);
 
   const handleCheck = useCallback(() => {
-    if (!selected || result === "correct") return;
+    if (!selected || result === "correct" || isLocked) return;
     if (selected === correctId) {
       setResult("correct");
       onComplete(selected);
@@ -85,10 +87,10 @@ export default function MultipleChoiceQuestion({
       setResult("wrong");
       onError?.(selected);
     }
-  }, [selected, correctId, onComplete, onError, result, onWrongAdvance]);
+  }, [selected, correctId, onComplete, onError, result, onWrongAdvance, isLocked]);
 
   const handleHint = useCallback(async () => {
-    if (hintUsed) return;
+    if (hintUsed || isLocked) return;
     const canAfford = await onHintUse();
     if (!canAfford) return;
     setHintUsed(true);
@@ -96,7 +98,7 @@ export default function MultipleChoiceQuestion({
     const wrongOptions = options.filter((o) => o.id !== correctId && !eliminated.includes(o.id));
     const toEliminate = wrongOptions.slice(0, 2).map((o) => o.id);
     setEliminated(toEliminate);
-  }, [hintUsed, onHintUse, options, correctId, eliminated]);
+  }, [hintUsed, onHintUse, options, correctId, eliminated, isLocked]);
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
@@ -125,7 +127,7 @@ export default function MultipleChoiceQuestion({
         </motion.div>
 
         {/* Options */}
-        <div className="grid grid-cols-1 gap-3 max-w-lg">
+        <div className="grid w-full grid-cols-1 gap-3">
           {options.map((opt, i) => {
             const isEliminated = eliminated.includes(opt.id);
             const isSelected = selected === opt.id;
@@ -141,11 +143,11 @@ export default function MultipleChoiceQuestion({
                 animate={{ opacity: isEliminated ? 0.35 : 1, x: 0 }}
                 transition={{ delay: i * 0.05 }}
                 onClick={() => {
-                  if (isEliminated || result) return;
+                  if (isEliminated || result || isLocked) return;
                   setSelected(opt.id);
                   onSelect?.(opt.id);
                 }}
-                disabled={isEliminated || !!result}
+                disabled={isEliminated || !!result || isLocked}
                 className={`relative text-left rounded-2xl px-5 py-4 border-2 border-b-4 font-heading font-bold text-base transition-all ${
                   showCorrect
                     ? "bg-brand-green/10 border-brand-green text-green-700"
@@ -192,7 +194,7 @@ export default function MultipleChoiceQuestion({
               <OwlMascotSmall />
               <button
                 onClick={() => void handleHint()}
-                disabled={hintUsed || !!result}
+                disabled={hintUsed || !!result || isLocked}
                 className={`mb-1 flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
                   hintUsed
                     ? "cursor-not-allowed border-brand-gray-200 bg-brand-gray-100 text-brand-gray-400"
@@ -225,6 +227,7 @@ export default function MultipleChoiceQuestion({
                 <GameButton
                   variant="secondary"
                   onClick={() => onSkip?.()}
+                  disabled={isLocked}
                   className="min-w-[120px]"
                 >
                   SKIP
@@ -232,7 +235,7 @@ export default function MultipleChoiceQuestion({
                 <GameButton
                   variant="primary"
                   onClick={handleCheck}
-                  disabled={!selected || result === "correct"}
+                  disabled={!selected || result === "correct" || isLocked}
                   className="min-w-[140px]"
                 >
                   CHECK
