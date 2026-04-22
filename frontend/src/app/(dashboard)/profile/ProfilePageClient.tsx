@@ -158,6 +158,7 @@ export default function ProfilePageClient() {
   const [cropZoom, setCropZoom] = useState(1);
   const [cropPixels, setCropPixels] = useState<Area | null>(null);
   const [isCropping, setIsCropping] = useState(false);
+  const [isApplyingPresetAvatar, setIsApplyingPresetAvatar] = useState(false);
   const [avatarUploadError, setAvatarUploadError] = useState("");
 
   useEffect(() => {
@@ -228,6 +229,37 @@ export default function ProfilePageClient() {
       );
     } finally {
       setIsCropping(false);
+    }
+  };
+
+  const handleConfirmPresetAvatar = async () => {
+    if (!selectedAvatarPreview) {
+      setIsAvatarSelectorOpen(false);
+      return;
+    }
+
+    setIsApplyingPresetAvatar(true);
+    setAvatarUploadError("");
+    try {
+      const response = await fetch(selectedAvatarPreview);
+      if (!response.ok) {
+        throw new Error("Failed to load preset avatar image.");
+      }
+
+      const presetBlob = await response.blob();
+      const presetName = selectedAvatarPreview.split("/").pop()?.replace(/\.png$/i, "") || "avatar";
+      const presetFile = new File([presetBlob], `${presetName}.png`, { type: "image/png" });
+      await uploadAuthenticatedAvatar(presetFile);
+      setSelectedAvatarPreview(null);
+      setIsAvatarSelectorOpen(false);
+    } catch (caughtError) {
+      setAvatarUploadError(
+        caughtError instanceof ApiError
+          ? caughtError.detail
+          : "Failed to save preset avatar. Please try again."
+      );
+    } finally {
+      setIsApplyingPresetAvatar(false);
     }
   };
 
@@ -649,15 +681,12 @@ export default function ProfilePageClient() {
               <button
                 type="button"
                 onClick={() => {
-                  if (selectedAvatarPreview) {
-                    setProfileAvatarSrc(selectedAvatarPreview);
-                  }
-                  setSelectedAvatarPreview(null);
-                  setIsAvatarSelectorOpen(false);
+                  void handleConfirmPresetAvatar();
                 }}
+                disabled={isApplyingPresetAvatar}
                 className="rounded-xl bg-brand-teal px-6 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
               >
-                Done
+                {isApplyingPresetAvatar ? "Saving..." : "Done"}
               </button>
             </div>
           </div>
