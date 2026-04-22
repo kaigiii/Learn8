@@ -17,6 +17,7 @@ class ArenaRoomCreateRequest(BaseModel):
 class ArenaRoomPlayerResponse(BaseModel):
     userId: int
     displayName: str
+    avatarUrl: Optional[str] = None
     isHost: bool
     isReady: bool
     team: Optional[str] = None
