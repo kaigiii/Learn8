@@ -51,6 +51,8 @@ class ArenaRoundStateResponse(BaseModel):
 
 class ArenaPresenceStateResponse(BaseModel):
     userId: int
+    displayName: Optional[str] = None
+    avatarUrl: Optional[str] = None
     connectionState: str
     lastSeenAt: Optional[str] = None
     disconnectedAt: Optional[str] = None

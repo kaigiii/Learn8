@@ -922,15 +922,6 @@ function PersonalProfileContent({
               className="flex w-full items-center justify-between gap-2 rounded-2xl border border-brand-gray-200 bg-white/85 px-4 py-3 text-sm text-brand-gray-700 outline-none transition hover:bg-white focus:border-brand-teal"
             >
               <span>Select Avatar</span>
-              <svg
-                viewBox="0 0 20 20"
-                className="h-5 w-5 flex-shrink-0 text-brand-gray-400"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              >
-                <path d="M7 8l3 3 3-3" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
             </button>
           </div>
         </label>

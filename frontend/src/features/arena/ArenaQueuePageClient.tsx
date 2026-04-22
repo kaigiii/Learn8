@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 
 import TopStatsBar from "@/components/layout/TopStatsBar";
-import DeepGlassCard from "@/components/ui/DeepGlassCard";
 import GameButton from "@/components/ui/GameButton";
 import {
   cancelCurrentArenaCompetitiveQueue,
@@ -29,6 +29,15 @@ export default function ArenaQueuePageClient() {
   const [error, setError] = useState<string | null>(null);
   const [acceptTimer, setAcceptTimer] = useState<number | null>(null);
   const authUser = useAuthStore((state) => state.user);
+
+  const presenceStates = matchState?.presenceStates ?? [];
+  const currentPlayer = presenceStates.find((player) => player.userId === authUser?.id) ?? null;
+  const opponentPlayer = presenceStates.find((player) => player.userId !== authUser?.id) ?? null;
+  const currentAvatar = currentPlayer?.avatarUrl || authUser?.avatar_url || "/avatar/chicken.png";
+  const currentName = currentPlayer?.displayName || authUser?.full_name || authUser?.email?.split("@")[0] || "You";
+  const opponentName = opponentPlayer?.displayName || "Finding Opponent";
+  const opponentAvatar = opponentPlayer?.avatarUrl || "/avatar/chicken.png";
+  const hasOpponent = Boolean(opponentPlayer);
 
   // Poll for queue state (fallback and initial state)
   useEffect(() => {
@@ -150,130 +159,134 @@ export default function ArenaQueuePageClient() {
   };
 
   return (
-    <div className="min-h-screen app-shared-bg">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.85),rgba(199,229,241,0.88)_40%,rgba(168,214,233,0.94)_100%)]">
       <TopStatsBar backHref="/home" pageTitle="Arena Queue" />
-      <main className="mx-auto flex max-w-4xl flex-col gap-6 px-4 py-8 md:px-8">
-        <DeepGlassCard className="px-6 py-6 md:px-8 md:py-8">
-          <p className="text-xs font-bold uppercase tracking-[0.26em] text-brand-teal">
-            Official Competition
-          </p>
-          <h1 className="mt-3 font-heading text-4xl font-extrabold text-brand-gray-700">
-            Finding your next challenger
+      <main className="mx-auto flex min-h-[calc(100vh-72px)] max-w-6xl flex-col items-center justify-center px-4 py-8 md:px-8">
+        <div className="w-full text-center">
+          <h1 className="font-heading text-[2.7rem] font-black leading-none tracking-tight text-brand-gray-700 md:text-6xl">
+            Find Your Match: Duel
           </h1>
-          <p className="mt-3 text-sm leading-relaxed text-brand-gray-500">
-            We are matching you into the real-time official-topic competition. Stay on this screen
-            and you will enter the match automatically once an opponent is found.
+          <p className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-brand-gray-600 md:text-base">
+            {matchState?.status === "pending"
+              ? "Your challenger is ready. Stay on this screen while the match is being confirmed."
+              : "We are finding the next opponent for your current arena queue."}
           </p>
-        </DeepGlassCard>
+        </div>
 
-        <DeepGlassCard className="px-6 py-6">
-          <div className="grid gap-4 md:grid-cols-3">
-            <QueueMetric label="Status" value={queueState?.status ?? (loading ? "loading" : "idle")} />
-            <QueueMetric label="Pool" value={queueState?.poolTitle || queueState?.publicCourseTitle || "..."} />
-            <QueueMetric
-              label="Queued At"
-              value={queueState ? new Date(queueState.queuedAt).toLocaleTimeString() : "..."}
-            />
+        <div className="mt-10 flex w-full flex-col items-center justify-center gap-5 lg:flex-row lg:gap-8 xl:gap-10">
+          <PlayerDuelCard
+            title={currentName}
+            avatarSrc={currentAvatar}
+            accent="left"
+            status={currentPlayer?.isAccepted ? "READY" : "WAITING"}
+            statusTone={currentPlayer?.isAccepted ? "ready" : "waiting"}
+          />
+
+          <div className="flex flex-col items-center justify-center px-1 md:px-2 lg:px-3">
+            <span className="font-heading text-6xl font-black tracking-tight text-brand-gray-600 md:text-7xl lg:text-[6.25rem]">
+              VS
+            </span>
           </div>
 
-          <div className="mt-6 flex flex-col gap-3 md:flex-row">
-            <GameButton variant="secondary" onClick={() => void handleCancel()} disabled={busy} className="flex-1">
+          <PlayerDuelCard
+            title={hasOpponent ? opponentName : "FINDING OPPONENT"}
+            avatarSrc={hasOpponent ? opponentAvatar : undefined}
+            accent="right"
+            status={hasOpponent ? (opponentPlayer?.isAccepted ? "READY" : "WAITING") : "SEARCHING"}
+            statusTone={hasOpponent ? (opponentPlayer?.isAccepted ? "ready" : "waiting") : "searching"}
+            loading={!hasOpponent}
+          />
+        </div>
+
+        <div className="mt-8 flex w-full max-w-3xl flex-col items-center gap-3">
+          <div className="flex items-center gap-2 rounded-full border border-white/60 bg-white/50 px-4 py-2 text-xs font-bold uppercase tracking-[0.24em] text-brand-gray-600 shadow-sm backdrop-blur">
+            <span className="h-2 w-2 rounded-full bg-brand-teal" />
+            {queueState?.poolTitle || queueState?.publicCourseTitle || "Competitive Queue"}
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <GameButton
+              variant="secondary"
+              onClick={() => void handleCancel()}
+              disabled={busy}
+              className="min-w-[180px]"
+            >
               Cancel & Exit
             </GameButton>
+            {matchState?.status === "pending" ? (
+              <GameButton
+                onClick={() => void handleAcceptMatch()}
+                disabled={accepting}
+                className="min-w-[180px]"
+              >
+                {accepting ? "WAITING FOR OTHERS..." : `ACCEPT (${acceptTimer ?? 0}s)`}
+              </GameButton>
+            ) : null}
           </div>
 
-          {error ? <p className="mt-4 text-sm text-rose-600">{error}</p> : null}
-        </DeepGlassCard>
-
-        {matchState && matchState.status === "pending" && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-gray-900/40 p-4 backdrop-blur-md">
-            <DeepGlassCard className="w-full max-w-lg border-brand-teal/30 px-8 py-8 shadow-2xl">
-              <div className="flex flex-col items-center text-center">
-                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-brand-teal/10">
-                  <div className="h-4 w-4 animate-ping rounded-full bg-brand-teal" />
-                </div>
-                <h2 className="mt-6 font-heading text-3xl font-black text-brand-gray-700">
-                  MATCH FOUND!
-                </h2>
-                <p className="mt-2 text-brand-gray-500">
-                  A challenger has arrived. Are you ready to compete?
-                </p>
-
-                <div className="mt-8 w-full space-y-3">
-                  <div className="flex justify-between gap-4">
-                    {(matchState.presenceStates || []).map((p) => (
-                      <div key={p.userId} className="flex-1 rounded-xl bg-brand-gray-900/50 p-4 text-center">
-                        <div className="text-[10px] font-bold uppercase tracking-widest text-brand-gray-400">
-                          {p.userId === authUser?.id ? "You" : "Challenger"}
-                        </div>
-                        <div className={`mt-1 text-sm font-black ${p.isAccepted ? "text-brand-teal" : "text-brand-gray-300"}`}>
-                          {p.isAccepted ? "✓ READY" : "WAITING"}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="flex flex-col items-center rounded-2xl bg-brand-gray-800/80 p-6 backdrop-blur-xl">
-                    <span className="text-5xl font-black tabular-nums text-brand-teal">
-                      {acceptTimer ?? "0"}
-                    </span>
-                    <span className="mt-1 text-xs font-bold uppercase tracking-widest text-brand-gray-400">
-                      Seconds Remaining
-                    </span>
-                  </div>
-                </div>
-
-                <div className="mt-10 flex w-full flex-col gap-3">
-                  <GameButton
-                    onClick={() => void handleAcceptMatch()}
-                    disabled={accepting}
-                    className="h-14 text-lg"
-                  >
-                    {accepting ? "WAITING FOR OTHERS..." : "ACCEPT MATCH"}
-                  </GameButton>
-                  <button
-                    onClick={() => void handleCancel()}
-                    disabled={accepting}
-                    className="text-sm font-semibold text-brand-gray-400 hover:text-rose-500"
-                  >
-                    Decline and Leave
-                  </button>
-                </div>
-              </div>
-            </DeepGlassCard>
-          </div>
-        )}
+          {error ? <p className="text-sm text-rose-600">{error}</p> : null}
+        </div>
       </main>
     </div>
   );
 }
 
-function QueueMetric({ label, value }: { label: string; value: string }) {
-  const getStatusDisplay = (val: string) => {
-    switch (val.toLowerCase()) {
-      case "idle":
-        return "Searching again...";
-      case "loading":
-        return "Connecting...";
-      case "waiting":
-        return "Searching...";
-      case "matched":
-        return "Match found!";
-      case "cancelled":
-        return "Cancelled";
-      case "expired":
-        return "Timeout";
-      default:
-        return val.charAt(0).toUpperCase() + val.slice(1);
-    }
-  };
+function PlayerDuelCard({
+  title,
+  avatarSrc,
+  accent,
+  status,
+  statusTone,
+  loading = false,
+}: {
+  title: string;
+  avatarSrc?: string;
+  accent: "left" | "right";
+  status: string;
+  statusTone: "ready" | "waiting" | "searching";
+  loading?: boolean;
+}) {
+  const statusClassName =
+    statusTone === "ready"
+      ? "bg-emerald-100 text-emerald-700"
+      : statusTone === "waiting"
+        ? "bg-amber-100 text-amber-700"
+        : "bg-brand-teal/15 text-brand-teal";
 
-  const displayValue = label === "Status" ? getStatusDisplay(value) : value;
+  const shadowClassName = "shadow-[0_28px_50px_rgba(95,146,165,0.14)]";
 
   return (
-    <div className="rounded-2xl border border-white/70 bg-white/68 px-4 py-4">
-      <p className="text-xs font-bold uppercase tracking-[0.22em] text-brand-teal">{label}</p>
-      <p className="mt-2 font-heading text-2xl font-bold text-brand-gray-700">{displayValue}</p>
+    <div className={`relative w-full max-w-[360px] overflow-hidden rounded-[30px] border border-white/70 bg-white/62 p-4 backdrop-blur-xl lg:w-[min(44vw,360px)] ${shadowClassName}`}>
+      <div className="relative flex min-h-[290px] items-center justify-center rounded-[24px] bg-[linear-gradient(180deg,rgba(222,241,247,0.9),rgba(210,233,242,0.94))] p-4">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center gap-4">
+            <div className="h-16 w-16 animate-spin rounded-full border-[6px] border-brand-teal/15 border-t-brand-teal/60" />
+          </div>
+        ) : (
+          <AvatarBubble src={avatarSrc} alt={title} />
+        )}
+      </div>
+
+      <div className="mt-3 overflow-hidden rounded-[18px] bg-white/80 px-5 py-4 text-center shadow-[0_10px_24px_rgba(95,146,165,0.08)]">
+        <p className="truncate font-heading text-[1.55rem] font-extrabold leading-none text-brand-gray-700">
+          {title}
+        </p>
+        <div className={`mx-auto mt-3 inline-flex min-w-[180px] items-center justify-center rounded-full px-4 py-2 text-sm font-bold uppercase tracking-[0.16em] ${statusClassName}`}>
+          {status}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AvatarBubble({ src, alt }: { src?: string; alt: string }) {
+  const imageSrc = src || "/avatar/chicken.png";
+  return (
+    <div className="relative flex h-[170px] w-[170px] items-center justify-center rounded-full bg-white/35 shadow-[inset_0_0_0_12px_rgba(255,255,255,0.26)]">
+      <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.22),rgba(255,255,255,0)_58%)]" />
+      <div className="relative h-[138px] w-[138px] overflow-hidden rounded-full bg-white shadow-[0_18px_30px_rgba(95,146,165,0.15)]">
+        <Image src={imageSrc} alt={alt} fill sizes="138px" className="object-cover" />
+      </div>
     </div>
   );
 }

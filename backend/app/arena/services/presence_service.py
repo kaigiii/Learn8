@@ -175,9 +175,12 @@ class PresenceService:
     def build_match_presence_states(self, match: ArenaMatchModel) -> list[dict]:
         items: list[dict] = []
         for player in match.players:
+            snapshot = player.user_snapshot_json or {}
             items.append(
                 {
                     "userId": player.user_id,
+                    "displayName": snapshot.get("displayName") or player.user.full_name or player.user.email.split("@")[0],
+                    "avatarUrl": snapshot.get("avatarUrl") or player.user.avatar_url,
                     "connectionState": player.connection_state or "unknown",
                     "lastSeenAt": to_iso_utc(player.last_seen_at),
                     "disconnectedAt": to_iso_utc(player.disconnected_at),
