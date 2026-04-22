@@ -1,5 +1,6 @@
 import re
 import io
+import shutil
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import quote, unquote
@@ -76,13 +77,13 @@ def _ensure_avatar_dir() -> Path:
     return AVATAR_IMAGE_DIR
 
 
-def _avatar_filename_for_user(email: str, user_id: int) -> str:
+def _avatar_filename_for_user(email: str) -> str:
     normalized_email = (email or "").strip().lower()
     if not normalized_email:
-        return f"user-{user_id}.png"
+        raise HTTPException(status_code=400, detail="User email is required for avatar naming")
     safe_email = re.sub(r'[<>:"/\\|?*\x00-\x1F]+', "_", normalized_email).strip()
     if not safe_email:
-        return f"user-{user_id}.png"
+        raise HTTPException(status_code=400, detail="User email is required for avatar naming")
     return f"{safe_email}.png"
 
 
@@ -101,28 +102,19 @@ def _sync_legacy_avatar_url(user: UserModel) -> bool:
         user.avatar_url = None
         return True
 
-    expected_filename = _avatar_filename_for_user(user.email, user.id)
+    expected_filename = _avatar_filename_for_user(user.email)
     expected_avatar_path = AVATAR_IMAGE_DIR / expected_filename
     current_avatar_path = AVATAR_IMAGE_DIR / current_filename
 
-    # If the URL already matches but the file is missing, clear it so frontend falls back to default.
-    if current_filename == expected_filename:
-        if expected_avatar_path.exists() and expected_avatar_path.is_file():
-            return False
-        user.avatar_url = None
-        return True
+    if not expected_avatar_path.exists() or not expected_avatar_path.is_file():
+        if current_avatar_path.exists() and current_avatar_path.is_file():
+            expected_avatar_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(current_avatar_path, expected_avatar_path)
+        else:
+            user.avatar_url = None
+            return True
 
-    # Migrate legacy filename URLs only when the email-based file is actually present.
-    if expected_avatar_path.exists() and expected_avatar_path.is_file():
-        user.avatar_url = _avatar_url_for_filename(expected_filename)
-        return True
-
-    # Keep working legacy URLs when the legacy file still exists.
-    if current_avatar_path.exists() and current_avatar_path.is_file():
-        return False
-
-    # If neither path exists, clear it so frontend can use the default avatar image.
-    user.avatar_url = None
+    user.avatar_url = _avatar_url_for_filename(expected_filename)
     return True
 
 
@@ -433,7 +425,7 @@ async def upload_user_avatar(
         raise HTTPException(status_code=400, detail="Failed to process avatar image.")
 
     avatar_dir = _ensure_avatar_dir()
-    avatar_filename = _avatar_filename_for_user(current_user.email, current_user.id)
+    avatar_filename = _avatar_filename_for_user(current_user.email)
     avatar_path = avatar_dir / avatar_filename
     try:
         converted.save(avatar_path, format="PNG")
@@ -451,6 +443,7 @@ async def upload_user_avatar(
 @router.get("/avatar-images/{filename}")
 def get_avatar_image(filename: str):
     decoded_filename = unquote(filename)
+
     if not AVATAR_FILENAME_RE.match(decoded_filename):
         raise HTTPException(status_code=404, detail="Avatar not found")
 

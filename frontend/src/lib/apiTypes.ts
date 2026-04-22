@@ -481,6 +481,8 @@ export interface ArenaRoundState {
 
 export interface ArenaPresenceState {
   userId: number;
+  displayName?: string | null;
+  avatarUrl?: string | null;
   connectionState: string;
   lastSeenAt?: string | null;
   disconnectedAt?: string | null;

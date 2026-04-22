@@ -3,33 +3,7 @@ import { persist } from "zustand/middleware";
 import type { UserProfile } from "@/lib/apiTypes";
 
 function normalizeAvatarUrl(user: UserProfile | null): UserProfile | null {
-  if (!user) {
-    return user;
-  }
-
-  const email = user.email?.trim().toLowerCase();
-  const avatarUrl = user.avatar_url?.trim();
-  if (!email || !avatarUrl) {
-    return user;
-  }
-
-  const match = avatarUrl.match(/(\/auth\/avatar-images\/)([^/?#]+)/);
-  if (!match) {
-    return user;
-  }
-
-  const filename = decodeURIComponent(match[2]);
-  const isLegacyFilename = /^\d+\.png$/i.test(filename) || /^user-\d+\.png$/i.test(filename);
-  if (!isLegacyFilename) {
-    return user;
-  }
-
-  const normalizedFilename = `${email}.png`;
-  const normalizedAvatarUrl = avatarUrl.replace(match[2], encodeURIComponent(normalizedFilename));
-  return {
-    ...user,
-    avatar_url: normalizedAvatarUrl,
-  };
+  return user;
 }
 
 interface AuthState {
