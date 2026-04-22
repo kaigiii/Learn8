@@ -384,6 +384,48 @@ async def arena_websocket_endpoint(
                 if room_code:
                     await manager.unsubscribe(current_user.id, f"arena:room:{room_code}")
                     
+            elif action == "question_ready":
+                match_id = data.get("matchId")
+                round_id = data.get("roundId")
+                req_id = data.get("reqId")
+
+                def _mark_ready():
+                    from app.arena.services.round_engine import RoundEngine
+                    engine = RoundEngine()
+                    with SessionLocal() as async_db:
+                        return engine.mark_question_ready(
+                            async_db,
+                            match_id=match_id,
+                            round_id=round_id,
+                            current_user=current_user,
+                        )
+
+                try:
+                    result = await asyncio.to_thread(_mark_ready)
+                    await manager.send_personal_message(current_user.id, {
+                        "action": "question_ready",
+                        "reqId": req_id,
+                        "payload": result,
+                    })
+                except HTTPException as exc:
+                    await manager.send_personal_message(current_user.id, {
+                        "action": "question_ready",
+                        "reqId": req_id,
+                        "error": {
+                            "status": exc.status_code,
+                            "detail": exc.detail,
+                        },
+                    })
+                except Exception:
+                    await manager.send_personal_message(current_user.id, {
+                        "action": "question_ready",
+                        "reqId": req_id,
+                        "error": {
+                            "status": 500,
+                            "detail": "Unexpected ready error",
+                        },
+                    })
+
             elif action == "submit_answer":
                 match_id = data.get("matchId")
                 round_id = data.get("roundId")

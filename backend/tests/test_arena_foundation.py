@@ -3,6 +3,7 @@ from datetime import timedelta
 
 from fastapi import HTTPException
 
+from app.api.v1.endpoints import auth as auth_endpoints
 from app.core.config import settings
 from app.arena.config import arena_settings
 from app.core.time import utc_now
@@ -36,6 +37,22 @@ def mock_intermission_seconds():
     arena_settings.ARENA_INTERMISSION_SECONDS = 0
     yield
     arena_settings.ARENA_INTERMISSION_SECONDS = original_value
+
+
+def test_avatar_image_falls_back_to_default_when_missing(tmp_path, monkeypatch):
+    avatar_dir = tmp_path / "avatar"
+    avatar_dir.mkdir(parents=True, exist_ok=True)
+
+    default_avatar = tmp_path / "chicken.png"
+    default_avatar.write_bytes(b"fake-png-bytes")
+
+    monkeypatch.setattr(auth_endpoints, "AVATAR_IMAGE_DIR", avatar_dir)
+    monkeypatch.setattr(auth_endpoints, "DEFAULT_AVATAR_PATH", default_avatar)
+
+    response = auth_endpoints.get_avatar_image("missing.png")
+
+    assert response.path == str(default_avatar)
+    assert response.media_type == "image/png"
 
 
 def _create_public_course(db_session):
@@ -127,6 +144,19 @@ def _create_question_pool(db_session, public_course: PublicCourseModel):
     )
     db_session.commit()
     return pool
+
+
+def _activate_round_for_players(db_session, round_engine: RoundEngine, match_id: int, players: list[UserModel]):
+    state = round_engine.get_match_state(db_session, match_id, players[0])
+    round_id = state["activeRound"]["roundId"]
+    for player in players:
+        round_engine.mark_question_ready(
+            db_session,
+            match_id=match_id,
+            round_id=round_id,
+            current_user=player,
+        )
+    return round_engine.get_match_state(db_session, match_id, players[0])
 
 
 def _create_user(db_session, email: str, full_name: str | None = None):
@@ -858,8 +888,27 @@ def test_round_engine_initializes_rounds_and_advances_match(db_session, user):
     assert state["status"] == "in_progress"
     assert state["totalRounds"] == 2
     assert state["activeRound"] is not None
-    first_round_id = state["activeRound"]["roundId"]
-    first_correct = state["activeRound"]["question"]["questionId"]
+    assert state["activeRound"]["status"] == "pending"
+
+    ready_state = round_engine.mark_question_ready(
+        db_session,
+        match_id=match.id,
+        round_id=state["activeRound"]["roundId"],
+        current_user=user,
+    )
+    assert ready_state["activated"] is False
+
+    ready_state = round_engine.mark_question_ready(
+        db_session,
+        match_id=match.id,
+        round_id=state["activeRound"]["roundId"],
+        current_user=second_user,
+    )
+    assert ready_state["activated"] is True
+    assert ready_state["state"]["activeRound"]["status"] == "active"
+
+    first_round_id = ready_state["state"]["activeRound"]["roundId"]
+    first_correct = ready_state["state"]["activeRound"]["question"]["questionId"]
 
     if first_correct == "q1":
         user_answer = "c"
@@ -877,6 +926,10 @@ def test_round_engine_initializes_rounds_and_advances_match(db_session, user):
     )
     assert first_submit["accepted"] is True
     assert first_submit["state"]["status"] == "in_progress"
+    assert first_submit["roundClosed"] is False
+    assert first_submit["revealedAnswer"]["correctOptionId"] == user_answer
+    assert first_submit["isCorrect"] is True
+    assert first_submit["scoreAwarded"] > 0
 
     second_submit = round_engine.submit_answer(
         db_session,
@@ -888,8 +941,10 @@ def test_round_engine_initializes_rounds_and_advances_match(db_session, user):
     assert second_submit["accepted"] is True
     assert second_submit["roundClosed"] is True
     assert second_submit["state"]["activeRound"] is not None
-    second_round_id = second_submit["state"]["activeRound"]["roundId"]
-    second_question_id = second_submit["state"]["activeRound"]["question"]["questionId"]
+    assert second_submit["state"]["activeRound"]["status"] == "pending"
+    second_ready_state = _activate_round_for_players(db_session, round_engine, match.id, [user, second_user])
+    second_round_id = second_ready_state["activeRound"]["roundId"]
+    second_question_id = second_ready_state["activeRound"]["question"]["questionId"]
 
     if second_question_id == "q1":
         user_second_answer = "c"
@@ -968,7 +1023,7 @@ def test_round_engine_duplicate_answer_is_idempotent(db_session, user):
     match = room_service.start_room_match(db_session, user, room.room_code)
     round_engine.initialize_match_rounds(db_session, match.id)
 
-    state = round_engine.get_match_state(db_session, match.id, user)
+    state = _activate_round_for_players(db_session, round_engine, match.id, [user, second_user])
     round_id = state["activeRound"]["roundId"]
     question_id = state["activeRound"]["question"]["questionId"]
     correct = "c" if question_id == "q1" else "b"
@@ -1405,6 +1460,7 @@ def test_arena_events_are_persisted_for_room_and_match_flows(db_session, user):
     room_service.set_ready(db_session, second_user, room.room_code, is_ready=True)
     match = room_service.start_room_match(db_session, user, room.room_code)
     round_engine.initialize_match_rounds(db_session, match.id)
+    _activate_round_for_players(db_session, round_engine, match.id, [user, second_user])
 
     room_events = gateway.list_events(db_session, room_code=room.room_code)
     match_events = gateway.list_events(db_session, match_id=match.id)
@@ -1441,8 +1497,8 @@ def test_competitive_match_settlement_updates_rating_and_rewards(db_session, use
     match = room_service.start_room_match(db_session, user, room.room_code)
     round_engine.initialize_match_rounds(db_session, match.id)
 
-    state = round_engine.get_match_state(db_session, match.id, user)
-    for _ in range(2):
+    state = _activate_round_for_players(db_session, round_engine, match.id, [user, second_user])
+    for round_index in range(2):
       round_id = state["activeRound"]["roundId"]
       question_id = state["activeRound"]["question"]["questionId"]
       correct = "c" if question_id == "q1" else "b"
@@ -1461,6 +1517,8 @@ def test_competitive_match_settlement_updates_rating_and_rewards(db_session, use
           selected_option_id="a",
       )
       state = result["state"]
+      if round_index == 0 and state["activeRound"] is not None and state["activeRound"]["status"] == "pending":
+          state = _activate_round_for_players(db_session, round_engine, match.id, [user, second_user])
     
     # Settlement is now triggered automatically and synchronously within submit_answer (if delay=0)
     # We just need to ensure the DB sees the changes

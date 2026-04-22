@@ -59,6 +59,18 @@ function formatMatchingPairs(options: any[]) {
   });
 }
 
+function buildRevealedQuestion(revealedAnswer: Record<string, unknown> | null) {
+  if (!revealedAnswer) return null;
+  return {
+    questionType: (revealedAnswer.questionType as string) || "Unknown",
+    prompt: (revealedAnswer.prompt as string) || "",
+    options: (revealedAnswer.options as any[]) || [],
+    correctOptionId: (revealedAnswer.correctOptionId as string) || "",
+    explanation: (revealedAnswer.explanation as string) || "",
+    difficulty: "normal",
+  };
+}
+
 export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
   const router = useRouter();
   const { isReady } = useRequireAuthRedirect();
@@ -76,6 +88,13 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
   // ─── Timer for the current round ──────────────────────────────────────────
   const [remainingSeconds, setRemainingSeconds] = useState(0);
   const [submitNotice, setSubmitNotice] = useState<string | null>(null);
+  const [submissionReview, setSubmissionReview] = useState<{
+    roundId: number;
+    isCorrect: boolean;
+    scoreAwarded: number;
+    selectedOptionId: string | null;
+    revealedAnswer: Record<string, unknown> | null;
+  } | null>(null);
 
   // ─── Intermission state ────────────────────────────────────────────────────
   const [intermissionUntil, setIntermissionUntil] = useState<number | null>(null);
@@ -84,6 +103,7 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
 
   // No more prevRoundRef — we use latestReveal payload
   const userAnswersRef = useRef<Map<number, string>>(new Map());
+  const readyRoundRef = useRef<number | null>(null);
 
   // ─── Revealed answer tracking ─────────────────────────────────────────────
   const latestReveal = useMemo(() => {
@@ -97,15 +117,7 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
   }, [latestReveal]);
 
   const revealedQuestion = useMemo(() => {
-    if (!revealedAnswer) return null;
-    return {
-      questionType: (revealedAnswer.questionType as string) || "Unknown", // Handle missing type
-      prompt: (revealedAnswer.prompt as string) || "",
-      options: (revealedAnswer.options as any[]) || [],
-      correctOptionId: (revealedAnswer.correctOptionId as string) || "",
-      explanation: (revealedAnswer.explanation as string) || "",
-      difficulty: "normal",
-    };
+    return buildRevealedQuestion(revealedAnswer);
   }, [revealedAnswer]);
 
   const revealedCorrectId = useMemo(() => {
@@ -127,6 +139,24 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
 
   const activeRound = match?.activeRound ?? null;
   const question = activeRound?.question;
+  const isQuestionLoading = activeRound?.status === "pending";
+
+  const localRevealAnswer = submissionReview?.roundId === activeRound?.roundId
+    ? submissionReview?.revealedAnswer ?? null
+    : null;
+
+  const localRevealQuestion = useMemo(() => buildRevealedQuestion(localRevealAnswer), [localRevealAnswer]);
+
+  const isSelfRevealVisible = !!localRevealQuestion && !!activeRound && !isQuestionLoading;
+
+  const displayRevealQuestion = isQuestionLoading ? revealedQuestion : localRevealQuestion;
+  const displayRevealCorrectId = isQuestionLoading
+    ? revealedCorrectId
+    : (localRevealQuestion?.correctOptionId || undefined);
+  const displayRevealExplanation = isQuestionLoading
+    ? revealedExplanation
+    : ((localRevealQuestion?.explanation as string | undefined) || undefined);
+  const showRevealMode = isQuestionLoading || isSelfRevealVisible;
 
   // ─── Matching Pairs Hook ──────────────────────────────────────────────────
   const {
@@ -250,6 +280,18 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
   useEffect(() => () => reset(), [reset]);
 
   useEffect(() => {
+    if (!activeRound || !isReady) return;
+    // Send ready when entering a pending round (not yet active)
+    if (activeRound.status === "pending" && readyRoundRef.current !== activeRound.roundId) {
+      readyRoundRef.current = activeRound.roundId;
+      arenaWsClient.sendAction("question_ready", {
+        matchId,
+        roundId: activeRound.roundId,
+      });
+    }
+  }, [activeRound?.roundId, activeRound?.status, isReady, matchId]);
+
+  useEffect(() => {
     if (activeRound?.question?.questionType === "MatchingPairs" && allMatched) {
       setSelectedOptionId(JSON.stringify(matchedPairs));
     } else if (activeRound?.question?.questionType === "MatchingPairs" && !allMatched) {
@@ -261,6 +303,8 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
   useEffect(() => {
     if (activeRound?.roundId) {
       setSelectedOptionId(null);
+      setSubmissionReview(null);
+      setSubmitNotice(null);
     }
   }, [activeRound?.roundId, setSelectedOptionId]);
 
@@ -285,8 +329,8 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
 
   // ─── Submit handler ───────────────────────────────────────────────────────
   const handleSubmit = async () => {
-    if (!match?.activeRound) return;
-    if (intermissionUntil) return; // Can't submit during intermission
+    if (!match?.activeRound || match.activeRound.status !== "active") return;
+    if (isQuestionLoading || intermissionUntil) return; // Can't submit during loading or reveal
 
     let finalValue = selectedOptionId;
     if (question?.questionType === "MatchingPairs" && !finalValue && allMatched) {
@@ -314,6 +358,20 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
         selectedOptionId: finalValue,
       });
       useArenaMatchStore.getState().setMatch(result.state);
+      if (result.revealedAnswer) {
+        setSubmissionReview({
+          roundId: match.activeRound.roundId,
+          isCorrect: Boolean(result.isCorrect),
+          scoreAwarded: Number(result.scoreAwarded ?? 0),
+          selectedOptionId: result.selectedOptionId ?? finalValue,
+          revealedAnswer: result.revealedAnswer,
+        });
+        setSubmitNotice(
+          result.isCorrect
+            ? `Correct! +${result.scoreAwarded ?? 0} points.`
+            : `Incorrect. +${result.scoreAwarded ?? 0} points.`
+        );
+      }
       if (result.alreadySubmitted) {
         setSubmitNotice("Your answer was already locked in for this round.");
       }
@@ -352,6 +410,7 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
   }, [activeRound, authUser?.id, match, presenceByUserId]);
 
   const timerBase = activeRound?.timerSeconds || 15;
+  const renderQuestion = displayRevealQuestion ?? activeRound?.question;
   // During intermission the progress bar should be full (time starting from 0)
   // Once intermission ends, show remaining round time
   const displaySeconds = isInIntermission ? 0 : remainingSeconds;
@@ -373,13 +432,15 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
                 Round {(match?.currentRoundIndex ?? 0) + 1} / {match?.totalRounds ?? 0}
               </div>
               <div className={`rounded-2xl border border-white/70 bg-white/68 px-4 py-3 text-sm font-bold transition-colors ${
-                isInIntermission
+                isQuestionLoading || isInIntermission
                   ? "text-amber-600 animate-pulse"
                   : activeRound && remainingSeconds <= 5
                   ? "text-rose-600 animate-pulse"
                   : "text-brand-gray-700"
               }`}>
-                {isInIntermission
+                {isQuestionLoading
+                  ? "Loading"
+                  : isInIntermission
                   ? `Next in ${intermissionSeconds}s`
                   : activeRound
                   ? `${remainingSeconds}s`
@@ -450,19 +511,19 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
           {/* ── QUESTION AREA ──────────────────────────────────────────── */}
           {(activeRound || isInIntermission) ? (
             <div className="mt-6">
-              <div className="rounded-[28px] border border-white/70 bg-white/74 p-6 shadow-xl backdrop-blur-xl">
+              <div className="relative rounded-[28px] border border-white/70 bg-white/74 p-6 shadow-xl backdrop-blur-xl">
                 <div className="flex items-center justify-between gap-4 mb-4">
                   <div className="flex items-center gap-2">
                     <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-teal text-white">
-                      {(isInIntermission ? revealedQuestion?.questionType : activeRound?.question?.questionType) === "MultipleChoice" && <FiList />}
-                      {(isInIntermission ? revealedQuestion?.questionType : activeRound?.question?.questionType) === "MatchingPairs" && <FiHash />}
-                      {(isInIntermission ? revealedQuestion?.questionType : activeRound?.question?.questionType) === "Ordering" && <FiLayers />}
-                      {(isInIntermission ? revealedQuestion?.questionType : activeRound?.question?.questionType) === "FeynmanMirror" && <FiMessageSquare />}
-                      {(isInIntermission ? revealedQuestion?.questionType : activeRound?.question?.questionType) === "ExplainerMedia" && <FiBookOpen />}
+                      {(renderQuestion?.questionType) === "MultipleChoice" && <FiList />}
+                      {(renderQuestion?.questionType) === "MatchingPairs" && <FiHash />}
+                      {(renderQuestion?.questionType) === "Ordering" && <FiLayers />}
+                      {(renderQuestion?.questionType) === "FeynmanMirror" && <FiMessageSquare />}
+                      {(renderQuestion?.questionType) === "ExplainerMedia" && <FiBookOpen />}
                     </div>
                     <div>
                       <p className="text-[10px] font-bold uppercase tracking-widest text-brand-teal">
-                        {isInIntermission ? "Round Reveal" : (activeRound?.question?.questionType || "Live Question")}
+                        {isInIntermission ? "Round Reveal" : (isSelfRevealVisible ? "Your Result" : (activeRound?.question?.questionType || "Live Question"))}
                       </p>
                     </div>
                   </div>
@@ -484,15 +545,23 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
                 </div>
 
                 <h2 className="font-heading text-2xl font-bold leading-tight text-brand-gray-700">
-                  {isInIntermission ? revealedQuestion?.prompt : activeRound?.question?.prompt}
+                  {renderQuestion?.prompt}
                 </h2>
 
+                {isQuestionLoading ? (
+                  <div className="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-[28px] bg-white/75 text-center backdrop-blur-md">
+                    <div className="h-16 w-16 animate-spin rounded-full border-[6px] border-brand-teal/15 border-t-brand-teal/70" />
+                    <p className="mt-5 text-lg font-bold text-brand-gray-700">Waiting for both players to load the question</p>
+                    <p className="mt-2 text-sm text-brand-gray-500">The round will start once everyone enters this screen.</p>
+                  </div>
+                ) : null}
+
                 {/* Optional Explanation for Intermission */}
-                {isInIntermission && revealedExplanation && (
+                {showRevealMode && displayRevealExplanation && (
                   <div className="mt-3 rounded-2xl border border-brand-teal/20 bg-brand-teal/5 px-4 py-3">
                     <p className="text-xs font-bold uppercase tracking-widest text-brand-teal mb-1">Explanation</p>
                     <p className="text-sm text-brand-gray-600 leading-relaxed">
-                      {revealedExplanation}
+                      {displayRevealExplanation}
                     </p>
                   </div>
                 )}
@@ -500,12 +569,15 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
                 {/* ---- QUESTION RENDERERS ---- */}
                 {(() => {
                   // Prioritize revealed question during intermission, fallback to active question ONLY if revealed is not yet available
-                  const q = isInIntermission ? (revealedQuestion || activeRound?.question) : activeRound?.question;
+                  const q = renderQuestion || activeRound?.question;
                   if (!q || !q.questionType) return null;
 
                   if (q.questionType === "MultipleChoice") {
                     const rIdx = (latestReveal?.payload as any)?.roundIndex;
                     const componentKey = isInIntermission ? `reveal-${rIdx}` : `live-${activeRound?.roundId}`;
+                    const selectedForReveal = isInIntermission
+                      ? (userAnswersRef.current.get(rIdx) || undefined)
+                      : (submissionReview?.selectedOptionId || undefined);
                     return (
                       <div className="mt-4" key={componentKey}>
                         <MultipleChoiceQuestion
@@ -517,11 +589,11 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
                           question={q.prompt}
                           options={q.options}
                           correctId="" 
-                          forceCorrectId={isInIntermission ? revealedCorrectId : undefined}
-                          userSelectedId={isInIntermission ? (userAnswersRef.current.get(rIdx) || undefined) : undefined}
+                          forceCorrectId={displayRevealCorrectId}
+                          userSelectedId={selectedForReveal}
                           feedbackMsg={{ success: "", error: "", hint: "" }}
-                          onSelect={(id: string) => !isInIntermission && setSelectedOptionId(id)}
-                          onComplete={(id: string) => !isInIntermission && setSelectedOptionId(id)}
+                          onSelect={(id: string) => !showRevealMode && setSelectedOptionId(id)}
+                          onComplete={(id: string) => !showRevealMode && setSelectedOptionId(id)}
                           onHintUse={async () => true}
                         />
                       </div>
@@ -549,12 +621,12 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
                           wrongPair={null}
                           hintPairId={null}
                           hintUsed={false}
-                          allMatched={isInIntermission ? true : allMatched}
+                          allMatched={showRevealMode ? true : allMatched}
                           feedback={null}
-                          isRevealed={isInIntermission}
-                          onPickLeft={isInIntermission ? () => {} : pickLeft}
-                          onPickRight={isInIntermission ? () => {} : pickRight}
-                          onHint={isInIntermission ? () => {} : () => void handleMatchingHint()}
+                          isRevealed={showRevealMode}
+                          onPickLeft={showRevealMode ? () => {} : pickLeft}
+                          onPickRight={showRevealMode ? () => {} : pickRight}
+                          onHint={showRevealMode ? () => {} : () => void handleMatchingHint()}
                           onSubmit={() => {}}
                           onSkip={() => {}}
                         />
@@ -573,7 +645,7 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
                           totalStages={match?.totalRounds ?? 0}
                           topic={q.prompt}
                           difficulty={mapDifficulty(q.difficulty)}
-                          isRevealed={isInIntermission}
+                          isRevealed={showRevealMode}
                           stage={{
                             stageId: (isInIntermission ? rIdx.toString() : activeRound?.roundId.toString()) || "0",
                             topic: q.prompt,
@@ -585,9 +657,9 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
                             feedback: { success: "", error: "" }
                           } as any}
                           onSubmit={async (items: string[]) => {
-                            if (!isInIntermission) setSelectedOptionId(JSON.stringify(items));
+                            if (!showRevealMode) setSelectedOptionId(JSON.stringify(items));
                           }}
-                          onChange={(items: string[]) => !isInIntermission && setSelectedOptionId(JSON.stringify(items))}
+                          onChange={(items: string[]) => !showRevealMode && setSelectedOptionId(JSON.stringify(items))}
                           onContinue={() => {}}
                           onSkip={() => {}}
                         />
@@ -607,17 +679,17 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
                           topic={q.prompt}
                           difficulty={mapDifficulty(q.difficulty)}
                           prompt={q.prompt}
-                          sampleAnswer={isInIntermission ? revealedCorrectId || "" : ""}
+                          sampleAnswer={displayRevealExplanation || displayRevealCorrectId || ""}
                           feedbackMsg={{ success: "", error: "", hint: "Keep it simple." }}
-                          isRevealed={isInIntermission}
+                          isRevealed={showRevealMode}
                           onSubmit={async (answer: string) => {
-                            if (!isInIntermission) {
+                            if (!showRevealMode) {
                               setSelectedOptionId(answer);
                               return { result: "correct", feedback: "Captured explanation." };
                             }
                             return { result: "correct", feedback: "" };
                           }}
-                          onChange={(answer: string) => !isInIntermission && setSelectedOptionId(answer)}
+                          onChange={(answer: string) => !showRevealMode && setSelectedOptionId(answer)}
                           onContinue={() => {}}
                           onHintUse={async () => true}
                         />
@@ -639,8 +711,8 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
                           title={q.prompt}
                           explanation={(q as any).explanation || "Read this carefully."}
                           bullets={q.options?.map((o: any) => o.text || o) || []}
-                          onContinue={() => !isInIntermission && setSelectedOptionId("acknowledged")}
-                          onMount={() => !isInIntermission && setSelectedOptionId("acknowledged")}
+                          onContinue={() => !showRevealMode && setSelectedOptionId("acknowledged")}
+                          onMount={() => !showRevealMode && setSelectedOptionId("acknowledged")}
                         />
                       </div>
                     );
@@ -660,11 +732,13 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
                 <GameButton
                   className="mt-6 w-full py-4 text-lg"
                   onClick={() => void handleSubmit()}
-                  disabled={!selectedOptionId || submitting || (activeRound?.hasSubmitted ?? false) || isInIntermission}
+                  disabled={!selectedOptionId || submitting || (activeRound?.hasSubmitted ?? false) || isInIntermission || isQuestionLoading}
                 >
-                  {isInIntermission 
+                  {isQuestionLoading
+                    ? "Loading question..."
+                    : isInIntermission 
                     ? `Next Round in ${intermissionSeconds}s` 
-                    : (activeRound?.hasSubmitted ? "Answer Locked ✓" : "Submit Challenge")}
+                    : (isSelfRevealVisible ? `${submissionReview?.isCorrect ? "Correct" : "Incorrect"} · ${submissionReview?.scoreAwarded ?? 0} pts` : (activeRound?.hasSubmitted ? "Answer Locked ✓" : "Submit Challenge"))}
                 </GameButton>
               </div>
             </div>

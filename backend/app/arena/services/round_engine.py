@@ -107,43 +107,36 @@ class RoundEngine:
             round_model = ArenaRoundModel(
                 match_id=match.id,
                 round_index=index,
-                status=ArenaRoundStatus.ACTIVE if index == 0 else ArenaRoundStatus.PENDING,
+                status=ArenaRoundStatus.PENDING,
                 question_key=str(question.get("question_id") or ""),
                 difficulty=str(question.get("difficulty") or "") or None,
                 question_count=max(1, len(list(question.get("options") or []))),
                 question_snapshot_json=question,
                 timer_seconds=timer_seconds,
             )
-            if index == 0:
-                now = utc_now()
-                round_model.started_at = now
-                round_model.deadline_at = now + self._seconds_delta(timer_seconds)
             db.add(round_model)
 
         db.commit()
-        active_round = (
+        pending_round = (
             self._base_round_query(db)
             .filter(ArenaRoundModel.match_id == match.id, ArenaRoundModel.round_index == 0)
             .first()
         )
-        if active_round:
+        if pending_round:
             self.realtime_gateway.publish_event(
                 db,
                 stream_type="match",
                 room_code=match.room_snapshot_json.get("room_code") if isinstance(match.room_snapshot_json, dict) else None,
                 match_id=match.id,
-                event_type="round.started",
+                event_type="round.waiting",
                 payload={
                     "matchId": match.id,
-                    "roundId": active_round.id,
-                    "roundIndex": active_round.round_index,
-                    "timerSeconds": active_round.timer_seconds,
-                    "deadlineAt": to_iso_utc(active_round.deadline_at),
-                    "activeRound": self._build_active_round_payload(active_round),
+                    "roundId": pending_round.id,
+                    "roundIndex": pending_round.round_index,
+                    "timerSeconds": pending_round.timer_seconds,
+                    "activeRound": self._build_active_round_payload(pending_round),
                 },
             )
-            # PROACTIVE: Schedule round settlement at deadline
-            self._schedule_proactive_settle(match.id, active_round.id, active_round.timer_seconds + 0.5)
 
     def _seconds_delta(self, seconds: int):
         from datetime import timedelta
@@ -168,6 +161,114 @@ class RoundEngine:
     def _get_active_round(self, rounds: list[ArenaRoundModel]) -> ArenaRoundModel | None:
         return next((round_item for round_item in rounds if round_item.status == ArenaRoundStatus.ACTIVE), None)
 
+    def _get_pending_round(self, rounds: list[ArenaRoundModel]) -> ArenaRoundModel | None:
+        return next((round_item for round_item in rounds if round_item.status == ArenaRoundStatus.PENDING), None)
+
+    def _get_current_round(self, rounds: list[ArenaRoundModel]) -> ArenaRoundModel | None:
+        return self._get_active_round(rounds) or self._get_pending_round(rounds)
+
+    def _get_player_ready_round_index(self, player: ArenaMatchPlayerModel) -> int | None:
+        metadata = player.metadata_json if isinstance(player.metadata_json, dict) else {}
+        ready_index = metadata.get("questionReadyRoundIndex")
+        if ready_index is None:
+            return None
+        try:
+            return int(ready_index)
+        except (TypeError, ValueError):
+            return None
+
+    def _set_player_ready_round_index(self, db: Session, match: ArenaMatchModel, user_id: int, round_index: int) -> None:
+        player = self._get_participant(match, user_id)
+        if not player:
+            return
+        metadata = player.metadata_json if isinstance(player.metadata_json, dict) else {}
+        if metadata.get("questionReadyRoundIndex") == round_index:
+            return
+        metadata = {**metadata, "questionReadyRoundIndex": round_index, "questionReadyAt": to_iso_utc(utc_now())}
+        player.metadata_json = metadata
+        db.add(player)
+
+    def _all_players_ready_for_round(self, match: ArenaMatchModel, round_index: int) -> bool:
+        return bool(match.players) and all(self._get_player_ready_round_index(player) == round_index for player in match.players)
+
+    def mark_question_ready(self, db: Session, match_id: int, round_id: int, current_user: UserModel) -> dict:
+        match = self.get_match(db, match_id)
+        if not match:
+            raise HTTPException(status_code=404, detail="Arena match not found")
+        self._ensure_participant(match, current_user)
+        match = self._ensure_round_progress(db, match)
+        db.flush()
+
+        round_model = (
+            self._base_round_query(db)
+            .filter(ArenaRoundModel.id == round_id, ArenaRoundModel.match_id == match.id)
+            .first()
+        )
+        if not round_model:
+            raise HTTPException(status_code=404, detail="Arena round not found")
+
+        self._set_player_ready_round_index(db, match, current_user.id, round_model.round_index)
+        db.flush()
+
+        # Refresh match to get updated player data
+        match = self.get_match(db, match.id)
+        if match and self._all_players_ready_for_round(match, round_model.round_index):
+            self._activate_round_if_ready(db, match, round_model)
+            db.commit()
+            refreshed_match = self.get_match(db, match.id)
+            if refreshed_match:
+                return {
+                    "accepted": True,
+                    "activated": True,
+                    "state": self.get_match_state(db, refreshed_match.id, current_user),
+                }
+
+        db.commit()
+        return {
+            "accepted": True,
+            "activated": False,
+            "state": self.get_match_state(db, match.id, current_user),
+        }
+
+    def _activate_round_if_ready(self, db: Session, match: ArenaMatchModel, round_model: ArenaRoundModel) -> bool:
+        locked_round = (
+            db.query(ArenaRoundModel)
+            .filter(ArenaRoundModel.id == round_model.id)
+            .with_for_update()
+            .first()
+        )
+        if not locked_round or locked_round.status != ArenaRoundStatus.PENDING:
+            return False
+
+        match = self.get_match(db, match.id) or match
+        if not self._all_players_ready_for_round(match, locked_round.round_index):
+            return False
+
+        now = utc_now()
+        locked_round.status = ArenaRoundStatus.ACTIVE
+        locked_round.started_at = now
+        locked_round.deadline_at = now + self._seconds_delta(locked_round.timer_seconds)
+        db.add(locked_round)
+        db.flush()
+        self.realtime_gateway.publish_event(
+            db,
+            stream_type="match",
+            room_code=match.room_snapshot_json.get("room_code") if isinstance(match.room_snapshot_json, dict) else None,
+            match_id=match.id,
+            event_type="round.started",
+            payload={
+                "matchId": match.id,
+                "roundId": locked_round.id,
+                "roundIndex": locked_round.round_index,
+                "timerSeconds": locked_round.timer_seconds,
+                "deadlineAt": to_iso_utc(locked_round.deadline_at),
+                "startsAt": to_iso_utc(locked_round.started_at),
+                "activeRound": self._build_active_round_payload(locked_round),
+            },
+        )
+        self._schedule_proactive_settle(match.id, locked_round.id, locked_round.timer_seconds + 0.5)
+        return True
+
     def _ensure_round_progress(self, db: Session, match: ArenaMatchModel) -> ArenaMatchModel:
         # Check for player forfeits/abandonment first
         if match.status == ArenaMatchStatus.IN_PROGRESS:
@@ -177,11 +278,15 @@ class RoundEngine:
 
         rounds = self._get_rounds(db, match.id)
         active_round = self._get_active_round(rounds)
+        pending_round = self._get_pending_round(rounds)
         if active_round and active_round.deadline_at and ensure_aware(active_round.deadline_at) <= utc_now():
             self._close_round(db, match, active_round)
             db.commit()
             return self.get_match(db, match.id)
-        if match.status == ArenaMatchStatus.IN_PROGRESS and not active_round:
+        if pending_round and self._activate_round_if_ready(db, match, pending_round):
+            db.commit()
+            return self.get_match(db, match.id)
+        if match.status == ArenaMatchStatus.IN_PROGRESS and not active_round and not pending_round:
             if rounds and all(round_item.status == ArenaRoundStatus.CLOSED for round_item in rounds):
                 self._finalize_match_if_needed(db, match, rounds)
                 db.commit()
@@ -522,31 +627,21 @@ class RoundEngine:
             None,
         )
         if next_round:
-            # Schedule next round to start after intermission (5 seconds from now)
-            next_round_start = utc_now() + self._seconds_delta(self.INTERMISSION_SECONDS)
-            next_round.status = ArenaRoundStatus.ACTIVE
-            next_round.started_at = next_round_start
-            next_round.deadline_at = next_round_start + self._seconds_delta(next_round.timer_seconds)
             db.add(next_round)
             self.realtime_gateway.publish_event(
                 db,
                 stream_type="match",
                 room_code=match.room_snapshot_json.get("room_code") if isinstance(match.room_snapshot_json, dict) else None,
                 match_id=match.id,
-                event_type="round.started",
+                event_type="round.waiting",
                 payload={
                     "matchId": match.id,
                     "roundId": next_round.id,
                     "roundIndex": next_round.round_index,
                     "timerSeconds": next_round.timer_seconds,
-                    "deadlineAt": to_iso_utc(next_round.deadline_at),
-                    "startsAt": to_iso_utc(next_round.started_at),
-                    "intermissionSeconds": self.INTERMISSION_SECONDS,
                     "activeRound": self._build_active_round_payload(next_round),
                 },
             )
-            # PROACTIVE: Schedule round settlement at deadline (including intermission delay)
-            self._schedule_proactive_settle(match.id, next_round.id, self.INTERMISSION_SECONDS + next_round.timer_seconds + 0.5)
         else:
             # Last round finished - delay finalization by 5 seconds so users can see the answer
             self._schedule_proactive_finalize(db, match.id, self.INTERMISSION_SECONDS)
@@ -561,6 +656,15 @@ class RoundEngine:
                 "standings": self._build_standings(match, self._get_rounds(db, match.id)),
             },
         )
+
+    def _build_revealed_answer_payload(self, question: dict) -> dict:
+        return {
+            "questionType": question.get("questionType") or question.get("question_type") or question.get("component") or "Unknown",
+            "prompt": question.get("prompt") or question.get("question") or "",
+            "options": question.get("options") or question.get("pairs") or question.get("steps") or [],
+            "correctOptionId": question.get("correct_option_id"),
+            "explanation": question.get("explanation") or "",
+        }
 
     def _build_standings(self, match: ArenaMatchModel, rounds: list[ArenaRoundModel]) -> list[dict]:
         answer_map: dict[int, list[ArenaAnswerModel]] = {player.user_id: [] for player in match.players}
@@ -640,19 +744,19 @@ class RoundEngine:
                 None,
             )
 
-        # Return active round only if match is NOT finished and there is an active round
-        # Special case: If match is IN_PROGRESS but staying in the final intermission (no remaining rounds), 
-        # we should treat it as finished for the UI payload.
+        # Return the current round even while it is pending so the client can
+        # show a loading buffer before the round becomes active.
         remaining_rounds_count = db.query(ArenaRoundModel).filter(
             ArenaRoundModel.match_id == match.id,
             ArenaRoundModel.status.in_((ArenaRoundStatus.ACTIVE, ArenaRoundStatus.PENDING))
         ).count()
 
+        current_round = self._get_current_round(rounds)
         active_round_payload = None
-        if active_round and match.status == ArenaMatchStatus.IN_PROGRESS and remaining_rounds_count > 0:
-            active_round_payload = self._build_active_round_payload(active_round, current_user_id)
+        if current_round and match.status == ArenaMatchStatus.IN_PROGRESS and remaining_rounds_count > 0:
+            active_round_payload = self._build_active_round_payload(current_round, current_user_id)
 
-        current_round_index = active_round.round_index if active_round else max((round_item.round_index for round_item in rounds), default=0)
+        current_round_index = current_round.round_index if current_round else max((round_item.round_index for round_item in rounds), default=0)
 
         match_state = {
             "matchId": match.id,
@@ -763,6 +867,7 @@ class RoundEngine:
             }
 
         question = round_model.question_snapshot_json if isinstance(round_model.question_snapshot_json, dict) else {}
+        revealed_answer = self._build_revealed_answer_payload(question)
         correct_option_id = str(question.get("correct_option_id") or "")
         is_correct = selected_option_id == correct_option_id
         response_time_ms = None
@@ -833,6 +938,8 @@ class RoundEngine:
                 "userId": current_user.id,
                 "selectedOptionId": selected_option_id,
                 "answerPayload": answer_payload,
+                "isCorrect": is_correct,
+                "scoreAwarded": score_awarded,
                 "activeRound": self._build_active_round_payload(round_model),
             },
         )
@@ -874,6 +981,11 @@ class RoundEngine:
         return {
             "accepted": True,
             "alreadySubmitted": False,
+            "isCorrect": is_correct,
+            "scoreAwarded": score_awarded,
+            "responseTimeMs": response_time_ms,
+            "selectedOptionId": selected_option_id,
+            "revealedAnswer": revealed_answer,
             "roundClosed": round_closed,
             "matchFinished": match_actually_finished,
             "state": state,
