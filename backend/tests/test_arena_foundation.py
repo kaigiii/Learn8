@@ -1154,6 +1154,11 @@ def test_admin_service_lists_player_match_records_and_match_reviews(db_session, 
 
     state = round_engine.get_match_state(db_session, match.id, user)
     for _ in range(2):
+        state = _activate_round_for_players(db_session, round_engine, match.id, [user, second_user])
+        for round_num in range(2):
+            # Re-activate the round if it's pending (needed for subsequent rounds)
+            if state["activeRound"]["status"] == "pending":
+                state = _activate_round_for_players(db_session, round_engine, match.id, [user, second_user])
         round_id = state["activeRound"]["roundId"]
         question_id = state["activeRound"]["question"]["questionId"]
         correct = "c" if question_id == "q1" else "b"
