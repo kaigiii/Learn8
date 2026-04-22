@@ -403,12 +403,31 @@ async def arena_websocket_endpoint(
                             answer_payload=data.get("answerPayload")
                         )
                 
-                result = await asyncio.to_thread(_submit)
-                await manager.send_personal_message(current_user.id, {
-                    "action": "answer_result",
-                    "reqId": req_id,
-                    "payload": result
-                })
+                try:
+                    result = await asyncio.to_thread(_submit)
+                    await manager.send_personal_message(current_user.id, {
+                        "action": "answer_result",
+                        "reqId": req_id,
+                        "payload": result,
+                    })
+                except HTTPException as exc:
+                    await manager.send_personal_message(current_user.id, {
+                        "action": "answer_result",
+                        "reqId": req_id,
+                        "error": {
+                            "status": exc.status_code,
+                            "detail": exc.detail,
+                        },
+                    })
+                except Exception:
+                    await manager.send_personal_message(current_user.id, {
+                        "action": "answer_result",
+                        "reqId": req_id,
+                        "error": {
+                            "status": 500,
+                            "detail": "Unexpected submit error",
+                        },
+                    })
                 
     except WebSocketDisconnect:
         manager.disconnect(current_user.id)

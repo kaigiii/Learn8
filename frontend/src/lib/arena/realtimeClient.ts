@@ -68,7 +68,11 @@ class ArenaWsClient {
         if (data.action === "answer_result") {
           const req = this.pendingRequests.get(data.reqId);
           if (req) {
-            req.resolve(data.payload);
+            if (data.error) {
+              req.reject(new Error(data.error.detail || "Arena submit failed"));
+            } else {
+              req.resolve(data.payload);
+            }
             this.pendingRequests.delete(data.reqId);
           }
         } else if (data.type === "pong") {

@@ -205,26 +205,33 @@ class CompetitiveService:
         from app.arena.models.arena_match import ArenaMatchModel
         from app.arena.domain.arena_statuses import ArenaMatchStatus
 
-        entry = (
+        entries = (
             db.query(ArenaQueueEntryModel)
             .filter(
                 ArenaQueueEntryModel.user_id == user_id,
                 ArenaQueueEntryModel.status.in_((ArenaQueueStatus.WAITING, ArenaQueueStatus.MATCHED)),
             )
             .order_by(ArenaQueueEntryModel.created_at.desc())
-            .first()
+            .all()
         )
-        if not entry:
+        if not entries:
             return None
-        
-        # If matched, verify the match is still active
-        if entry.status == ArenaQueueStatus.MATCHED and entry.match_id:
+
+        # Prefer a valid MATCHED entry first so users don't get stuck on a newer WAITING duplicate.
+        for entry in entries:
+            if entry.status != ArenaQueueStatus.MATCHED or not entry.match_id:
+                continue
+
             match = db.query(ArenaMatchModel).filter(ArenaMatchModel.id == entry.match_id).first()
-            if match and match.status in (ArenaMatchStatus.FINISHED, ArenaMatchStatus.CANCELLED):
-                # This is a stale entry, ignore it
-                return None
-        
-        return entry
+            if match and match.status not in (ArenaMatchStatus.FINISHED, ArenaMatchStatus.CANCELLED):
+                return entry
+
+        # Fall back to the newest WAITING entry.
+        for entry in entries:
+            if entry.status == ArenaQueueStatus.WAITING:
+                return entry
+
+        return None
 
     def _find_waiting_opponent(
         self,
