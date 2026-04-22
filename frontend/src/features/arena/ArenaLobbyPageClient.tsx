@@ -381,17 +381,13 @@ function LobbyPlayerCard({
   connectionState?: string | null;
   loading?: boolean;
 }) {
-  const readyToneClassName = isReady
-    ? "bg-emerald-100 text-emerald-700"
-    : "bg-amber-100 text-amber-700";
-
   return (
     <div className="relative w-full max-w-[360px] overflow-hidden rounded-[30px] border border-white/70 bg-white/62 p-4 backdrop-blur-xl shadow-[0_28px_50px_rgba(95,146,165,0.14)] lg:w-[min(44vw,360px)]">
       <div className="relative flex min-h-[290px] items-center justify-center rounded-[24px] bg-[linear-gradient(180deg,rgba(222,241,247,0.9),rgba(210,233,242,0.94))] p-4">
         {loading ? (
           <div className="h-16 w-16 animate-spin rounded-full border-[6px] border-brand-teal/15 border-t-brand-teal/60" />
         ) : (
-          <AvatarBubble src={avatarSrc} alt={title} />
+          <AvatarBubble src={avatarSrc} alt={title} isReady={isReady} />
         )}
       </div>
 
@@ -402,10 +398,6 @@ function LobbyPlayerCard({
         <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.22em] text-brand-teal">
           {role}
         </p>
-
-        <div className={`mx-auto mt-3 inline-flex min-w-[180px] items-center justify-center rounded-full px-4 py-2 text-sm font-bold uppercase tracking-[0.16em] ${readyToneClassName}`}>
-          {readyLabel}
-        </div>
 
         {onReadyToggle ? (
           <GameButton
@@ -431,7 +423,7 @@ function LobbyPlayerCard({
   );
 }
 
-function AvatarBubble({ src, alt }: { src?: string; alt: string }) {
+function AvatarBubble({ src, alt, isReady = false }: { src?: string; alt: string; isReady?: boolean }) {
   const imageSrc = src || "/avatar/chicken.png";
   return (
     <div className="relative flex h-[170px] w-[170px] items-center justify-center rounded-full bg-white/35 shadow-[inset_0_0_0_12px_rgba(255,255,255,0.26)]">
@@ -439,6 +431,22 @@ function AvatarBubble({ src, alt }: { src?: string; alt: string }) {
       <div className="relative h-[138px] w-[138px] overflow-hidden rounded-full bg-white shadow-[0_18px_30px_rgba(95,146,165,0.15)]">
         <Image src={imageSrc} alt={alt} fill sizes="138px" className="object-cover" />
       </div>
+      
+      {isReady && (
+        <div className="absolute bottom-2 right-2 flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500 shadow-lg">
+          <svg
+            className="h-6 w-6 text-white"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M20 6L9 17l-5-5" />
+          </svg>
+        </div>
+      )}
     </div>
   );
 }

@@ -245,11 +245,10 @@ class RoomService:
                 user_snapshot_json=build_user_snapshot(current_user),
             )
         )
-        db.commit()
-        room = self.get_room_by_code(db, room.room_code, cleanup_idle=False)
+        db.flush()
+        
+        # Do all operations before commit
         self.presence_service.touch_room_presence(db, room, current_user)
-        db.commit()
-        room = self.get_room_by_code(db, room.room_code, cleanup_idle=False)
         self.realtime_gateway.publish_event(
             db,
             stream_type="room",
@@ -257,7 +256,11 @@ class RoomService:
             event_type="room.created",
             payload=self.serialize_room(room),
         )
+        
+        # Single commit at the end
         db.commit()
+        
+        # Single query to get fresh room data
         room = self.get_room_by_code(db, room.room_code, cleanup_idle=False)
         return room
 
