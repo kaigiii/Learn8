@@ -65,28 +65,12 @@ class PresenceService:
             redis_sync_client.setex(f"presence:user:{current_user.id}", 30, "online")
         except Exception:
             pass
-            
-        # Reconnect logic if they were marked disconnected in DB
-        player = next((p for p in match.players if p.user_id == current_user.id), None)
-        if player and player.connection_state == "disconnected":
-            player.connection_state = "connected"
-            player.reconnected_at = utc_now()
-            db.add(player)
-            self.realtime_gateway.publish_event(
-                db,
-                stream_type="match",
-                room_code=match.room_snapshot_json.get("room_code") if isinstance(match.room_snapshot_json, dict) else None,
-                match_id=match.id,
-                event_type="player.reconnected",
-                payload={
-                    "scope": "match",
-                    "matchId": match.id,
-                    "userId": player.user_id,
-                    "displayName": (player.user_snapshot_json or {}).get("displayName") 
-                        or player.user.full_name 
-                        or player.user.email.split("@")[0],
-                },
-            )
+
+        # IMPORTANT:
+        # Presence heartbeats can be called at high frequency while clients poll match state.
+        # Avoid writing reconnect flags on every poll to prevent row lock contention with
+        # round close/finalization updates.
+        return
 
     def sweep_match_presence(self, db: Session, match: ArenaMatchModel) -> None:
         now = utc_now()
