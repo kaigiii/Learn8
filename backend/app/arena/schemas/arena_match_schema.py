@@ -88,6 +88,11 @@ class ArenaAnswerSubmitRequest(BaseModel):
 class ArenaAnswerSubmitResponse(BaseModel):
     accepted: bool
     alreadySubmitted: bool = False
+    isCorrect: Optional[bool] = None
+    scoreAwarded: Optional[int] = None
+    responseTimeMs: Optional[int] = None
+    selectedOptionId: Optional[str] = None
+    revealedAnswer: Optional[dict[str, Any]] = None
     roundClosed: bool
     matchFinished: bool
     state: ArenaMatchStateResponse

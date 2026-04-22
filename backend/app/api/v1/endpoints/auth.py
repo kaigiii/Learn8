@@ -48,6 +48,7 @@ AVATAR_FILENAME_RE = re.compile(r"^[^/\\\x00]+\.png$")
 MAX_AVATAR_UPLOAD_BYTES = 20 * 1024 * 1024
 BACKEND_ROOT_DIR = Path(__file__).resolve().parents[4]
 AVATAR_IMAGE_DIR = BACKEND_ROOT_DIR / "uploads" / "avatar"
+DEFAULT_AVATAR_PATH = BACKEND_ROOT_DIR.parent / "frontend" / "public" / "avatar" / "chicken.png"
 
 
 def _normalize_email(email: str) -> str:
@@ -449,6 +450,12 @@ def get_avatar_image(filename: str):
 
     avatar_path = AVATAR_IMAGE_DIR / decoded_filename
     if not avatar_path.exists() or not avatar_path.is_file():
+        if DEFAULT_AVATAR_PATH.exists() and DEFAULT_AVATAR_PATH.is_file():
+            return FileResponse(
+                path=str(DEFAULT_AVATAR_PATH),
+                media_type="image/png",
+                filename="chicken.png",
+            )
         raise HTTPException(status_code=404, detail="Avatar not found")
 
     return FileResponse(path=str(avatar_path), media_type="image/png", filename=decoded_filename)

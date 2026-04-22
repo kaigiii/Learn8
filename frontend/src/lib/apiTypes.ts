@@ -516,6 +516,11 @@ export interface ArenaMatchState {
 export interface ArenaAnswerSubmitResponse {
   accepted: boolean;
   alreadySubmitted: boolean;
+  isCorrect?: boolean | null;
+  scoreAwarded?: number | null;
+  responseTimeMs?: number | null;
+  selectedOptionId?: string | null;
+  revealedAnswer?: Record<string, unknown> | null;
   roundClosed: boolean;
   matchFinished: boolean;
   state: ArenaMatchState;
