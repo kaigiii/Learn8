@@ -8,6 +8,7 @@ import DeepGlassCard from "@/components/ui/DeepGlassCard";
 import GameButton from "@/components/ui/GameButton";
 import { arenaWsClient } from "@/lib/arena/realtimeClient";
 import { getArenaEventLabel } from "@/lib/arena/eventTypes";
+import { ArenaAnswerSubmitResponse } from "@/lib/apiTypes";
 import { useRequireAuthRedirect } from "@/lib/auth/useRequireAuthRedirect";
 import { useAuthStore } from "@/stores/app/useAuthStore";
 import { useArenaMatchStore } from "@/stores/arena/useArenaMatchStore";
@@ -347,12 +348,7 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
     });
 
     try {
-      const result = await arenaWsClient.sendActionWithResponse<{
-        state: any;
-        alreadySubmitted: boolean;
-        roundClosed: boolean;
-        matchFinished: boolean;
-      }>("submit_answer", {
+      const result = await arenaWsClient.sendActionWithResponse<ArenaAnswerSubmitResponse>("submit_answer", {
         matchId: match.matchId,
         roundId: match.activeRound.roundId,
         selectedOptionId: finalValue,
