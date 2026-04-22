@@ -405,6 +405,7 @@ export interface ArenaSeasonSummary {
 export interface ArenaRoomPlayer {
   userId: number;
   displayName: string;
+  avatarUrl?: string | null;
   isHost: boolean;
   isReady: boolean;
   team?: string | null;
