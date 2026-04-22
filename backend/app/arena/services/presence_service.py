@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from app.core.time import utc_now, to_iso_utc, ensure_aware
@@ -66,11 +67,43 @@ class PresenceService:
         except Exception:
             pass
 
-        # IMPORTANT:
-        # Presence heartbeats can be called at high frequency while clients poll match state.
-        # Avoid writing reconnect flags on every poll to prevent row lock contention with
-        # round close/finalization updates.
-        return
+        # Reconnect transition should only happen once, and should never block polling calls.
+        try:
+            disconnected_player = (
+                db.query(ArenaMatchPlayerModel)
+                .filter(
+                    ArenaMatchPlayerModel.match_id == match.id,
+                    ArenaMatchPlayerModel.user_id == current_user.id,
+                    ArenaMatchPlayerModel.connection_state == "disconnected",
+                )
+                .with_for_update(nowait=True)
+                .first()
+            )
+        except OperationalError:
+            # Another transaction is updating this row; skip reconnect update for this tick.
+            return
+
+        if not disconnected_player:
+            return
+
+        disconnected_player.connection_state = "connected"
+        disconnected_player.reconnected_at = utc_now()
+        db.add(disconnected_player)
+        self.realtime_gateway.publish_event(
+            db,
+            stream_type="match",
+            room_code=match.room_snapshot_json.get("room_code") if isinstance(match.room_snapshot_json, dict) else None,
+            match_id=match.id,
+            event_type="player.reconnected",
+            payload={
+                "scope": "match",
+                "matchId": match.id,
+                "userId": disconnected_player.user_id,
+                "displayName": (disconnected_player.user_snapshot_json or {}).get("displayName")
+                or current_user.full_name
+                or current_user.email.split("@")[0],
+            },
+        )
 
     def sweep_match_presence(self, db: Session, match: ArenaMatchModel) -> None:
         now = utc_now()
