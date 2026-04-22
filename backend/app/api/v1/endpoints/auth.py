@@ -86,6 +86,46 @@ def _avatar_filename_for_user(email: str, user_id: int) -> str:
     return f"{safe_email}.png"
 
 
+def _avatar_url_for_filename(filename: str) -> str:
+    return f"{settings.API_V1_STR}/auth/avatar-images/{quote(filename, safe='')}"
+
+
+def _sync_legacy_avatar_url(user: UserModel) -> bool:
+    current_avatar_url = (user.avatar_url or "").strip()
+    if not current_avatar_url or "/auth/avatar-images/" not in current_avatar_url:
+        return False
+
+    current_encoded_filename = current_avatar_url.rsplit("/auth/avatar-images/", 1)[-1].split("?", 1)[0]
+    current_filename = unquote(current_encoded_filename)
+    if not AVATAR_FILENAME_RE.match(current_filename):
+        user.avatar_url = None
+        return True
+
+    expected_filename = _avatar_filename_for_user(user.email, user.id)
+    expected_avatar_path = AVATAR_IMAGE_DIR / expected_filename
+    current_avatar_path = AVATAR_IMAGE_DIR / current_filename
+
+    # If the URL already matches but the file is missing, clear it so frontend falls back to default.
+    if current_filename == expected_filename:
+        if expected_avatar_path.exists() and expected_avatar_path.is_file():
+            return False
+        user.avatar_url = None
+        return True
+
+    # Migrate legacy filename URLs only when the email-based file is actually present.
+    if expected_avatar_path.exists() and expected_avatar_path.is_file():
+        user.avatar_url = _avatar_url_for_filename(expected_filename)
+        return True
+
+    # Keep working legacy URLs when the legacy file still exists.
+    if current_avatar_path.exists() and current_avatar_path.is_file():
+        return False
+
+    # If neither path exists, clear it so frontend can use the default avatar image.
+    user.avatar_url = None
+    return True
+
+
 @router.post("/register")
 def register(user: UserCreate, db: Session = Depends(get_db)):
     try:
@@ -284,8 +324,16 @@ def dev_login(db: Session = Depends(get_db)):
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.get("/me", response_model=UserResponse)
-def read_users_me(current_user: UserModel = Depends(get_current_user)):
+def read_users_me(
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     ensure_user_progress_fields(current_user)
+
+    if _sync_legacy_avatar_url(current_user):
+        db.commit()
+        db.refresh(current_user)
+
     return current_user
 
 
@@ -392,8 +440,7 @@ async def upload_user_avatar(
     except Exception:
         raise HTTPException(status_code=500, detail="Failed to save avatar image.")
 
-    encoded_avatar_filename = quote(avatar_filename, safe="")
-    current_user.avatar_url = f"{settings.API_V1_STR}/auth/avatar-images/{encoded_avatar_filename}"
+    current_user.avatar_url = _avatar_url_for_filename(avatar_filename)
     db.commit()
     db.refresh(current_user)
 
