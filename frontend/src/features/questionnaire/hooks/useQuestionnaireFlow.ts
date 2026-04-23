@@ -65,8 +65,18 @@ export function useQuestionnaireFlow() {
     setStep("answering");
   }, []);
 
+  const eventSourceRef = useRef<EventSource | null>(null);
+
+  const closeCurrentEventSource = useCallback(() => {
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
+    }
+  }, []);
+
   const connectQuestionnaireJob = useCallback(
     (jobId: string, pendingCourseId: number, pendingTopic: string) => {
+      closeCurrentEventSource();
       activeJobIdRef.current = jobId;
       setCanRetryGeneration(false);
       setStep("loading");
@@ -77,8 +87,13 @@ export function useQuestionnaireFlow() {
           .fallbackMessage
       );
 
-      return watchJobStream(jobId, {
+      const source = watchJobStream(jobId, {
+        autoClose: false,
+        onOpen: () => {
+          setError("");
+        },
         onUpdate: (data) => {
+          setError("");
           setJobType(JOB_TYPE.QUESTIONNAIRE_GENERATION);
           setJobProgress(data.progress ?? 0);
           setJobMessage(
@@ -136,18 +151,23 @@ export function useQuestionnaireFlow() {
         },
         onError: () => {
           if (hasNavigatedAwayRef.current) return;
-          activeJobIdRef.current = null;
+          // Don't null out activeJobIdRef yet, allow auto-reconnect or manual retry
           setCanRetryGeneration(true);
-          setStep("answering");
-          setError("Lost connection while generating questionnaire. Retry when the backend is back.");
+          // Instead of going back to answering, just show error but stay on forging if it might reconnect
+          // Actually watchJobStream auto-closes on error, so we do need to show error.
+          setError("Lost connection while generating questionnaire. You can wait or try refreshing.");
         },
       });
+
+      eventSourceRef.current = source;
+      return source;
     },
-    [clearPendingQuestionnaire]
+    [clearPendingQuestionnaire, closeCurrentEventSource]
   );
 
   const connectSyllabusJob = useCallback(
     (jobId: string, pendingCourseId: number) => {
+      closeCurrentEventSource();
       setStep("forging");
       activeJobIdRef.current = jobId;
       setCanRetryGeneration(false);
@@ -158,8 +178,13 @@ export function useQuestionnaireFlow() {
           .fallbackMessage
       );
 
-      return watchJobStream(jobId, {
+      const source = watchJobStream(jobId, {
+        autoClose: false,
+        onOpen: () => {
+          setError("");
+        },
         onUpdate: (data) => {
+          setError("");
           setJobType(JOB_TYPE.SYLLABUS_GENERATION);
           setJobProgress(data.progress ?? 0);
           setJobMessage(data.message || "Forging your personalised syllabus...");
@@ -218,15 +243,22 @@ export function useQuestionnaireFlow() {
         },
         onError: () => {
           if (hasNavigatedAwayRef.current) return;
-          activeJobIdRef.current = null;
           setCanRetryGeneration(true);
-          setStep("answering");
-          setError("Lost connection while forging syllabus. Retry when the backend is back.");
+          // setError("Connection lost. If it doesn't resume, please refresh the page.");
         },
       });
+
+      eventSourceRef.current = source;
+      return source;
     },
-    [clearPendingQuestionnaire, router]
+    [clearPendingQuestionnaire, closeCurrentEventSource, router]
   );
+
+  useEffect(() => {
+    return () => {
+      closeCurrentEventSource();
+    };
+  }, [closeCurrentEventSource]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;

@@ -122,7 +122,12 @@ class SyllabusAgent:
 
         # 1. Generate Blueprint
         if progress_callback:
-            progress_callback(10, "🧠 AI 正在閱讀文獻與設計總體架構...")
+            progress_callback(5, "📖 正在擷取領域知識與相關文獻...")
+        
+        await asyncio.sleep(0.8)
+
+        if progress_callback:
+            progress_callback(10, "🧠 AI 正在思考最適合您的課程架構...")
 
         profile_str = profile_summary if profile_summary else "General Audience"
         blueprint = await self.generate_blueprint(
@@ -132,6 +137,11 @@ class SyllabusAgent:
             return None
 
         logger.info(f"📋 [SyllabusAgent] Blueprint generated: {len(blueprint.units)} units.")
+
+        if progress_callback:
+            progress_callback(15, "🎨 正在設計單元學習目標與進度...")
+        
+        await asyncio.sleep(0.5)
 
         if progress_callback:
             progress_callback(
@@ -163,6 +173,7 @@ class SyllabusAgent:
                 nodes = await self.expand_unit(
                     topic, b_unit, course_id=course_id, profile=profile_str
                 )
+                await asyncio.sleep(0.3)
 
                 completed_units += 1
                 if progress_callback:
