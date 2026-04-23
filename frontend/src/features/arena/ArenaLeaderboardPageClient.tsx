@@ -268,21 +268,18 @@ export default function ArenaLeaderboardPageClient() {
               </div>
 
               <div className="mt-3 grid grid-cols-2 gap-2">
-                <SnapshotStatTile label="Rank Tier" value={profile?.rankTier ?? "-"} icon="⛭" />
+                <SnapshotStatTile label="Rank Tier" value={profile?.rankTier ?? "-"} />
                 <SnapshotStatTile
                   label="Matches"
                   value={String(profile?.rankedMatches ?? currentUserStanding?.entry.totalMatches ?? 0)}
-                  icon="%"
                 />
                 <SnapshotStatTile
                   label="Wins | Losses"
                   value={`${profile?.wins ?? 0}W | ${profile?.losses ?? 0}L`}
-                  icon="%"
                 />
                 <SnapshotStatTile
-                  label="#1 Placement"
+                  label="Placement"
                   value={currentUserStanding ? `#${currentUserStanding.placement}` : "#-"}
-                  icon="#"
                 />
               </div>
 
