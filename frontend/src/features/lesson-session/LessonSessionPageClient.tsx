@@ -108,6 +108,7 @@ export default function LessonSessionPageClient({
     retrySessionStart,
     retryPhaseTransition,
     handleExitLesson,
+    handleSubmissionConflict,
   } = useLessonSessionFlow({
     backendCourseId,
     routeCourseId: resolvedRouteCourseId,
@@ -165,6 +166,7 @@ export default function LessonSessionPageClient({
     onHintUsed: useSessionHint,
     onAdvanceStage: () => setStageIdx((i) => i + 1),
     onCompletePhase: completeCurrentPhase,
+    onSubmissionConflict: handleSubmissionConflict,
   });
 
   const hasPendingStatusFlow =

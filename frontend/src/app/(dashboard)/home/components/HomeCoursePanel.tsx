@@ -4,14 +4,13 @@ import Link from "next/link";
 import DeepGlassCard from "@/components/ui/DeepGlassCard";
 import GameButton from "@/components/ui/GameButton";
 import TopProgressBar from "@/components/ui/TopProgressBar";
+import {
+  DEFAULT_LIBRARY_BACKGROUNDS,
+  resolveCourseCardBackground,
+} from "@/lib/courseCardBackground";
 import { HomeCourseIcon } from "./HomeCourseIcon";
 
-const LIB_BG_IMAGES = [
-  "/library-bg/blue.png",
-  "/library-bg/green.png",
-  "/library-bg/red.png",
-  "/library-bg/yellow.png",
-];
+const LIB_BG_IMAGES = DEFAULT_LIBRARY_BACKGROUNDS;
 
 interface HomeCoursePanelProps {
   name: string;
@@ -34,14 +33,10 @@ export function HomeCoursePanel({
   resumeNodeCount,
   activeProgress,
 }: HomeCoursePanelProps) {
-  const resolvedBackgroundIndex =
-    resumeLibraryIndex >= 0
-      ? resumeLibraryIndex
-      : (activeCourseNumericId ?? 0);
-
-  const resumeBackgroundImage =
-    LIB_BG_IMAGES[resolvedBackgroundIndex % LIB_BG_IMAGES.length] ??
-    LIB_BG_IMAGES[0];
+  const resumeBackgroundImage = resolveCourseCardBackground(
+    activeCourseNumericId ?? activeCourseId ?? resumeTitle ?? resumeLibraryIndex,
+    LIB_BG_IMAGES
+  );
 
   return (
     <DeepGlassCard className="h-full min-h-[400px] px-7 py-7 md:px-8 md:py-8">

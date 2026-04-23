@@ -4,15 +4,14 @@ import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import type { CourseListItem } from "@/lib/apiTypes";
+import {
+  DEFAULT_LIBRARY_BACKGROUNDS,
+  resolveCourseCardBackground,
+} from "@/lib/courseCardBackground";
 import type { CourseModalState } from "../types";
 import { HomeCourseIcon } from "./HomeCourseIcon";
 
-const LIB_BG_IMAGES = [
-  "/library-bg/blue.png",
-  "/library-bg/green.png",
-  "/library-bg/red.png",
-  "/library-bg/yellow.png",
-];
+const LIB_BG_IMAGES = DEFAULT_LIBRARY_BACKGROUNDS;
 
 export type HomeLibraryItem =
   | {
@@ -187,9 +186,11 @@ export function HomeLibrarySection({
           className="flex snap-x gap-4 overflow-x-auto pb-4 pt-4 scrollbar-hide min-h-[220px]"
           style={{ scrollbarWidth: "none" }}
         >
-          {libraryItems.map((item, index) => {
-            const backgroundImage =
-              LIB_BG_IMAGES[index % LIB_BG_IMAGES.length] ?? LIB_BG_IMAGES[0];
+          {libraryItems.map((item) => {
+            const backgroundImage = resolveCourseCardBackground(
+              item.course.id ?? item.key ?? item.title,
+              LIB_BG_IMAGES
+            );
             const shouldHideTopActions =
               activeLongPressKey === item.key || mobileActionItem !== null;
 
