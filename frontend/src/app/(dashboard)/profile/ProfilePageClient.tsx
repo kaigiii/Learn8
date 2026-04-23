@@ -342,7 +342,7 @@ export default function ProfilePageClient() {
         ]}
       />
 
-      <div className="relative z-10 mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8 md:px-8">
+      <div className="relative z-10 mx-auto flex max-w-[1240px] flex-col gap-6 px-4 py-8 md:px-8">
         <DeepGlassCard className="overflow-hidden border border-white/70 bg-white/78 px-6 py-6 shadow-[0_24px_60px_rgba(31,41,55,0.12)]">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-center gap-4">
@@ -436,7 +436,7 @@ export default function ProfilePageClient() {
               </div>
             </section>
 
-            <div className="grid gap-6 xl:grid-rows-[minmax(0,0.86fr)_minmax(0,1.14fr)]">
+            <div className="grid gap-6 xl:grid-rows-[minmax(0,1fr)_minmax(0,1fr)]">
               <section className="flex h-full flex-col rounded-[28px] border border-white/70 bg-white/68 p-4">
                 <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-gray-500">Season Honors</p>
                 <h3 className="mt-1 font-heading text-[26px] font-extrabold leading-tight text-brand-gray-700">Current season identity</h3>
@@ -516,7 +516,7 @@ export default function ProfilePageClient() {
 
                 <section className="flex h-full flex-col rounded-[28px] border border-white/70 bg-white/68 p-4">
                 <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-gray-500">Rank History</p>
-                <h3 className="mt-1 font-heading text-[30px] font-extrabold leading-tight text-brand-gray-700">Recent ladder movement</h3>
+                <h3 className="mt-1 font-heading text-[26px] font-extrabold leading-tight text-brand-gray-700">Recent ladder movement</h3>
 
                 {(arenaLoading || arenaHistory.length === 0) && (
                   <div className="mt-3 flex flex-1 items-end justify-between gap-4">
@@ -1267,9 +1267,11 @@ function ArenaSummaryMetric({
   trendValues: number[];
 }) {
   return (
-    <div className="flex h-full min-h-[122px] w-full min-w-0 flex-col rounded-2xl border border-[#365580] bg-gradient-to-b from-[#2d4f7b] to-[#1f385b] px-3 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/70">{label}</p>
-      <p className="mt-2 truncate font-heading text-3xl font-extrabold leading-none">{value}</p>
+    <div className="flex h-full min-h-[122px] w-full min-w-0 flex-col items-center rounded-2xl border border-[#365580] bg-gradient-to-b from-[#2d4f7b] to-[#1f385b] px-3 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+      <p className="w-full text-center text-[10px] font-bold uppercase tracking-[0.14em] text-white/70">{label}</p>
+      <div className="flex w-full flex-1 items-center justify-center">
+        <p className="w-full truncate text-center font-heading text-3xl font-extrabold leading-none">{value}</p>
+      </div>
     </div>
   );
 }
