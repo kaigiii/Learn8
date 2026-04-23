@@ -429,6 +429,45 @@ export function useLessonSessionFlow({
     setSessionRetryNonce((value) => value + 1);
   }, []);
 
+  const handleSubmissionConflict = useCallback(async () => {
+    if (!lessonSession) {
+      return;
+    }
+
+    try {
+      const refreshedSession = await apiFetch<LessonSessionPayload>(
+        `/lessons/sessions/${lessonSession.sessionId}`
+      );
+      if (isExitingRef.current) {
+        return;
+      }
+
+      setLessonSession(refreshedSession);
+
+      if (refreshedSession.status === LESSON_SESSION_STATUS.COMPLETED) {
+        let summary: LessonSessionSummary | null = null;
+        try {
+          summary = await apiFetch<LessonSessionSummary>(
+            `/lessons/sessions/${refreshedSession.sessionId}/summary`
+          );
+        } catch {
+          summary = null;
+        }
+        navigateToResult(refreshedSession.sessionId, summary);
+        return;
+      }
+
+      if (
+        refreshedSession.status === LESSON_SESSION_STATUS.REMEDIAL_GENERATING &&
+        refreshedSession.remedialJobId
+      ) {
+        connectRemedialJob(refreshedSession.remedialJobId, refreshedSession.sessionId);
+      }
+    } catch {
+      // Silent fallback: caller should avoid crashing even if recovery fetch fails.
+    }
+  }, [connectRemedialJob, lessonSession, navigateToResult]);
+
   const handleExitLesson = useCallback(() => {
     const targetHref = backendCourseId ? `/courses/${backendCourseId}` : "/home";
     isExitingRef.current = true;
@@ -454,6 +493,7 @@ export function useLessonSessionFlow({
     retrySessionStart,
     retryPhaseTransition,
     handleExitLesson,
+    handleSubmissionConflict,
     setLessonSession,
     setPhaseTransitionError,
   };

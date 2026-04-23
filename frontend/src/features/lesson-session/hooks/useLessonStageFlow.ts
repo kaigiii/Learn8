@@ -21,6 +21,7 @@ interface UseLessonStageFlowParams {
   onHintUsed: () => void;
   onAdvanceStage: () => void;
   onCompletePhase: () => Promise<void>;
+  onSubmissionConflict: () => Promise<void>;
 }
 
 export function useLessonStageFlow({
@@ -34,6 +35,7 @@ export function useLessonStageFlow({
   onHintUsed,
   onAdvanceStage,
   onCompletePhase,
+  onSubmissionConflict,
 }: UseLessonStageFlowParams) {
   const submitStage = useCallback(
     async (stageToSubmit: LessonStage, userInput: unknown) => {
@@ -41,17 +43,31 @@ export function useLessonStageFlow({
         return;
       }
 
-      const response = await apiFetch<SubmissionResponse>("/lessons/submit-answer", {
-        method: "POST",
-        body: JSON.stringify({
-          sessionId: lessonSession.sessionId,
-          stageId: stageToSubmit.stageId,
-          userInput,
-          context_topic:
-            backendCourse?.topic || backendCourse?.courseTitle || stageToSubmit.topic,
-          component: stageToSubmit.component,
-        }),
-      });
+      let response: SubmissionResponse;
+      try {
+        response = await apiFetch<SubmissionResponse>("/lessons/submit-answer", {
+          method: "POST",
+          body: JSON.stringify({
+            sessionId: lessonSession.sessionId,
+            stageId: stageToSubmit.stageId,
+            userInput,
+            context_topic:
+              backendCourse?.topic || backendCourse?.courseTitle || stageToSubmit.topic,
+            component: stageToSubmit.component,
+          }),
+        });
+      } catch (error) {
+        if (
+          error instanceof ApiError &&
+          error.status === 409 &&
+          typeof error.detail === "string" &&
+          error.detail.includes("not accepting submissions")
+        ) {
+          await onSubmissionConflict();
+          return;
+        }
+        throw error;
+      }
 
       if (response.result === "correct") {
         onCorrect();
@@ -61,7 +77,14 @@ export function useLessonStageFlow({
 
       return response;
     },
-    [backendCourse, isSessionInteractive, lessonSession, onCorrect, onIncorrect]
+    [
+      backendCourse,
+      isSessionInteractive,
+      lessonSession,
+      onCorrect,
+      onIncorrect,
+      onSubmissionConflict,
+    ]
   );
 
   const consumeHintCredits = useCallback(async () => {
