@@ -218,8 +218,7 @@ export default function ArenaQueuePageClient() {
         </div>
 
         <div className="mt-8 flex w-full max-w-3xl flex-col items-center gap-3">
-          <div className="flex items-center gap-2 rounded-full border border-white/60 bg-white/50 px-4 py-2 text-xs font-bold uppercase tracking-[0.24em] text-brand-gray-600 shadow-sm backdrop-blur">
-            <span className="h-2 w-2 rounded-full bg-brand-teal" />
+          <div className="text-xs font-bold uppercase tracking-[0.24em] text-brand-gray-600">
             {queueState?.poolTitle || queueState?.publicCourseTitle || "Competitive Queue"}
           </div>
 

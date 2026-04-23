@@ -944,6 +944,20 @@ class RoundEngine:
             },
         )
 
+        # Push a standings refresh immediately so both players see score changes
+        # as soon as either side submits, instead of waiting for round closure.
+        self.realtime_gateway.publish_event(
+            db,
+            stream_type="match",
+            room_code=match.room_snapshot_json.get("room_code") if isinstance(match.room_snapshot_json, dict) else None,
+            match_id=match.id,
+            event_type="standings.updated",
+            payload={
+                "matchId": match.id,
+                "standings": self._build_standings(match, self._get_rounds(db, match.id)),
+            },
+        )
+
         answer_count = (
             db.query(ArenaAnswerModel)
             .filter(ArenaAnswerModel.round_id == round_model.id)

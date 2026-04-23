@@ -13,6 +13,48 @@ export function useArenaMatchEvents(matchId: number | null) {
   const patchMatch = useArenaMatchStore((state) => state.patchMatch);
   const setConnectionStatus = useArenaMatchStore((state) => state.setConnectionStatus);
 
+  const applyStandingsDelta = (userId: number, scoreAwarded: number | null | undefined, isCorrect: boolean | null | undefined) => {
+    const currentMatch = useArenaMatchStore.getState().match;
+    if (!currentMatch?.standings?.length) return;
+
+    const delta = Number(scoreAwarded ?? 0);
+    const nextStandings = currentMatch.standings.map((entry) => {
+      if (entry.userId !== userId) return entry;
+
+      return {
+        ...entry,
+        score: entry.score + delta,
+        answeredCount: entry.answeredCount + 1,
+        correctCount: entry.correctCount + (isCorrect ? 1 : 0),
+        incorrectCount: entry.incorrectCount + (isCorrect ? 0 : 1),
+      };
+    });
+
+    nextStandings.sort((a, b) => {
+      const scoreDiff = b.score - a.score;
+      if (scoreDiff !== 0) return scoreDiff;
+      const correctDiff = b.correctCount - a.correctCount;
+      if (correctDiff !== 0) return correctDiff;
+      const responseDiff = (a.averageResponseMs ?? 10 ** 9) - (b.averageResponseMs ?? 10 ** 9);
+      if (responseDiff !== 0) return responseDiff;
+      return a.displayName.localeCompare(b.displayName);
+    });
+
+    nextStandings.forEach((entry, index) => {
+      entry.rank = index + 1;
+    });
+
+    const currentUserId = useArenaMatchStore.getState().match?.currentPlayerResult?.userId;
+    const currentPlayerResult = currentUserId
+      ? nextStandings.find((entry) => entry.userId === currentUserId) ?? null
+      : currentMatch.currentPlayerResult ?? null;
+
+    patchMatch({
+      standings: nextStandings,
+      currentPlayerResult,
+    });
+  };
+
   const refetch = async () => {
     if (!matchId) return;
     try {
@@ -66,6 +108,14 @@ export function useArenaMatchEvents(matchId: number | null) {
 
         if (payload && payload.activeRound) {
           patchMatch({ activeRound: payload.activeRound as ArenaRoundState });
+          needsFetch = false;
+        }
+        if (envelope.eventType === "round.answer_received") {
+          applyStandingsDelta(
+            Number(payload?.userId ?? 0),
+            payload?.scoreAwarded,
+            payload?.isCorrect
+          );
           needsFetch = false;
         }
         if (payload && payload.standings) {
@@ -134,6 +184,30 @@ export function useArenaMatchEvents(matchId: number | null) {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [matchId, appendEvents, patchMatch, setConnectionStatus, setMatch]);
+
+  // During an active match, run a short-interval state sync.
+  // This keeps score bars aligned even when WS event delivery is delayed.
+  useEffect(() => {
+    if (!matchId) return;
+    if (match?.status !== "in_progress") return;
+
+    let cancelled = false;
+    const intervalId = window.setInterval(async () => {
+      try {
+        const refreshedMatch = await fetchArenaMatch(matchId);
+        if (!cancelled && refreshedMatch.matchId === matchId) {
+          setMatch(refreshedMatch);
+        }
+      } catch {
+        // Ignore transient sync errors; regular WS/poll paths continue.
+      }
+    }, 1000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [matchId, match?.status, setMatch]);
 
   return { match, refetch };
 }
