@@ -38,9 +38,7 @@ export function useHomeDashboardData(token: string | null) {
         setDraftsByCourse(draftsByCourseMap);
         const persistedCourseId = useCourseStore.getState().currentCourseId;
         const resolvedCourse =
-          courseData.find((course) => course.id === persistedCourseId) ??
-          courseData[0] ??
-          null;
+          courseData.find((course) => course.id === persistedCourseId) ?? null;
         setCurrentCourse(resolvedCourse);
       } catch (err) {
         setError(

@@ -68,15 +68,29 @@ export function useHomeCourseActions({
   );
 
   const createDraftCourse = useCallback(
-    async (name: string) => {
-      const course = await apiFetch<CourseListItem>("/courses", {
+    async (name: string, topic: string = name) => {
+      const created = await apiFetch<CourseListItem>("/courses", {
         method: "POST",
         body: JSON.stringify({
           title: name,
-          topic: name,
+          topic,
           status: COURSE_STATUS.DRAFT,
         }),
       });
+      const course: CourseListItem =
+        topic === ""
+          ? {
+              ...created,
+              topic: "",
+              draft_json: {
+                ...(created.draft_json || {}),
+                topic: "",
+                questions: [],
+                answers: {},
+                freeText: "",
+              },
+            }
+          : created;
       setCourses((prev) => [
         course,
         ...prev.filter((item) => item.id !== course.id),
@@ -94,7 +108,7 @@ export function useHomeCourseActions({
       setError("");
       setIsForging(true);
       try {
-        const course = await createDraftCourse(inferredName);
+        const course = await createDraftCourse(inferredName, "");
         createdCourse = course;
 
         const formData = new FormData();
@@ -103,6 +117,47 @@ export function useHomeCourseActions({
           method: "POST",
           body: formData,
         });
+
+        await apiFetch(`/courses/${course.id}/draft`, {
+          method: "PUT",
+          body: JSON.stringify({
+            draft: {
+              topic: "",
+              questions: [],
+              answers: {},
+              freeText: "",
+            },
+          }),
+        });
+
+        setDraftsByCourse((prev) => ({
+          ...prev,
+          [course.id]: {
+            ...(prev[course.id] || {}),
+            topic: "",
+            questions: [],
+            answers: {},
+            freeText: "",
+          },
+        }));
+        setCourses((prev) =>
+          prev.map((item) =>
+            item.id === course.id
+              ? {
+                  ...item,
+                  topic: "",
+                  draft_json: {
+                    ...(item.draft_json || {}),
+                    topic: "",
+                    questions: [],
+                    answers: {},
+                    freeText: "",
+                  },
+                }
+              : item
+          )
+        );
+
         await loadCourseFiles(course.id);
         setFileActionMessage(`Added ${file.name}`);
         setTopic(inferredName || course.title);
@@ -115,7 +170,14 @@ export function useHomeCourseActions({
         setIsForging(false);
       }
     },
-    [createDraftCourse, loadCourseFiles, rollbackCreatedCourse, setError]
+    [
+      createDraftCourse,
+      loadCourseFiles,
+      rollbackCreatedCourse,
+      setCourses,
+      setDraftsByCourse,
+      setError,
+    ]
   );
 
   const handleRemoveCourseFile = useCallback(
@@ -285,8 +347,10 @@ export function useHomeCourseActions({
       setError("");
       setIsSubmittingTopic(true);
       try {
-        const course = await createDraftCourse(trimmedTopic);
-        createdCourse = course;
+        const course = currentCourse ?? (await createDraftCourse(trimmedTopic));
+        if (!currentCourse) {
+          createdCourse = course;
+        }
 
         await apiFetch(`/courses/${course.id}/draft`, {
           method: "PUT",
@@ -308,6 +372,18 @@ export function useHomeCourseActions({
             freeText: "",
           },
         }));
+        setCourses((prev) =>
+          prev.map((item) =>
+            item.id === course.id
+              ? {
+                  ...item,
+                  topic: trimmedTopic,
+                  status: COURSE_STATUS.DRAFT,
+                }
+              : item
+          )
+        );
+        setCurrentCourse(null);
 
         rememberPendingQuestionnaireNavigation(course.id, trimmedTopic);
 
@@ -322,9 +398,11 @@ export function useHomeCourseActions({
       }
     },
     [
+      currentCourse,
       createDraftCourse,
       rollbackCreatedCourse,
       router,
+      setCourses,
       setDraftsByCourse,
       setError,
     ]

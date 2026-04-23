@@ -35,8 +35,7 @@ export default function QuestionnairePageClient() {
     return questions.length > 0;
   }, [questions.length]);
 
-  const isGenerationStep =
-    (step === "loading" || step === "forging") && !!jobType;
+  const isGenerationStep = step === "loading" || step === "forging";
   const currentQuestion = questions[currentQuestionIndex] ?? null;
   const currentAnswer = currentQuestion ? answers[currentQuestion.id] ?? "" : "";
   const isNotesPage = questions.length > 0 && currentQuestionIndex === questions.length;
