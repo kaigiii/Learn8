@@ -133,12 +133,15 @@ export default function HomePage() {
   }, [router]);
 
   useEffect(() => {
+    if (isSubmittingTopic) {
+      return;
+    }
     if (!currentCourse) {
       setTopic("");
       return;
     }
     setTopic(draftsByCourse[currentCourse.id]?.topic || "");
-  }, [currentCourse, draftsByCourse]);
+  }, [currentCourse, draftsByCourse, isSubmittingTopic]);
 
   const libraryItems = useMemo<HomeLibraryItem[]>(() => {
     const items: HomeLibraryItem[] = [];
@@ -318,8 +321,9 @@ export default function HomePage() {
             onFileChange={onFileChange}
             onDrop={onDrop}
             onTopicSubmit={async () => {
-              await handleTopicSubmit(topic);
+              const topicToSubmit = topic;
               setTopic("");
+              await handleTopicSubmit(topicToSubmit);
             }}
             onRemoveCourseFile={(file) => handleRemoveCourseFile(file)}
             activeJob={activeJob}

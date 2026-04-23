@@ -1,6 +1,7 @@
 "use client";
 
 import type React from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import DeepGlassCard from "@/components/ui/DeepGlassCard";
@@ -51,6 +52,34 @@ export function HomeForgePanel({
 }: HomeForgePanelProps) {
   const progress = clampJobProgress(activeJob?.progress);
   const showResumeCta = activeJob?.status !== JOB_STATUS.STALE;
+  const [allowGenerationCard, setAllowGenerationCard] = useState(false);
+  const [hideUploadedFiles, setHideUploadedFiles] = useState(false);
+
+  useEffect(() => {
+    if (!activeJob) {
+      setAllowGenerationCard(false);
+    }
+  }, [activeJob]);
+
+  useEffect(() => {
+    if (courseFiles.length > 0 && !isSubmittingTopic) {
+      setHideUploadedFiles(false);
+    }
+  }, [courseFiles, isSubmittingTopic]);
+
+  const handleTopicSubmit = () => {
+    if (!topic.trim() || isSubmittingTopic || isForging) {
+      return;
+    }
+    setAllowGenerationCard(true);
+    setHideUploadedFiles(true);
+    setTopic("");
+    void Promise.resolve(onTopicSubmit()).finally(() => {
+      // Keep input empty after submit; file list stays hidden until a new file is uploaded.
+    });
+  };
+
+  const visibleCourseFiles = hideUploadedFiles ? [] : courseFiles;
 
   return (
     <DeepGlassCard className="relative h-full min-h-[400px] px-7 py-7 md:px-8 md:py-8">
@@ -63,7 +92,7 @@ export function HomeForgePanel({
           onChange={onFileChange}
         />
 
-        {activeJob ? (
+        {activeJob && allowGenerationCard ? (
           <div className="flex min-h-[340px] flex-1 flex-col rounded-2xl border border-[#9ecbd4]/18 bg-white/46 p-5 shadow-[0_12px_30px_rgba(97,163,184,0.10)] backdrop-blur-sm">
             <div className="min-w-0">
               <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.24em] text-brand-teal">
@@ -169,9 +198,9 @@ export function HomeForgePanel({
                       <motion.div animate={isDragging ? { scale: 1.15, y: -4 } : { scale: 1, y: 0 }}>
                         <PortalIcon />
                       </motion.div>
-                      {courseFiles.length > 0 ? (
+                      {visibleCourseFiles.length > 0 ? (
                         <div className="flex flex-col items-center gap-2 px-4">
-                          {courseFiles.map((file) => (
+                          {visibleCourseFiles.map((file) => (
                             <div
                               key={file}
                               className="flex max-w-xs items-center justify-center gap-2"
@@ -215,7 +244,8 @@ export function HomeForgePanel({
                     onChange={(event) => setTopic(event.target.value)}
                     onKeyDown={(event) => {
                       if (event.key === "Enter") {
-                        void onTopicSubmit();
+                        event.preventDefault();
+                        handleTopicSubmit();
                       }
                     }}
                     placeholder="Enter the topic you want to learn"
@@ -225,7 +255,7 @@ export function HomeForgePanel({
                 <div className="md:w-auto md:shrink-0">
                   <GameButton
                     variant="secondary"
-                    onClick={() => void onTopicSubmit()}
+                    onClick={handleTopicSubmit}
                     disabled={!topic.trim() || isSubmittingTopic || isForging}
                     className="w-full min-w-[170px] text-lg md:min-w-[200px]"
                   >
