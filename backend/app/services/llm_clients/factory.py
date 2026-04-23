@@ -2,7 +2,7 @@ from typing import Optional
 from app.core.config import settings
 from app.services.llm_clients.base_provider import BaseLLMProvider
 from app.services.llm_clients.google_adapter import GoogleLLMProvider
-from app.services.llm_clients.lmstudio_adapter import LMStudioProvider
+from app.services.llm_clients.mock_adapter import MockLLMProvider
 
 
 class LLMFactory:
@@ -12,6 +12,9 @@ class LLMFactory:
         if provider == "lmstudio":
             print("[LLMFactory] Using LMStudioProvider")
             return LMStudioProvider()
+        elif provider == "mock":
+            print("[LLMFactory] Using MockLLMProvider (Offline Mode)")
+            return MockLLMProvider()
 
         print("[LLMFactory] Using GoogleLLMProvider")
         return GoogleLLMProvider()
@@ -21,8 +24,10 @@ class LLMFactory:
         provider = settings.VISION_LLM_PROVIDER.lower()
         if provider == "lmstudio":
             print("[LLMFactory] Using LMStudioProvider for Vision processing")
-            # In the future, LMStudioProvider can be customized if vision needs different handling
             return LMStudioProvider()
+        elif provider == "mock":
+            print("[LLMFactory] Using MockLLMProvider for Vision processing")
+            return MockLLMProvider()
 
         print("[LLMFactory] Using GoogleLLMProvider for Vision processing")
         return GoogleLLMProvider()

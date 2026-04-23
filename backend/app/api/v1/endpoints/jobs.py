@@ -105,115 +105,127 @@ async def stream_job_status(job_id: str):
         if db_url.startswith("postgresql+"):
             db_url = "postgresql://" + db_url.split("://", 1)[1]
 
+        logger.info(f"[SSE START] Request for job {job_id[:8]}")
+
         try:
-            conn = await asyncpg.connect(db_url)
+            # 建立與 DB 的連線
+            conn = await asyncio.wait_for(asyncpg.connect(db_url), timeout=5.0)
+            logger.info(f"[SSE CONNECT] Connected to DB for job {job_id[:8]}")
         except Exception as e:
-            logger.error(f"SSE DB Connection failed: {e}")
-            yield f"data: {json.dumps({'status': JobStatus.FAILED, 'message': '推播伺服器連線失敗'})}\n\n"
+            logger.error(f"[SSE ERROR] DB Connection failed for {job_id[:8]}: {e}")
+            yield f"data: {json.dumps({'status': JobStatus.FAILED, 'message': '連線至資料庫失敗'})}\n\n"
             return
 
-        queue = asyncio.Queue()
-
-        def notification_handler(connection, pid, channel, payload):
-            asyncio.create_task(queue.put(payload))
-
-        # 註冊監聽專屬頻道 "job_channel"
-        await conn.add_listener("job_channel", notification_handler)
-
         try:
-            # 建立連線的第一時間，先主動去查一次目前狀態 (避免錯過一開始的通知)
-            row = await conn.fetchrow(
-                "SELECT status, progress, message, result_data FROM generation_jobs WHERE id = $1",
-                job_id,
-            )
+            # 立即發送一個空事件，確認連線已建立
+            yield ": connected\n\n"
 
-            if not row:
-                yield f"data: {json.dumps({'status': JobStatus.FAILED, 'message': '找不到該任務 (Job not found)'})}\n\n"
-                return
+            queue = asyncio.Queue()
 
-            # 傳送初次狀態
-            initial_data = dict(row)
-            if "result_data" in initial_data and isinstance(
-                initial_data["result_data"], str
-            ):
+            def notification_handler(connection, pid, channel, payload):
                 try:
-                    initial_data["result_data"] = json.loads(
-                        initial_data["result_data"]
-                    )
-                except:
-                    pass
-
-            yield f"data: {json.dumps(initial_data)}\n\n"
-
-            # 如果一查就發現已經做完了，直接中斷連線
-            if initial_data.get("status") in TERMINAL_JOB_STATUSES:
-                return
-
-            # 開始進入掛起模式，等待 PostgreSQL 喚醒
-            while True:
-                # 系統沉睡於此，完全不消耗 CPU 也不查 DB
-                payload_str = await queue.get()
-
-                try:
-                    data = json.loads(payload_str)
-                except json.JSONDecodeError:
-                    logger.warning(
-                        f"[SSE WARNING] Received non-JSON payload for job {job_id[:8]}: {payload_str}"
-                    )
-                    continue  # Skip if payload is not valid JSON
+                    queue.put_nowait(payload)
                 except Exception as e:
-                    logger.error(
-                        f"[SSE ERROR] Unexpected error parsing payload for job {job_id[:8]}: {e}"
-                    )
-                    continue
+                    logger.error(f"[SSE QUEUE ERROR] {e}")
 
-                # 確認這個推播是屬於這個人的 Job
-                if data.get("job_id") != job_id:
-                    continue
+            # 註冊監聽專屬頻道 "job_channel"
+            await conn.add_listener("job_channel", notification_handler)
 
-                row = await conn.fetchrow(
-                    "SELECT status, progress, message, result_data FROM generation_jobs WHERE id = $1",
-                    job_id,
+            try:
+                # 建立連線的第一時間，先主動去查一次目前狀態
+                row = await asyncio.wait_for(
+                    conn.fetchrow(
+                        "SELECT status, progress, message, result_data FROM generation_jobs WHERE id = $1",
+                        job_id,
+                    ),
+                    timeout=3.0
                 )
-                if not row:
-                    continue
 
-                event_data = dict(row)
-                event_data["job_id"] = job_id
-                if "result_data" in event_data and isinstance(
-                    event_data["result_data"], str
-                ):
+                if not row:
+                    logger.warning(f"[SSE NOT FOUND] Job {job_id} not found")
+                    yield f"data: {json.dumps({'status': JobStatus.FAILED, 'message': '找不到該任務'})}\n\n"
+                    return
+
+                # 傳送初次狀態
+                initial_data = dict(row)
+                initial_data["job_id"] = job_id
+                if "result_data" in initial_data and isinstance(initial_data["result_data"], str):
                     try:
-                        event_data["result_data"] = json.loads(
-                            event_data["result_data"]
-                        )
-                    except Exception:
+                        initial_data["result_data"] = json.loads(initial_data["result_data"])
+                    except:
                         pass
 
-                logger.info(
-                    f"[SSE SEND] {job_id[:8]} - status: {event_data.get('status')}, prog: {event_data.get('progress')}"
-                )
-                yield f"data: {json.dumps(event_data)}\n\n"
+                logger.info(f"[SSE INITIAL] {job_id[:8]} - status: {initial_data.get('status')}")
+                yield f"data: {json.dumps(initial_data)}\n\n"
 
-                if event_data.get("status") in TERMINAL_JOB_STATUSES:
-                    logger.info(
-                        f"[SSE CLOSE] Stream for {job_id[:8]} terminating normally due to final status."
+                if initial_data.get("status") in TERMINAL_JOB_STATUSES:
+                    logger.info(f"[SSE TERMINAL] {job_id[:8]} already done.")
+                    return
+
+                # 開始進入掛起模式
+                while True:
+                    try:
+                        # 使用 5s 心跳，增加連線存活率
+                        payload_str = await asyncio.wait_for(queue.get(), timeout=5.0)
+                    except asyncio.TimeoutError:
+                        yield ": ping\n\n"
+                        continue
+
+                    try:
+                        data = json.loads(payload_str)
+                    except:
+                        continue
+
+                    if data.get("job_id") != job_id:
+                        continue
+
+                    # 再次從資料庫讀取最新狀態
+                    row = await conn.fetchrow(
+                        "SELECT status, progress, message, result_data FROM generation_jobs WHERE id = $1",
+                        job_id,
                     )
-                    break
+                    if not row:
+                        continue
 
-        except asyncio.CancelledError:
-            logger.info(f"[SSE CANCELLED] Stream for {job_id[:8]} was cancelled.")
+                    event_data = dict(row)
+                    event_data["job_id"] = job_id
+                    if "result_data" in event_data and isinstance(event_data["result_data"], str):
+                        try:
+                            event_data["result_data"] = json.loads(event_data["result_data"])
+                        except:
+                            pass
+
+                    logger.info(f"[SSE SEND] {job_id[:8]} - {event_data.get('status')} {event_data.get('progress')}%")
+                    yield f"data: {json.dumps(event_data)}\n\n"
+
+                    if event_data.get("status") in TERMINAL_JOB_STATUSES:
+                        break
+
+            except asyncio.CancelledError:
+                logger.info(f"[SSE CANCELLED] {job_id[:8]}")
+            except Exception as e:
+                logger.error(f"[SSE EXCEPTION] {job_id[:8]}: {e}", exc_info=True)
+            finally:
+                logger.info(f"[SSE DONE] Cleaning up {job_id[:8]}")
+                try:
+                    await conn.remove_listener("job_channel", notification_handler)
+                    await conn.close()
+                except:
+                    pass
         except Exception as e:
-            logger.error(
-                f"[SSE EXCEPTION] Unhandled exception in event_generator for {job_id[:8]}: {e}",
-                exc_info=True,
-            )
-        finally:
-            logger.info(f"[SSE DONE] Cleaning up listener for {job_id[:8]}")
-            await conn.remove_listener("job_channel", notification_handler)
-            await conn.close()
+            logger.error(f"[SSE OUTER ERROR] {e}")
 
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
+    headers = {
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+        "X-Accel-Buffering": "no",  # 避免 Nginx 等代理伺服器緩衝 SSE
+    }
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers=headers,
+    )
 
 
 @router.get("/active")

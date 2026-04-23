@@ -158,6 +158,13 @@ export async function apiFetch<T>(
 }
 
 export function buildSseUrl(jobId: string) {
+  // 優先嘗試連向後端直連埠口 (8000)，避開 Next.js dev proxy 的緩衝問題
+  const isLocalhost = typeof window !== "undefined" && 
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+  
+  if (isLocalhost) {
+    return `http://127.0.0.1:8000/api/v1/jobs/${jobId}/stream`;
+  }
   return `${API_BASE_URL}/jobs/${jobId}/stream`;
 }
 

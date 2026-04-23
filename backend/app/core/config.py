@@ -1,10 +1,18 @@
+from pathlib import Path
 from typing import Optional
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Get the directory where this file (config.py) is located
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(case_sensitive=True, env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(
+        case_sensitive=True, 
+        env_file=BASE_DIR / ".env", 
+        extra="ignore"
+    )
 
     PROJECT_NAME: str = "Learn8"
     API_V1_STR: str = "/api/v1"

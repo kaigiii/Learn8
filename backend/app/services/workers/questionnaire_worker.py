@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from app.domain.statuses import JobStatus
 from app.db.session import SessionLocal
@@ -64,6 +65,9 @@ async def run_questionnaire_generation_job(
         rag_engine = RAGEngine(provider)
         agent = QuestionnaireAgent(provider, rag_engine)
 
+        _notify_job_update(db, job, 20, "📚 正在掃描參考資料與上下文...")
+        await asyncio.sleep(1)
+
         _notify_job_update(db, job, 40, "🤔 AI 正在思考最適合您的探索問題...")
 
         questions = await agent.generate_questions(
@@ -71,6 +75,9 @@ async def run_questionnaire_generation_job(
             course_id=course_id,
             preferred_language=user.preferred_language,
         )
+
+        _notify_job_update(db, job, 80, "🔍 正在優化問題描述與選項...")
+        await asyncio.sleep(0.5)
 
         if _is_cancelled(db, job_id):
             return

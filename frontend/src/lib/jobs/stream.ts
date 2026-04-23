@@ -6,6 +6,7 @@ import type { JobStreamEvent } from "@/lib/apiTypes";
 
 interface OpenJobStreamHandlers {
   onEvent: (event: JobStreamEvent, source: EventSource) => void;
+  onOpen?: (source: EventSource) => void;
   onError?: (source: EventSource) => void;
 }
 
@@ -15,15 +16,20 @@ interface WatchJobStreamHandlers {
   onFailed?: (event: JobStreamEvent, source: EventSource) => void;
   onCancelled?: (event: JobStreamEvent, source: EventSource) => void;
   onStale?: (event: JobStreamEvent, source: EventSource) => void;
+  onOpen?: (source: EventSource) => void;
   onError?: (source: EventSource) => void;
   autoClose?: boolean;
 }
 
 export function openJobStream(
   jobId: string,
-  { onEvent, onError }: OpenJobStreamHandlers
+  { onEvent, onOpen, onError }: OpenJobStreamHandlers
 ) {
   const source = new EventSource(buildSseUrl(jobId));
+
+  source.onopen = () => {
+    onOpen?.(source);
+  };
 
   source.onmessage = (event) => {
     try {
@@ -49,34 +55,41 @@ export function watchJobStream(
     onFailed,
     onCancelled,
     onStale,
+    onOpen,
     onError,
     autoClose = true,
   }: WatchJobStreamHandlers
 ) {
   return openJobStream(jobId, {
+    onOpen,
     onEvent: (event, source) => {
       onUpdate?.(event, source);
 
+      if (
+        event.status === JOB_STATUS.COMPLETED ||
+        event.status === JOB_STATUS.FAILED ||
+        event.status === JOB_STATUS.CANCELLED ||
+        event.status === JOB_STATUS.STALE
+      ) {
+        source.close();
+      }
+
       if (event.status === JOB_STATUS.COMPLETED) {
-        if (autoClose) source.close();
         onCompleted?.(event, source);
         return;
       }
 
       if (event.status === JOB_STATUS.FAILED) {
-        if (autoClose) source.close();
         onFailed?.(event, source);
         return;
       }
 
       if (event.status === JOB_STATUS.CANCELLED) {
-        if (autoClose) source.close();
         onCancelled?.(event, source);
         return;
       }
 
       if (event.status === JOB_STATUS.STALE) {
-        if (autoClose) source.close();
         onStale?.(event, source);
       }
     },
