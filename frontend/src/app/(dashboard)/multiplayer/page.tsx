@@ -3,14 +3,17 @@
 import React, { useEffect, useState } from "react";
 
 import TopStatsBar from "@/components/layout/TopStatsBar";
+import { apiFetch } from "@/lib/apiClient";
 import { fetchPublicCourses } from "@/lib/courses/api";
-import type { CourseListItem } from "@/lib/apiTypes";
+import type { CourseListItem, CoursePath } from "@/lib/apiTypes";
+import { NODE_STATUS } from "@/lib/domain/statuses";
 import { HomeArenaPanel } from "../home/components/HomeArenaPanel";
 import { MultiplayerTopicsSection } from "./components/MultiplayerTopicsSection";
 import { HomeBackground } from "../home/components/HomeBackground";
 
 export default function MultiplayerPage() {
   const [courses, setCourses] = useState<CourseListItem[]>([]);
+  const [courseProgressById, setCourseProgressById] = useState<Record<number, number>>({});
   const [loadingCourses, setLoadingCourses] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,6 +43,44 @@ export default function MultiplayerPage() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (courses.length === 0) {
+      setCourseProgressById({});
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadProgress = async () => {
+      const progressEntries = await Promise.all(
+        courses.map(async (course) => {
+          try {
+            const coursePath = await apiFetch<CoursePath>(`/courses/${course.id}`);
+            const nodes = coursePath.units.flatMap((unit) => unit.nodes);
+            const total = nodes.length;
+            const completed = nodes.filter(
+              (node) => node.status === NODE_STATUS.COMPLETED
+            ).length;
+            const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+            return [course.id, progress] as const;
+          } catch {
+            return [course.id, 0] as const;
+          }
+        })
+      );
+
+      if (!cancelled) {
+        setCourseProgressById(Object.fromEntries(progressEntries));
+      }
+    };
+
+    void loadProgress();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [courses]);
 
   return (
     <div className="relative min-h-screen overflow-hidden">
@@ -82,7 +123,10 @@ export default function MultiplayerPage() {
           </div>
         ) : null}
 
-        <MultiplayerTopicsSection courses={courses} />
+        <MultiplayerTopicsSection
+          courses={courses}
+          courseProgressById={courseProgressById}
+        />
       </div>
     </div>
   );

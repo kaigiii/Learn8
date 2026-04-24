@@ -15,12 +15,14 @@ const LIB_BG_IMAGES = DEFAULT_LIBRARY_BACKGROUNDS;
 
 interface HomePublicTopicsSectionProps {
   courses: CourseListItem[];
+  courseProgressById: Record<number, number>;
   activeTab: "library" | "public";
   onTabChange: (tab: "library" | "public") => void;
 }
 
 export function HomePublicTopicsSection({
   courses,
+  courseProgressById,
   activeTab,
   onTabChange,
 }: HomePublicTopicsSectionProps) {
@@ -111,7 +113,7 @@ export function HomePublicTopicsSection({
                     style={{ backgroundImage: `url(${backgroundImage})` }}
                   >
                     <div className="mb-2">
-                      <HomeCourseIcon />
+                      <HomeCourseIcon progress={courseProgressById[course.id] ?? 0} />
                     </div>
                   </div>
                   <div className="mt-2 space-y-1 text-center">

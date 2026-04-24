@@ -3,8 +3,9 @@
 import React, { useRef, useEffect, useLayoutEffect, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import TopStatsBar from "@/components/layout/TopStatsBar";
+import { ApiError, apiFetch } from "@/lib/apiClient";
 import { fetchPublicCourses } from "@/lib/courses/api";
-import { COURSE_STATUS } from "@/lib/domain/statuses";
+import { COURSE_STATUS, NODE_STATUS } from "@/lib/domain/statuses";
 import {
   clearRecentCourseNavigation,
   getRecentCourseNavigation,
@@ -23,7 +24,7 @@ import { useHomeDashboardData } from "./hooks/useHomeDashboardData";
 import { useHomeCourseActions } from "./hooks/useHomeCourseActions";
 import { useCourseFiles } from "./hooks/useCourseFiles";
 import type { CourseModalState } from "./types";
-import type { CourseListItem } from "@/lib/apiTypes";
+import type { CourseListItem, CoursePath } from "@/lib/apiTypes";
 
 /* ═══════════════════ Page ═══════════════════ */
 
@@ -62,6 +63,7 @@ export default function HomePage() {
   const [topic, setTopic] = useState("");
   const [publicCourses, setPublicCourses] = useState<CourseListItem[]>([]);
   const [homeContentTab, setHomeContentTab] = useState<"library" | "public">("library");
+  const [courseProgressById, setCourseProgressById] = useState<Record<number, number>>({});
   const {
     fileInputRef,
     fileActionMessage,
@@ -120,6 +122,66 @@ export default function HomePage() {
   }, [token]);
 
   useEffect(() => {
+    if (!token) {
+      setCourseProgressById({});
+      return;
+    }
+
+    const readyCourseIds = [
+      ...courses
+        .filter((course) => course.status === COURSE_STATUS.READY)
+        .map((course) => course.id),
+      ...publicCourses.map((course) => course.id),
+    ];
+
+    const uniqueCourseIds = Array.from(new Set(readyCourseIds));
+
+    if (uniqueCourseIds.length === 0) {
+      setCourseProgressById({});
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadProgress = async () => {
+      try {
+        const progressPairs = await Promise.all(
+          uniqueCourseIds.map(async (courseId) => {
+            try {
+              const coursePath = await apiFetch<CoursePath>(`/courses/${courseId}`);
+              const nodes = coursePath.units.flatMap((unit) => unit.nodes);
+              const total = nodes.length;
+              const completed = nodes.filter(
+                (node) => node.status === NODE_STATUS.COMPLETED
+              ).length;
+              const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+              return [courseId, progress] as const;
+            } catch {
+              return [courseId, 0] as const;
+            }
+          })
+        );
+
+        if (cancelled) {
+          return;
+        }
+
+        setCourseProgressById(Object.fromEntries(progressPairs));
+      } catch (err) {
+        if (!cancelled && err instanceof ApiError) {
+          setError(err.detail);
+        }
+      }
+    };
+
+    void loadProgress();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [courses, publicCourses, setError, token]);
+
+  useEffect(() => {
     if (typeof window === "undefined") return;
 
     const courseId = getRecentCourseNavigation();
@@ -168,6 +230,10 @@ export default function HomePage() {
               : "Questionnaire Ready"
             : "Topic Draft",
         indexSeed: index,
+        progress: isReady
+          ? courseProgressById[course.id] ??
+            (activeCourse?.id === course.id ? activeProgress : 0)
+          : 0,
       });
     });
 
@@ -177,7 +243,7 @@ export default function HomePage() {
       }
       return b.course.id - a.course.id;
     });
-  }, [courses, draftsByCourse]);
+  }, [activeCourse?.id, activeProgress, courseProgressById, courses, draftsByCourse]);
 
   const resumeLibraryIndex = useMemo(() => {
     if (!activeCourseId) {
@@ -335,6 +401,7 @@ export default function HomePage() {
         {homeContentTab === "public" ? (
           <HomePublicTopicsSection
             courses={publicCourses}
+            courseProgressById={courseProgressById}
             activeTab={homeContentTab}
             onTabChange={setHomeContentTab}
           />

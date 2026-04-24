@@ -15,9 +15,13 @@ const LIB_BG_IMAGES = DEFAULT_LIBRARY_BACKGROUNDS;
 
 interface MultiplayerTopicsSectionProps {
   courses: CourseListItem[];
+  courseProgressById: Record<number, number>;
 }
 
-export function MultiplayerTopicsSection({ courses }: MultiplayerTopicsSectionProps) {
+export function MultiplayerTopicsSection({
+  courses,
+  courseProgressById,
+}: MultiplayerTopicsSectionProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const scrollLibrary = (dir: "left" | "right") => {
@@ -79,7 +83,7 @@ export function MultiplayerTopicsSection({ courses }: MultiplayerTopicsSectionPr
                   style={{ backgroundImage: `url(${backgroundImage})` }}
                 >
                   <div className="mb-2">
-                    <HomeCourseIcon />
+                    <HomeCourseIcon progress={courseProgressById[course.id] ?? 0} />
                   </div>
                 </div>
                 <div className="mt-2 space-y-1 text-center">

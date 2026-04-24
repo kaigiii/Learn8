@@ -22,6 +22,7 @@ export type HomeLibraryItem =
       title: string;
       stateLabel: string;
       indexSeed: number;
+      progress: number;
     }
   | {
       kind: "draft";
@@ -31,6 +32,7 @@ export type HomeLibraryItem =
       title: string;
       stateLabel: string;
       indexSeed: number;
+      progress: number;
     };
 
 interface HomeLibrarySectionProps {
@@ -261,7 +263,7 @@ export function HomeLibrarySection({
                     className="flex h-36 items-center justify-center rounded-2xl bg-cover bg-center bg-no-repeat shadow-md transition-all hover:shadow-lg md:h-44"
                     style={{ backgroundImage: `url(${backgroundImage})` }}
                   >
-                    <HomeCourseIcon />
+                    <HomeCourseIcon progress={item.progress} />
                   </div>
                   <div className="mt-2 space-y-1 text-center">
                     <p className="truncate text-sm font-semibold text-brand-gray-600">
