@@ -132,9 +132,11 @@ export default function MultipleChoiceQuestion({
             const isEliminated = eliminated.includes(opt.id);
             const isSelected = selected === opt.id;
             const isCorrectAnswer = opt.id === correctId;
+            const isCorrectAnswerForReveal = forceCorrectId && opt.id === forceCorrectId;
             const isUserSelection = userSelectedId ? (userSelectedId === opt.id) : isSelected;
-            const showCorrect = (result === "correct" && isCorrectAnswer) || (result === "wrong" && isCorrectAnswer) || (forceCorrectId === opt.id);
-            const showWrong = (result === "wrong" && isSelected && !isCorrectAnswer) || (forceCorrectId && isUserSelection && forceCorrectId !== opt.id);
+            const isUnansweredTimeout = isCorrectAnswerForReveal && userSelectedId === undefined;
+            const showCorrect = (result === "correct" && isCorrectAnswer) || (result === "wrong" && isCorrectAnswer) || (forceCorrectId === opt.id && !isUnansweredTimeout);
+            const showWrong = (result === "wrong" && isSelected && !isCorrectAnswer) || (forceCorrectId && isUserSelection && forceCorrectId !== opt.id) || isUnansweredTimeout;
 
             return (
               <motion.button
