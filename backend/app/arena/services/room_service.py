@@ -182,7 +182,7 @@ class RoomService:
         max_players: int,
         round_count: int,
         round_time_seconds: int,
-    ) -> ArenaRoomModel:
+    ) -> tuple[str, str]:
         if mode == "ranked":
             mode = "competitive"
         if pool_id:
@@ -254,15 +254,19 @@ class RoomService:
             stream_type="room",
             room_code=room.room_code,
             event_type="room.created",
-            payload=self.serialize_room(room),
+            payload={
+                "roomCode": room.room_code,
+                "status": ArenaRoomStatus.LOBBY,
+                "hostUserId": current_user.id,
+                "publicCourseId": room.public_course_id,
+                "poolId": room.question_pool_id,
+            },
         )
         
         # Single commit at the end
         db.commit()
-        
-        # Single query to get fresh room data
-        room = self.get_room_by_code(db, room.room_code, cleanup_idle=False)
-        return room
+
+        return room.room_code, ArenaRoomStatus.LOBBY
 
     def join_room(self, db: Session, current_user: UserModel, room_code: str) -> ArenaRoomModel:
         room = self.get_room_by_code(db, room_code)

@@ -218,10 +218,6 @@ export default function ArenaQueuePageClient() {
         </div>
 
         <div className="mt-8 flex w-full max-w-3xl flex-col items-center gap-3">
-          <div className="text-xs font-bold uppercase tracking-[0.24em] text-brand-gray-600">
-            {queueState?.poolTitle || queueState?.publicCourseTitle || "Competitive Queue"}
-          </div>
-
           <div className="flex flex-col gap-3 sm:flex-row">
             <GameButton
               variant="secondary"
