@@ -17,6 +17,8 @@ class ConnectionManager:
         self.user_subscriptions: Dict[int, Set[str]] = {}
         # Background task for Redis pub/sub
         self.pubsub_task: asyncio.Task | None = None
+        # Presence updates should not spam logs if Redis is temporarily down.
+        self.redis_presence_enabled = True
 
     async def start_listening(self):
         """Starts the background task to listen to Redis Pub/Sub."""
@@ -97,10 +99,14 @@ class ConnectionManager:
 
     async def touch_presence(self, user_id: int):
         """Refreshes the user's online TTL in Redis."""
+        if not self.redis_presence_enabled:
+            return
+
         try:
             # 30 seconds TTL for presence
             await redis_client.setex(f"presence:user:{user_id}", 30, "online")
         except Exception as e:
-            logger.error(f"Failed to touch user presence in Redis: {e}")
+            self.redis_presence_enabled = False
+            logger.warning(f"Redis presence tracking disabled after failure: {e}")
 
 manager = ConnectionManager()

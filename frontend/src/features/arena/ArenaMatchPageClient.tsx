@@ -129,7 +129,6 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
   const prevRoundIdRef = useRef<number | null>(null);
   const latestActiveRoundRef = useRef<ArenaMatchState["activeRound"] | null>(null);
   const roundSwitchTimeoutRef = useRef<number | null>(null);
-  const displayRoundShownAtMsRef = useRef<number>(Date.now());
   const [displayRound, setDisplayRound] = useState<ArenaMatchState["activeRound"] | null>(null);
 
   // ─── Revealed answer tracking ─────────────────────────────────────────────
@@ -187,7 +186,10 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
     revealedQuestion &&
     displayRound &&
     revealedRoundIndex !== null &&
-    revealedRoundIndex === displayRound.roundIndex
+    (
+      revealedRoundIndex === displayRound.roundIndex ||
+      (displayRound.status === "pending" && displayRound.roundIndex === revealedRoundIndex + 1)
+    )
   );
   const displayRevealQuestion = localRevealQuestion ?? (isServerRevealVisible ? revealedQuestion : null);
   const displayRevealCorrectId =
@@ -279,7 +281,6 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
     }
     if (prevRoundIdRef.current === null) {
       prevRoundIdRef.current = currentRoundId;
-      displayRoundShownAtMsRef.current = Date.now();
       setDisplayRound(activeRound);
       return;
     }
@@ -290,7 +291,6 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
         window.clearTimeout(roundSwitchTimeoutRef.current);
       }
       roundSwitchTimeoutRef.current = window.setTimeout(() => {
-        displayRoundShownAtMsRef.current = Date.now();
         setDisplayRound(latestActiveRoundRef.current);
         setIsRoundSwitchDelay(false);
         roundSwitchTimeoutRef.current = null;
@@ -298,7 +298,6 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
       return;
     }
     if (isRoundSwitchDelay) return;
-    displayRoundShownAtMsRef.current = Date.now();
     setDisplayRound(activeRound);
   }, [activeRound, isRoundSwitchDelay, match?.status, displayRound]);
 
@@ -327,9 +326,8 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
   }, [intermissionUntil]);
 
   // ─── Round countdown timer ────────────────────────────────────────────────
-  // We measure time remaining in the *question window* — from startedAt to
-  // deadlineAt. During intermission startedAt is in the future so we show 0
-  // and the intermission countdown takes over.
+  // We measure time remaining from the absolute deadline so periodic
+  // re-syncs do not reset the displayed countdown.
   useEffect(() => {
     if (!displayRound?.deadlineAt) {
       setRemainingSeconds(0);
@@ -340,22 +338,18 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
         return;
       }
       const deadlineAt = displayRound?.deadlineAt ?? "";
-      const startedAt = displayRound?.startedAt ?? "";
       const deadline = new Date(deadlineAt).getTime();
-      const startMs = startedAt ? new Date(startedAt).getTime() : 0;
-      const roundDurationMs = Math.max(0, deadline - startMs);
-      if (!roundDurationMs) {
+      if (!deadline) {
         setRemainingSeconds(0);
         return;
       }
-      const elapsedSinceShown = Math.max(0, Date.now() - displayRoundShownAtMsRef.current);
-      const diff = Math.max(0, roundDurationMs - elapsedSinceShown);
+      const diff = Math.max(0, deadline - Date.now());
       setRemainingSeconds(Math.ceil(diff / 1000));
     };
     tick();
     const intervalId = window.setInterval(tick, 200);
     return () => window.clearInterval(intervalId);
-  }, [displayRound?.deadlineAt, displayRound?.startedAt]);
+  }, [displayRound?.deadlineAt, displayRound?.hasSubmitted]);
 
   // ─── Proactive re-sync when timer reaches zero ────────────────────────────
   // This triggers a manual state sync when the local timer hits 0,
@@ -400,7 +394,6 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
   useEffect(() => {
     if (activeRound?.roundId) {
       setSelectedOptionId(null);
-      setSubmissionReview(null);
       setSubmitNotice(null);
     }
   }, [activeRound?.roundId, setSelectedOptionId]);
