@@ -452,7 +452,10 @@ class CompetitiveService:
         )
         if user_id is not None:
             stale_query = stale_query.filter(ArenaQueueEntryModel.user_id == user_id)
-            matched_query = matched_query.filter(ArenaQueueEntryModel.user_id == user_id)
+            matched_query = matched_query.filter(
+                (ArenaQueueEntryModel.user_id == user_id)
+                | (ArenaQueueEntryModel.matched_user_id == user_id)
+            )
 
         stale_entries = stale_query.all()
         matched_entries = matched_query.all()
