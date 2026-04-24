@@ -182,7 +182,7 @@ class RoomService:
         max_players: int,
         round_count: int,
         round_time_seconds: int,
-    ) -> tuple[str, str]:
+    ) -> ArenaRoomModel:
         if mode == "ranked":
             mode = "competitive"
         if pool_id:
@@ -266,7 +266,7 @@ class RoomService:
         # Single commit at the end
         db.commit()
 
-        return room.room_code, ArenaRoomStatus.LOBBY
+        return room
 
     def join_room(self, db: Session, current_user: UserModel, room_code: str) -> ArenaRoomModel:
         room = self.get_room_by_code(db, room_code)

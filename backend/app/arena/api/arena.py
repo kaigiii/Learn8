@@ -214,7 +214,7 @@ def create_room(
     current_user: UserModel = Depends(get_current_user),
 ):
     room_service = RoomService()
-    room_code, room_status = room_service.create_room(
+    room = room_service.create_room(
         db,
         current_user,
         public_course_id=payload.publicCourseId,
@@ -224,7 +224,7 @@ def create_room(
         round_count=payload.roundCount,
         round_time_seconds=payload.roundTimeSeconds,
     )
-    return ArenaRoomCreateResponse(roomCode=room_code, status=room_status)
+    return ArenaRoomCreateResponse(roomCode=room.room_code, status=room.status)
 
 
 @router.patch("/rooms/{room_code}/settings", response_model=ArenaRoomResponse)

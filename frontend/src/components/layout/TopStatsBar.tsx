@@ -29,6 +29,7 @@ interface TopStatsBarProps {
     active?: boolean;
     iconSrc?: string;
     iconAlt?: string;
+    iconText?: string;
   }>;
 }
 
@@ -50,6 +51,14 @@ export default function TopStatsBar({
   const authUser = useAuthStore((s) => s.user);
   const availableCredits = useUserStore(selectAvailableCredits);
   const creditBalance = authUser?.credits ?? availableCredits;
+  const userHandle = (authUser?.full_name || authUser?.email || "").trim().toLowerCase();
+  const emailLocalPart = (authUser?.email || "").trim().toLowerCase().split("@")[0] ?? "";
+  const isDevAccount =
+    userHandle === "dev" ||
+    emailLocalPart === "dev" ||
+    userHandle.startsWith("dev ") ||
+    userHandle.startsWith("dev-") ||
+    userHandle.startsWith("dev_");
   const profileLabel =
     authUser?.full_name?.trim() ||
     authUser?.job_title?.trim() ||
@@ -63,6 +72,16 @@ export default function TopStatsBar({
   const quickChipClassName =
     "inline-flex h-10 items-center gap-0 rounded-full bg-white/92 px-2.5 text-sm font-heading font-bold leading-none text-brand-gray-700 shadow-sm transition hover:bg-white lg:gap-2 lg:px-3";
   const quickActiveClassName = "bg-white ring-1 ring-brand-teal/20";
+  const resolvedQuickLinks = isDevAccount
+    ? [
+        {
+          href: "/admin/arena",
+          label: "Arena Admin",
+          iconText: "⚙️",
+        },
+        ...quickLinks,
+      ]
+    : quickLinks;
   const isStoreActive = pathname === "/store" || pathname.startsWith("/store/");
   const isProfileActive = pathname === "/profile" || pathname.startsWith("/profile");
 
@@ -146,9 +165,9 @@ export default function TopStatsBar({
 
         {/* Right: stats */}
         <div className="flex min-w-0 flex-none items-center gap-1.5 sm:gap-2 md:gap-3">
-          {quickLinks.length > 0 ? (
+          {resolvedQuickLinks.length > 0 ? (
             <div className="flex items-center gap-1.5 sm:gap-2">
-              {quickLinks.map((link) => (
+              {resolvedQuickLinks.map((link) => (
                 <Link
                   key={`${link.href}-${link.label}-quick`}
                   href={link.href}
@@ -166,6 +185,8 @@ export default function TopStatsBar({
                       height={24}
                       className="h-6 w-6 object-contain"
                     />
+                  ) : link.iconText ? (
+                    <span className="text-base leading-none">{link.iconText}</span>
                   ) : null}
                   <span className="hidden whitespace-nowrap lg:inline">{link.label}</span>
                 </Link>
