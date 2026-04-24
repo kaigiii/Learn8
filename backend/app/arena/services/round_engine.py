@@ -26,6 +26,7 @@ from app.arena.services.reward_service import ArenaRewardService
 
 class RoundEngine:
     STALE_MATCH_FINALIZE_SECONDS = arena_settings.ARENA_MATCH_STALE_FINALIZE_SECONDS
+    MATCH_ACCEPT_SECONDS = arena_settings.ARENA_MATCH_ACCEPT_SECONDS
 
     def __init__(
         self,
@@ -150,6 +151,37 @@ class RoundEngine:
         if not self._get_participant(match, current_user.id):
             raise HTTPException(status_code=403, detail="You are not part of this Arena match")
 
+    def _start_match_acceptance_window_if_ready(self, db: Session, match: ArenaMatchModel) -> bool:
+        if match.status != ArenaMatchStatus.PENDING or match.deadline_at is not None:
+            return False
+
+        players = (
+            db.query(ArenaMatchPlayerModel)
+            .filter(ArenaMatchPlayerModel.match_id == match.id)
+            .all()
+        )
+        if not players:
+            return False
+
+        all_connected = all((player.connection_state or "") == "connected" for player in players)
+        if not all_connected:
+            return False
+
+        match.deadline_at = utc_now() + self._seconds_delta(self.MATCH_ACCEPT_SECONDS)
+        db.add(match)
+        self.realtime_gateway.publish_event(
+            db,
+            stream_type="match",
+            room_code=match.room_snapshot_json.get("room_code") if isinstance(match.room_snapshot_json, dict) else None,
+            match_id=match.id,
+            event_type="match.accept_window_started",
+            payload={
+                "matchId": match.id,
+                "deadlineAt": to_iso_utc(match.deadline_at),
+            },
+        )
+        return True
+
     def _get_rounds(self, db: Session, match_id: int) -> list[ArenaRoundModel]:
         return (
             self._base_round_query(db)
@@ -245,9 +277,13 @@ class RoundEngine:
             return False
 
         now = utc_now()
+        if locked_round.started_at and ensure_aware(locked_round.started_at) > now:
+            return False
+        if not locked_round.started_at:
+            locked_round.started_at = now
+        if not locked_round.deadline_at:
+            locked_round.deadline_at = ensure_aware(locked_round.started_at) + self._seconds_delta(locked_round.timer_seconds)
         locked_round.status = ArenaRoundStatus.ACTIVE
-        locked_round.started_at = now
-        locked_round.deadline_at = now + self._seconds_delta(locked_round.timer_seconds)
         db.add(locked_round)
         db.flush()
         self.realtime_gateway.publish_event(
@@ -372,6 +408,12 @@ class RoundEngine:
         player = next((p for p in match.players if p.user_id == current_user.id), None)
         if not player:
             raise HTTPException(status_code=403, detail="You are not part of this match")
+
+        self._start_match_acceptance_window_if_ready(db, match)
+        if match.deadline_at is None:
+            raise HTTPException(status_code=409, detail="Waiting for both players to connect")
+        if ensure_aware(match.deadline_at) <= utc_now():
+            raise HTTPException(status_code=409, detail="Acceptance window expired")
         
         if player.accepted_at:
             return self.get_match_state(db, match.id, current_user)
@@ -627,6 +669,9 @@ class RoundEngine:
             None,
         )
         if next_round:
+            reveal_started_at = utc_now()
+            next_round.started_at = reveal_started_at + self._seconds_delta(self.INTERMISSION_SECONDS)
+            next_round.deadline_at = next_round.started_at + self._seconds_delta(next_round.timer_seconds)
             db.add(next_round)
             self.realtime_gateway.publish_event(
                 db,
@@ -788,6 +833,7 @@ class RoundEngine:
         # Skipping writes for finalized states prevents lock storms during post-match polling.
         if match.status in (ArenaMatchStatus.PENDING, ArenaMatchStatus.IN_PROGRESS):
             self.presence_service.touch_match_presence(db, match, current_user)
+            self._start_match_acceptance_window_if_ready(db, match)
         db.flush()
         rounds = self._get_rounds(db, match.id)
         payload = self._build_match_sync_payload(db, match, rounds, current_user.id)

@@ -64,7 +64,7 @@ class CompetitiveService:
         else:
              raise HTTPException(status_code=400, detail="Either pool_id or public_course_id is required")
 
-        self._expire_stale_entries(db)
+        self._expire_stale_entries(db, user_id=current_user.id)
         
         # ABSOLUTE CLEANUP: Forfeit any active matches to prevent "Ghost Results"
         self.round_engine.forfeit_active_match(db, current_user.id)
@@ -143,7 +143,7 @@ class CompetitiveService:
         return queue_entry
 
     def get_current_entry(self, db: Session, current_user: UserModel) -> ArenaQueueEntryModel | None:
-        self._expire_stale_entries(db)
+        self._expire_stale_entries(db, user_id=current_user.id)
         return self._get_active_entry_for_user(db, current_user.id)
 
     def cancel_current_entry(self, db: Session, current_user: UserModel) -> None:
@@ -329,7 +329,6 @@ class CompetitiveService:
     ) -> ArenaMatchModel:
         active_season = self.rank_service.get_active_season(db)
         status = ArenaMatchStatus.PENDING
-        deadline_at = utc_now() + timedelta(seconds=60)
         match = ArenaMatchModel(
             room_id=None,
             season_id=active_season.id if active_season else None,
@@ -354,8 +353,8 @@ class CompetitiveService:
                 "max_players": 2,
                 "mode": ArenaMode.COMPETITIVE,
             },
-            started_at=utc_now(),
-            deadline_at=deadline_at,
+            started_at=None,
+            deadline_at=None,
         )
         db.add(match)
         db.flush()
@@ -368,16 +367,16 @@ class CompetitiveService:
                 ArenaMatchPlayerModel(
                     match_id=match.id,
                     user_id=first_user_id,
-                    connection_state="connected",
-                    last_seen_at=match.started_at,
+                    connection_state="disconnected",
+                    last_seen_at=None,
                     accepted_at=None,
                     user_snapshot_json=build_user_snapshot(user_map[first_user_id]) if first_user_id in user_map else None,
                 ),
                 ArenaMatchPlayerModel(
                     match_id=match.id,
                     user_id=second_user_id,
-                    connection_state="connected",
-                    last_seen_at=match.started_at,
+                    connection_state="disconnected",
+                    last_seen_at=None,
                     accepted_at=None,
                     user_snapshot_json=build_user_snapshot(user_map[second_user_id]) if second_user_id in user_map else None,
                 ),
@@ -434,18 +433,14 @@ class CompetitiveService:
     def sweep_stale_queue_entries(self, db: Session) -> int:
         return self._expire_stale_entries(db)
 
-    def _expire_stale_entries(self, db: Session) -> int:
+    def _expire_stale_entries(self, db: Session, user_id: int | None = None) -> int:
         now = utc_now()
-        stale_entries = (
-            db.query(ArenaQueueEntryModel)
-            .filter(
-                ArenaQueueEntryModel.status == ArenaQueueStatus.WAITING,
-                ArenaQueueEntryModel.expires_at.is_not(None),
-                ArenaQueueEntryModel.expires_at < now,
-            )
-            .all()
+        stale_query = db.query(ArenaQueueEntryModel).filter(
+            ArenaQueueEntryModel.status == ArenaQueueStatus.WAITING,
+            ArenaQueueEntryModel.expires_at.is_not(None),
+            ArenaQueueEntryModel.expires_at < now,
         )
-        matched_entries = (
+        matched_query = (
             db.query(ArenaQueueEntryModel)
             .outerjoin(ArenaMatchModel, ArenaMatchModel.id == ArenaQueueEntryModel.match_id)
             .filter(
@@ -454,8 +449,13 @@ class CompetitiveService:
                 | (ArenaMatchModel.id.is_(None))
                 | (ArenaMatchModel.status.in_((ArenaMatchStatus.FINISHED, ArenaMatchStatus.CANCELLED))),
             )
-            .all()
         )
+        if user_id is not None:
+            stale_query = stale_query.filter(ArenaQueueEntryModel.user_id == user_id)
+            matched_query = matched_query.filter(ArenaQueueEntryModel.user_id == user_id)
+
+        stale_entries = stale_query.all()
+        matched_entries = matched_query.all()
         if not stale_entries and not matched_entries:
             return 0
             

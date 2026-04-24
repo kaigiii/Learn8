@@ -1,6 +1,6 @@
 from enum import Enum
 from typing import List, Dict, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from app.domain.statuses import CourseStatus, NodeStatus
 
 
@@ -20,6 +20,8 @@ class LessonNodeStatus(str, Enum):
 
 
 class LessonNode(BaseModel):
+    model_config = ConfigDict(validate_assignment=True)
+
     id: str
     title: str
     description: str
