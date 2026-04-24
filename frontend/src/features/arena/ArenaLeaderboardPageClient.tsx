@@ -323,7 +323,7 @@ export default function ArenaLeaderboardPageClient() {
               </div>
 
               <div className="mt-4 grid grid-cols-[82px_minmax(0,1.6fr)_minmax(0,1fr)_minmax(100px,0.85fr)] items-center gap-2 px-2 text-xs font-semibold uppercase tracking-[0.08em] text-brand-gray-500">
-                <span className="text-right">Rank</span>
+                <span className="text-center">Rank</span>
                 <span className="pl-3">Player</span>
                 <span>Tier</span>
                 <span className="text-center">Stats</span>
