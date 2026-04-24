@@ -111,6 +111,9 @@ class RatingService:
 
             xp_reward = self._compute_xp_reward(placement, len(standings))
             credits_reward = self._compute_credit_reward(placement, len(standings))
+            display_score = int(row["score"])
+            if placement == 1:
+                display_score *= 2
             accuracy = (
                 round((int(row["correctCount"]) / max(int(row["answeredCount"]), 1)) * 100)
                 if int(row["answeredCount"]) > 0
@@ -130,7 +133,7 @@ class RatingService:
             }
 
             match_player.final_rank = placement
-            match_player.score = int(row["score"])
+            match_player.score = display_score
             match_player.correct_count = int(row["correctCount"])
             match_player.incorrect_count = int(row["incorrectCount"])
             match_player.avg_response_ms = row.get("averageResponseMs")
@@ -138,6 +141,7 @@ class RatingService:
             match_player.metadata_json = metadata
             db.add(match_player)
 
+            row["score"] = display_score
             row["accuracy"] = accuracy
             row["xpGained"] = metadata["xp_gained"]
             row["creditsGained"] = metadata["credits_gained"]

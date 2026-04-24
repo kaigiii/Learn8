@@ -122,6 +122,8 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
   const [intermissionUntil, setIntermissionUntil] = useState<number | null>(null);
   const [intermissionSeconds, setIntermissionSeconds] = useState(0);
   const isInIntermission = !!intermissionUntil && intermissionSeconds > 0;
+  const [showFinalSummary, setShowFinalSummary] = useState(false);
+  const [finalSummarySeconds, setFinalSummarySeconds] = useState(0);
 
   // No more prevRoundRef — we use latestReveal payload
   const userAnswersRef = useRef<Map<number, string>>(new Map());
@@ -129,6 +131,7 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
   const prevRoundIdRef = useRef<number | null>(null);
   const latestActiveRoundRef = useRef<ArenaMatchState["activeRound"] | null>(null);
   const roundSwitchTimeoutRef = useRef<number | null>(null);
+  const finalSummaryTimeoutRef = useRef<number | null>(null);
   const questionAreaRef = useRef<HTMLDivElement | null>(null);
   const [cachedQuestionAreaHeight, setCachedQuestionAreaHeight] = useState<number | null>(null);
   const [displayRound, setDisplayRound] = useState<ArenaMatchState["activeRound"] | null>(null);
@@ -210,12 +213,16 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
     ((localRevealQuestion?.explanation as string | undefined) || undefined) ??
     (isServerRevealVisible ? revealedExplanation : undefined);
   const showRevealMode = isQuestionLoading || isSelfRevealVisible || isServerRevealVisible;
-  const renderedQuestionRoundKey = displayRound?.roundId
-    ? `round-${displayRound.roundId}`
-    : submissionReview?.roundId
-    ? `round-${submissionReview.roundId}`
-    : revealedRoundId !== null
-    ? `round-${revealedRoundId}`
+  const [visibleQuestionRoundId, setVisibleQuestionRoundId] = useState<number | null>(null);
+  useEffect(() => {
+    if (isQuestionLoading || isInIntermission) return;
+    const nextRoundId = displayRound?.roundId ?? activeRound?.roundId ?? submissionReview?.roundId ?? null;
+    if (nextRoundId !== null) {
+      setVisibleQuestionRoundId(nextRoundId);
+    }
+  }, [isQuestionLoading, isInIntermission, displayRound?.roundId, activeRound?.roundId, submissionReview?.roundId]);
+  const renderedQuestionRoundKey = visibleQuestionRoundId !== null
+    ? `round-${visibleQuestionRoundId}`
     : "round-unknown";
   const isAnswerLocked = Boolean(activeRound?.hasSubmitted) || submitting || isRoundSwitchDelay;
 
@@ -323,6 +330,42 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
     return () => {
       if (roundSwitchTimeoutRef.current !== null) {
         window.clearTimeout(roundSwitchTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (finalSummaryTimeoutRef.current !== null) {
+      window.clearTimeout(finalSummaryTimeoutRef.current);
+      finalSummaryTimeoutRef.current = null;
+    }
+
+    if (match?.status !== "finished") {
+      setShowFinalSummary(false);
+      setFinalSummarySeconds(0);
+      return;
+    }
+
+    setShowFinalSummary(false);
+    setFinalSummarySeconds(3);
+    const countdownInterval = window.setInterval(() => {
+      setFinalSummarySeconds((current) => (current > 0 ? current - 1 : 0));
+    }, 1000);
+    finalSummaryTimeoutRef.current = window.setTimeout(() => {
+      setShowFinalSummary(true);
+      setFinalSummarySeconds(0);
+      finalSummaryTimeoutRef.current = null;
+    }, 3000);
+
+    return () => {
+      window.clearInterval(countdownInterval);
+    };
+  }, [match?.status]);
+
+  useEffect(() => {
+    return () => {
+      if (finalSummaryTimeoutRef.current !== null) {
+        window.clearTimeout(finalSummaryTimeoutRef.current);
       }
     };
   }, []);
@@ -562,6 +605,13 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
       className="relative rounded-[28px] border border-white/70 bg-white/74 p-6 shadow-xl backdrop-blur-xl"
     >
       {match?.status === "finished" ? (
+        !showFinalSummary ? (
+          <div className="flex min-h-[420px] flex-col items-center justify-center text-center">
+            <div className="h-16 w-16 animate-spin rounded-full border-[6px] border-brand-teal/15 border-t-brand-teal/70" />
+            <p className="mt-5 text-lg font-bold text-brand-gray-700">Calculating final summary...</p>
+            <p className="mt-2 text-sm text-brand-gray-500">Please wait a moment while we settle the match results.</p>
+          </div>
+        ) : (
         <div className="space-y-4">
           <p className="text-xs font-bold uppercase tracking-[0.22em] text-brand-teal">Match Complete</p>
           <h2 className="font-heading text-3xl font-extrabold text-brand-gray-700">Final Summary</h2>
@@ -600,6 +650,7 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
             Back To Home
           </GameButton>
         </div>
+        )
       ) : (
         isQuestionLoading ? (
           <div className="flex min-h-[420px] flex-col items-center justify-center text-center">
@@ -885,7 +936,11 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
                     <div className="absolute inset-0 rounded-full border-[6px] border-[#d2e8f2]" />
                     <div className="absolute inset-[12px] rounded-full border-[3px] border-[#94b9c9] border-dashed" />
                     <p className="relative z-10 font-heading text-3xl font-light leading-none text-[#2f404c]">
-                      {activeRound ? (isQuestionLoading ? "..." : displaySeconds) : (match?.status === "finished" ? "✓" : "--")}
+                      {activeRound
+                        ? (isQuestionLoading ? "..." : displaySeconds)
+                        : (match?.status === "finished"
+                            ? (showFinalSummary ? "✓" : (finalSummarySeconds > 0 ? finalSummarySeconds : "✓"))
+                            : "--")}
                     </p>
                   </div>
                   <p className="mt-2 w-full text-center text-sm font-bold text-brand-teal">
