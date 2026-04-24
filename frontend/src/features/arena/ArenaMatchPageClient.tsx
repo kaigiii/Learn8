@@ -922,12 +922,10 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
                       </div>
                       <div className="my-2 flex min-h-[230px] flex-1 w-16 items-end justify-center rounded-[14px] bg-transparent p-1.5">
                         <div className="relative h-full w-8 overflow-hidden rounded-[10px] bg-[#2f3840]">
-                          {player.fillPercent > 0 ? (
-                            <div
-                              className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#f4efb4] to-[#6ed3b2] transition-all duration-500"
-                              style={{ height: `${player.fillPercent}%` }}
-                            />
-                          ) : null}
+                          <div
+                            className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#f4efb4] to-[#6ed3b2] transition-all duration-700 ease-out"
+                            style={{ height: `${player.fillPercent}%`, transition: "height 700ms ease-out" }}
+                          />
                         </div>
                       </div>
                       <div className="text-center">
