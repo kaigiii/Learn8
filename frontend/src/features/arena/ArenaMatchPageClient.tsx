@@ -129,6 +129,8 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
   const prevRoundIdRef = useRef<number | null>(null);
   const latestActiveRoundRef = useRef<ArenaMatchState["activeRound"] | null>(null);
   const roundSwitchTimeoutRef = useRef<number | null>(null);
+  const questionAreaRef = useRef<HTMLDivElement | null>(null);
+  const [cachedQuestionAreaHeight, setCachedQuestionAreaHeight] = useState<number | null>(null);
   const [displayRound, setDisplayRound] = useState<ArenaMatchState["activeRound"] | null>(null);
 
   // ─── Revealed answer tracking ─────────────────────────────────────────────
@@ -208,14 +210,13 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
     ((localRevealQuestion?.explanation as string | undefined) || undefined) ??
     (isServerRevealVisible ? revealedExplanation : undefined);
   const showRevealMode = isQuestionLoading || isSelfRevealVisible || isServerRevealVisible;
-  const renderedQuestionRoundKey = (() => {
-    if (showRevealMode) {
-      if (revealedRoundId !== null) return `round-${revealedRoundId}`;
-      if (submissionReview?.roundId) return `round-${submissionReview.roundId}`;
-    }
-    if (displayRound?.roundId) return `round-${displayRound.roundId}`;
-    return "round-unknown";
-  })();
+  const renderedQuestionRoundKey = displayRound?.roundId
+    ? `round-${displayRound.roundId}`
+    : submissionReview?.roundId
+    ? `round-${submissionReview.roundId}`
+    : revealedRoundId !== null
+    ? `round-${revealedRoundId}`
+    : "round-unknown";
   const isAnswerLocked = Boolean(activeRound?.hasSubmitted) || submitting || isRoundSwitchDelay;
 
   // ─── Matching Pairs Hook ──────────────────────────────────────────────────
@@ -527,6 +528,15 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
     match?.currentPlayerResult ??
     match?.standings?.find((entry) => entry.userId === authUser?.id) ??
     null;
+
+  useEffect(() => {
+    if (isQuestionLoading) return;
+    if (!questionAreaRef.current) return;
+    const rect = questionAreaRef.current.getBoundingClientRect();
+    if (rect.height > 0) {
+      setCachedQuestionAreaHeight(rect.height);
+    }
+  }, [isQuestionLoading, renderQuestion?.questionType, renderQuestion?.prompt, displayRound?.roundId, showRevealMode, match?.status]);
   const winLoseText = currentResult
     ? currentResult.rank === 1
       ? "Win"
@@ -546,7 +556,11 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
   const inlineQuestionInCenter = versusPlayers.length === 2;
 
   const questionArea = (displayRound || isInIntermission || match?.status === "finished") ? (
-    <div className="relative rounded-[28px] border border-white/70 bg-white/74 p-6 shadow-xl backdrop-blur-xl">
+    <div
+      ref={questionAreaRef}
+      style={isQuestionLoading ? { minHeight: `${cachedQuestionAreaHeight ?? 420}px` } : undefined}
+      className="relative rounded-[28px] border border-white/70 bg-white/74 p-6 shadow-xl backdrop-blur-xl"
+    >
       {match?.status === "finished" ? (
         <div className="space-y-4">
           <p className="text-xs font-bold uppercase tracking-[0.22em] text-brand-teal">Match Complete</p>
