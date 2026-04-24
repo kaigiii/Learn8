@@ -33,6 +33,11 @@ export default function ArenaQueuePageClient() {
   const presenceStates = matchState?.presenceStates ?? [];
   const currentPlayer = presenceStates.find((player) => player.userId === authUser?.id) ?? null;
   const opponentPlayer = presenceStates.find((player) => player.userId !== authUser?.id) ?? null;
+  const bothPlayersConnected =
+    presenceStates.length >= 2 &&
+    presenceStates.every((player) => player.connectionState === "connected");
+  const canStartAcceptCountdown =
+    matchState?.status === "pending" && bothPlayersConnected && Boolean(matchState?.deadlineAt);
   const currentAvatar = currentPlayer?.avatarUrl || authUser?.avatar_url || "/avatar/chicken.png";
   const currentName = currentPlayer?.displayName || authUser?.full_name || authUser?.email?.split("@")[0] || "You";
   const opponentName = opponentPlayer?.displayName || "Finding Opponent";
@@ -90,7 +95,7 @@ export default function ArenaQueuePageClient() {
 
   // Smooth Acceptance Timer
   useEffect(() => {
-    if (!matchState?.deadlineAt || matchState.status !== "pending") {
+    if (!canStartAcceptCountdown || !matchState?.deadlineAt) {
       setAcceptTimer(null);
       return;
     }
@@ -105,7 +110,7 @@ export default function ArenaQueuePageClient() {
     calculate();
     const intervalId = window.setInterval(calculate, 1000);
     return () => window.clearInterval(intervalId);
-  }, [matchState?.deadlineAt, matchState?.status]);
+  }, [canStartAcceptCountdown, matchState?.deadlineAt]);
 
   // Real-time Event Listener for Match States (Rigor)
   useEffect(() => {
@@ -185,7 +190,9 @@ export default function ArenaQueuePageClient() {
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-brand-gray-600 md:text-base">
             {matchState?.status === "pending"
-              ? "Your challenger is ready. Stay on this screen while the match is being confirmed."
+              ? bothPlayersConnected
+                ? "Both players are connected. Accept countdown is now running."
+                : "Match found. Waiting for both players to connect before acceptance starts."
               : ""}
           </p>
         </div>
@@ -227,7 +234,7 @@ export default function ArenaQueuePageClient() {
             >
               Cancel & Exit
             </GameButton>
-            {matchState?.status === "pending" ? (
+            {canStartAcceptCountdown ? (
               <GameButton
                 onClick={() => void handleAcceptMatch()}
                 disabled={accepting}

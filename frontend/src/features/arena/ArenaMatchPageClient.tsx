@@ -172,7 +172,10 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
   const activeRound = match?.activeRound ?? null;
   latestActiveRoundRef.current = activeRound;
   const question = displayRound?.question;
-  const isQuestionLoading = displayRound?.status === "pending";
+  const displayRoundStartsInFuture = Boolean(
+    displayRound?.startedAt && new Date(displayRound.startedAt).getTime() > Date.now()
+  );
+  const isQuestionLoading = displayRound?.status === "pending" && !displayRoundStartsInFuture;
 
   const localRevealAnswer = submissionReview?.roundId === displayRound?.roundId
     ? submissionReview?.revealedAnswer ?? null
@@ -483,7 +486,15 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
       .sort((a, b) => a.rank - b.rank)
       .slice(0, 2);
 
-    return ranked.map((entry, index) => {
+    const ordered = (() => {
+      if (!authUser?.id || ranked.length < 2) return ranked;
+      const self = ranked.find((entry) => entry.userId === authUser.id);
+      const opponent = ranked.find((entry) => entry.userId !== authUser.id);
+      if (!self || !opponent) return ranked;
+      return [self, opponent];
+    })();
+
+    return ordered.map((entry) => {
       const presence = presenceByUserId.get(entry.userId);
       const avatarUrl = presence?.avatarUrl || "/avatar/chicken.png";
       const fillPercent = Math.max(0, Math.min(100, (entry.score / maxPossibleScore) * 100));
@@ -517,7 +528,7 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
   const rankTierBadge = resolveRankTierBadgeVisual(rankTierAfter || rankTierBefore || null);
   // During intermission the progress bar should be full (time starting from 0)
   // Once intermission ends, show remaining round time
-  const displaySeconds = isInIntermission ? 0 : remainingSeconds;
+  const displaySeconds = isInIntermission ? intermissionSeconds : remainingSeconds;
   const inlineQuestionInCenter = versusPlayers.length === 2;
 
   const questionArea = (displayRound || isInIntermission || match?.status === "finished") ? (

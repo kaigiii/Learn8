@@ -19,7 +19,8 @@ class ArenaSettings(BaseSettings):
     ARENA_DEFAULT_MAX_PLAYERS: int = 8
     ARENA_DEFAULT_ROUND_COUNT: int = 5
     ARENA_DEFAULT_ROUND_TIME_SECONDS: int = 15
-    ARENA_INTERMISSION_SECONDS: int = 5
+    ARENA_INTERMISSION_SECONDS: int = 3
+    ARENA_MATCH_ACCEPT_SECONDS: int = 60
     
     # Matchmaking constants
     ARENA_MATCHMAKING_BASE_WINDOW: int = 100
