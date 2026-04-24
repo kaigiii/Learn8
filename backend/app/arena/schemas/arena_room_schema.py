@@ -64,3 +64,8 @@ class ArenaRoomStartResponse(BaseModel):
     roomCode: str
     matchId: int
     status: str
+
+
+class ArenaRoomCreateResponse(BaseModel):
+    roomCode: str
+    status: str

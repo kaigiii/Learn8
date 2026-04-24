@@ -15,6 +15,7 @@ from app.arena.schemas.arena_competitive_schema import (
 )
 from app.arena.schemas.arena_resume_schema import ArenaResumeResponse
 from app.arena.schemas.arena_room_schema import (
+    ArenaRoomCreateResponse,
     ArenaRoomCreateRequest,
     ArenaRoomJoinRequest,
     ArenaRoomReadyRequest,
@@ -206,14 +207,14 @@ def cancel_current_competitive_queue(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.post("/rooms", response_model=ArenaRoomResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/rooms", response_model=ArenaRoomCreateResponse, status_code=status.HTTP_201_CREATED)
 def create_room(
     payload: ArenaRoomCreateRequest,
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_user),
 ):
     room_service = RoomService()
-    room = room_service.create_room(
+    room_code, room_status = room_service.create_room(
         db,
         current_user,
         public_course_id=payload.publicCourseId,
@@ -223,7 +224,7 @@ def create_room(
         round_count=payload.roundCount,
         round_time_seconds=payload.roundTimeSeconds,
     )
-    return ArenaRoomResponse(**room_service.serialize_room(room))
+    return ArenaRoomCreateResponse(roomCode=room_code, status=room_status)
 
 
 @router.patch("/rooms/{room_code}/settings", response_model=ArenaRoomResponse)

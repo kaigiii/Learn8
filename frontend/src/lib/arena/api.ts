@@ -61,7 +61,7 @@ export function createArenaRoom(payload: {
   roundCount?: number;
   roundTimeSeconds?: number;
 }) {
-  return apiFetch<ArenaRoom>("/arena/rooms", {
+  return apiFetch<{ roomCode: string; status: string }>("/arena/rooms", {
     method: "POST",
     body: JSON.stringify({
       publicCourseId: payload.publicCourseId,
