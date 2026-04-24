@@ -234,13 +234,17 @@ export default function ArenaQueuePageClient() {
             >
               Cancel & Exit
             </GameButton>
-            {canStartAcceptCountdown ? (
+            {matchState?.status === "pending" ? (
               <GameButton
                 onClick={() => void handleAcceptMatch()}
-                disabled={accepting}
+                disabled={accepting || !canStartAcceptCountdown}
                 className="min-w-[180px]"
               >
-                {accepting ? "WAITING FOR OTHERS..." : `ACCEPT (${acceptTimer ?? 0}s)`}
+                {accepting
+                  ? "WAITING FOR OTHERS..."
+                  : canStartAcceptCountdown
+                    ? `ACCEPT (${acceptTimer ?? 0}s)`
+                    : "ACCEPT (WAITING SYNC)"}
               </GameButton>
             ) : null}
           </div>

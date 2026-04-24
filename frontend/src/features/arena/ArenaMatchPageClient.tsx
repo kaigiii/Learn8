@@ -152,6 +152,12 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
     return typeof value === "number" ? value : null;
   }, [latestReveal]);
 
+  const revealedRoundId = useMemo(() => {
+    const payload = latestReveal?.payload as Record<string, unknown> | undefined;
+    const value = payload?.roundId;
+    return typeof value === "number" ? value : null;
+  }, [latestReveal]);
+
   const revealedCorrectId = useMemo(() => {
     return (revealedAnswer?.correctOptionId as string | undefined) ?? undefined;
   }, [revealedAnswer]);
@@ -202,6 +208,14 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
     ((localRevealQuestion?.explanation as string | undefined) || undefined) ??
     (isServerRevealVisible ? revealedExplanation : undefined);
   const showRevealMode = isQuestionLoading || isSelfRevealVisible || isServerRevealVisible;
+  const renderedQuestionRoundKey = (() => {
+    if (showRevealMode) {
+      if (revealedRoundId !== null) return `round-${revealedRoundId}`;
+      if (submissionReview?.roundId) return `round-${submissionReview.roundId}`;
+    }
+    if (displayRound?.roundId) return `round-${displayRound.roundId}`;
+    return "round-unknown";
+  })();
   const isAnswerLocked = Boolean(activeRound?.hasSubmitted) || submitting || isRoundSwitchDelay;
 
   // ─── Matching Pairs Hook ──────────────────────────────────────────────────
@@ -573,6 +587,13 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
           </GameButton>
         </div>
       ) : (
+        isQuestionLoading ? (
+          <div className="flex min-h-[420px] flex-col items-center justify-center text-center">
+            <div className="h-16 w-16 animate-spin rounded-full border-[6px] border-brand-teal/15 border-t-brand-teal/70" />
+            <p className="mt-5 text-lg font-bold text-brand-gray-700">Waiting for both players to load the question</p>
+            <p className="mt-2 text-sm text-brand-gray-500">The round will start once everyone enters this screen.</p>
+          </div>
+        ) : (
         <>
       <div className="mb-4 flex items-center justify-between gap-4">
         <div className="flex items-center gap-2">
@@ -601,14 +622,6 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
         {renderQuestion?.prompt}
       </h2>
 
-      {isQuestionLoading ? (
-        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-[28px] bg-white/75 text-center backdrop-blur-md">
-          <div className="h-16 w-16 animate-spin rounded-full border-[6px] border-brand-teal/15 border-t-brand-teal/70" />
-          <p className="mt-5 text-lg font-bold text-brand-gray-700">Waiting for both players to load the question</p>
-          <p className="mt-2 text-sm text-brand-gray-500">The round will start once everyone enters this screen.</p>
-        </div>
-      ) : null}
-
       {showRevealMode && displayRevealExplanation && (
         <div className="mt-3 rounded-2xl border border-brand-teal/20 bg-brand-teal/5 px-4 py-3">
           <p className="mb-1 text-xs font-bold uppercase tracking-widest text-brand-teal">Explanation</p>
@@ -624,12 +637,11 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
 
         if (q.questionType === "MultipleChoice") {
           const rIdx = (latestReveal?.payload as any)?.roundIndex;
-          const componentKey = isInIntermission ? `reveal-${rIdx}` : `live-${displayRound?.roundId}`;
           const selectedForReveal = isInIntermission
             ? (userAnswersRef.current.get(rIdx) || undefined)
             : (submissionReview?.selectedOptionId || undefined);
           return (
-            <div className="mt-4" key={componentKey}>
+            <div className="mt-4" key={renderedQuestionRoundKey}>
               <MultipleChoiceQuestion
                 hideChrome
                 stageIndex={isInIntermission ? (rIdx ?? 0) : (match?.currentRoundIndex ?? 0)}
@@ -653,9 +665,8 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
 
         if (q.questionType === "MatchingPairs") {
           const rIdx = (latestReveal?.payload as any)?.roundIndex;
-          const componentKey = isInIntermission ? `reveal-${rIdx}` : `live-${displayRound?.roundId}`;
           return (
-            <div className="mt-6" key={componentKey}>
+            <div className="mt-6" key={renderedQuestionRoundKey}>
               <MatchingPairsQuestion
                 hideChrome
                 stageIndex={isInIntermission ? (rIdx ?? 0) : (match?.currentRoundIndex ?? 0)}
@@ -687,9 +698,8 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
 
         if (q.questionType === "Ordering") {
           const rIdx = (latestReveal?.payload as any)?.roundIndex;
-          const componentKey = isInIntermission ? `reveal-${rIdx}` : `live-${displayRound?.roundId}`;
           return (
-            <div className="mt-6" key={componentKey}>
+            <div className="mt-6" key={renderedQuestionRoundKey}>
               <OrderingQuestion
                 hideChrome
                 stageIndex={isInIntermission ? (rIdx ?? 0) : (match?.currentRoundIndex ?? 0)}
@@ -720,9 +730,8 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
 
         if (q.questionType === "FeynmanMirror") {
           const rIdx = (latestReveal?.payload as any)?.roundIndex;
-          const componentKey = isInIntermission ? `reveal-${rIdx}` : `live-${displayRound?.roundId}`;
           return (
-            <div className="mt-6" key={componentKey}>
+            <div className="mt-6" key={renderedQuestionRoundKey}>
               <FeynmanQuestion
                 hideChrome
                 stageIndex={isInIntermission ? (rIdx ?? 0) : (match?.currentRoundIndex ?? 0)}
@@ -750,9 +759,8 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
 
         if (q.questionType === "ExplainerMedia") {
           const rIdx = (latestReveal?.payload as any)?.roundIndex;
-          const componentKey = isInIntermission ? `reveal-${rIdx}` : `live-${displayRound?.roundId}`;
           return (
-            <div className="mt-6" key={componentKey}>
+            <div className="mt-6" key={renderedQuestionRoundKey}>
               <ExplainerMediaCard
                 hideChrome
                 stageIndex={isInIntermission ? (rIdx ?? 0) : (match?.currentRoundIndex ?? 0)}
@@ -792,6 +800,7 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
           : (isSelfRevealVisible ? `${submissionReview?.isCorrect ? "Correct" : "Incorrect"} · ${submissionReview?.scoreAwarded ?? 0} pts` : (activeRound?.hasSubmitted ? "Answer Locked ✓" : "Submit Challenge"))}
       </GameButton>
         </>
+        )
       )}
     </div>
   ) : (
