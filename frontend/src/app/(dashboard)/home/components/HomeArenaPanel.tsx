@@ -209,7 +209,7 @@ export function HomeArenaPanel() {
                 onClick={() => void handleJoinCompetition()}
                 disabled={courses.length === 0 || busy}
               >
-                Join Competition
+                Quick Match
               </GameButton>
             </div>
           </section>

@@ -271,7 +271,14 @@ export default function ProfilePageClient() {
     () => arenaHistory.slice(0, 5).reduce((sum, entry) => sum + entry.ratingDelta, 0),
     [arenaHistory]
   );
-  const recentOutcomeTrends = useMemo(() => resolveRecentOutcomeTrends(arenaHistory), [arenaHistory]);
+  const recentOutcomeTrends = useMemo(
+    () => ({
+      win: [arenaProfile?.wins ?? 0],
+      loss: [arenaProfile?.losses ?? 0],
+      draw: [arenaProfile?.draws ?? 0],
+    }),
+    [arenaProfile?.draws, arenaProfile?.losses, arenaProfile?.wins]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -282,7 +289,7 @@ export default function ProfilePageClient() {
       try {
         const [nextArenaProfile, nextArenaHistory] = await Promise.all([
           fetchArenaProfile(),
-          fetchArenaRankHistory(8),
+          fetchArenaRankHistory(),
         ]);
         if (cancelled) {
           return;
@@ -1115,46 +1122,6 @@ function ArenaMetricPill({
       )}
     </div>
   );
-}
-
-function resolveRecentOutcomeTrends(history: ArenaRankHistoryEntry[]): { win: number[]; loss: number[]; draw: number[] } {
-  const recentDesc = [...history]
-    .sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt))
-    .slice(0, 5);
-  const chronological = recentDesc.sort((left, right) => Date.parse(left.createdAt) - Date.parse(right.createdAt));
-  const paddedChronological: Array<ArenaRankHistoryEntry | null> = [
-    ...Array.from({ length: Math.max(0, 5 - chronological.length) }, () => null),
-    ...chronological,
-  ];
-
-  let wins = 0;
-  let losses = 0;
-  let draws = 0;
-
-  const winTrend: number[] = [];
-  const lossTrend: number[] = [];
-  const drawTrend: number[] = [];
-
-  for (const entry of paddedChronological) {
-    if (entry) {
-      if (entry.ratingDelta > 0) {
-        wins += 1;
-      } else if (entry.ratingDelta < 0) {
-        losses += 1;
-      } else {
-        draws += 1;
-      }
-    }
-    winTrend.push(wins);
-    lossTrend.push(losses);
-    drawTrend.push(draws);
-  }
-
-  return {
-    win: winTrend,
-    loss: lossTrend,
-    draw: drawTrend,
-  };
 }
 
 function ProfileDropdown({

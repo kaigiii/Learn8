@@ -48,8 +48,10 @@ export function fetchArenaSeasonLeaderboard(limit = 20, seasonId?: number | null
   return apiFetch<ArenaLeaderboardResponse>(`/arena/leaderboard/season?${search.toString()}`);
 }
 
-export function fetchArenaRankHistory(limit = 10) {
-  return apiFetch<ArenaRankHistoryResponse>(`/arena/history?limit=${limit}`);
+export function fetchArenaRankHistory(limit?: number) {
+  return apiFetch<ArenaRankHistoryResponse>(
+    limit === undefined ? `/arena/history` : `/arena/history?limit=${limit}`
+  );
 }
 
 export function createArenaRoom(payload: {

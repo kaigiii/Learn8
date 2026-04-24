@@ -167,15 +167,16 @@ class RankService:
         db: Session,
         *,
         user_id: int,
-        limit: int = 20,
+        limit: int | None = None,
     ) -> list[dict]:
-        items = (
+        query = (
             db.query(ArenaRankHistoryModel)
             .filter(ArenaRankHistoryModel.user_id == user_id)
             .order_by(ArenaRankHistoryModel.created_at.desc(), ArenaRankHistoryModel.id.desc())
-            .limit(min(max(limit, 1), 100))
-            .all()
         )
+        if limit is not None:
+            query = query.limit(min(max(limit, 1), 100))
+        items = query.all()
         return [
             {
                 "matchId": item.match_id,

@@ -55,7 +55,7 @@ def get_arena_season_leaderboard(
 
 @router.get("/history", response_model=ArenaRankHistoryResponse)
 def get_arena_rank_history(
-    limit: int = 20,
+    limit: int | None = None,
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_user),
 ):

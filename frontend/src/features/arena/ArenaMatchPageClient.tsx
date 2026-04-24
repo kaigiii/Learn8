@@ -123,6 +123,7 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
   const [intermissionSeconds, setIntermissionSeconds] = useState(0);
   const isInIntermission = !!intermissionUntil && intermissionSeconds > 0;
   const [showFinalSummary, setShowFinalSummary] = useState(false);
+  const [showFinalSpinner, setShowFinalSpinner] = useState(false);
   const [finalSummarySeconds, setFinalSummarySeconds] = useState(0);
 
   // No more prevRoundRef — we use latestReveal payload
@@ -131,6 +132,7 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
   const prevRoundIdRef = useRef<number | null>(null);
   const latestActiveRoundRef = useRef<ArenaMatchState["activeRound"] | null>(null);
   const roundSwitchTimeoutRef = useRef<number | null>(null);
+  const finalSpinnerTimeoutRef = useRef<number | null>(null);
   const finalSummaryTimeoutRef = useRef<number | null>(null);
   const questionAreaRef = useRef<HTMLDivElement | null>(null);
   const [cachedQuestionAreaHeight, setCachedQuestionAreaHeight] = useState<number | null>(null);
@@ -335,6 +337,10 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
   }, []);
 
   useEffect(() => {
+    if (finalSpinnerTimeoutRef.current !== null) {
+      window.clearTimeout(finalSpinnerTimeoutRef.current);
+      finalSpinnerTimeoutRef.current = null;
+    }
     if (finalSummaryTimeoutRef.current !== null) {
       window.clearTimeout(finalSummaryTimeoutRef.current);
       finalSummaryTimeoutRef.current = null;
@@ -342,20 +348,27 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
 
     if (match?.status !== "finished") {
       setShowFinalSummary(false);
+      setShowFinalSpinner(false);
       setFinalSummarySeconds(0);
       return;
     }
 
     setShowFinalSummary(false);
+    setShowFinalSpinner(false);
     setFinalSummarySeconds(3);
     const countdownInterval = window.setInterval(() => {
       setFinalSummarySeconds((current) => (current > 0 ? current - 1 : 0));
     }, 1000);
+    finalSpinnerTimeoutRef.current = window.setTimeout(() => {
+      setShowFinalSpinner(true);
+      setFinalSummarySeconds(0);
+      finalSpinnerTimeoutRef.current = null;
+    }, 3000);
     finalSummaryTimeoutRef.current = window.setTimeout(() => {
       setShowFinalSummary(true);
-      setFinalSummarySeconds(0);
+      setShowFinalSpinner(false);
       finalSummaryTimeoutRef.current = null;
-    }, 3000);
+    }, 4000);
 
     return () => {
       window.clearInterval(countdownInterval);
@@ -364,6 +377,9 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
 
   useEffect(() => {
     return () => {
+      if (finalSpinnerTimeoutRef.current !== null) {
+        window.clearTimeout(finalSpinnerTimeoutRef.current);
+      }
       if (finalSummaryTimeoutRef.current !== null) {
         window.clearTimeout(finalSummaryTimeoutRef.current);
       }
@@ -604,7 +620,7 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
       style={isQuestionLoading ? { minHeight: `${cachedQuestionAreaHeight ?? 420}px` } : undefined}
       className="relative rounded-[28px] border border-white/70 bg-white/74 p-6 shadow-xl backdrop-blur-xl"
     >
-      {match?.status === "finished" ? (
+      {match?.status === "finished" && (showFinalSpinner || showFinalSummary) ? (
         !showFinalSummary ? (
           <div className="flex min-h-[420px] flex-col items-center justify-center text-center">
             <div className="h-16 w-16 animate-spin rounded-full border-[6px] border-brand-teal/15 border-t-brand-teal/70" />
