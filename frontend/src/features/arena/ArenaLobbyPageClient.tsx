@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import TopStatsBar from "@/components/layout/TopStatsBar";
 import GameButton from "@/components/ui/GameButton";
-import { fetchArenaPublicCourses, leaveArenaRoom, setArenaRoomReady, startArenaRoom, updateArenaRoomSettings } from "@/lib/arena/api";
+import { fetchArenaPublicCourses, joinArenaRoom, leaveArenaRoom, setArenaRoomReady, startArenaRoom, updateArenaRoomSettings } from "@/lib/arena/api";
 import { resolveErrorMessage } from "@/lib/apiClient";
 import { useRequireAuthRedirect } from "@/lib/auth/useRequireAuthRedirect";
 import type { ArenaPublicCourse } from "@/lib/apiTypes";
@@ -32,6 +32,9 @@ export default function ArenaLobbyPageClient({ roomCode }: { roomCode: string })
   const [selectedTopicValue, setSelectedTopicValue] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const [friends, setFriends] = useState<any[]>([]);
+  const [loadingFriends, setLoadingFriends] = useState(false);
+
   useEffect(() => () => reset(), [reset]);
 
   useEffect(() => {
@@ -55,6 +58,11 @@ export default function ArenaLobbyPageClient({ roomCode }: { roomCode: string })
       cancelled = true;
     };
   }, [isReady]);
+
+  useEffect(() => {
+    if (!isReady || !roomCode) return;
+    void joinArenaRoom(roomCode).catch((err) => console.error("Auto room join failed:", err));
+  }, [isReady, roomCode]);
 
   useEffect(() => {
     if (!room) {
@@ -178,6 +186,37 @@ export default function ArenaLobbyPageClient({ roomCode }: { roomCode: string })
     }
   };
 
+  useEffect(() => {
+    if (!isReady || !room) return;
+    setLoadingFriends(true);
+    import("@/lib/apiClient").then(({ apiFetch }) => {
+      apiFetch<any>("/social/friends")
+        .then((data) => {
+          setFriends(data.friends || []);
+        })
+        .catch((err) => console.error(err))
+        .finally(() => setLoadingFriends(false));
+    });
+  }, [isReady, room]);
+
+  const [inviteStatus, setInviteStatus] = useState<{ type: "success" | "error"; msg: string } | null>(null);
+
+  const handleInviteFriend = async (friendId: number, friendName: string) => {
+    try {
+      const { apiFetch } = await import("@/lib/apiClient");
+      await apiFetch<any>("/social/friends/arena-invite", {
+        method: "POST",
+        body: JSON.stringify({ friend_id: friendId, room_code: roomCode }),
+      });
+      setInviteStatus({ type: "success", msg: `Successfully sent in-app game invite to ${friendName}!` });
+      setTimeout(() => setInviteStatus(null), 4000);
+    } catch (err: any) {
+      setInviteStatus({ type: "error", msg: err.detail || "Failed to send arena invitation." });
+      setTimeout(() => setInviteStatus(null), 4000);
+    }
+  };
+
+
   return (
     <div className="min-h-screen bg-[url('/backgrounds/MainBg.png')] bg-cover bg-center bg-no-repeat">
       <TopStatsBar backHref="/home" pageTitle="Arena Lobby" />
@@ -206,37 +245,47 @@ export default function ArenaLobbyPageClient({ roomCode }: { roomCode: string })
           </div>
         ) : null}
 
-        <div className="mt-10 flex w-full flex-col items-center justify-center gap-5 lg:flex-row lg:gap-8 xl:gap-10">
-          <LobbyPlayerCard
-            title={currentName}
-            avatarSrc={currentAvatar}
-            role={currentPlayer?.isHost ? "Host" : "You"}
-            isReady={currentPlayer?.isReady ?? false}
-            readyLabel={currentPlayer?.isReady ? "READY" : "WAITING"}
-            onReadyToggle={() => void handleReadyToggle()}
-            readyDisabled={!currentPlayer || busy}
-            connectionState={currentPlayer?.connectionState}
-            actionLabel={currentPlayer?.isReady ? "UNREADY" : "READY UP"}
-          />
+        <div className="mt-10 flex w-full max-w-5xl flex-wrap items-center justify-center gap-5 lg:gap-8 xl:gap-10">
+          {room?.players.map((player) => {
+            const isSelf = player.userId === authUser?.id;
+            return (
+              <LobbyPlayerCard
+                key={player.userId}
+                title={player.displayName || (isSelf ? (authUser?.full_name || authUser?.email?.split("@")[0] || "You") : "Player")}
+                avatarSrc={player.avatarUrl || "/avatar/chicken.png"}
+                role={player.isHost ? "Host" : isSelf ? "You" : "Player"}
+                isReady={player.isReady}
+                readyLabel={player.isReady ? "READY" : "WAITING"}
+                onReadyToggle={isSelf ? () => void handleReadyToggle() : undefined}
+                readyDisabled={!isSelf || busy}
+                connectionState={player.connectionState}
+                actionLabel={isSelf ? (player.isReady ? "UNREADY" : "READY UP") : (player.isReady ? "READY" : "WAITING")}
+                compact={room?.players && room.players.length > 2}
+              />
+            );
+          })}
 
-          <div className="flex flex-col items-center justify-center px-1 md:px-2 lg:px-3">
-            <span className="font-heading text-6xl font-black tracking-tight text-brand-gray-600 md:text-7xl lg:text-[6.25rem]">
-              VS
-            </span>
-          </div>
-
-          <LobbyPlayerCard
-            title={hasOpponent ? opponentName : "Waiting for opponent"}
-            avatarSrc={hasOpponent ? opponentAvatar : undefined}
-            role={opponentPlayer?.isHost ? "Host" : "Player"}
-            isReady={opponentPlayer?.isReady ?? false}
-            readyLabel={opponentPlayer?.isReady ? "READY" : "WAITING"}
-            onReadyToggle={undefined}
-            readyDisabled
-            connectionState={opponentPlayer?.connectionState}
-            loading={!hasOpponent}
-            actionLabel={opponentPlayer?.isReady ? "READY" : "WAITING"}
-          />
+          {room?.players.length === 1 && (
+            <>
+              <div className="flex flex-col items-center justify-center px-1 md:px-2 lg:px-3">
+                <span className="font-heading text-6xl font-black tracking-tight text-brand-gray-600 md:text-7xl lg:text-[6.25rem]">
+                  VS
+                </span>
+              </div>
+              <LobbyPlayerCard
+                title="Waiting for opponent"
+                avatarSrc={undefined}
+                role="Player"
+                isReady={false}
+                readyLabel="WAITING"
+                onReadyToggle={undefined}
+                readyDisabled
+                loading
+                actionLabel="WAITING"
+                compact={false}
+              />
+            </>
+          )}
         </div>
 
         <div className="mt-8 flex w-full max-w-3xl flex-col items-center gap-3">
@@ -259,6 +308,46 @@ export default function ArenaLobbyPageClient({ roomCode }: { roomCode: string })
           </div>
 
           {error ? <p className="text-sm text-rose-600">{error}</p> : null}
+
+          {inviteStatus && (
+            <div className={`mt-3 p-3 rounded-xl border text-center text-xs font-bold ${
+              inviteStatus.type === "success"
+                ? "bg-emerald-50 border-emerald-200 text-emerald-600"
+                : "bg-rose-50 border-rose-200 text-rose-600"
+            }`}>
+              {inviteStatus.msg}
+            </div>
+          )}
+
+          {/* Friends invitation widget for host */}
+          {friends.length > 0 && (
+            <div className="mt-6 w-full max-w-xl rounded-2xl border border-white/70 bg-white/72 p-4 backdrop-blur-xl shadow-lg">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-teal text-center mb-3">
+                Invite Friends to Room
+              </p>
+              <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                {friends.map((friend) => (
+                  <div
+                    key={friend.id}
+                    className="flex items-center justify-between gap-3 p-3 rounded-xl border border-white/60 bg-white/65 hover:bg-white/80 transition"
+                  >
+                    <div>
+                      <p className="text-sm font-bold text-brand-gray-700">
+                        {friend.full_name || friend.email.split("@")[0]}
+                      </p>
+                      <p className="text-xs text-brand-gray-400 font-mono">UID: #{friend.id}</p>
+                    </div>
+                    <button
+                      onClick={() => handleInviteFriend(friend.id, friend.full_name || friend.email.split("@")[0])}
+                      className="px-3 py-1 bg-brand-teal/10 hover:bg-brand-teal text-brand-teal hover:text-white rounded-xl text-xs font-bold transition border border-brand-teal/20 shadow-sm whitespace-nowrap"
+                    >
+                      Invite (邀請)
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </main>
     </div>
@@ -369,6 +458,7 @@ function LobbyPlayerCard({
   readyDisabled,
   connectionState,
   loading = false,
+  compact = false,
 }: {
   title: string;
   avatarSrc?: string;
@@ -380,19 +470,28 @@ function LobbyPlayerCard({
   readyDisabled: boolean;
   connectionState?: string | null;
   loading?: boolean;
+  compact?: boolean;
 }) {
   return (
-    <div className="relative w-full max-w-[360px] overflow-hidden rounded-[30px] border border-white/70 bg-white/62 p-4 backdrop-blur-xl shadow-[0_28px_50px_rgba(95,146,165,0.14)] lg:w-[min(44vw,360px)]">
-      <div className="relative flex min-h-[290px] items-center justify-center rounded-[24px] bg-[linear-gradient(180deg,rgba(222,241,247,0.9),rgba(210,233,242,0.94))] p-4">
+    <div className={`relative w-full overflow-hidden rounded-[30px] border border-white/70 bg-white/62 backdrop-blur-xl shadow-[0_28px_50px_rgba(95,146,165,0.14)] transition-all duration-300 ${
+      compact ? "max-w-[280px] p-3" : "max-w-[360px] p-4 lg:w-[min(44vw,360px)]"
+    }`}>
+      <div className={`relative flex items-center justify-center rounded-[24px] bg-[linear-gradient(180deg,rgba(222,241,247,0.9),rgba(210,233,242,0.94))] transition-all duration-300 ${
+        compact ? "min-h-[220px] p-3" : "min-h-[290px] p-4"
+      }`}>
         {loading ? (
           <div className="h-16 w-16 animate-spin rounded-full border-[6px] border-brand-teal/15 border-t-brand-teal/60" />
         ) : (
-          <AvatarBubble src={avatarSrc} alt={title} isReady={isReady} />
+          <AvatarBubble src={avatarSrc} alt={title} isReady={isReady} compact={compact} />
         )}
       </div>
 
-      <div className="mt-3 overflow-hidden rounded-[18px] bg-white/80 px-5 py-4 text-center shadow-[0_10px_24px_rgba(95,146,165,0.08)]">
-        <p className="truncate font-heading text-[1.55rem] font-extrabold leading-none text-brand-gray-700">
+      <div className={`mt-3 overflow-hidden rounded-[18px] bg-white/80 text-center shadow-[0_10px_24px_rgba(95,146,165,0.08)] ${
+        compact ? "px-4 py-3" : "px-5 py-4"
+      }`}>
+        <p className={`truncate font-heading font-extrabold leading-none text-brand-gray-700 ${
+          compact ? "text-xl" : "text-[1.55rem]"
+        }`}>
           {title}
         </p>
         <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.22em] text-brand-teal">
@@ -403,12 +502,12 @@ function LobbyPlayerCard({
           <GameButton
             onClick={onReadyToggle}
             disabled={readyDisabled}
-            className="mt-3 h-11 w-full"
+            className={`mt-3 w-full ${compact ? "h-10 text-xs" : "h-11"}`}
           >
             {actionLabel}
           </GameButton>
         ) : (
-          <GameButton variant="secondary" disabled className="mt-3 h-11 w-full">
+          <GameButton variant="secondary" disabled className={`mt-3 w-full ${compact ? "h-10 text-xs" : "h-11"}`}>
             {actionLabel}
           </GameButton>
         )}
@@ -423,19 +522,22 @@ function LobbyPlayerCard({
   );
 }
 
-function AvatarBubble({ src, alt, isReady = false }: { src?: string; alt: string; isReady?: boolean }) {
+function AvatarBubble({ src, alt, isReady = false, compact = false }: { src?: string; alt: string; isReady?: boolean; compact?: boolean }) {
   const imageSrc = src || "/avatar/chicken.png";
+  const sizeClass = compact ? "h-[120px] w-[120px]" : "h-[170px] w-[170px]";
+  const innerSizeClass = compact ? "h-[96px] w-[96px]" : "h-[138px] w-[138px]";
+
   return (
-    <div className="relative flex h-[170px] w-[170px] items-center justify-center rounded-full bg-white/35 shadow-[inset_0_0_0_12px_rgba(255,255,255,0.26)]">
+    <div className={`relative flex items-center justify-center rounded-full bg-white/35 shadow-[inset_0_0_0_12px_rgba(255,255,255,0.26)] transition-all duration-300 ${sizeClass}`}>
       <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.22),rgba(255,255,255,0)_58%)]" />
-      <div className="relative h-[138px] w-[138px] overflow-hidden rounded-full bg-white shadow-[0_18px_30px_rgba(95,146,165,0.15)]">
+      <div className={`relative overflow-hidden rounded-full bg-white shadow-[0_18px_30px_rgba(95,146,165,0.15)] transition-all duration-300 ${innerSizeClass}`}>
         <Image src={imageSrc} alt={alt} fill sizes="138px" className="object-cover" />
       </div>
       
       {isReady && (
-        <div className="absolute bottom-2 right-2 flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500 shadow-lg">
+        <div className={`absolute flex items-center justify-center rounded-full bg-emerald-500 shadow-lg transition-all duration-300 ${compact ? "bottom-0 right-0 h-8 w-8" : "bottom-2 right-2 h-10 w-10"}`}>
           <svg
-            className="h-6 w-6 text-white"
+            className={`${compact ? "h-5 w-5" : "h-6 w-6"} text-white`}
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"

@@ -143,6 +143,51 @@ export default function LoginPageClient() {
     }
   };
 
+  const handleGuestLogin = async () => {
+    setError("");
+    setFieldErrors({});
+    setIsSubmitting(true);
+
+    try {
+      const randHex = Math.random().toString(36).substring(2, 8);
+      const guestEmail = `guest_${randHex}@guest.learn8.ai`;
+      const guestPassword = `Guest!${randHex}${Math.floor(100 + Math.random() * 900)}`;
+
+      await apiFetch("/auth/register", {
+        method: "POST",
+        body: JSON.stringify({
+          email: guestEmail,
+          password: guestPassword,
+        }),
+      });
+
+      const tokenRes = await apiFetch<AuthTokenResponse>("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({
+          email: guestEmail,
+          password: guestPassword,
+        }),
+      });
+
+      setSession(tokenRes.access_token, null);
+      const profile = await apiFetch<UserProfile>("/auth/me");
+      establishAuthenticatedSession(tokenRes.access_token, profile);
+
+      router.replace(
+        !isProfileOnboardingComplete(profile)
+          ? "/auth/welcome"
+          : resolvePreferredAuthenticatedHref("/home")
+      );
+    } catch (err) {
+      clearSession();
+      setError(
+        err instanceof ApiError ? err.detail : "Unable to connect to the server."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleDevLogin = async () => {
     setError("");
     setFieldErrors({});
@@ -171,6 +216,7 @@ export default function LoginPageClient() {
       setIsSubmitting(false);
     }
   };
+
 
   return (
     <div className="relative flex min-h-screen flex-col overflow-hidden bg-[#d9ecf6] bg-[url('/backgrounds/LogInBg.png')] bg-cover bg-center bg-no-repeat">
@@ -374,6 +420,15 @@ export default function LoginPageClient() {
                 : activeTab === "signup"
                 ? "Create Account"
                 : "Sign In"}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleGuestLogin}
+              disabled={isSubmitting}
+              className="w-full rounded-xl border border-brand-teal bg-white/40 px-6 py-3 font-heading font-bold uppercase tracking-wide text-brand-teal hover:bg-brand-teal/5 transition disabled:cursor-not-allowed disabled:opacity-60 shadow-sm"
+            >
+              Guest Login (訪客登入)
             </button>
 
             <button

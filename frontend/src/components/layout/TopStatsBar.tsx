@@ -52,6 +52,57 @@ export default function TopStatsBar({
   const availableCredits = useUserStore(selectAvailableCredits);
   const creditBalance = authUser?.credits ?? availableCredits;
   const userHandle = (authUser?.full_name || authUser?.email || "").trim().toLowerCase();
+
+  const [invites, setInvites] = useState<any[]>([]);
+
+  React.useEffect(() => {
+    if (!authUser) return;
+    const interval = setInterval(() => {
+      import("@/lib/apiClient").then(({ apiFetch }) => {
+        apiFetch<any>("/social/friends/arena-invites")
+          .then((data) => {
+            if (data.status === "ok" && data.invites) {
+              setInvites(data.invites);
+            }
+          })
+          .catch((err) => console.error(err));
+      });
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [authUser]);
+
+  const handleAcceptInvite = async (inviteId: number, roomCode: string) => {
+    try {
+      const { apiFetch } = await import("@/lib/apiClient");
+      await apiFetch<any>(`/social/friends/arena-invites/${inviteId}/respond?action=accept`, {
+        method: "POST",
+      });
+      // CALL ROOM JOIN
+      try {
+        await apiFetch<any>("/arena/rooms/join", {
+          method: "POST",
+          body: JSON.stringify({ roomCode }),
+        });
+      } catch (err) {
+        console.error("Room join failed", err);
+      }
+      window.location.href = `/arena/lobby/${roomCode}`;
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleIgnoreInvite = async (inviteId: number) => {
+    try {
+      const { apiFetch } = await import("@/lib/apiClient");
+      await apiFetch<any>(`/social/friends/arena-invites/${inviteId}/respond?action=ignore`, {
+        method: "POST",
+      });
+      setInvites((prev) => prev.filter((inv) => inv.id !== inviteId));
+    } catch (err) {
+      console.error(err);
+    }
+  };
   const emailLocalPart = (authUser?.email || "").trim().toLowerCase().split("@")[0] ?? "";
   const isDevAccount =
     userHandle === "dev" ||
@@ -72,6 +123,16 @@ export default function TopStatsBar({
   const quickChipClassName =
     "inline-flex h-10 items-center gap-0 rounded-full bg-white/92 px-2.5 text-sm font-heading font-bold leading-none text-brand-gray-700 shadow-sm transition hover:bg-white lg:gap-2 lg:px-3";
   const quickActiveClassName = "bg-white ring-1 ring-brand-teal/20";
+  const socialLink = {
+    href: "/social",
+    label: "Social",
+    iconText: "👥",
+    active: pathname === "/social" || pathname.startsWith("/social/"),
+  };
+  const withSocial = quickLinks.some((link) => link.href === "/social")
+    ? quickLinks
+    : [socialLink, ...quickLinks];
+
   const resolvedQuickLinks = isDevAccount
     ? [
         {
@@ -79,9 +140,9 @@ export default function TopStatsBar({
           label: "Arena Admin",
           iconText: "⚙️",
         },
-        ...quickLinks,
+        ...withSocial,
       ]
-    : quickLinks;
+    : withSocial;
   const isStoreActive = pathname === "/store" || pathname.startsWith("/store/");
   const isProfileActive = pathname === "/profile" || pathname.startsWith("/profile");
 
@@ -248,6 +309,36 @@ export default function TopStatsBar({
       {profileOpen && (
         <ProfileSettingsDialog onClose={() => setProfileOpen(false)} />
       )}
+
+      {/* Real-time Arena Lobby Invitation Alert */}
+      {invites && invites.map((invite) => (
+        <div
+          key={invite.id}
+          className="fixed bottom-4 right-4 z-[9999] w-full max-w-sm rounded-2xl border border-amber-200 bg-amber-50/95 p-4 backdrop-blur shadow-2xl transition duration-300"
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-xl">⚔️</span>
+            <p className="text-sm font-bold text-brand-gray-700">
+              <span className="text-brand-teal font-extrabold">{invite.inviter_name}</span> has invited you to a private Arena Room!
+            </p>
+          </div>
+          <p className="text-xs text-brand-gray-500 font-mono mt-1">Room Code: {invite.room_code}</p>
+          <div className="mt-3 flex items-center justify-end gap-2">
+            <button
+              onClick={() => handleIgnoreInvite(invite.id)}
+              className="px-3 py-1.5 bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 hover:border-rose-300 rounded-xl text-xs font-bold transition shadow-sm"
+            >
+              Ignore
+            </button>
+            <button
+              onClick={() => handleAcceptInvite(invite.id, invite.room_code)}
+              className="px-3 py-1.5 bg-brand-teal hover:bg-brand-teal/90 text-white rounded-xl text-xs font-bold transition shadow-sm"
+            >
+              Join (加入房間)
+            </button>
+          </div>
+        </div>
+      ))}
     </>
   );
 }

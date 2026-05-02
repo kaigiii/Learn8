@@ -196,9 +196,12 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
 
   const localRevealQuestion = useMemo(() => buildRevealedQuestion(localRevealAnswer), [localRevealAnswer]);
 
-  const isSelfRevealVisible = !!localRevealQuestion && !!displayRound && !isQuestionLoading;
+  const isRevealTime = isInIntermission || displayRound?.status === "closed" || match?.status === "finished";
+
+  const isSelfRevealVisible = isRevealTime && !!localRevealQuestion && !!displayRound && !isQuestionLoading;
 
   const isServerRevealVisible = Boolean(
+    isRevealTime &&
     revealedQuestion &&
     displayRound &&
     revealedRoundIndex !== null &&
@@ -207,12 +210,12 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
       (displayRound.status === "pending" && displayRound.roundIndex === revealedRoundIndex + 1)
     )
   );
-  const displayRevealQuestion = localRevealQuestion ?? (isServerRevealVisible ? revealedQuestion : null);
+  const displayRevealQuestion = (isSelfRevealVisible ? localRevealQuestion : null) ?? (isServerRevealVisible ? revealedQuestion : null);
   const displayRevealCorrectId =
-    (localRevealQuestion?.correctOptionId || undefined) ??
+    (isSelfRevealVisible ? (localRevealQuestion?.correctOptionId || undefined) : undefined) ??
     (isServerRevealVisible ? revealedCorrectId : undefined);
   const displayRevealExplanation =
-    ((localRevealQuestion?.explanation as string | undefined) || undefined) ??
+    (isSelfRevealVisible ? ((localRevealQuestion?.explanation as string | undefined) || undefined) : undefined) ??
     (isServerRevealVisible ? revealedExplanation : undefined);
   const showRevealMode = isQuestionLoading || isSelfRevealVisible || isServerRevealVisible;
   const [visibleQuestionRoundId, setVisibleQuestionRoundId] = useState<number | null>(null);
@@ -355,7 +358,7 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
 
     setShowFinalSummary(false);
     setShowFinalSpinner(false);
-    setFinalSummarySeconds(3);
+    setFinalSummarySeconds(5);
     const countdownInterval = window.setInterval(() => {
       setFinalSummarySeconds((current) => (current > 0 ? current - 1 : 0));
     }, 1000);
@@ -363,12 +366,12 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
       setShowFinalSpinner(true);
       setFinalSummarySeconds(0);
       finalSpinnerTimeoutRef.current = null;
-    }, 3000);
+    }, 5000);
     finalSummaryTimeoutRef.current = window.setTimeout(() => {
       setShowFinalSummary(true);
       setShowFinalSpinner(false);
       finalSummaryTimeoutRef.current = null;
-    }, 4000);
+    }, 6000);
 
     return () => {
       window.clearInterval(countdownInterval);
@@ -522,11 +525,7 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
           selectedOptionId: result.selectedOptionId ?? finalValue,
           revealedAnswer: result.revealedAnswer,
         });
-        setSubmitNotice(
-          result.isCorrect
-            ? `Correct! +${result.scoreAwarded ?? 0} points.`
-            : `Incorrect. +${result.scoreAwarded ?? 0} points.`
-        );
+        setSubmitNotice("Answer recorded.");
       }
       if (result.alreadySubmitted) {
         setSubmitNotice("Your answer was already locked in for this round.");
@@ -580,6 +579,29 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
         fillPercent,
       };
     });
+  }, [authUser?.id, match?.standings, maxPossibleScore, presenceByUserId]);
+
+  const allPlayers = useMemo(() => {
+    if (!match?.standings) return [];
+    return [...match.standings]
+      .sort((a, b) => {
+        if (a.userId === authUser?.id) return -1;
+        if (b.userId === authUser?.id) return 1;
+        return a.rank - b.rank;
+      })
+      .map((entry) => {
+        const presence = presenceByUserId.get(entry.userId);
+        const avatarUrl = presence?.avatarUrl || "/avatar/chicken.png";
+        const fillPercent = Math.max(0, Math.min(100, (entry.score / maxPossibleScore) * 100));
+        return {
+          userId: entry.userId,
+          displayName: entry.displayName,
+          avatarUrl,
+          score: entry.score,
+          fillPercent,
+          rank: entry.rank,
+        };
+      });
   }, [authUser?.id, match?.standings, maxPossibleScore, presenceByUserId]);
 
   const renderQuestion = displayRevealQuestion ?? displayRound?.question;
@@ -789,7 +811,7 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
                 difficulty={mapDifficulty(q.difficulty)}
                 isRevealed={showRevealMode}
                 stage={{
-                  stageId: (isInIntermission ? rIdx.toString() : displayRound?.roundId.toString()) || "0",
+                  stageId: String(isInIntermission ? (rIdx ?? 0) : (displayRound?.roundId ?? 0)),
                   topic: q.prompt,
                   component: "Ordering",
                   config: {
@@ -928,25 +950,27 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
             </div>
           ) : null}
 
-          {versusPlayers.length === 2 ? (
+          {allPlayers.length >= 2 ? (
             <div className="mt-0 p-3">
-              <div className="mb-3 grid items-start gap-3 md:grid-cols-[140px_1fr_140px]">
+              <div className="mb-3 grid items-start gap-3 md:grid-cols-[140px_1fr_220px] lg:grid-cols-[140px_1fr_240px]">
+                {/* Yourself (Column 1 - Left) */}
                 <div className="mx-auto w-full max-w-[140px] md:order-1">
                   <div className="flex w-full flex-col items-center justify-center text-center">
                     <img
-                      src={versusPlayers[0].avatarUrl}
-                      alt={versusPlayers[0].displayName}
+                      src={allPlayers[0].avatarUrl}
+                      alt={allPlayers[0].displayName}
                       className="h-20 w-20 rounded-full border-4 border-[#c7deec] bg-white object-cover shadow-[0_0_0_4px_rgba(226,241,248,0.9)]"
                       onError={(event) => {
                         event.currentTarget.src = "/avatar/chicken.png";
                       }}
                     />
                     <p className="mt-2 w-full text-center font-heading text-lg font-bold text-[#0a5d9a]">
-                      {versusPlayers[0].displayName}
+                      {allPlayers[0].displayName}
                     </p>
                   </div>
                 </div>
 
+                {/* Round info & Timer (Column 2 - Middle) */}
                 <div className="mx-auto flex w-full max-w-[140px] flex-col items-center justify-center text-center md:order-2">
                   <div className="relative flex h-20 w-20 items-center justify-center">
                     <div className="absolute inset-0 rounded-full border-[6px] border-[#d2e8f2]" />
@@ -964,59 +988,131 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
                   </p>
                 </div>
 
-                <div className="mx-auto w-full max-w-[140px] md:order-3">
-                  <div className="flex w-full flex-col items-center justify-center text-center">
-                    <img
-                      src={versusPlayers[1].avatarUrl}
-                      alt={versusPlayers[1].displayName}
-                      className="h-20 w-20 rounded-full border-4 border-[#c7deec] bg-white object-cover shadow-[0_0_0_4px_rgba(226,241,248,0.9)]"
-                      onError={(event) => {
-                        event.currentTarget.src = "/avatar/chicken.png";
-                      }}
-                    />
-                    <p className="mt-2 w-full text-center font-heading text-lg font-bold text-[#0a5d9a]">
-                      {versusPlayers[1].displayName}
-                    </p>
-                  </div>
+                {/* Others info (Column 3 - Right) */}
+                <div className="mx-auto w-full max-w-[220px] lg:max-w-[240px] md:order-3">
+                  {allPlayers.length === 2 ? (
+                    <div className="flex w-full flex-col items-center justify-center text-center">
+                      <img
+                        src={allPlayers[1].avatarUrl}
+                        alt={allPlayers[1].displayName}
+                        className="h-20 w-20 rounded-full border-4 border-[#c7deec] bg-white object-cover shadow-[0_0_0_4px_rgba(226,241,248,0.9)]"
+                        onError={(event) => {
+                          event.currentTarget.src = "/avatar/chicken.png";
+                        }}
+                      />
+                      <p className="mt-2 w-full text-center font-heading text-lg font-bold text-[#0a5d9a]">
+                        {allPlayers[1].displayName}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="text-center md:text-left mb-1.5 flex items-center justify-between">
+                      <p className="font-heading text-sm font-extrabold text-[#0a5d9a]">
+                        Opponents ({allPlayers.length - 1})
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <div className="grid items-stretch gap-3 md:grid-cols-[140px_1fr_140px]">
-                {versusPlayers.map((player, index) => (
-                  <div
-                    key={player.userId}
-                    className={`mx-auto h-full w-full max-w-[140px] rounded-[28px] border-[3px] border-[#78b7cf] bg-[#eef7ff]/85 p-2.5 shadow-md ${index === 0 ? "md:order-1" : "md:order-3"}`}
-                  >
-                    <div className="flex h-full flex-col items-center justify-between py-2">
-                      <div className="text-center">
-                        <p className="font-heading text-5xl font-bold leading-none text-[#2b3f4d]">{player.score}</p>
-                      </div>
-                      <div className="my-2 flex min-h-[230px] flex-1 w-16 items-end justify-center rounded-[14px] bg-transparent p-1.5">
-                        <div className="relative h-full w-8 overflow-hidden rounded-[10px] bg-[#2f3840]">
-                          <div
-                            className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#f4efb4] to-[#6ed3b2] transition-all duration-700 ease-out"
-                            style={{ height: `${player.fillPercent}%`, transition: "height 700ms ease-out" }}
-                          />
-                        </div>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-xs font-bold uppercase tracking-[0.14em] text-brand-gray-500">Score Bar</p>
-                        <p className="font-heading text-2xl font-bold text-brand-gray-700">{Math.round(player.fillPercent)}%</p>
+              <div className="grid items-stretch gap-3 md:grid-cols-[140px_1fr_220px] lg:grid-cols-[140px_1fr_240px]">
+                {/* Your score bar (Column 1 - Left) */}
+                <div className="mx-auto h-full w-full max-w-[140px] rounded-[28px] border-[3px] border-[#78b7cf] bg-[#eef7ff]/85 p-2.5 shadow-md md:order-1">
+                  <div className="flex h-full flex-col items-center justify-between py-2">
+                    <div className="text-center">
+                      <p className="font-heading text-5xl font-bold leading-none text-[#2b3f4d]">
+                        {allPlayers[0].score}
+                      </p>
+                    </div>
+                    <div className="my-2 flex min-h-[230px] flex-1 w-16 items-end justify-center rounded-[14px] bg-transparent p-1.5">
+                      <div className="relative h-full w-8 overflow-hidden rounded-[10px] bg-[#2f3840]">
+                        <div
+                          className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#f4efb4] to-[#6ed3b2] transition-all duration-700 ease-out"
+                          style={{ height: `${allPlayers[0].fillPercent}%`, transition: "height 700ms ease-out" }}
+                        />
                       </div>
                     </div>
+                    <div className="text-center">
+                      <p className="text-xs font-bold uppercase tracking-[0.14em] text-brand-gray-500">Your Score</p>
+                      <p className="font-heading text-2xl font-bold text-brand-gray-700">{Math.round(allPlayers[0].fillPercent)}%</p>
+                    </div>
                   </div>
-                ))}
+                </div>
 
+                {/* Question area (Column 2 - Middle) */}
                 <div className="flex w-full flex-col justify-center md:order-2">
                   <div className="w-full">{questionArea}</div>
                 </div>
+
+                {/* Other score bars (Column 3 - Right) */}
+                <div className="mx-auto h-full w-full max-w-[220px] lg:max-w-[240px] md:order-3">
+                  {allPlayers.length === 2 ? (
+                    <div className="mx-auto h-full w-full max-w-[140px] rounded-[28px] border-[3px] border-[#78b7cf] bg-[#eef7ff]/85 p-2.5 shadow-md">
+                      <div className="flex h-full flex-col items-center justify-between py-2">
+                        <div className="text-center">
+                          <p className="font-heading text-5xl font-bold leading-none text-[#2b3f4d]">
+                            {allPlayers[1].score}
+                          </p>
+                        </div>
+                        <div className="my-2 flex min-h-[230px] flex-1 w-16 items-end justify-center rounded-[14px] bg-transparent p-1.5">
+                          <div className="relative h-full w-8 overflow-hidden rounded-[10px] bg-[#2f3840]">
+                            <div
+                              className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#f4efb4] to-[#6ed3b2] transition-all duration-700 ease-out"
+                              style={{ height: `${allPlayers[1].fillPercent}%`, transition: "height 700ms ease-out" }}
+                            />
+                          </div>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-xs font-bold uppercase tracking-[0.14em] text-brand-gray-500">Score Bar</p>
+                          <p className="font-heading text-2xl font-bold text-brand-gray-700">{Math.round(allPlayers[1].fillPercent)}%</p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="h-full max-h-[380px] overflow-y-auto pr-1 space-y-2">
+                      {allPlayers.slice(1).map((player) => (
+                        <div
+                          key={player.userId}
+                          className="flex items-center justify-between gap-2 p-2.5 bg-[#eef7ff]/85 border-2 border-[#78b7cf] rounded-[20px] shadow-sm transition hover:bg-white/80"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <img
+                              src={player.avatarUrl}
+                              alt={player.displayName}
+                              className="h-11 w-11 flex-none rounded-full border-2 border-[#c7deec] bg-white object-cover"
+                              onError={(event) => {
+                                event.currentTarget.src = "/avatar/chicken.png";
+                              }}
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="font-heading text-sm font-bold text-[#0a5d9a] truncate leading-tight">
+                                {player.displayName}
+                              </p>
+                              <p className="text-[10px] font-bold uppercase tracking-wider text-brand-gray-500 mt-0.5">
+                                Rank #{player.rank}
+                              </p>
+                              <p className="font-heading text-base font-black text-brand-gray-700 mt-1">
+                                {player.score} <span className="text-[10px] font-normal font-sans text-brand-gray-400">pts</span>
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-center flex-none">
+                            <div className="relative h-14 w-4 overflow-hidden rounded-[6px] bg-[#2f3840]">
+                              <div
+                                className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#f4efb4] to-[#6ed3b2] transition-all duration-700 ease-out"
+                                style={{ height: `${player.fillPercent}%` }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          ) : null}
-
-          {!inlineQuestionInCenter ? (
+          ) : (
             <div className="mt-6">{questionArea}</div>
-          ) : null}
+          )}
         </DeepGlassCard>
       </main>
     </div>
