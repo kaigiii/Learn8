@@ -12,11 +12,11 @@ VOXCPM_URL = os.getenv("VOXCPM_URL", "http://127.0.0.1:15060/v1/audio/speech")
 VOXCPM_UPLOAD_URL = os.getenv("VOXCPM_UPLOAD_URL", "http://127.0.0.1:15060/v1/audio/upload")
 
 VOICE_PRESETS = {
-    "preset_01": "presets/gentle_sister.wav",
-    "preset_02": "presets/wise_tutor.wav",
-    "preset_03": "presets/energetic_partner.wav",
-    "preset_04": "presets/calm_ai.wav",
-    "preset_05": "presets/warm_uncle.wav"
+    "preset_01": os.path.join(os.getcwd(), "presets", "gentle_sister.wav"),
+    "preset_02": os.path.join(os.getcwd(), "presets", "wise_tutor.wav"),
+    "preset_03": os.path.join(os.getcwd(), "presets", "energetic_partner.wav"),
+    "preset_04": os.path.join(os.getcwd(), "presets", "calm_ai.wav"),
+    "preset_05": os.path.join(os.getcwd(), "presets", "warm_uncle.wav")
 }
 
 @router.get("/speech")
@@ -53,7 +53,13 @@ async def get_cloned_speech(
             pass
 
     # 3. 如果沒有快取，發送推論請求給 VoxCPM
-    ref_path = VOICE_PRESETS.get(preset, VOICE_PRESETS["preset_01"])
+    if preset.startswith("uploads/") or preset.endswith(".wav") or preset.endswith(".mp3"):
+        if not os.path.isabs(preset):
+            ref_path = os.path.join(os.getcwd(), preset)
+        else:
+            ref_path = preset
+    else:
+        ref_path = VOICE_PRESETS.get(preset, VOICE_PRESETS["preset_01"])
 
     payload = {
         "text": text,
@@ -100,7 +106,13 @@ async def pregenerate_audio_cache(text: str, preset: str = "preset_01") -> str |
     if os.path.exists(cache_path):
         return cache_path
 
-    ref_path = VOICE_PRESETS.get(preset, VOICE_PRESETS["preset_01"])
+    if preset.startswith("uploads/") or preset.endswith(".wav") or preset.endswith(".mp3"):
+        if not os.path.isabs(preset):
+            ref_path = os.path.join(os.getcwd(), preset)
+        else:
+            ref_path = preset
+    else:
+        ref_path = VOICE_PRESETS.get(preset, VOICE_PRESETS["preset_01"])
     payload = {
         "text": text,
         "reference_wav_path": ref_path,

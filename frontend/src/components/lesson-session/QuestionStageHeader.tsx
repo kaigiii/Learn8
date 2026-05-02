@@ -12,6 +12,7 @@ interface QuestionStageHeaderProps {
   accentClassName: string;
   accentTextClassName: string;
   subtitle?: string;
+  rightSlot?: React.ReactNode;
 }
 
 export function QuestionStageHeader({
@@ -24,6 +25,7 @@ export function QuestionStageHeader({
   accentClassName,
   accentTextClassName,
   subtitle,
+  rightSlot,
 }: QuestionStageHeaderProps) {
   const difficultyLabel =
     difficulty === "high" ? "高" : difficulty === "medium" ? "中" : difficulty === "low" ? "低" : null;
@@ -45,16 +47,19 @@ export function QuestionStageHeader({
           {stageIndex + 1}
         </span>
       </div>
-      <div>
+      <div className="flex-1 min-w-0">
         <p
           className={`mb-0.5 text-[11px] font-bold uppercase tracking-wider ${accentTextClassName}`}
         >
           {stageLabel} {stageIndex + 1} of {totalStages}
           {subtitle ? ` ${subtitle}` : ""}
         </p>
-        <h2 className="font-heading text-lg font-bold leading-snug text-brand-gray-700">
-          {topic}
-        </h2>
+        <div className="flex items-center justify-between gap-4">
+          <h2 className="font-heading text-lg font-bold leading-snug text-brand-gray-700">
+            {topic}
+          </h2>
+          {rightSlot}
+        </div>
         {difficultyLabel || durationLabel ? (
           <div className="mt-2 flex flex-wrap items-center gap-2">
             {difficultyLabel ? (

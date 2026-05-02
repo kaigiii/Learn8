@@ -77,13 +77,9 @@ export default function MatchingPairsQuestion({
             recommendedDurationMinutes={recommendedDurationMinutes}
             accentClassName="bg-gradient-to-br from-brand-teal to-[#5fb3af] shadow-teal-300/30"
             accentTextClassName="text-brand-teal"
+            rightSlot={<QuestionVoiceReader text={question || topic} />}
           />
         )}
-
-        <div className="mb-4 flex items-center justify-between gap-4 bg-teal-50/50 border border-teal-100 rounded-xl px-4 py-3">
-          <span className="text-sm font-medium text-teal-800">{question || topic}</span>
-          <QuestionVoiceReader text={question || topic} />
-        </div>
 
         <div className="flex">
           <MatchGrid

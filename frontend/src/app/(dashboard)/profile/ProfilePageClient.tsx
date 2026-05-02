@@ -13,13 +13,13 @@ import { ProfileStatBox } from "@/features/profile/components/ProfileStatBox";
 import { ProfileToggle } from "@/features/profile/components/ProfileToggle";
 import { useProfileSettings } from "@/features/profile/hooks/useProfileSettings";
 import { AnimatePresence, motion } from "framer-motion";
-import { ApiError, resolveErrorMessage } from "@/lib/apiClient";
+import { ApiError, resolveErrorMessage, API_BASE_URL, getAuthToken } from "@/lib/apiClient";
 import { fetchArenaProfile, fetchArenaRankHistory } from "@/lib/arena/api";
 import { uploadAuthenticatedAvatar } from "@/lib/auth/profileSync";
 import type { ArenaProfile, ArenaRankHistoryEntry, UserLedgerEvent } from "@/lib/apiTypes";
 import useUserStore, { selectUserProgression } from "@/stores/app/useUserStore";
 
-type OverlayPanel = "personal" | "wallet" | null;
+type OverlayPanel = "personal" | "wallet" | "voice" | null;
 
 type ProfileFormState = {
   full_name: string;
@@ -370,7 +370,7 @@ export default function ProfilePageClient() {
             </div>
 
             <div className="w-full lg:max-w-[760px]">
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-7">
                 <ProfileStatBox label="Credits" value={String(authUser?.credits ?? 0)} />
                 <ProfileStatBox label="Level" value={String(progression.level)} />
                 <ProfileStatBox label="XP" value={String(progression.xp)} />
@@ -389,6 +389,18 @@ export default function ProfilePageClient() {
                   }`}
                 >
                   Personal Profile
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveOverlay("voice")}
+                  className={`min-h-[58px] rounded-xl border-[1.5px] px-3 text-sm font-semibold transition ${
+                    activeOverlay === "voice"
+                      ? "border-[#d1d5db] bg-[#e5e7eb] text-brand-gray-700 shadow-[0_10px_20px_rgba(107,114,128,0.08)]"
+                      : "border-[#d1d5db] bg-[#f3f4f6] text-brand-gray-700 hover:border-[#bfdbfe] hover:bg-[#e5e7eb]"
+                  }`}
+                >
+                  Voice Settings
                 </button>
 
                 <button
@@ -559,7 +571,7 @@ export default function ProfilePageClient() {
       <AnimatePresence>
         {activeOverlay ? (
           <ProfileOverlayShell
-            title={activeOverlay === "personal" ? "Personal Profile" : "Wallet"}
+            title={activeOverlay === "personal" ? "Personal Profile" : activeOverlay === "voice" ? "Voice Settings" : "Wallet"}
             onClose={() => setActiveOverlay(null)}
           >
             {activeOverlay === "personal" ? (
@@ -576,6 +588,11 @@ export default function ProfilePageClient() {
                 onAvatarFileChange={handleAvatarFileChange}
                 onAvatarButtonClick={() => setIsAvatarSelectorOpen(true)}
                 avatarUploadError={avatarUploadError}
+              />
+            ) : activeOverlay === "voice" ? (
+              <VoiceSettingsContent
+                preferences={preferences}
+                setPreferences={setPreferences}
               />
             ) : (
               <WalletContent
@@ -1012,6 +1029,216 @@ function WalletContent({
           ) : (
             ledgerItems.map((item) => <LedgerActivityRow key={item.id} item={item} />)
           )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function VoiceSettingsContent({
+  preferences,
+  setPreferences,
+}: {
+  preferences: any;
+  setPreferences: (patch: any) => void;
+}) {
+  const currentVoice = preferences.voiceAssistant || "preset_01";
+  const isAutoPlay = !!preferences.autoPlaySpeech;
+  const [uploading, setUploading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [playingPreset, setPlayingPreset] = useState<string | null>(null);
+
+  const presets = [
+    { id: "preset_01", label: "溫柔大姐 (Gentle Sister)", desc: "溫和且親切的語調" },
+    { id: "preset_02", label: "智慧導師 (Wise Tutor)", desc: "沉穩專業的男性音色" },
+    { id: "preset_03", label: "活力夥伴 (Energetic Partner)", desc: "高昂且充滿能量的女性音色" },
+    { id: "preset_04", label: "平靜 AI (Calm AI)", desc: "標準流暢、語速適中的音色" },
+    { id: "preset_05", label: "暖心大叔 (Warm Uncle)", desc: "厚重、充滿磁性的男性音色" },
+  ];
+
+  const handleTestPreset = async (presetId: string) => {
+    setPlayingPreset(presetId);
+    try {
+      const headers: Record<string, string> = {};
+      const token = getAuthToken();
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      const testText = "哈囉！我是您的學習語音助理，很高興為您導讀課程。";
+      const res = await fetch(
+        `${API_BASE_URL}/audio/speech?text=${encodeURIComponent(testText)}&preset=${presetId}`,
+        { headers }
+      );
+
+      if (!res.ok) {
+        throw new Error("試聽語音生成失敗");
+      }
+
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const audio = new Audio(objectUrl);
+      audio.onended = () => setPlayingPreset(null);
+      await audio.play();
+    } catch (err) {
+      console.error(err);
+      setErrorMsg("試聽語音播放失敗，請確認微服務連線。");
+      setPlayingPreset(null);
+    }
+  };
+
+  const handleUploadCustomVoice = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("audio/") && !file.name.endsWith(".wav") && !file.name.endsWith(".mp3")) {
+      setErrorMsg("請選擇正確的音訊檔案 (.wav, .mp3)");
+      return;
+    }
+
+    setUploading(true);
+    setErrorMsg("");
+    try {
+      const token = getAuthToken();
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch(`${API_BASE_URL}/audio/upload-preset`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      });
+
+      if (!res.ok) {
+        throw new Error("上傳音訊檔案失敗");
+      }
+
+      const data = await res.json();
+      if (data.saved_path) {
+        setPreferences({ voiceAssistant: data.saved_path });
+      } else {
+        throw new Error("VoxCPM 未正確回傳音訊儲存路徑");
+      }
+    } catch (err) {
+      console.error(err);
+      setErrorMsg("音訊上傳失敗，請稍後再試。");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <p className="text-sm text-brand-gray-500">
+        在這裡試聽或挑選您偏好的課程導讀語音助理，甚至可以上傳個人聲音進行克隆自訂。
+      </p>
+
+      {errorMsg && (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-600">
+          {errorMsg}
+        </div>
+      )}
+
+      {/* Auto Play Speech Toggle */}
+      <div className="rounded-2xl border border-brand-gray-100 bg-brand-gray-50/75 p-4 flex items-center justify-between">
+        <div>
+          <p className="text-sm font-semibold text-brand-gray-700">自動播放課程語音 (Auto Play)</p>
+          <p className="text-xs text-brand-gray-400 mt-0.5">進入每個關卡時，系統將自動啟動朗讀</p>
+        </div>
+        <ProfileToggle
+          on={isAutoPlay}
+          onChange={() => setPreferences({ autoPlaySpeech: !isAutoPlay })}
+        />
+      </div>
+
+      {/* Presets Grid */}
+      <div className="rounded-2xl border border-brand-gray-100 bg-brand-gray-50/75 p-4 space-y-3">
+        <p className="text-sm font-semibold text-brand-gray-700">內建推薦語音助理 (Preset Voices)</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {presets.map((p) => {
+            const isSelected = currentVoice === p.id;
+            return (
+              <div
+                key={p.id}
+                onClick={() => setPreferences({ voiceAssistant: p.id })}
+                className={`relative flex flex-col justify-between p-4 rounded-2xl border-2 cursor-pointer transition select-none ${
+                  isSelected
+                    ? "border-brand-teal bg-brand-teal/5 shadow-sm"
+                    : "border-brand-gray-100 bg-white hover:border-brand-teal/40"
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-sm text-brand-gray-700">{p.label}</span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void handleTestPreset(p.id);
+                      }}
+                      disabled={playingPreset === p.id}
+                      className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 bg-teal-50 hover:bg-teal-100 border border-teal-200 text-brand-teal rounded-lg transition"
+                    >
+                      {playingPreset === p.id ? (
+                        <>
+                          <span className="h-2 w-2 animate-spin rounded-full border border-brand-teal border-t-transparent" />
+                          <span>播放中</span>
+                        </>
+                      ) : (
+                        <span>試聽聲音</span>
+                      )}
+                    </button>
+                  </div>
+                  <p className="mt-1 text-xs text-brand-gray-400">{p.desc}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Custom Audio Upload (Cloning) */}
+      <div className="rounded-2xl border border-brand-gray-100 bg-brand-gray-50/75 p-4 space-y-3">
+        <div>
+          <p className="text-sm font-semibold text-brand-gray-700">自訂克隆語音 (Custom Voice Cloning)</p>
+          <p className="text-xs text-brand-gray-400 mt-0.5">您可以上傳 15-30 秒個人聲音檔案，微服務會為您建立專屬導讀音色</p>
+        </div>
+
+        {currentVoice.startsWith("uploads/") ? (
+          <div className="flex items-center justify-between p-3.5 bg-teal-50 border border-teal-200/60 rounded-2xl shadow-sm">
+            <div className="flex items-center gap-2 text-brand-teal select-none">
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <span className="text-sm font-semibold">自訂語音已啟用：{currentVoice.split("/").pop()}</span>
+            </div>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                void handleTestPreset(currentVoice);
+              }}
+              disabled={playingPreset === currentVoice}
+              className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 bg-teal-50 hover:bg-teal-100 border border-teal-200 text-brand-teal rounded-lg transition"
+            >
+              {playingPreset === currentVoice ? "播放中" : "試聽自訂聲音"}
+            </button>
+          </div>
+        ) : null}
+
+        <div className="mt-3">
+          <label className="flex flex-col items-center justify-center border-2 border-dashed border-brand-gray-200 bg-white hover:border-brand-teal hover:bg-brand-teal/5 transition rounded-2xl p-4 cursor-pointer">
+            <span className="text-xs text-brand-gray-500 font-medium">
+              {uploading ? "上傳音檔處理中..." : "點擊此處上傳 .wav / .mp3 聲音檔案"}
+            </span>
+            <input
+              type="file"
+              accept="audio/*"
+              disabled={uploading}
+              onChange={handleUploadCustomVoice}
+              className="hidden"
+            />
+          </label>
         </div>
       </div>
     </div>
