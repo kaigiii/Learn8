@@ -133,12 +133,20 @@ export default function TopStatsBar({
     ? quickLinks
     : [socialLink, ...quickLinks];
 
-  const resolvedQuickLinks = isDevAccount
+  const resolvedQuickLinks: Array<{
+    href: string;
+    label: string;
+    active?: boolean;
+    iconSrc?: string;
+    iconAlt?: string;
+    iconText?: string;
+  }> = isDevAccount
     ? [
         {
           href: "/admin/arena",
           label: "Arena Admin",
           iconText: "⚙️",
+          active: pathname === "/admin/arena",
         },
         ...withSocial,
       ]
