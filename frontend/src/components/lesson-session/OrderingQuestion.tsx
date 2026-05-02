@@ -125,12 +125,13 @@ export default function OrderingQuestion({
         >
           {items.map((item) => (
             <Reorder.Item key={item.id} value={item} drag={!isRevealed}>
-              <div className={`rounded-2xl border-2 border-b-4 px-5 py-4 font-heading font-bold shadow-sm transition-colors ${
+              <div className={`rounded-2xl border-2 border-b-4 px-5 py-4 font-heading font-bold shadow-sm transition-colors flex items-center justify-between gap-2 ${
                 isRevealed 
                   ? "border-brand-green bg-brand-green/10 text-brand-green" 
                   : "border-brand-gray-200 bg-white text-brand-gray-700"
               }`}>
-                {item.content}
+                <span>{item.content}</span>
+                <QuestionVoiceReader text={item.content} mini />
               </div>
             </Reorder.Item>
           ))}

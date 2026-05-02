@@ -6,9 +6,10 @@ import useUserStore, { selectUserPreferences } from "@/stores/app/useUserStore";
 
 interface QuestionVoiceReaderProps {
   text: string;
+  mini?: boolean;
 }
 
-export function QuestionVoiceReader({ text }: QuestionVoiceReaderProps) {
+export function QuestionVoiceReader({ text, mini = false }: QuestionVoiceReaderProps) {
   const preferences = useUserStore(selectUserPreferences);
   const { voiceAssistant = "preset_01", autoPlaySpeech = false } = preferences;
 
@@ -78,6 +79,32 @@ export function QuestionVoiceReader({ text }: QuestionVoiceReaderProps) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [text, autoPlaySpeech]);
+
+  if (mini) {
+    return (
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          void handlePlay();
+        }}
+        disabled={loading}
+        className="inline-flex items-center justify-center h-6 w-6 bg-teal-50 hover:bg-teal-100 text-brand-teal border border-teal-200/60 rounded-full shadow-sm hover:scale-105 active:scale-95 transition-all shrink-0 ml-1.5"
+        title="聆聽語音"
+      >
+        {loading ? (
+          <span className="h-2.5 w-2.5 animate-spin rounded-full border-2 border-brand-teal border-t-transparent" />
+        ) : isPlaying ? (
+          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor">
+            <path d="M6 4h4v16H6zm8 0h4v16h-4z" />
+          </svg>
+        ) : (
+          <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor">
+            <path d="M8 5v14l11-7z" />
+          </svg>
+        )}
+      </button>
+    );
+  }
 
   return (
     <button
