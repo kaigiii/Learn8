@@ -7,6 +7,8 @@ export interface UserPreferences {
   soundOn: boolean;
   darkGlass: boolean;
   difficulty: number;
+  voiceAssistant?: string;
+  autoPlaySpeech?: boolean;
 }
 
 export interface UserIdentityState {
@@ -108,6 +110,8 @@ const INITIAL_STATE: UserState = {
       soundOn: true,
       darkGlass: true,
       difficulty: 50,
+      voiceAssistant: "preset_01",
+      autoPlaySpeech: false,
     },
     onboarding: {
       onboarded: false,

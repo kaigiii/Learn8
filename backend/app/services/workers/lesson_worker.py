@@ -118,6 +118,25 @@ async def run_lesson_generation_job(
         if not stages:
             raise Exception("未能成功生成課程內容。")
 
+        # 啟動非同步背景任務預建音檔快取
+        from app.api.v1.endpoints.audio import pregenerate_audio_cache
+        import asyncio
+
+        async def _prebuild_audios(stgs):
+            for s in stgs:
+                if not s or not s.config:
+                    continue
+                data = s.config.data if isinstance(s.config.data, dict) else {}
+                text = data.get("question") or data.get("text")
+                if text:
+                    for preset_id in ["preset_01", "preset_02", "preset_03", "preset_04", "preset_05"]:
+                        try:
+                            await pregenerate_audio_cache(text, preset_id)
+                        except Exception:
+                            pass
+
+        asyncio.create_task(_prebuild_audios(stages))
+
         if stages:
             for stage in stages:
                 if stage.component != "ExplainerMedia":

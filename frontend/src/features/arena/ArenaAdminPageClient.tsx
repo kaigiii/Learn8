@@ -34,7 +34,7 @@ import {
   updateArenaAdminSeason,
   fetchArenaAdminAvailableQuestions,
 } from "@/lib/arena/api";
-import { ApiError, resolveErrorMessage } from "@/lib/apiClient";
+import { ApiError, resolveErrorMessage, apiFetch } from "@/lib/apiClient";
 import { useRequireAuthRedirect } from "@/lib/auth/useRequireAuthRedirect";
 import type {
   ArenaAdminHealthSnapshot,
@@ -412,6 +412,30 @@ export default function ArenaAdminPageClient() {
     }
   };
 
+  const handleBatchPregenerate = async () => {
+    try {
+      setLoadingOps(true);
+      const res = await apiFetch<{ status: string; message: string }>("/audio/batch-pregenerate", { method: "POST" });
+      setNotice(res.message || "Batch pre-generation started successfully.");
+    } catch (err) {
+      setError(resolveErrorMessage(err, "Failed to start batch pre-generation."));
+    } finally {
+      setLoadingOps(false);
+    }
+  };
+
+  const handleClearAudioCache = async () => {
+    try {
+      setLoadingOps(true);
+      const res = await apiFetch<{ status: string; message: string }>("/audio/clear-cache", { method: "POST" });
+      setNotice(res.message || "Cache cleared successfully.");
+    } catch (err) {
+      setError(resolveErrorMessage(err, "Failed to clear audio cache."));
+    } finally {
+      setLoadingOps(false);
+    }
+  };
+
   if (!isReady) return null;
 
   return (
@@ -644,6 +668,42 @@ export default function ArenaAdminPageClient() {
                     <MetricCard label="Live Matches" value={String(healthSnapshot?.inProgressMatchCount ?? 0)} />
                     <MetricCard label="Abandonments" value={String(healthSnapshot?.abandonmentCount ?? 0)} />
                     <MetricCard label="Alert Flags" value={String(healthSnapshot?.alertFlags.length ?? 0)} />
+                  </div>
+                </DeepGlassCard>
+
+                <DeepGlassCard className="p-6">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between mb-5">
+                    <div>
+                      <h2 className="font-heading text-2xl font-bold text-brand-gray-700">AI Voice Assistant Operations</h2>
+                      <p className="mt-2 text-sm text-brand-gray-500">
+                        補建歷史關卡導讀音檔與管理音檔快取
+                      </p>
+                    </div>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="rounded-2xl border border-white/70 bg-white/68 p-4 hover:shadow-sm transition flex flex-col justify-between">
+                      <div>
+                        <h4 className="font-heading font-bold text-brand-gray-700 text-base mb-1">批次補建歷史關卡音檔</h4>
+                        <p className="text-xs text-brand-gray-500 mb-4 leading-relaxed">
+                          掃描全站所有產出的單元節點，補齊尚未生成或快取的導讀語音音檔，給使用者最流暢的音訊體驗。
+                        </p>
+                      </div>
+                      <GameButton onClick={() => void handleBatchPregenerate()} disabled={loadingOps} className="w-full">
+                        {loadingOps ? "執行中..." : "開始批次補建"}
+                      </GameButton>
+                    </div>
+
+                    <div className="rounded-2xl border border-white/70 bg-white/68 p-4 hover:shadow-sm transition flex flex-col justify-between">
+                      <div>
+                        <h4 className="font-heading font-bold text-brand-gray-700 text-base mb-1">清除音檔快取目錄</h4>
+                        <p className="text-xs text-brand-gray-500 mb-4 leading-relaxed">
+                          清除 Learn8 本地所有快取的 `.wav` 音檔，這會強制微服務在下一次造訪該題目時重新生成最新的音訊。
+                        </p>
+                      </div>
+                      <button onClick={() => void handleClearAudioCache()} disabled={loadingOps} className="w-full rounded-2xl bg-rose-50 border border-rose-200/60 py-3 text-sm font-bold text-rose-600 transition hover:bg-rose-100 disabled:opacity-50">
+                        {loadingOps ? "執行中..." : "清除音檔快取"}
+                      </button>
+                    </div>
                   </div>
                 </DeepGlassCard>
 

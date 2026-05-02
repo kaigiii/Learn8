@@ -22,7 +22,7 @@ export default function ProfileSettingsDialog({ onClose }: ProfileSettingsDialog
     handleLogout,
   } = useProfileSettings(onClose);
 
-  const { soundOn, darkGlass, difficulty } = preferences;
+  const { soundOn, darkGlass, difficulty, voiceAssistant, autoPlaySpeech } = preferences;
 
   const openProfilePanel = (panel: "personal" | "wallet") => {
     onClose();
@@ -142,6 +142,29 @@ export default function ProfileSettingsDialog({ onClose }: ProfileSettingsDialog
                       <ProfileToggle
                         on={darkGlass}
                         onChange={() => setPreferences({ darkGlass: !darkGlass })}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="shrink-0 text-sm text-brand-gray-600">AI Voice Assistant</span>
+                      <select
+                        value={voiceAssistant || "preset_01"}
+                        onChange={(e) => setPreferences({ voiceAssistant: e.target.value })}
+                        className="rounded-lg border border-brand-gray-200 bg-white px-2 py-1 text-xs text-brand-gray-700 shadow-sm outline-none transition focus:border-brand-teal focus:ring-1 focus:ring-brand-teal"
+                      >
+                        <option value="preset_01">溫柔學姐</option>
+                        <option value="preset_02">博學導師</option>
+                        <option value="preset_03">元氣夥伴</option>
+                        <option value="preset_04">冷靜AI助理</option>
+                        <option value="preset_05">暖心大叔</option>
+                      </select>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-brand-gray-600">Auto-play Speech</span>
+                      <ProfileToggle
+                        on={!!autoPlaySpeech}
+                        onChange={() => setPreferences({ autoPlaySpeech: !autoPlaySpeech })}
                       />
                     </div>
 
