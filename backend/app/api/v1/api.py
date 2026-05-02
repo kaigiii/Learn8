@@ -6,6 +6,7 @@ from app.api.v1.endpoints import (
     lessons,
     jobs,
     audio,
+    social,
 )
 from app.arena.api import arena, arena_admin, arena_rank
 
@@ -19,4 +20,6 @@ api_router.include_router(syllabus.router, prefix="/courses", tags=["syllabus"])
 api_router.include_router(lessons.router, prefix="/lessons", tags=["lessons"])
 api_router.include_router(jobs.router, prefix="/jobs", tags=["jobs"])
 api_router.include_router(audio.router, prefix="/audio", tags=["audio"])
+api_router.include_router(social.router, prefix="/social", tags=["social"])
+
 
