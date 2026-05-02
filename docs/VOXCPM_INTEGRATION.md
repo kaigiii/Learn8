@@ -294,5 +294,22 @@ async def upload_voice_preset_bridge(file: UploadFile = File(...)):
 - 後端的音檔代理與預渲染模組原本即為**題型無關 (Question-Type Agnostic)**。
 - 當新的單元生成時，不論是何種題型（Matching, Ordering, Feynman），只要其設定中具備文字字串，非同步背景任務皆會主動對該題目進行預渲染與快取建置。
 
+### 9.3 🚀 進階優化：YAML 宣告式導讀欄位 (Dynamic Schema Voice Targets)
+
+為了讓創作者中心在未來新增自訂題型（例如：西洋棋題型）時，能無縫整合語音服務，我們引入**「YAML 宣告式導讀欄位」**：
+
+1. **模組 YAML 擴充**：
+   在 `game_modules/*.yaml` 中，新增 `voice_targets` 欄位指定哪些屬性需要語音轉換：
+   ```yaml
+   name: MultipleChoice
+   voice_targets:
+     - question
+   ```
+2. **自動提取朗讀字串**：
+   後端預渲染與音檔服務在對題型產生導讀音檔時，會動態掃描 `voice_targets` 中的欄位，並將 `config.data` 內對應的文字提取並合成。
+3. **創作者親和度**：
+   這讓創作者完全不用寫任何後端代碼，就能一鍵啟用高度專業的語音導讀服務！
+
+
 
 
