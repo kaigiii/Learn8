@@ -7,6 +7,7 @@ import type { SubmissionResponse } from "@/lib/apiTypes";
 import type { LessonStage } from "@/lib/apiTypes";
 import { QuestionActionBar } from "./QuestionActionBar";
 import { QuestionStageHeader } from "./QuestionStageHeader";
+import { QuestionVoiceReader } from "@/features/lesson-session/components/QuestionVoiceReader";
 import type { QuestionStageMeta } from "./questionSharedTypes";
 
 export interface OrderingQuestionProps extends QuestionStageMeta {
@@ -110,6 +111,11 @@ export default function OrderingQuestion({
             accentTextClassName="text-brand-teal"
           />
         )}
+
+        <div className="mb-4 flex items-center justify-between gap-4 bg-teal-50/50 border border-teal-100 rounded-xl px-4 py-3">
+          <span className="text-sm font-medium text-teal-800">{stage.topic}</span>
+          <QuestionVoiceReader text={stage.topic} />
+        </div>
 
         <Reorder.Group
           axis="y"

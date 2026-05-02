@@ -1,6 +1,8 @@
 name: MultipleChoice
 frontend_registry_key: MultipleChoice
 allowed_in_remedial: true
+voice_targets:
+  - question
 required_config_data_fields:
   - question
   - options

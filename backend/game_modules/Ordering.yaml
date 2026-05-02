@@ -1,6 +1,8 @@
 name: Ordering
 frontend_registry_key: Ordering
 allowed_in_remedial: true
+voice_targets:
+  - prompt
 required_config_data_fields:
   - steps
 optional_config_data_fields: []

@@ -1,6 +1,8 @@
 name: FeynmanMirror
 frontend_registry_key: FeynmanMirror
 allowed_in_remedial: true
+voice_targets:
+  - prompt
 required_config_data_fields: []
 optional_config_data_fields:
   - prompt

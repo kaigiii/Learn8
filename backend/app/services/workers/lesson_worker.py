@@ -127,7 +127,20 @@ async def run_lesson_generation_job(
                 if not s or not s.config:
                     continue
                 data = s.config.data if isinstance(s.config.data, dict) else {}
-                text = data.get("question") or data.get("text")
+                comp = component_registry.get_component(s.component)
+                voice_targets = comp.get("voice_targets") if comp else None
+                if not voice_targets:
+                    voice_targets = ["question", "prompt", "text"]
+
+                extracted_texts = []
+                for field in voice_targets:
+                    if field in data and isinstance(data[field], str) and data[field].strip():
+                        extracted_texts.append(data[field].strip())
+
+                text = " ".join(extracted_texts).strip()
+                if not text:
+                    text = data.get("question") or data.get("prompt") or data.get("text") or data.get("explanation") or s.topic
+
                 if text:
                     for preset_id in ["preset_01", "preset_02", "preset_03", "preset_04", "preset_05"]:
                         try:
