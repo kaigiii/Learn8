@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import GameButton from "@/components/ui/GameButton";
 import { QuestionActionBar } from "./QuestionActionBar";
 import { QuestionStageHeader } from "./QuestionStageHeader";
+import { QuestionVoiceReader } from "@/features/lesson-session/components/QuestionVoiceReader";
 import type {
   QuestionCommonActions,
   QuestionFeedbackMessages,
@@ -121,9 +122,10 @@ export default function MultipleChoiceQuestion({
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="mb-6 rounded-2xl bg-white/70 backdrop-blur border border-white/60 shadow-sm px-6 py-5"
+          className="mb-6 rounded-2xl bg-white/70 backdrop-blur border border-white/60 shadow-sm px-6 py-5 flex items-start justify-between gap-4"
         >
           <p className="text-base font-semibold text-brand-gray-700 leading-relaxed">{question}</p>
+          <QuestionVoiceReader text={question} />
         </motion.div>
 
         {/* Options */}
