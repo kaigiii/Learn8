@@ -152,7 +152,7 @@ export default function MultipleChoiceQuestion({
                   onSelect?.(opt.id);
                 }}
                 disabled={isEliminated || !!result || isLocked}
-                className={`relative text-left rounded-2xl px-5 py-4 border-2 border-b-4 font-heading font-bold text-base transition-all ${
+                className={`relative text-left rounded-2xl px-5 py-4 border-2 border-b-4 font-heading font-bold text-base transition-all flex items-center justify-between gap-2 ${
                   showCorrect
                     ? "bg-brand-green/10 border-brand-green text-green-700"
                     : showWrong
@@ -164,10 +164,13 @@ export default function MultipleChoiceQuestion({
                     : "bg-white border-brand-gray-200 text-brand-gray-700 hover:border-brand-teal/40"
                 }`}
               >
-                <span className={`mr-3 inline-flex items-center justify-center w-7 h-7 rounded-full border-2 text-sm font-extrabold flex-shrink-0 ${isUserSelection ? 'border-brand-teal bg-brand-teal/10' : 'border-brand-gray-300'}`}>
-                  {String.fromCharCode(65 + i)}
-                </span>
-                {opt.text}
+                <div className="flex items-center gap-1 flex-1 min-w-0">
+                  <span className={`mr-3 inline-flex items-center justify-center w-7 h-7 rounded-full border-2 text-sm font-extrabold flex-shrink-0 ${isUserSelection ? 'border-brand-teal bg-brand-teal/10' : 'border-brand-gray-300'}`}>
+                    {String.fromCharCode(65 + i)}
+                  </span>
+                  <span className="flex-1 break-words">{opt.text}</span>
+                </div>
+                <QuestionVoiceReader text={opt.text} mini />
                 {showCorrect && (
                   <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute -top-1.5 -right-1.5 h-6 w-6 bg-brand-green rounded-full flex items-center justify-center shadow-md">
                     <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-white" fill="none" stroke="currentColor" strokeWidth="4"><path d="M20 6L9 17l-5-5" /></svg>

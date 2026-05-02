@@ -277,7 +277,10 @@ function MatchGrid({
                 }`}
                 whileTap={(isMatchedOrRevealed && (feedback === "correct" || isRevealed)) ? {} : { scale: 0.95 }}
               >
-                {pair.left}
+                <div className="flex justify-between items-center w-full gap-2">
+                  <span className="text-left">{pair.left}</span>
+                  <QuestionVoiceReader text={pair.left} mini />
+                </div>
                 {(isMatchedOrRevealed && (feedback === "correct" || isRevealed)) && (
                   <motion.span
                   initial={{ scale: 0 }}
@@ -332,7 +335,10 @@ function MatchGrid({
                 }`}
                 whileTap={(isMatchedOrRevealed && (feedback === "correct" || isRevealed)) ? {} : { scale: 0.95 }}
               >
-                {pair.right}
+                <div className="flex justify-between items-center w-full gap-2">
+                  <span className="text-left">{pair.right}</span>
+                  <QuestionVoiceReader text={pair.right} mini />
+                </div>
                 {(isMatchedOrRevealed && (feedback === "correct" || isRevealed)) && (
                   <motion.span
                   initial={{ scale: 0 }}
