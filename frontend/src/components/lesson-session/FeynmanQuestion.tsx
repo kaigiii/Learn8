@@ -13,6 +13,8 @@ import type {
   QuestionSubmitResponse,
 } from "./questionSharedTypes";
 
+import { QuestionVoiceReader } from "@/features/lesson-session/components/QuestionVoiceReader";
+
 /* ═══════════════════ Types ═══════════════════ */
 
 export interface FeynmanQuestionProps
@@ -132,7 +134,10 @@ export default function FeynmanQuestion({
           <OwlTeacher />
           <div className="flex-1 rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200/60 shadow-sm px-5 py-4">
             <p className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-1">Professor Owl asks:</p>
-            <p className="text-base font-semibold text-brand-gray-700 leading-relaxed">{prompt}</p>
+            <div className="flex justify-between items-start gap-2">
+              <p className="text-base font-semibold text-brand-gray-700 leading-relaxed">{prompt}</p>
+              <QuestionVoiceReader text={prompt} />
+            </div>
           </div>
         </motion.div>
 

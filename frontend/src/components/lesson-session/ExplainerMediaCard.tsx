@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import GameButton from "@/components/ui/GameButton";
 import { QuestionActionBar } from "./QuestionActionBar";
 import { QuestionStageHeader } from "./QuestionStageHeader";
+import { QuestionVoiceReader } from "@/features/lesson-session/components/QuestionVoiceReader";
 import type { QuestionStageMeta } from "./questionSharedTypes";
 
 export interface ExplainerMediaCardProps extends QuestionStageMeta {
@@ -81,7 +82,10 @@ export default function ExplainerMediaCard({
           animate={{ opacity: 1, y: 0 }}
           className="mb-6 rounded-2xl border border-white/60 bg-white/75 px-6 py-5 shadow-sm backdrop-blur"
         >
-          <h3 className="text-lg font-bold text-brand-gray-700">{title}</h3>
+          <div className="flex justify-between items-start gap-2">
+            <h3 className="text-lg font-bold text-brand-gray-700">{title}</h3>
+            <QuestionVoiceReader text={`${title}. ${explanation}`} />
+          </div>
           <p className="mt-3 whitespace-pre-line text-sm font-medium leading-relaxed text-brand-gray-600">
             {explanation}
           </p>

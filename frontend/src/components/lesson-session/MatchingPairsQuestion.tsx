@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import GameButton from "@/components/ui/GameButton";
 import type { MatchPair } from "@/features/lesson-session/hooks/useMatchingPairsStage";
 import { QuestionActionBar } from "./QuestionActionBar";
+import { QuestionVoiceReader } from "@/features/lesson-session/components/QuestionVoiceReader";
 import { QuestionStageHeader } from "./QuestionStageHeader";
 import type {
   QuestionCommonActions,
@@ -78,6 +79,11 @@ export default function MatchingPairsQuestion({
             accentTextClassName="text-brand-teal"
           />
         )}
+
+        <div className="mb-4 flex items-center justify-between gap-4 bg-teal-50/50 border border-teal-100 rounded-xl px-4 py-3">
+          <span className="text-sm font-medium text-teal-800">{question || topic}</span>
+          <QuestionVoiceReader text={question || topic} />
+        </div>
 
         <div className="flex">
           <MatchGrid

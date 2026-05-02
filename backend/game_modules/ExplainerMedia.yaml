@@ -1,6 +1,9 @@
 name: ExplainerMedia
 frontend_registry_key: ExplainerMedia
 allowed_in_remedial: false
+voice_targets:
+  - title
+  - explanation
 required_config_data_fields:
   - title
   - explanation

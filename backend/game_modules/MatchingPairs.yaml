@@ -1,6 +1,9 @@
 name: MatchingPairs
 frontend_registry_key: MatchingPairs
 allowed_in_remedial: true
+voice_targets:
+  - question
+  - prompt
 required_config_data_fields:
   - pairs
 optional_config_data_fields:

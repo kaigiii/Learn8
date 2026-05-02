@@ -159,15 +159,39 @@ async def batch_pregenerate_audios(
         lessons = db.query(LessonModel).filter(LessonModel.status == "generated").all()
         texts = set()
         
+        from app.core.component_loader import registry as component_registry
+
         for lesson in lessons:
             stages = getattr(lesson, "stages", []) or []
             for s in stages:
-                config = getattr(s, "config_json", {}) or {}
-                data = config.get("data", {}) if isinstance(config, dict) else {}
-                text = data.get("question") or data.get("text")
+                content = getattr(s, "content_json", None) or getattr(s, "config_json", None) or getattr(s, "config", None)
+                if hasattr(content, "data"):
+                    data = content.data
+                elif isinstance(content, dict):
+                    data = content.get("data", {}) if "data" in content else content
+                else:
+                    data = {}
+
+                if not isinstance(data, dict):
+                    data = {}
+
+                comp = component_registry.get_component(getattr(s, "component", ""))
+                voice_targets = comp.get("voice_targets") if comp else None
+                if not voice_targets:
+                    voice_targets = ["question", "prompt", "text"]
+
+                extracted_texts = []
+                for field in voice_targets:
+                    if field in data and isinstance(data[field], str) and data[field].strip():
+                        extracted_texts.append(data[field].strip())
+
+                text = " ".join(extracted_texts).strip()
+                if not text:
+                    text = data.get("question") or data.get("prompt") or data.get("text") or data.get("explanation") or getattr(s, "topic", "")
+
                 if text:
                     texts.add(text)
-        
+
         async def _run_batch(txts):
             for txt in txts:
                 for preset_id in ["preset_01", "preset_02", "preset_03", "preset_04", "preset_05"]:
