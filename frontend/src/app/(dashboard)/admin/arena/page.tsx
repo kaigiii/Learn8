@@ -1,5 +1,5 @@
-import ArenaAdminPageClient from "@/features/arena/ArenaAdminPageClient";
+import { redirect } from "next/navigation";
 
-export default function ArenaAdminPage() {
-  return <ArenaAdminPageClient />;
+export default function ArenaRedirect() {
+  redirect("/admin");
 }

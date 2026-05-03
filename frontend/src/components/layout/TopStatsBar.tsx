@@ -143,10 +143,10 @@ export default function TopStatsBar({
   }> = isDevAccount
     ? [
         {
-          href: "/admin/arena",
-          label: "Arena Admin",
+          href: "/admin",
+          label: "Admin",
           iconText: "⚙️",
-          active: pathname === "/admin/arena",
+          active: pathname === "/admin" || pathname.startsWith("/admin/"),
         },
         ...withSocial,
       ]
