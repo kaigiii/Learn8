@@ -1,110 +1,158 @@
 import asyncio
 import logging
-from app.domain.statuses import NodeStatus
+from enum import Enum
 from typing import List, Optional, Any, Callable
 from pydantic import BaseModel, Field
 
+from app.domain.statuses import NodeStatus
 from app.schemas.course_schema import CoursePath, Unit as CourseUnit, LessonNode as CourseNode
 from app.services.knowledge_base.rag_engine import RAGEngine
 from app.services.llm_clients.base_provider import BaseLLMProvider
-from app.services.commons.file_service import FileService
 from app.services.ai_agents.syllabus_prompts import (
-    BLUEPRINT_SYSTEM_PROMPT,
-    UNIT_EXPANSION_SYSTEM_PROMPT,
+    PLANNER_SYSTEM_PROMPT,
+    AUDITOR_SYSTEM_PROMPT,
 )
-from langchain_core.messages import SystemMessage, HumanMessage
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-# --- 資料架構 (SCHEMAS) ---
+# --- 審核工具資料架構 (Auditor Actions Schemas) ---
+
+class ActionType(str, Enum):
+    UPDATE_COURSE_METADATA = "UPDATE_COURSE_METADATA"
+    INSERT_UNITS = "INSERT_UNITS"
+    UPDATE_UNITS = "UPDATE_UNITS"
+    INSERT_NODES = "INSERT_NODES"
+    UPDATE_NODES = "UPDATE_NODES"
+    DELETE_NODES = "DELETE_NODES"
 
 
-class BlueprintUnit(BaseModel):
-    unit_title: str
-    unit_goal: str
+class UnitMetadataUpdate(BaseModel):
+    unit_id: str
+    unitTitle: Optional[str] = None
+    unitDescription: Optional[str] = None
 
 
-class Blueprint(BaseModel):
-    courseTitle: str
-    description: str
-    units: List[BlueprintUnit]
+class NodeMetadataUpdate(BaseModel):
+    id: str
+    title: Optional[str] = None
+    description: Optional[str] = None
 
 
-class UnitNodes(BaseModel):
-    nodes: List[CourseNode]
+class ActionItem(BaseModel):
+    action_type: ActionType
+    courseTitle: Optional[str] = None
+    description: Optional[str] = None
+
+    units: Optional[List[CourseUnit]] = None
+    after_unit_id: Optional[str] = None
+    before_unit_id: Optional[str] = None
+    index: Optional[int] = None
+
+    unit_updates: Optional[List[UnitMetadataUpdate]] = Field(None, alias="updates")
+
+    unit_id: Optional[str] = None
+    nodes: Optional[List[CourseNode]] = None
+    after_node_id: Optional[str] = None
+    before_node_id: Optional[str] = None
+    node_index: Optional[int] = Field(None, alias="index")
+
+    node_updates: Optional[List[NodeMetadataUpdate]] = Field(None, alias="updates")
+    node_ids: Optional[List[str]] = None
+
+
+class AuditorOutput(BaseModel):
+    reflection_critique: Optional[str] = Field(None, description="Self-reflection feedback for next turn.")
+    actions: List[ActionItem] = Field(default_factory=list, description="List of batch actions to perform.")
+    is_complete: bool = Field(False, description="Whether the auditor is fully satisfied.")
 
 
 # --- 代理人引擎 (AGENT) ---
-
 
 class SyllabusAgent:
     def __init__(self, provider: BaseLLMProvider, rag_engine: RAGEngine):
         self.provider = provider
         self.rag_engine = rag_engine
 
-    async def generate_blueprint(
-        self, topic: str, profile: str = "General Audience", context: str = None
-    ) -> Optional[Blueprint]:
-        """步驟 1: 生成高階架構藍圖 (Blueprint)"""
+    def apply_actions(self, course: CoursePath, actions: List[ActionItem]):
+        """在原有大綱草稿上，批次進行增刪修動作"""
+        for action in actions:
+            try:
+                if action.action_type == ActionType.UPDATE_COURSE_METADATA:
+                    if action.courseTitle:
+                        course.courseTitle = action.courseTitle
+                    if action.description:
+                        course.description = action.description
 
-        user_prompt = f"Create a course blueprint for: {topic}\nTarget Audience Profile: {profile}"
-        if context:
-            user_prompt += (
-                f"\n\nReference Material (Use this to structure the course):\n{context}"
-            )
+                elif action.action_type == ActionType.INSERT_UNITS:
+                    if action.units:
+                        for u in action.units:
+                            if action.after_unit_id:
+                                idx = next((i for i, existing_u in enumerate(course.units) if existing_u.unitId == action.after_unit_id), -1)
+                                if idx != -1:
+                                    course.units.insert(idx + 1, u)
+                                else:
+                                    course.units.append(u)
+                            elif action.before_unit_id:
+                                idx = next((i for i, existing_u in enumerate(course.units) if existing_u.unitId == action.before_unit_id), -1)
+                                if idx != -1:
+                                    course.units.insert(idx, u)
+                                else:
+                                    course.units.append(u)
+                            elif action.index is not None:
+                                course.units.insert(action.index, u)
+                            else:
+                                course.units.append(u)
 
-        messages = [("system", BLUEPRINT_SYSTEM_PROMPT), ("user", user_prompt)]
-        try:
-            return await self.provider.generate_structured(messages, Blueprint)
-        except Exception as e:
-            logger.error(f"Blueprint Gen Error: {e}")
-            return None
+                elif action.action_type == ActionType.UPDATE_UNITS:
+                    updates_to_use = action.unit_updates or []
+                    for upd in updates_to_use:
+                        for u in course.units:
+                            if u.unitId == upd.unit_id:
+                                if upd.unitTitle:
+                                    u.unitTitle = upd.unitTitle
+                                if upd.unitDescription:
+                                    u.unitDescription = upd.unitDescription
 
-    async def expand_unit(
-        self,
-        topic: str,
-        unit: BlueprintUnit,
-        course_id: Optional[int] = None,
-        profile: str = "General Audience",
-    ) -> List[CourseNode]:
-        """步驟 2: 搭配 RAG 擴展單一單元的細節節點"""
+                elif action.action_type == ActionType.INSERT_NODES:
+                    if action.unit_id and action.nodes:
+                        unit = next((u for u in course.units if u.unitId == action.unit_id), None)
+                        if unit:
+                            for n in action.nodes:
+                                if action.after_node_id:
+                                    idx = next((i for i, existing_n in enumerate(unit.nodes) if existing_n.id == action.after_node_id), -1)
+                                    if idx != -1:
+                                        unit.nodes.insert(idx + 1, n)
+                                    else:
+                                        unit.nodes.append(n)
+                                elif action.before_node_id:
+                                    idx = next((i for i, existing_n in enumerate(unit.nodes) if existing_n.id == action.before_node_id), -1)
+                                    if idx != -1:
+                                        unit.nodes.insert(idx, n)
+                                    else:
+                                        unit.nodes.append(n)
+                                elif action.node_index is not None:
+                                    unit.nodes.insert(action.node_index, n)
+                                else:
+                                    unit.nodes.append(n)
 
-        # 針對此單元進行精確的檢索
-        search_query = f"{topic} {unit.unit_title} {unit.unit_goal}"
-        context_chunks = await self.rag_engine.query_context(
-            search_query, k=3, course_id=course_id
-        )  # Async call
-        context_str = (
-            "\\n\\n".join(context_chunks) if context_chunks else "General Knowledge"
-        )
+                elif action.action_type == ActionType.UPDATE_NODES:
+                    updates_to_use = action.node_updates or []
+                    for upd in updates_to_use:
+                        for unit in course.units:
+                            for n in unit.nodes:
+                                if n.id == upd.id:
+                                    if upd.title:
+                                        n.title = upd.title
+                                    if upd.description:
+                                        n.description = upd.description
 
-        messages = [
-            (
-                "system",
-                UNIT_EXPANSION_SYSTEM_PROMPT.format(
-                    topic=topic,
-                    unit_title=unit.unit_title,
-                    unit_goal=unit.unit_goal,
-                    context=context_str,
-                    profile=profile,
-                ),
-            ),
-            ("user", "Generate the nodes for this unit."),
-        ]
-
-        try:
-            result = await self.provider.generate_structured(messages, UnitNodes)
-
-            # 後處理：若 LLM 遺漏 ID 則自動補上
-            nodes = result.nodes if result else []
-            for i, node in enumerate(nodes):
-                if not node.id:
-                    node.id = f"node-{unit.unit_title[:3]}-{i}"
-                node.status = NodeStatus.LOCKED  # Default
-            return nodes
-        except Exception as e:
-            logger.error(f"Unit Expansion Error ({unit.unit_title}): {e}")
-            return []
+                elif action.action_type == ActionType.DELETE_NODES:
+                    if action.node_ids:
+                        for unit in course.units:
+                            unit.nodes = [n for n in unit.nodes if n.id not in action.node_ids]
+            except Exception as ex:
+                logger.error(f"Error applying action {action.action_type}: {ex}")
 
     async def run(
         self,
@@ -116,98 +164,104 @@ class SyllabusAgent:
         context: str = None,
         progress_callback: Optional[Callable[[Optional[int], str], None]] = None,
     ) -> Optional[CoursePath]:
-        """代理人主要進入點 (Main Entry Point)"""
-        logger.info(f"🚀 [SyllabusAgent] Starting generation for '{topic}'...")
-        logger.info(f"👤 [SyllabusAgent] Profile: {profile_summary or 'Default'}")
+        """Multi-Agent 整合大綱生成主要進入點 (New Flow)"""
+        logger.info(f"🚀 [SyllabusAgent] Starting Multi-Agent generation for '{topic}'...")
 
-        # 1. Generate Blueprint
+        # 1. 呼叫 Planner Agent 生成初始大綱草稿
         if progress_callback:
-            progress_callback(5, "📖 正在擷取領域知識與相關文獻...")
-        
-        await asyncio.sleep(0.8)
+            progress_callback(10, "📖 正在擷取知識庫並構思全局大綱草稿...")
 
-        if progress_callback:
-            progress_callback(10, "🧠 AI 正在思考最適合您的課程架構...")
-
-        profile_str = profile_summary if profile_summary else "General Audience"
-        blueprint = await self.generate_blueprint(
-            topic, profile=profile_str, context=context
-        )
-        if not blueprint:
-            return None
-
-        logger.info(f"📋 [SyllabusAgent] Blueprint generated: {len(blueprint.units)} units.")
-
-        if progress_callback:
-            progress_callback(15, "🎨 正在設計單元學習目標與進度...")
-        
         await asyncio.sleep(0.5)
 
+        profile_str = profile_summary if profile_summary else "General Audience"
+        planner_messages = [
+            ("system", PLANNER_SYSTEM_PROMPT),
+            (
+                "user",
+                f"Course Topic: {topic}\nProfile: {profile_str}\nKnowledge Base Context:\n{context or 'None'}"
+            ),
+        ]
+
+        try:
+            course_draft = await self.provider.generate_structured(planner_messages, CoursePath)
+        except Exception as e:
+            logger.error(f"Course Planner Agent Error: {e}")
+            return None
+
+        if not course_draft:
+            logger.error("Course Planner produced no output.")
+            return None
+
+        logger.info(f"📋 [Planner] Blueprint Draft generated with {len(course_draft.units)} units.")
+
+        # 2. 呼叫 Auditor Agent 進行審查與迭代
         if progress_callback:
-            progress_callback(
-                20,
-                f"✅ 架構設計完畢，共規劃 {len(blueprint.units)} 個單元。準備處理細節...",
+            progress_callback(50, "🔍 啟動審查代理人 (Auditor Agent) 檢核課程細部節點...")
+
+        max_reflections = getattr(settings, "MAX_SYLLABUS_AUDIT_REFLECTIONS", 3)
+        reflection_count = 0
+        critique_history: List[str] = []
+
+        while reflection_count < max_reflections:
+            reflection_count += 1
+            if progress_callback:
+                progress_callback(
+                    50 + reflection_count * 10,
+                    f"🔄 審查代理人正進行第 {reflection_count} 次深度審核與微調..."
+                )
+
+            auditor_user_msg = (
+                f"Here is the current syllabus draft:\n{course_draft.model_dump_json()}"
             )
+            if critique_history:
+                auditor_user_msg += f"\n\nPrevious Reflection Criticisms:\n" + "\n".join(critique_history)
 
-        # 2. Iterate & Expand Units Concurrently
-        final_units: List[CourseUnit] = [None] * len(blueprint.units)
+            auditor_messages = [
+                ("system", AUDITOR_SYSTEM_PROMPT),
+                ("user", auditor_user_msg),
+            ]
 
-        from app.core.config import settings
+            try:
+                auditor_out = await self.provider.generate_structured(auditor_messages, AuditorOutput)
+            except Exception as e:
+                logger.error(f"Auditor Error in turn {reflection_count}: {e}")
+                break
 
-        # Concurrency limit
-        sem = asyncio.Semaphore(settings.SYLLABUS_CONCURRENCY_LIMIT)
+            if not auditor_out:
+                break
 
-        total_units = len(blueprint.units)
-        completed_units = 0
-
-        async def _process_unit(i: int, b_unit: BlueprintUnit):
-            nonlocal completed_units
-            async with sem:
+            # 批次變更套用
+            if auditor_out.actions:
+                action_names = ", ".join([a.action_type.value for a in auditor_out.actions])
                 if progress_callback:
                     progress_callback(
                         None,
-                        f"⏳ 正在規劃單元 {i + 1}/{total_units} 的學習路徑: {b_unit.unit_title}...",
+                        f"🛠️ 審查代理人執行變更工具：{action_names}"
                     )
+                self.apply_actions(course_draft, auditor_out.actions)
 
-                logger.info(f"  Doing Unit {i + 1}: {b_unit.unit_title}...")
-                nodes = await self.expand_unit(
-                    topic, b_unit, course_id=course_id, profile=profile_str
-                )
-                await asyncio.sleep(0.3)
+            # 自我反思或停止
+            if auditor_out.is_complete or not auditor_out.reflection_critique:
+                logger.info(f"🎉 [Auditor Agent] Review successfully completed in {reflection_count} turns.")
+                break
 
-                completed_units += 1
-                if progress_callback:
-                    # Scale progress from 20% to 80%
-                    curr_prog = int(20 + (completed_units / total_units) * 60)
-                    progress_callback(
-                        curr_prog,
-                        f"✅ 完稿單元 {i + 1}/{total_units}: {b_unit.unit_title}",
-                    )
+            critique_history.append(auditor_out.reflection_critique)
+            logger.info(f"🔄 [Auditor] Reflection critique received: {auditor_out.reflection_critique}")
 
-                final_units[i] = CourseUnit(
-                    unitId=f"unit-{i}",
-                    unitTitle=b_unit.unit_title,
-                    unitDescription=b_unit.unit_goal,
-                    nodes=nodes,
-                )
-
-        # 並行展開所有單元 (Concurrency)
-        tasks = [_process_unit(i, u) for i, u in enumerate(blueprint.units)]
-        await asyncio.gather(*tasks)
-
-        # 3. 組裝最終大綱
-        course_path = CoursePath(
-            id=0,  # Placeholder
-            courseTitle=blueprint.courseTitle,
-            description=blueprint.description,
-            units=final_units,
-        )
+        # 3. 最終資料結構驗證
+        try:
+            course_path = CoursePath.model_validate(course_draft)
+        except Exception as ve:
+            logger.error(f"Validation Error on final CoursePath: {ve}")
+            course_path = course_draft
 
         # 解鎖第一個節點
         if course_path.units and course_path.units[0].nodes:
             course_path.units[0].nodes[0].status = NodeStatus.AVAILABLE
 
-        logger.info(f"✅ [SyllabusAgent] Finished. Total Units: {len(final_units)}")
+        if progress_callback:
+            progress_callback(100, f"🎉 課程大綱生成與審核完成，規劃出 {len(course_path.units)} 個單元。")
+
         return course_path
 
 

@@ -54,6 +54,9 @@ class Settings(BaseSettings):
 
     # Workflow Settings
     SYLLABUS_CONCURRENCY_LIMIT: int = 3
+    MAX_SYLLABUS_AUDIT_REFLECTIONS: int = 3
+    PLANNER_AGENT_MODEL: str = "gemini-2.5-flash"
+    AUDITOR_AGENT_MODEL: str = "gemini-2.5-flash"
 
     # Document Processing & Vision
     PDF_PARSE_STRATEGY: str = "hybrid"  # basic | vision | hybrid

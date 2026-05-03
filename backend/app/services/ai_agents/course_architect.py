@@ -37,45 +37,6 @@ class AIArchitectService:
         self.rag_engine = rag_engine
         self.file_service = file_service
 
-    async def refine_course_syllabus(
-        self,
-        current_syllabus: CoursePath,
-        user_feedback: str,
-        user_id: Optional[int] = None,
-        course_folder: Optional[str] = None,
-        learner_profile_summary: str = "",
-    ) -> Optional[CoursePath]:
-        # 準備上下文檔案
-        files = self.file_service.list_files(user_id, course_folder) if user_id else []
-        if files:
-            full_paths = [
-                self.file_service.get_upload_dir(user_id, course_folder) + "/" + f
-                for f in files
-            ]
-            self.provider.bind_files(full_paths)
-
-        current_json = current_syllabus.model_dump_json()
-
-        messages = [
-            (
-                "system",
-                REFINE_SYLLABUS_PROMPT.format(
-                    current_syllabus=current_json,
-                    user_feedback=user_feedback,
-                    profile=learner_profile_summary or "General Audience",
-                ),
-            ),
-            (
-                "user",
-                "Refine the syllabus now.",
-            ),  # 格式要求由 Adapter 底層處理
-        ]
-
-        try:
-            return await self.provider.generate_structured(messages, CoursePath)
-        except Exception as e:
-            activity_logger.error(f"Refinement Error: {e}")
-            raise LLMGenerationError(f"Failed to refine syllabus: {e}")
 
     async def generate_lesson_from_node(
         self,
