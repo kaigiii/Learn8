@@ -49,6 +49,7 @@ export default function TopStatsBar({
   const [profileOpen, setProfileOpen] = useState(false);
   const pathname = usePathname();
   const authUser = useAuthStore((s) => s.user);
+  const authToken = useAuthStore((s) => s.token);
   const availableCredits = useUserStore(selectAvailableCredits);
   const creditBalance = authUser?.credits ?? availableCredits;
   const userHandle = (authUser?.full_name || authUser?.email || "").trim().toLowerCase();
@@ -56,20 +57,34 @@ export default function TopStatsBar({
   const [invites, setInvites] = useState<any[]>([]);
 
   React.useEffect(() => {
-    if (!authUser) return;
-    const interval = setInterval(() => {
-      import("@/lib/apiClient").then(({ apiFetch }) => {
-        apiFetch<any>("/social/friends/arena-invites")
-          .then((data) => {
-            if (data.status === "ok" && data.invites) {
-              setInvites(data.invites);
-            }
-          })
-          .catch((err) => console.error(err));
-      });
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [authUser]);
+    if (!authUser || !authToken) return;
+
+    const isLocalhost = typeof window !== "undefined" &&
+      (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+    const baseUrl = isLocalhost ? "http://127.0.0.1:8000/api/v1" : (process.env.NEXT_PUBLIC_API_URL || "/api/v1");
+
+    const url = `${baseUrl}/social/friends/stream-invites?access_token=${encodeURIComponent(authToken)}`;
+    const es = new EventSource(url);
+
+    es.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data && data.invites) {
+          setInvites(data.invites);
+        }
+      } catch (err) {
+        console.error("SSE parse error", err);
+      }
+    };
+
+    es.onerror = (err) => {
+      console.error("SSE connection error", err);
+    };
+
+    return () => {
+      es.close();
+    };
+  }, [authUser, authToken]);
 
   const handleAcceptInvite = async (inviteId: number, roomCode: string) => {
     try {

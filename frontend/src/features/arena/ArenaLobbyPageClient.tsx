@@ -253,7 +253,7 @@ export default function ArenaLobbyPageClient({ roomCode }: { roomCode: string })
                 key={player.userId}
                 title={player.displayName || (isSelf ? (authUser?.full_name || authUser?.email?.split("@")[0] || "You") : "Player")}
                 avatarSrc={player.avatarUrl || "/avatar/chicken.png"}
-                role={player.isHost ? "Host" : isSelf ? "You" : "Player"}
+                role={player.isHost ? (isSelf ? "Host (You)" : "Host") : isSelf ? "You" : "Player"}
                 isReady={player.isReady}
                 readyLabel={player.isReady ? "READY" : "WAITING"}
                 onReadyToggle={isSelf ? () => void handleReadyToggle() : undefined}

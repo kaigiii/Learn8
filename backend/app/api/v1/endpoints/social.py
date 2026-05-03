@@ -5,7 +5,8 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import get_db, get_current_user
+from app.api.dependencies import get_db, get_current_user, get_current_user_for_stream
+from app.db.session import SessionLocal
 from app.models.user import UserModel
 from app.models.friend import FriendModel
 from app.models.group import GroupModel, GroupMemberModel
@@ -292,6 +293,44 @@ def get_arena_invites(
             })
 
     return {"status": "ok", "invites": results}
+
+
+@router.get("/friends/stream-invites")
+async def stream_arena_invites(
+    current_user: UserModel = Depends(get_current_user_for_stream)
+):
+    import asyncio
+    import json
+    from fastapi.responses import StreamingResponse
+
+    async def event_generator():
+        while True:
+            db = SessionLocal()
+            try:
+                invites = db.query(ArenaInviteModel).filter(
+                    ArenaInviteModel.invitee_user_id == current_user.id,
+                    ArenaInviteModel.status == "pending"
+                ).all()
+
+                results = []
+                for invite in invites:
+                    room = db.query(ArenaRoomModel).filter(ArenaRoomModel.id == invite.room_id).first()
+                    inviter = db.query(UserModel).filter(UserModel.id == invite.inviter_user_id).first()
+                    if room and inviter:
+                        results.append({
+                            "id": invite.id,
+                            "room_code": room.room_code,
+                            "inviter_name": inviter.full_name or inviter.email.split("@")[0],
+                            "inviter_email": inviter.email
+                        })
+
+                yield f"data: {json.dumps({'status': 'ok', 'invites': results})}\n\n"
+            finally:
+                db.close()
+
+            await asyncio.sleep(4)
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
 @router.post("/friends/arena-invites/{invite_id}/respond")
