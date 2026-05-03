@@ -14,7 +14,8 @@ import {
   FiTrash2,
   FiArrowRight,
   FiSearch,
-  FiTerminal
+  FiTerminal,
+  FiVolume2
 } from "react-icons/fi";
 
 import TopStatsBar from "@/components/layout/TopStatsBar";
@@ -144,7 +145,7 @@ export default function ArenaAdminPageClient() {
   const [playerMatchSearch, setPlayerMatchSearch] = useState("");
 
   // UI Tabs State
-  const [activeTab, setActiveTab] = useState<"builder" | "topics" | "seasons" | "operations">("builder");
+  const [activeTab, setActiveTab] = useState<"builder" | "topics" | "seasons" | "operations" | "voice">("builder");
   const [availableQuestions, setAvailableQuestions] = useState<ArenaAdminSyllabusQuestion[]>([]);
   const [loadingAvailable, setLoadingAvailable] = useState(false);
 
@@ -440,7 +441,24 @@ export default function ArenaAdminPageClient() {
 
   return (
     <div className="min-h-screen app-shared-bg">
-      <TopStatsBar backHref="/home" pageTitle="Arena Admin" />
+      <TopStatsBar
+        backHref="/home"
+        pageTitle="Admin"
+        quickLinks={[
+          {
+            href: "/multiplayer",
+            label: "Multiplayer",
+            iconSrc: "/svg/multiplayer-controller.svg",
+            iconAlt: "Multiplayer",
+          },
+          {
+            href: "/arena/leaderboard",
+            label: "Leaderboard",
+            iconSrc: "/svg/leaderboard-logo.svg",
+            iconAlt: "Leaderboard",
+          },
+        ]}
+      />
       <main className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-8 md:px-8">
 
         {/* Header Dashboard Card */}
@@ -456,7 +474,7 @@ export default function ArenaAdminPageClient() {
                 )}
               </div>
               <h1 className="mt-2 font-heading text-4xl font-extrabold text-brand-gray-700">
-                Arena Admin <span className="text-brand-teal">Console</span>
+                Admin <span className="text-brand-teal">Console</span>
               </h1>
             </div>
 
@@ -464,6 +482,7 @@ export default function ArenaAdminPageClient() {
               <NavButton active={activeTab === "builder"} onClick={() => setActiveTab("builder")} icon={<FiLayout />} label="Arena Builder" />
               <NavButton active={activeTab === "seasons"} onClick={() => setActiveTab("seasons")} icon={<FiCalendar />} label="Seasons" />
               <NavButton active={activeTab === "operations"} onClick={() => setActiveTab("operations")} icon={<FiActivity />} label="Operations" />
+              <NavButton active={activeTab === "voice"} onClick={() => setActiveTab("voice")} icon={<FiVolume2 />} label="Voice Assistant" />
             </div>
           </div>
 
@@ -672,42 +691,6 @@ export default function ArenaAdminPageClient() {
                 </DeepGlassCard>
 
                 <DeepGlassCard className="p-6">
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between mb-5">
-                    <div>
-                      <h2 className="font-heading text-2xl font-bold text-brand-gray-700">AI Voice Assistant Operations</h2>
-                      <p className="mt-2 text-sm text-brand-gray-500">
-                        補建歷史關卡導讀音檔與管理音檔快取
-                      </p>
-                    </div>
-                  </div>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="rounded-2xl border border-white/70 bg-white/68 p-4 hover:shadow-sm transition flex flex-col justify-between">
-                      <div>
-                        <h4 className="font-heading font-bold text-brand-gray-700 text-base mb-1">批次補建歷史關卡音檔</h4>
-                        <p className="text-xs text-brand-gray-500 mb-4 leading-relaxed">
-                          掃描全站所有產出的單元節點，補齊尚未生成或快取的導讀語音音檔，給使用者最流暢的音訊體驗。
-                        </p>
-                      </div>
-                      <GameButton onClick={() => void handleBatchPregenerate()} disabled={loadingOps} className="w-full">
-                        {loadingOps ? "執行中..." : "開始批次補建"}
-                      </GameButton>
-                    </div>
-
-                    <div className="rounded-2xl border border-white/70 bg-white/68 p-4 hover:shadow-sm transition flex flex-col justify-between">
-                      <div>
-                        <h4 className="font-heading font-bold text-brand-gray-700 text-base mb-1">清除音檔快取目錄</h4>
-                        <p className="text-xs text-brand-gray-500 mb-4 leading-relaxed">
-                          清除 Learn8 本地所有快取的 `.wav` 音檔，這會強制微服務在下一次造訪該題目時重新生成最新的音訊。
-                        </p>
-                      </div>
-                      <button onClick={() => void handleClearAudioCache()} disabled={loadingOps} className="w-full rounded-2xl bg-rose-50 border border-rose-200/60 py-3 text-sm font-bold text-rose-600 transition hover:bg-rose-100 disabled:opacity-50">
-                        {loadingOps ? "執行中..." : "清除音檔快取"}
-                      </button>
-                    </div>
-                  </div>
-                </DeepGlassCard>
-
-                <DeepGlassCard className="p-6">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between mb-6">
                     <div>
                       <h2 className="font-heading text-2xl font-bold text-brand-gray-700">Operations</h2>
@@ -744,6 +727,46 @@ export default function ArenaAdminPageClient() {
                           </div>
                         </div>
                       ))}
+                    </div>
+                  </div>
+                </DeepGlassCard>
+              </motion.div>
+            )}
+
+            {activeTab === "voice" && (
+              <motion.div key="voice" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-6">
+                <DeepGlassCard className="p-6">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between mb-5">
+                    <div>
+                      <h2 className="font-heading text-2xl font-bold text-brand-gray-700">AI Voice Assistant Operations</h2>
+                      <p className="mt-2 text-sm text-brand-gray-500">
+                        補建歷史關卡導讀音檔與管理音檔快取
+                      </p>
+                    </div>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="rounded-2xl border border-white/70 bg-white/68 p-4 hover:shadow-sm transition flex flex-col justify-between">
+                      <div>
+                        <h4 className="font-heading font-bold text-brand-gray-700 text-base mb-1">批次補建歷史關卡音檔</h4>
+                        <p className="text-xs text-brand-gray-500 mb-4 leading-relaxed">
+                          掃描全站所有產出的單元節點，補齊尚未生成或快取的導讀語音音檔，給使用者最流暢的音訊體驗。
+                        </p>
+                      </div>
+                      <GameButton onClick={() => void handleBatchPregenerate()} disabled={loadingOps} className="w-full">
+                        {loadingOps ? "執行中..." : "開始批次補建"}
+                      </GameButton>
+                    </div>
+
+                    <div className="rounded-2xl border border-white/70 bg-white/68 p-4 hover:shadow-sm transition flex flex-col justify-between">
+                      <div>
+                        <h4 className="font-heading font-bold text-brand-gray-700 text-base mb-1">清除音檔快取目錄</h4>
+                        <p className="text-xs text-brand-gray-500 mb-4 leading-relaxed">
+                          清除 Learn8 本地所有快取的 `.wav` 音檔，這會強制微服務在下一次造訪該題目時重新生成最新的音訊。
+                        </p>
+                      </div>
+                      <button onClick={() => void handleClearAudioCache()} disabled={loadingOps} className="w-full rounded-2xl bg-rose-50 border border-rose-200/60 py-3 text-sm font-bold text-rose-600 transition hover:bg-rose-100 disabled:opacity-50">
+                        {loadingOps ? "執行中..." : "清除音檔快取"}
+                      </button>
                     </div>
                   </div>
                 </DeepGlassCard>
