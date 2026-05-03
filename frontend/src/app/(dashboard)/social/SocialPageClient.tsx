@@ -271,7 +271,27 @@ export default function SocialPageClient() {
 
   return (
     <div className="relative min-h-screen app-shared-bg pb-20">
-      <TopStatsBar pageTitle="Social Hub" backHref="/home" />
+      <TopStatsBar
+        pageTitle="Social Hub"
+        backHref="/home"
+        mascotSrc="/icons/icon.ico"
+        mascotAlt="Social mascot"
+        mascotImageClassName="scale-110"
+        quickLinks={[
+          {
+            href: "/multiplayer",
+            label: "Multiplayer",
+            iconSrc: "/svg/multiplayer-controller.svg",
+            iconAlt: "Multiplayer",
+          },
+          {
+            href: "/arena/leaderboard",
+            label: "Leaderboard",
+            iconSrc: "/svg/leaderboard-logo.svg",
+            iconAlt: "Leaderboard",
+          },
+        ]}
+      />
 
       <div className="relative z-10 mx-auto max-w-[1140px] px-4 py-8">
         {/* Header tabs */}

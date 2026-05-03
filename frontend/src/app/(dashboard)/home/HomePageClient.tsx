@@ -207,8 +207,11 @@ export default function HomePage() {
 
   const libraryItems = useMemo<HomeLibraryItem[]>(() => {
     const items: HomeLibraryItem[] = [];
-
+    const seenIds = new Set<number>();
     courses.forEach((course, index) => {
+      if (!course?.id || seenIds.has(course.id)) return;
+      seenIds.add(course.id);
+
       const draft = draftsByCourse[course.id] || course.draft_json || {};
       const isReady = course.status === COURSE_STATUS.READY;
       const hasQuestions = (draft.questions?.length || 0) > 0;
@@ -237,7 +240,7 @@ export default function HomePage() {
       });
     });
 
-    return items.sort((a, b) => {
+    return items.sort((a: HomeLibraryItem, b: HomeLibraryItem) => {
       if (a.kind !== b.kind) {
         return a.kind === "draft" ? -1 : 1;
       }

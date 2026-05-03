@@ -15,6 +15,8 @@ export interface CourseMapNode {
   status: NodeStatus;
   hasGeneratedLesson?: boolean;
   unitTitle?: string;
+  isUnitHeader?: boolean;
+  unitNumber?: number;
   x: number;
   y: number;
 }
@@ -44,6 +46,14 @@ export function useCourseMapData({
   const [backendLoading, setBackendLoading] = useState(false);
   const [backendError, setBackendError] = useState("");
   const mapContainerRef = useRef<HTMLDivElement>(null);
+
+  const [isMapReady, setIsMapReady] = useState(false);
+
+  const [isFreshNav] = useState(() => {
+    if (typeof window === "undefined") return true;
+    const isJustCompleted = sessionStorage.getItem("just_completed_node") === "true";
+    return !isJustCompleted;
+  });
 
   useEffect(() => {
     if (!hasResolvedCourseId) return;
@@ -100,6 +110,8 @@ export function useCourseMapData({
         status: NodeStatus;
         hasGeneratedLesson?: boolean;
         unitTitle?: string;
+        isUnitHeader?: boolean;
+        unitNumber?: number;
       }[]
     ) => {
       return sourceNodes.map((node, index) => ({
@@ -109,51 +121,113 @@ export function useCourseMapData({
         status: node.status,
         hasGeneratedLesson: node.hasGeneratedLesson,
         unitTitle: node.unitTitle,
-        x: X_PATTERN[index % X_PATTERN.length],
+        isUnitHeader: node.isUnitHeader,
+        unitNumber: node.unitNumber,
+        x: node.isUnitHeader ? 50 : X_PATTERN[index % X_PATTERN.length],
         y: index * NODE_VERTICAL_SPACING + MAP_TOP_OFFSET + (index === 0 ? FIRST_NODE_DOWN_OFFSET : 0),
       }));
     };
 
     if (!backendCourse) return [];
 
-    return buildPositions(
-      backendCourse.units.flatMap((unit) =>
-        unit.nodes.map((node) => ({
+    const sourceNodes: any[] = [];
+    backendCourse.units.forEach((unit, uIndex) => {
+      sourceNodes.push({
+        id: `unit-header-${uIndex + 1}`,
+        title: unit.unitTitle || `Unit ${uIndex + 1}`,
+        description: "",
+        status: NODE_STATUS.AVAILABLE,
+        isUnitHeader: true,
+        unitNumber: uIndex + 1,
+        unitTitle: unit.unitTitle,
+      });
+
+      unit.nodes.forEach((node) => {
+        sourceNodes.push({
           id: node.id,
           title: node.title,
           description: node.description,
           status: node.status,
           hasGeneratedLesson: node.hasGeneratedLesson,
           unitTitle: unit.unitTitle,
-        }))
-      )
-    );
+          isUnitHeader: false,
+        });
+      });
+    });
+
+    return buildPositions(sourceNodes);
   }, [backendCourse]);
 
   const mapHeight = Math.max(680, nodes.length * NODE_VERTICAL_SPACING + MAP_BOTTOM_PADDING);
 
+  const hasScrolledRef = useRef(false);
+
   useEffect(() => {
-    if (nodes.length === 0 || !mapContainerRef.current) return;
+    if (nodes.length === 0 || !mapContainerRef.current || hasScrolledRef.current) return;
 
     const container = mapContainerRef.current;
-    const focusNode =
-      (lastActiveNodeId
-        ? nodes.find((node) => node.id === lastActiveNodeId)
-        : null) ||
-      nodes.find((node) => node.status === NODE_STATUS.AVAILABLE) ||
-      [...nodes].reverse().find((node) => node.status === NODE_STATUS.COMPLETED) ||
-      nodes[0];
 
-    const targetTop = Math.max(
-      0,
-      focusNode.y - container.clientHeight / 2 + 32
-    );
+    const timer = setTimeout(() => {
+      // 找到正要進行的關卡 (AVAILABLE 或最近一次 COMPLETED)，排除 Unit Header 節點
+      const focusNode =
+        nodes.find((node) => node.status === NODE_STATUS.AVAILABLE && !node.isUnitHeader) ||
+        (lastActiveNodeId ? nodes.find((node) => node.id === lastActiveNodeId && !node.isUnitHeader) : null) ||
+        [...nodes].reverse().find((node) => node.status === NODE_STATUS.COMPLETED && !node.isUnitHeader) ||
+        nodes.find((node) => !node.isUnitHeader) ||
+        nodes[0];
 
-    container.scrollTo({
-      top: targetTop,
-      behavior: "smooth",
-    });
-  }, [lastActiveNodeId, nodes]);
+      const targetTop = Math.max(
+        0,
+        Math.min(
+          mapHeight - container.clientHeight,
+          focusNode.y - container.clientHeight / 2 + 32
+        )
+      );
+
+      // 若是剛完成關卡返回課綱畫面，直接瞬間滾動到該關卡，不執行由底向上的平滑滾動動畫
+      if (!isFreshNav) {
+        container.scrollTop = targetTop;
+        sessionStorage.removeItem("just_completed_node");
+        setIsMapReady(true);
+        hasScrolledRef.current = true;
+        return;
+      }
+
+      // 一進入時，直接設定到最底部，利用穩定的 mapHeight 避免 DOM 滾動高度未更新導致卡住
+      const startScrollTop = mapHeight - container.clientHeight;
+      const endScrollTop = targetTop;
+
+      container.scrollTop = startScrollTop;
+      setIsMapReady(true);
+      hasScrolledRef.current = true;
+
+      // 設定 3000ms (3秒) 內平滑滑動到 focusNode
+      const duration = 3000;
+      const startTime = performance.now();
+
+      const animateScroll = (currentTime: number) => {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+
+        // 使用 easeInOutCubic 平滑緩動
+        const easeInOutCubic =
+          progress < 0.5
+            ? 4 * progress * progress * progress
+            : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+
+        container.scrollTop = startScrollTop + (endScrollTop - startScrollTop) * easeInOutCubic;
+
+        if (progress < 1) {
+          requestAnimationFrame(animateScroll);
+        }
+      };
+
+      requestAnimationFrame(animateScroll);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [nodes, lastActiveNodeId, mapHeight]);
+
 
   const isDragging = useRef(false);
   const dragStart = useRef({ x: 0, y: 0, scrollLeft: 0, scrollTop: 0 });
@@ -202,6 +276,8 @@ export function useCourseMapData({
     nodes,
     mapHeight,
     mapContainerRef,
+    isFreshNav,
+    isMapReady,
     handleMouseDown,
     handleMouseMove,
     handleMouseUp,

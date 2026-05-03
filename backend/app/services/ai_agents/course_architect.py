@@ -37,6 +37,37 @@ class AIArchitectService:
         self.rag_engine = rag_engine
         self.file_service = file_service
 
+    async def refine_course_syllabus(
+        self,
+        current_syllabus: CoursePath,
+        user_feedback: str,
+        user_id: Optional[int] = None,
+        course_folder: Optional[str] = None,
+        learner_profile_summary: str = "",
+    ) -> Optional[CoursePath]:
+        from app.services.ai_agents.syllabus_agent import SyllabusAgent, AuditorOutput
+        from app.services.ai_agents.syllabus_prompts import AUDITOR_SYSTEM_PROMPT
+
+        refine_system_prompt = (
+            AUDITOR_SYSTEM_PROMPT
+            + f"\n\nCRITICAL USER REQUEST:\nThe user explicitly requested the following change: '{user_feedback}'.\nYou MUST prioritize and apply this specific modification if it aligns with pedagogical logic. Output the required tool actions to apply the change."
+        )
+
+        auditor_messages = [
+            ("system", refine_system_prompt),
+            ("user", f"Current Syllabus Draft:\n{current_syllabus.model_dump_json()}"),
+        ]
+
+        try:
+            auditor_out = await self.provider.generate_structured(auditor_messages, AuditorOutput)
+            if auditor_out and auditor_out.actions:
+                agent = SyllabusAgent(self.provider)
+                agent.apply_actions(current_syllabus, auditor_out.actions)
+            return current_syllabus
+        except Exception as e:
+            from app.services.commons.activity_logger import activity_logger
+            activity_logger.error(f"Syllabus Refine Error: {e}")
+            return current_syllabus
 
     async def generate_lesson_from_node(
         self,

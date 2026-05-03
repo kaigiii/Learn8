@@ -475,6 +475,10 @@ export function useLessonSessionFlow({
     setPhaseTransitionLoading(false);
     setSessionLoading(false);
 
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("just_completed_node", "true");
+    }
+
     clearPendingLessonNavigation();
     window.location.replace(targetHref);
   }, [backendCourseId]);
