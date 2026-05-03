@@ -38,6 +38,8 @@ export default function CourseMapPageClient({
     nodes,
     mapHeight,
     mapContainerRef,
+    isFreshNav,
+    isMapReady,
     handleMouseDown,
     handleMouseMove,
     handleMouseUp,
@@ -81,10 +83,10 @@ export default function CourseMapPageClient({
     }
 
     const preferredNodeId =
-      (lastActiveNodeId && nodes.find((node) => node.id === lastActiveNodeId)?.id) ||
-      nodes.find((node) => node.status === NODE_STATUS.AVAILABLE)?.id ||
-      nodes.find((node) => node.status === NODE_STATUS.COMPLETED)?.id ||
-      nodes[0]?.id ||
+      nodes.find((node) => node.status === NODE_STATUS.AVAILABLE && !node.isUnitHeader)?.id ||
+      (lastActiveNodeId && nodes.find((node) => node.id === lastActiveNodeId && !node.isUnitHeader)?.id) ||
+      nodes.find((node) => node.status === NODE_STATUS.COMPLETED && !node.isUnitHeader)?.id ||
+      nodes.find((node) => !node.isUnitHeader)?.id ||
       null;
 
     setSelectedNodeId((prev) => {
@@ -107,7 +109,27 @@ export default function CourseMapPageClient({
     <div
       className="relative min-h-dvh overflow-hidden app-shared-bg"
     >
-      <TopStatsBar backHref="/home" pageTitle={pageTitle} />
+      <TopStatsBar
+        backHref="/home"
+        pageTitle={pageTitle}
+        mascotSrc="/icons/icon.ico"
+        mascotAlt="Course mascot"
+        mascotImageClassName="scale-110"
+        quickLinks={[
+          {
+            href: "/multiplayer",
+            label: "Multiplayer",
+            iconSrc: "/svg/multiplayer-controller.svg",
+            iconAlt: "Multiplayer",
+          },
+          {
+            href: "/arena/leaderboard",
+            label: "Leaderboard",
+            iconSrc: "/svg/leaderboard-logo.svg",
+            iconAlt: "Leaderboard",
+          },
+        ]}
+      />
 
       <CourseMapBackground />
 
@@ -157,8 +179,8 @@ export default function CourseMapPageClient({
 
         <div
           ref={mapContainerRef}
-          className="scrollbar-hide h-full min-h-0 min-w-0 overflow-y-auto rounded-2xl pt-4 pb-6 lg:pt-8 lg:pb-8"
-          style={{ cursor: "grab" }}
+          className="scrollbar-hide h-full min-h-0 min-w-0 overflow-y-auto rounded-2xl pt-4 pb-6 lg:pt-8 lg:pb-8 transition-opacity duration-300"
+          style={{ cursor: "grab", opacity: isMapReady ? 1 : 0 }}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
@@ -216,6 +238,9 @@ export default function CourseMapPageClient({
                 key={node.id}
                 node={node}
                 index={index}
+                mapHeight={mapHeight}
+                scrollDuration={3000}
+                isFreshNav={isFreshNav}
                 courseId={courseId}
                 isSelected={node.id === selectedNodeId}
                 onSelect={setSelectedNodeId}
@@ -275,12 +300,18 @@ export default function CourseMapPageClient({
 function MapNodeCircle({
   node,
   index,
+  mapHeight,
+  scrollDuration = 3000,
+  isFreshNav = true,
   courseId,
   isSelected,
   onSelect,
 }: {
   node: CourseMapNode;
   index: number;
+  mapHeight: number;
+  scrollDuration?: number;
+  isFreshNav?: boolean;
   courseId: string;
   isSelected: boolean;
   onSelect: (nodeId: string) => void;
@@ -290,12 +321,44 @@ function MapNodeCircle({
     node.status === NODE_STATUS.AVAILABLE ||
     node.status === NODE_STATUS.COMPLETED;
 
+  // 全新進入時，採用精準映射延遲；返回課綱時直接顯示節點，不執行延遲淡入
+  const delay = isFreshNav
+    ? Math.max(0, ((mapHeight - node.y) / mapHeight) * (scrollDuration / 1000))
+    : 0;
+
+  if (node.isUnitHeader) {
+    return (
+      <div
+        className="absolute z-20 flex flex-col items-center pointer-events-none select-none"
+        style={{
+          left: `${node.x}%`,
+          top: `${node.y}px`,
+          transform: "translate(-50%, -50%)",
+        }}
+      >
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay, type: "spring", damping: 12 }}
+          className="rounded-2xl border border-teal-200/50 bg-gradient-to-r from-teal-50/90 via-emerald-50/80 to-teal-50/90 px-6 py-2.5 shadow-md backdrop-blur-md flex flex-col items-center justify-center min-w-[200px]"
+        >
+          <span className="text-[10px] font-heading font-extrabold uppercase tracking-widest text-teal-600 bg-teal-50/60 px-2.5 py-0.5 rounded-full border border-teal-100/50">
+            Unit {node.unitNumber}
+          </span>
+          <span className="mt-1.5 font-heading text-sm font-bold text-brand-gray-700 max-w-[260px] text-center leading-tight drop-shadow-sm">
+            {node.title}
+          </span>
+        </motion.div>
+      </div>
+    );
+  }
+
   const content = (
     <motion.button
       type="button"
       initial={{ opacity: 0, y: 20, scale: 0.8 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ delay: 0.15 * index, type: "spring", damping: 14 }}
+      transition={{ delay, type: "spring", damping: 14 }}
       className="flex cursor-pointer flex-col items-center gap-2 bg-transparent"
       onHoverStart={() => {
         if (isClickable) {

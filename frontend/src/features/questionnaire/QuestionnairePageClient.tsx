@@ -139,7 +139,27 @@ export default function QuestionnairePageClient() {
 
   return (
     <div className="relative min-h-screen app-shared-bg">
-      <TopStatsBar backHref="/home" pageTitle="Questionnaire" />
+      <TopStatsBar
+        backHref="/home"
+        pageTitle="Questionnaire"
+        mascotSrc="/icons/icon.ico"
+        mascotAlt="Questionnaire mascot"
+        mascotImageClassName="scale-110"
+        quickLinks={[
+          {
+            href: "/multiplayer",
+            label: "Multiplayer",
+            iconSrc: "/svg/multiplayer-controller.svg",
+            iconAlt: "Multiplayer",
+          },
+          {
+            href: "/arena/leaderboard",
+            label: "Leaderboard",
+            iconSrc: "/svg/leaderboard-logo.svg",
+            iconAlt: "Leaderboard",
+          },
+        ]}
+      />
 
       <div className="relative z-10 mx-auto max-w-6xl px-4 py-8 md:px-8">
         <DeepGlassCard className="px-6 py-6 md:px-8 md:py-8">

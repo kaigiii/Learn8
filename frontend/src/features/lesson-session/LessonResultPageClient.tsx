@@ -191,7 +191,12 @@ export default function LessonResultPageClient({
       currentXpToNext={currentXpToNext}
       xpBarWidth={xpBarWidth}
       barDuration={barDuration}
-      onBackToMap={() => router.push(`/courses/${courseId}`)}
+      onBackToMap={() => {
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem("just_completed_node", "true");
+        }
+        router.push(`/courses/${courseId}`);
+      }}
       />
   );
 }
