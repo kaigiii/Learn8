@@ -331,16 +331,22 @@ class RoomService:
         if not player:
             raise HTTPException(status_code=404, detail="Arena room membership not found")
 
+        # 1. 為了防止 SQLAlchemy 記憶體中仍留存被刪除的玩家快取，手動從關係集合中移出
+        if player in room.players:
+            room.players.remove(player)
+
         db.delete(player)
         db.flush()
-        db.expire(room, ["players"])
+        db.expire_all()
 
+        # 2. 重新讀取資料庫中該房間真實存在的剩餘玩家
         remaining_players = (
             db.query(ArenaRoomPlayerModel)
             .filter(ArenaRoomPlayerModel.room_id == room.id)
             .order_by(ArenaRoomPlayerModel.joined_at.asc())
             .all()
         )
+
         if not remaining_players:
             room.status = ArenaRoomStatus.CLOSED
             room.closed_at = utc_now()
@@ -348,6 +354,9 @@ class RoomService:
             room.host_user_id = remaining_players[0].user_id
 
         db.commit()
+        db.expire_all()
+
+        # 3. 讀取並重新載入完整的房間資料
         room = self.get_room_by_code(db, original_room_code, cleanup_idle=False)
         self.realtime_gateway.publish_event(
             db,
