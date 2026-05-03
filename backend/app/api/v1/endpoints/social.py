@@ -95,6 +95,7 @@ def get_friends(
     friends1 = db.query(FriendModel).filter(FriendModel.user_id == current_user.id, FriendModel.status == "accepted").all()
     friends2 = db.query(FriendModel).filter(FriendModel.friend_id == current_user.id, FriendModel.status == "accepted").all()
 
+    from app.core.redis import redis_sync_client
     result_friends = []
     
     # 處理雙向好友
@@ -102,6 +103,12 @@ def get_friends(
         friend_user = db.query(UserModel).filter(UserModel.id == f.friend_id).first()
         if friend_user:
             rating, tier = get_user_rating_and_rank(db, friend_user.id)
+            is_online = False
+            try:
+                is_online = bool(redis_sync_client.exists(f"presence:user:{friend_user.id}"))
+            except Exception:
+                pass
+
             result_friends.append({
                 "friend_record_id": f.id,
                 "id": friend_user.id,
@@ -111,13 +118,20 @@ def get_friends(
                 "rating": rating,
                 "tier": tier,
                 "status": "accepted",
-                "is_initiator": True
+                "is_initiator": True,
+                "is_online": is_online
             })
 
     for f in friends2:
         friend_user = db.query(UserModel).filter(UserModel.id == f.user_id).first()
         if friend_user:
             rating, tier = get_user_rating_and_rank(db, friend_user.id)
+            is_online = False
+            try:
+                is_online = bool(redis_sync_client.exists(f"presence:user:{friend_user.id}"))
+            except Exception:
+                pass
+
             result_friends.append({
                 "friend_record_id": f.id,
                 "id": friend_user.id,
@@ -127,7 +141,8 @@ def get_friends(
                 "rating": rating,
                 "tier": tier,
                 "status": "accepted",
-                "is_initiator": False
+                "is_initiator": False,
+                "is_online": is_online
             })
 
     sent = []
@@ -267,6 +282,33 @@ def invite_friend_to_arena(
     )
     db.add(invite)
     db.commit()
+
+    # 1. 重新讀取受邀者的最新所有 pending 邀請
+    invites = db.query(ArenaInviteModel).filter(
+        ArenaInviteModel.invitee_user_id == req.friend_id,
+        ArenaInviteModel.status == "pending"
+    ).all()
+
+    results = []
+    for inv in invites:
+        rm = db.query(ArenaRoomModel).filter(ArenaRoomModel.id == inv.room_id).first()
+        inviter = db.query(UserModel).filter(UserModel.id == inv.inviter_user_id).first()
+        if rm and inviter:
+            results.append({
+                "id": inv.id,
+                "room_code": rm.room_code,
+                "inviter_name": inviter.full_name or inviter.email.split("@")[0],
+                "inviter_email": inviter.email
+            })
+
+    # 2. 將訊息推送至 Redis 專屬頻道中
+    from app.core.redis import redis_sync_client
+    import json
+    try:
+        redis_sync_client.publish(f"user:invites:{req.friend_id}", json.dumps({"status": "ok", "invites": results}))
+    except Exception:
+        pass
+
     return {"status": "ok", "message": "已成功發送房間邀請給好友"}
 
 
@@ -302,33 +344,66 @@ async def stream_arena_invites(
     import asyncio
     import json
     from fastapi.responses import StreamingResponse
+    from app.core.redis import redis_client
 
     async def event_generator():
-        while True:
-            db = SessionLocal()
+        try:
+            await redis_client.setex(f"presence:user:{current_user.id}", 35, "online")
+        except Exception:
+            pass
+
+        pubsub = redis_client.pubsub()
+        await pubsub.subscribe(f"user:invites:{current_user.id}")
+
+        db = SessionLocal()
+        try:
+            invites = db.query(ArenaInviteModel).filter(
+                ArenaInviteModel.invitee_user_id == current_user.id,
+                ArenaInviteModel.status == "pending"
+            ).all()
+
+            results = []
+            for invite in invites:
+                room = db.query(ArenaRoomModel).filter(ArenaRoomModel.id == invite.room_id).first()
+                inviter = db.query(UserModel).filter(UserModel.id == invite.inviter_user_id).first()
+                if room and inviter:
+                    results.append({
+                        "id": invite.id,
+                        "room_code": room.room_code,
+                        "inviter_name": inviter.full_name or inviter.email.split("@")[0],
+                        "inviter_email": inviter.email
+                    })
+
+            yield f"data: {json.dumps({'status': 'ok', 'invites': results})}\n\n"
+        finally:
+            db.close()
+
+        try:
+            while True:
+                try:
+                    msg = await asyncio.wait_for(pubsub.get_message(ignore_subscribe_messages=True), timeout=10.0)
+                    if msg and msg.get("type") == "message":
+                        try:
+                            payload = json.loads(msg["data"])
+                            yield f"data: {json.dumps(payload)}\n\n"
+                        except Exception:
+                            pass
+                except asyncio.TimeoutError:
+                    try:
+                        await redis_client.setex(f"presence:user:{current_user.id}", 35, "online")
+                    except Exception:
+                        pass
+                    yield ": ping\n\n"
+        finally:
             try:
-                invites = db.query(ArenaInviteModel).filter(
-                    ArenaInviteModel.invitee_user_id == current_user.id,
-                    ArenaInviteModel.status == "pending"
-                ).all()
-
-                results = []
-                for invite in invites:
-                    room = db.query(ArenaRoomModel).filter(ArenaRoomModel.id == invite.room_id).first()
-                    inviter = db.query(UserModel).filter(UserModel.id == invite.inviter_user_id).first()
-                    if room and inviter:
-                        results.append({
-                            "id": invite.id,
-                            "room_code": room.room_code,
-                            "inviter_name": inviter.full_name or inviter.email.split("@")[0],
-                            "inviter_email": inviter.email
-                        })
-
-                yield f"data: {json.dumps({'status': 'ok', 'invites': results})}\n\n"
-            finally:
-                db.close()
-
-            await asyncio.sleep(4)
+                await pubsub.unsubscribe(f"user:invites:{current_user.id}")
+                await pubsub.close()
+            except Exception:
+                pass
+            try:
+                await redis_client.delete(f"presence:user:{current_user.id}")
+            except Exception:
+                pass
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
@@ -350,12 +425,36 @@ def respond_arena_invite(
 
     if action == "accept":
         invite.status = "accepted"
-        db.commit()
-        return {"status": "ok", "action": "accept"}
     else:
         invite.status = "ignored"
-        db.commit()
-        return {"status": "ok", "action": "ignored"}
+    db.commit()
+
+    # 清除前端的邀請狀態
+    invites = db.query(ArenaInviteModel).filter(
+        ArenaInviteModel.invitee_user_id == current_user.id,
+        ArenaInviteModel.status == "pending"
+    ).all()
+
+    results = []
+    for inv in invites:
+        rm = db.query(ArenaRoomModel).filter(ArenaRoomModel.id == inv.room_id).first()
+        inviter = db.query(UserModel).filter(UserModel.id == inv.inviter_user_id).first()
+        if rm and inviter:
+            results.append({
+                "id": inv.id,
+                "room_code": rm.room_code,
+                "inviter_name": inviter.full_name or inviter.email.split("@")[0],
+                "inviter_email": inviter.email
+            })
+
+    from app.core.redis import redis_sync_client
+    import json
+    try:
+        redis_sync_client.publish(f"user:invites:{current_user.id}", json.dumps({"status": "ok", "invites": results}))
+    except Exception:
+        pass
+
+    return {"status": "ok", "action": action}
 
 
 @router.get("/groups")

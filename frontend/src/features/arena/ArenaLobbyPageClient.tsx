@@ -332,8 +332,19 @@ export default function ArenaLobbyPageClient({ roomCode }: { roomCode: string })
                     className="flex items-center justify-between gap-3 p-3 rounded-xl border border-white/60 bg-white/65 hover:bg-white/80 transition"
                   >
                     <div>
-                      <p className="text-sm font-bold text-brand-gray-700">
+                      <p className="text-sm font-bold text-brand-gray-700 flex items-center gap-1.5 flex-wrap">
                         {friend.full_name || friend.email.split("@")[0]}
+                        {friend.is_online ? (
+                          <span className="flex items-center gap-1 bg-emerald-50 text-emerald-600 border border-emerald-200/50 px-1.5 py-0.5 rounded-lg text-[10px] font-bold animate-pulse leading-none flex-none select-none">
+                            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
+                            Online
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1 bg-gray-50 text-gray-400 border border-gray-200/50 px-1.5 py-0.5 rounded-lg text-[10px] font-bold leading-none flex-none select-none">
+                            <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
+                            Offline
+                          </span>
+                        )}
                       </p>
                       <p className="text-xs text-brand-gray-400 font-mono">UID: #{friend.id}</p>
                     </div>
