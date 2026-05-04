@@ -87,10 +87,26 @@ npm install
 npm run dev
 ```
 
+VoxCPM (TTS 語音服務，請從「專案根目錄」出發)：
+
+**方式 A：使用 `uv` 啟動（推薦，最快）**
+```bash
+cd VoxCPM
+uv run python -m uvicorn Learn8_tts.api:app --reload --port 15060
+```
+
+**方式 B：使用傳統 `venv` 啟動**
+```bash
+cd VoxCPM
+source .venv/bin/activate
+python -m uvicorn Learn8_tts.api:app --reload --port 15060
+```
+
 啟動後：
 
 - Frontend: `http://localhost:3000`
 - Backend API docs: `http://localhost:8000/docs`
+- VoxCPM TTS: `http://localhost:15060`
 
 環境變數補充：
 
