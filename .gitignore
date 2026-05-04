@@ -62,17 +62,13 @@ frontend/.env
 # Database & Storage
 *.db
 *.sqlite3
-backend/learn8_db/*.db
-backend/chroma_db/
-backend/uploads/
+backend/data/chroma_db/
+backend/data/uploads/
 # Learn8 Specific
 projects_pool/
 uploads/
-!backend/uploads/
-backend/uploads/*
-!backend/uploads/avatar/
-backend/uploads/avatar/*
-!backend/uploads/avatar/.gitkeep
-!backend/uploads/avatar/.gitignore
-backend/logs/
-backend/temp/
+backend/data/uploads/*
+!backend/data/uploads/avatar/
+backend/data/uploads/avatar/*
+backend/data/logs/
+backend/data/temp/

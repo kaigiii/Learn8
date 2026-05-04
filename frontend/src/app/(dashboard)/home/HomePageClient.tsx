@@ -213,7 +213,7 @@ export default function HomePage() {
       seenIds.add(course.id);
 
       const draft = draftsByCourse[course.id] || course.draft_json || {};
-      const isReady = course.status === COURSE_STATUS.READY || course.status === "ready" || !!course.syllabus_json;
+      const isReady = course.status === COURSE_STATUS.READY || (course.status as string) === "ready" || !!(course as any).syllabus_json;
       const hasQuestions = (draft.questions?.length || 0) > 0;
       const hasAnswers = Object.keys(draft.answers || {}).length > 0;
 
@@ -224,7 +224,7 @@ export default function HomePage() {
         key: `${isReady ? "course" : "draft"}-${course.id}`,
         course,
         href: isReady ? `/courses/${course.id}` : `/questionnaire?courseId=${course.id}`,
-        title: isReady ? course.title || draft.topic : draft.topic || course.title,
+        title: (isReady ? course.title || draft.topic : draft.topic || course.title) || "Untitled Topic",
         stateLabel: isReady
           ? "Course"
           : hasQuestions
