@@ -30,6 +30,7 @@ interface TopStatsBarProps {
     iconSrc?: string;
     iconAlt?: string;
     iconText?: string;
+    onClick?: (e: React.MouseEvent) => void;
   }>;
 }
 
@@ -138,34 +139,29 @@ export default function TopStatsBar({
   const quickChipClassName =
     "inline-flex h-10 items-center gap-0 rounded-full bg-white/92 px-2.5 text-sm font-heading font-bold leading-none text-brand-gray-700 shadow-sm transition hover:bg-white lg:gap-2 lg:px-3";
   const quickActiveClassName = "bg-white ring-1 ring-brand-teal/20";
-  const socialLink = {
+  type QuickLinkType = NonNullable<TopStatsBarProps["quickLinks"]>[0];
+
+  const socialLink: QuickLinkType = {
     href: "/social",
     label: "Social",
     iconText: "👥",
     active: pathname === "/social" || pathname.startsWith("/social/"),
   };
-  const withSocial = quickLinks.some((link) => link.href === "/social")
-    ? quickLinks
-    : [socialLink, ...quickLinks];
+  
+  const adminLink: QuickLinkType = {
+    href: "/admin",
+    label: "Admin",
+    iconText: "⚙️",
+    active: pathname === "/admin" || pathname.startsWith("/admin/"),
+  };
 
-  const resolvedQuickLinks: Array<{
-    href: string;
-    label: string;
-    active?: boolean;
-    iconSrc?: string;
-    iconAlt?: string;
-    iconText?: string;
-  }> = isDevAccount
-    ? [
-        {
-          href: "/admin",
-          label: "Admin",
-          iconText: "⚙️",
-          active: pathname === "/admin" || pathname.startsWith("/admin/"),
-        },
-        ...withSocial,
-      ]
-    : withSocial;
+  // Add them if not already present
+  const baseLinks: QuickLinkType[] = [...quickLinks];
+  if (!baseLinks.some((link) => link.href === "/social")) {
+    baseLinks.unshift(socialLink);
+  }
+
+  const resolvedQuickLinks: QuickLinkType[] = isDevAccount ? [adminLink, ...baseLinks] : [adminLink, ...baseLinks];
   const isStoreActive = pathname === "/store" || pathname.startsWith("/store/");
   const isProfileActive = pathname === "/profile" || pathname.startsWith("/profile");
 
@@ -251,30 +247,47 @@ export default function TopStatsBar({
         <div className="flex min-w-0 flex-none items-center gap-1.5 sm:gap-2 md:gap-3">
           {resolvedQuickLinks.length > 0 ? (
             <div className="flex items-center gap-1.5 sm:gap-2">
-              {resolvedQuickLinks.map((link) => (
-                <Link
-                  key={`${link.href}-${link.label}-quick`}
-                  href={link.href}
-                  className={`${quickChipClassName} ${
-                    link.active
-                      ? quickActiveClassName
-                      : ""
-                  }`}
-                >
-                  {link.iconSrc ? (
-                    <Image
-                      src={link.iconSrc}
-                      alt={link.iconAlt ?? ""}
-                      width={24}
-                      height={24}
-                      className="h-6 w-6 object-contain"
-                    />
-                  ) : link.iconText ? (
-                    <span className="text-base leading-none">{link.iconText}</span>
-                  ) : null}
-                  <span className="hidden whitespace-nowrap lg:inline">{link.label}</span>
-                </Link>
-              ))}
+              {resolvedQuickLinks.map((link) => {
+                const inner = (
+                  <>
+                    {link.iconSrc ? (
+                      <Image
+                        src={link.iconSrc}
+                        alt={link.iconAlt ?? ""}
+                        width={24}
+                        height={24}
+                        className="h-6 w-6 object-contain"
+                      />
+                    ) : link.iconText ? (
+                      <span className="text-base leading-none">{link.iconText}</span>
+                    ) : null}
+                    <span className="hidden whitespace-nowrap lg:inline">{link.label}</span>
+                  </>
+                );
+                const cls = `${quickChipClassName} ${link.active ? quickActiveClassName : ""}`;
+
+                if (link.onClick) {
+                  return (
+                    <button
+                      key={`${link.href}-${link.label}-quick`}
+                      onClick={link.onClick}
+                      className={cls}
+                    >
+                      {inner}
+                    </button>
+                  );
+                }
+
+                return (
+                  <Link
+                    key={`${link.href}-${link.label}-quick`}
+                    href={link.href}
+                    className={cls}
+                  >
+                    {inner}
+                  </Link>
+                );
+              })}
             </div>
           ) : null}
           {navLinks.length > 0 ? (

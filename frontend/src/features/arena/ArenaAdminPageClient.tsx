@@ -483,6 +483,10 @@ export default function ArenaAdminPageClient() {
               <NavButton active={activeTab === "seasons"} onClick={() => setActiveTab("seasons")} icon={<FiCalendar />} label="Seasons" />
               <NavButton active={activeTab === "operations"} onClick={() => setActiveTab("operations")} icon={<FiActivity />} label="Operations" />
               <NavButton active={activeTab === "voice"} onClick={() => setActiveTab("voice")} icon={<FiVolume2 />} label="Voice Assistant" />
+              <Link href="/admin/course-reviews" className="flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold bg-white/60 text-brand-gray-500 hover:bg-white/80 hover:text-brand-teal hover:scale-105 transition-all">
+                <span className="text-brand-teal"><FiBookOpen /></span>
+                Course Reviews
+              </Link>
             </div>
           </div>
 

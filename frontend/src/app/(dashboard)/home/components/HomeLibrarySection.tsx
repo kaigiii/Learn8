@@ -136,6 +136,12 @@ export function HomeLibrarySection({
           </h2>
         </div>
         <div className="flex items-center gap-4">
+          <Link
+            href="/courses/custom"
+            className="hidden sm:inline-flex rounded-full bg-brand-teal px-4 py-1.5 text-xs font-bold uppercase tracking-[0.1em] text-white shadow-sm transition hover:bg-brand-teal/90"
+          >
+            Creator
+          </Link>
           <div className="inline-flex items-center rounded-full border border-white/85 bg-white/72 p-1 shadow-sm backdrop-blur-sm">
             <button
               type="button"

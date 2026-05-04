@@ -708,6 +708,186 @@ async def generate_lesson_from_node_endpoint(
         item.strip() for item in (allowed_components or "").split(",") if item.strip()
     ]
     
+    # Check for custom courses (visual editor course content)
+    if course_id:
+        course = db.get(CourseModel, course_id)
+        system_user = db.query(UserModel).filter(UserModel.email == SYSTEM_USER_EMAIL).first()
+        is_custom = course and system_user and course.user_id != system_user.id
+        if is_custom and course.syllabus_json:
+            units = course.syllabus_json.get("units", [])
+            target_node = None
+            for unit in units:
+                for n in unit.get("nodes", []):
+                    if n.get("id") == node.id:
+                        target_node = n
+                        break
+                if target_node:
+                    break
+            
+            if target_node:
+                components = target_node.get("components")
+                if not components:
+                    # Default 5/5 components
+                    components = [
+                        {
+                            "type": "ExplainerMedia",
+                            "topic": target_node.get("title", "Topic"),
+                            "title": target_node.get("title", "Topic"),
+                            "explanation": target_node.get("description", "Welcome to this lesson section."),
+                            "mediaType": "none",
+                        },
+                        {
+                            "type": "FeynmanMirror",
+                            "topic": target_node.get("title", "Topic"),
+                            "question": f"Explain in your own words: what is {target_node.get('title', 'this topic')}?",
+                        },
+                        {
+                            "type": "MatchingPairs",
+                            "topic": target_node.get("title", "Topic"),
+                            "question": "Match the core concepts with their definitions",
+                            "pairs": [
+                                {"id": "p1", "left": target_node.get("title", "Topic"), "right": "The main subject of this lesson node"}
+                            ],
+                        },
+                        {
+                            "type": "MultipleChoice",
+                            "topic": target_node.get("title", "Topic"),
+                            "question": f"Which of the following describes {target_node.get('title', 'this topic')} correctly?",
+                            "options": [
+                                {"id": "opt1", "text": "It's the core focus of the unit"},
+                                {"id": "opt2", "text": "An unrelated or opposite concept"},
+                            ],
+                            "correctOptionId": "opt1",
+                        },
+                        {
+                            "type": "Ordering",
+                            "topic": target_node.get("title", "Topic"),
+                            "question": "Sort the concepts into the logical sequence",
+                            "steps": [
+                                {"id": "s1", "text": f"Understand the basics of {target_node.get('title', 'Topic')}"},
+                                {"id": "s2", "text": f"Apply {target_node.get('title', 'Topic')} to solve problems"},
+                            ],
+                        },
+                    ]
+
+                stages_data = []
+                for comp in components:
+                    comp_type = comp.get("type", "MultipleChoice")
+                    topic_val = comp.get("topic", target_node.get("title") or "Custom Subject")
+                    difficulty = comp.get("difficulty", "medium")
+                    data = {}
+                    if comp_type == "MultipleChoice":
+                        data = {
+                            "question": comp.get("question", "Question"),
+                            "options": comp.get("options", []),
+                            "correctAnswer": comp.get("correctOptionId", "")
+                        }
+                    elif comp_type == "Ordering":
+                        data = {
+                            "question": comp.get("question", "Order the steps below correctly"),
+                            "steps": comp.get("steps", [])
+                        }
+                    elif comp_type == "MatchingPairs":
+                        data = {
+                            "question": comp.get("question", "Match the following pairs"),
+                            "pairs": comp.get("pairs", [])
+                        }
+                    elif comp_type == "ExplainerMedia":
+                        data = {
+                            "title": comp.get("title", "Explainer Title"),
+                            "explanation": comp.get("explanation", "Welcome to this lesson section."),
+                            "mediaType": comp.get("mediaType", "none"),
+                            "mediaUrl": comp.get("mediaUrl"),
+                            "mediaDescription": comp.get("mediaDescription")
+                        }
+                    elif comp_type == "FeynmanMirror":
+                        data = {
+                            "question": comp.get("question", "Describe your understanding")
+                        }
+
+                    snapshot = {
+                        "stageId": comp.get("id", f"stage-{uuid.uuid4().hex[:8]}"),
+                        "topic": topic_val,
+                        "skin": "Scientific",
+                        "component": comp_type,
+                        "difficulty": difficulty,
+                        "recommendedDurationMinutes": 3,
+                        "config": {
+                            "data": data,
+                            "initialState": {},
+                        },
+                        "validation": {"type": "logic", "condition": None},
+                        "feedback": {
+                            "success": comp.get("successFeedback", "Great job! That's correct."),
+                            "error": comp.get("errorFeedback", "Not quite right. Try again!")
+                        },
+                    }
+                    stages_data.append(snapshot)
+                
+                existing_lesson = db.query(LessonModel).filter(
+                    LessonModel.node_id == node.id,
+                    LessonModel.course_id == course_id,
+                    LessonModel.user_id == current_user.id
+                ).first()
+                
+                if existing_lesson:
+                    db.query(LessonStageModel).filter(LessonStageModel.lesson_id == existing_lesson.id).delete()
+                    existing_lesson.stage_count = len(stages_data)
+                    existing_lesson.question_count = len(stages_data)
+                    existing_lesson.updated_at = utc_now()
+                    lesson = existing_lesson
+                else:
+                    lesson = LessonModel(
+                        user_id=current_user.id,
+                        course_id=course_id,
+                        node_id=node.id,
+                        course_topic=topic,
+                        status="generated",
+                        stage_count=len(stages_data),
+                        question_count=len(stages_data),
+                        estimated_duration_minutes=len(stages_data) * 3,
+                        schema_version=2,
+                        generator_provider="custom-editor",
+                        generator_model="visual-editor",
+                        created_at=utc_now(),
+                        updated_at=utc_now(),
+                    )
+                    db.add(lesson)
+                    db.flush()
+                
+                for idx, stage_snapshot in enumerate(stages_data):
+                    stage_model = LessonStageModel(
+                        lesson_id=lesson.id,
+                        stage_uid=stage_snapshot["stageId"],
+                        stage_order=idx,
+                        stage_type="interactive",
+                        topic=stage_snapshot["topic"],
+                        skin=stage_snapshot["skin"],
+                        component=stage_snapshot["component"],
+                        difficulty=stage_snapshot.get("difficulty"),
+                        recommended_duration_minutes=stage_snapshot.get("recommendedDurationMinutes"),
+                        item_count=1,
+                        schema_version=2,
+                        content_json=stage_snapshot["config"]["data"],
+                        validation_json=stage_snapshot["validation"],
+                        feedback_json=stage_snapshot["feedback"],
+                        stage_snapshot_json=stage_snapshot,
+                        created_at=utc_now(),
+                        updated_at=utc_now(),
+                    )
+                    db.add(stage_model)
+                
+                db.commit()
+                db.refresh(lesson)
+                
+                return {
+                    "status": JobStatus.COMPLETED,
+                    "result_data": {
+                        "stages": _lesson_stage_models_to_schema(lesson.stages),
+                        "metadata": {},
+                    },
+                }
+
     # 1. Check for cached lesson first (essential for official pre-seeded topics)
     def _fetch_cached_lesson():
         # First check if the lesson belongs to the current user
@@ -958,6 +1138,119 @@ async def start_lesson_session(
             .order_by(LessonModel.created_at.desc())
             .first()
         )
+
+    if not cached_lesson:
+        if effective_course_id:
+            course = db.get(CourseModel, effective_course_id)
+            is_custom = course and system_user and course.user_id != system_user.id
+            if is_custom and course.syllabus_json:
+                units = course.syllabus_json.get("units", [])
+                target_node = None
+                for unit in units:
+                    for n in unit.get("nodes", []):
+                        if n.get("id") == request.nodeId:
+                            target_node = n
+                            break
+                    if target_node:
+                        break
+                
+                if target_node and "components" in target_node and target_node["components"]:
+                    stages_data = []
+                    for comp in target_node["components"]:
+                        comp_type = comp.get("type", "MultipleChoice")
+                        topic_val = comp.get("topic", "Custom Subject")
+                        difficulty = comp.get("difficulty", "medium")
+                        data = {}
+                        if comp_type == "MultipleChoice":
+                            data = {
+                                "question": comp.get("question", "Question"),
+                                "options": comp.get("options", []),
+                                "correctAnswer": comp.get("correctOptionId", "")
+                            }
+                        elif comp_type == "Ordering":
+                            data = {
+                                "question": comp.get("question", "Order the steps below correctly"),
+                                "steps": comp.get("steps", [])
+                            }
+                        elif comp_type == "MatchingPairs":
+                            data = {
+                                "question": comp.get("question", "Match the following pairs"),
+                                "pairs": comp.get("pairs", [])
+                            }
+                        elif comp_type == "ExplainerMedia":
+                            data = {
+                                "title": comp.get("title", "Explainer Title"),
+                                "explanation": comp.get("explanation", "Welcome to this lesson section."),
+                                "mediaType": comp.get("mediaType", "none"),
+                                "mediaUrl": comp.get("mediaUrl"),
+                                "mediaDescription": comp.get("mediaDescription")
+                            }
+                        elif comp_type == "FeynmanMirror":
+                            data = {
+                                "question": comp.get("question", "Describe your understanding")
+                            }
+
+                        snapshot = {
+                            "stageId": comp.get("id", f"stage-{uuid.uuid4().hex[:8]}"),
+                            "topic": topic_val,
+                            "skin": "Scientific",
+                            "component": comp_type,
+                            "difficulty": difficulty,
+                            "recommendedDurationMinutes": 3,
+                            "config": {
+                                "data": data,
+                                "initialState": {},
+                            },
+                            "validation": {"type": "logic", "condition": None},
+                            "feedback": {
+                                "success": comp.get("successFeedback", "Great job! That's correct."),
+                                "error": comp.get("errorFeedback", "Not quite right. Try again!")
+                            },
+                        }
+                        stages_data.append(snapshot)
+                    
+                    cached_lesson = LessonModel(
+                        user_id=current_user.id,
+                        course_id=effective_course_id,
+                        node_id=request.nodeId,
+                        course_topic=request.topic,
+                        status="generated",
+                        stage_count=len(stages_data),
+                        question_count=len(stages_data),
+                        estimated_duration_minutes=len(stages_data) * 3,
+                        schema_version=2,
+                        generator_provider="custom-editor",
+                        generator_model="visual-editor",
+                        created_at=utc_now(),
+                        updated_at=utc_now(),
+                    )
+                    db.add(cached_lesson)
+                    db.flush()
+                    
+                    for idx, stage_snapshot in enumerate(stages_data):
+                        stage_model = LessonStageModel(
+                            lesson_id=cached_lesson.id,
+                            stage_uid=stage_snapshot["stageId"],
+                            stage_order=idx,
+                            stage_type="interactive",
+                            topic=stage_snapshot["topic"],
+                            skin=stage_snapshot["skin"],
+                            component=stage_snapshot["component"],
+                            difficulty=stage_snapshot.get("difficulty"),
+                            recommended_duration_minutes=stage_snapshot.get("recommendedDurationMinutes"),
+                            item_count=1,
+                            schema_version=2,
+                            content_json=stage_snapshot["config"]["data"],
+                            validation_json=stage_snapshot["validation"],
+                            feedback_json=stage_snapshot["feedback"],
+                            stage_snapshot_json=stage_snapshot,
+                            created_at=utc_now(),
+                            updated_at=utc_now(),
+                        )
+                        db.add(stage_model)
+                        
+                    db.commit()
+                    db.refresh(cached_lesson)
 
     if not cached_lesson:
         raise HTTPException(status_code=404, detail="Generated lesson not found")

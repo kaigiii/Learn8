@@ -1,6 +1,6 @@
 from enum import Enum
 from typing import List, Dict, Optional
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, model_validator
 from app.domain.statuses import CourseStatus, NodeStatus
 
 
@@ -42,8 +42,8 @@ class CoursePath(BaseModel):
     courseTitle: str
     description: Optional[str] = None
     isPublic: bool = False
+    isCustom: bool = False
     units: List[Unit]
-
 
 class RefineSyllabusRequest(BaseModel):
     topic: str

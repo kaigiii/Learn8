@@ -1,0 +1,105 @@
+id: custom_13
+title: My New Custom Course
+description: User created course
+units:
+- unitId: u1
+  unitTitle: Introduction
+  unitDescription: First unit
+  nodes: []
+- unitId: u_1777885970807
+  unitTitle: New Unit
+  unitDescription: Describe this unit
+  nodes:
+  - id: n_1777885976824
+    title: New Lesson
+    description: Description
+    status: locked
+    components: []
+  - id: n_1777885977007
+    title: New Lesson
+    description: Description
+    status: locked
+    components: []
+  - id: n_1777885977165
+    title: New Lesson
+    description: Description
+    status: locked
+    components: []
+  - id: n_1777885977332
+    title: New Lesson
+    description: Description
+    status: locked
+    components: []
+- unitId: u_1777885974708
+  unitTitle: New Unit
+  unitDescription: Describe this unit
+  nodes:
+  - id: n_1777885978482
+    title: New Lesson
+    description: Description
+    status: locked
+    components: []
+  - id: n_1777885978700
+    title: New Lesson
+    description: Description
+    status: locked
+    components: []
+  - id: n_1777885978873
+    title: New Lesson
+    description: Description
+    status: locked
+    components: []
+  - id: n_1777885979007
+    title: New Lesson
+    description: dasdsad
+    status: locked
+    components:
+    - id: c_1777885985283
+      type: ExplainerMedia
+      topic: Python Basics
+      difficulty: medium
+      question: ''
+      content: sadasdasd
+      successFeedback: Great job! That's correct.
+      errorFeedback: Oops! Try again.
+    - id: c_1777885993744
+      type: ExplainerMedia
+      topic: Python Basics
+      difficulty: medium
+      question: ''
+      content: This is a new media lesson.
+      successFeedback: Great job! That's correct.
+      errorFeedback: Oops! Try again.
+    - id: c_1777885994661
+      type: MultipleChoice
+      topic: Python Basics
+      difficulty: medium
+      question: New Question
+      options:
+      - Option A
+      - Option B
+      correctOptionId: Option A
+      successFeedback: Great job! That's correct.
+      errorFeedback: Oops! Try again.
+    - id: c_1777885996379
+      type: MatchingPairs
+      topic: Python Basics
+      difficulty: medium
+      question: New Question
+      pairs:
+      - id: p1_1777885996379
+        left: Left text A
+        right: Right text A
+      - id: p2_1777885996379
+        left: Left text B
+        right: Right text B
+      successFeedback: Great job! That's correct.
+      errorFeedback: Oops! Try again.
+- unitId: u_1777885975299
+  unitTitle: New Unit
+  unitDescription: Describe this unit
+  nodes: []
+- unitId: u_1777885975808
+  unitTitle: New Unit
+  unitDescription: Describe this unit
+  nodes: []

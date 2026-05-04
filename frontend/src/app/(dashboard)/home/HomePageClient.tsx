@@ -213,18 +213,18 @@ export default function HomePage() {
       seenIds.add(course.id);
 
       const draft = draftsByCourse[course.id] || course.draft_json || {};
-      const isReady = course.status === COURSE_STATUS.READY;
+      const isReady = course.status === COURSE_STATUS.READY || course.status === "ready" || !!course.syllabus_json;
       const hasQuestions = (draft.questions?.length || 0) > 0;
       const hasAnswers = Object.keys(draft.answers || {}).length > 0;
 
-      if (!draft?.topic) return;
+      if (!draft?.topic && !course.title) return;
 
       items.push({
         kind: isReady ? "course" : "draft",
         key: `${isReady ? "course" : "draft"}-${course.id}`,
         course,
         href: isReady ? `/courses/${course.id}` : `/questionnaire?courseId=${course.id}`,
-        title: isReady ? course.title : draft.topic,
+        title: isReady ? course.title || draft.topic : draft.topic || course.title,
         stateLabel: isReady
           ? "Course"
           : hasQuestions
