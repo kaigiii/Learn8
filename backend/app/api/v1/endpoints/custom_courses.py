@@ -130,7 +130,7 @@ def export_course_to_yaml(
     
     yaml_filename = f"custom_{course.id}.yaml"
     base_dir = Path(__file__).resolve().parent.parent.parent.parent
-    yaml_path = base_dir / "public_courses" / yaml_filename
+    yaml_path = base_dir / "data" / "custom_published_courses" / yaml_filename
     
     os.makedirs(os.path.dirname(yaml_path), exist_ok=True)
     with open(yaml_path, "w", encoding="utf-8") as f:

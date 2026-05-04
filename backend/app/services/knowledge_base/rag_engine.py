@@ -42,7 +42,7 @@ class TextSplitterService:
 
 
 class RAGEngine:
-    DB_DIR = "./chroma_db"
+    DB_DIR = "./data/chroma_db"
 
     def __init__(self, llm_provider: BaseLLMProvider):
         self._llm_provider = llm_provider
@@ -76,8 +76,8 @@ class RAGEngine:
         user_id: int = None,
         course_folder: str = None,
     ) -> int:
-        os.makedirs("temp", exist_ok=True)
-        temp_filename = os.path.join("temp", f"temp_{file.filename}")
+        os.makedirs(os.path.join("data", "temp"), exist_ok=True)
+        temp_filename = os.path.join("data", "temp", f"temp_{file.filename}")
 
         try:
             with open(temp_filename, "wb") as buffer:

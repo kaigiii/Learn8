@@ -12,11 +12,11 @@ VOXCPM_URL = os.getenv("VOXCPM_URL", "http://127.0.0.1:15060/v1/audio/speech")
 VOXCPM_UPLOAD_URL = os.getenv("VOXCPM_UPLOAD_URL", "http://127.0.0.1:15060/v1/audio/upload")
 
 VOICE_PRESETS = {
-    "preset_01": os.path.join(os.getcwd(), "presets", "gentle_sister.wav"),
-    "preset_02": os.path.join(os.getcwd(), "presets", "wise_tutor.wav"),
-    "preset_03": os.path.join(os.getcwd(), "presets", "energetic_partner.wav"),
-    "preset_04": os.path.join(os.getcwd(), "presets", "calm_ai.wav"),
-    "preset_05": os.path.join(os.getcwd(), "presets", "warm_uncle.wav")
+    "preset_01": os.path.join(os.getcwd(), "data", "presets", "gentle_sister.wav"),
+    "preset_02": os.path.join(os.getcwd(), "data", "presets", "wise_tutor.wav"),
+    "preset_03": os.path.join(os.getcwd(), "data", "presets", "energetic_partner.wav"),
+    "preset_04": os.path.join(os.getcwd(), "data", "presets", "calm_ai.wav"),
+    "preset_05": os.path.join(os.getcwd(), "data", "presets", "warm_uncle.wav")
 }
 
 @router.get("/speech")
@@ -36,7 +36,7 @@ async def get_cloned_speech(
     hasher.update(f"{text.strip()}:{preset}".encode("utf-8"))
     cache_id = hasher.hexdigest()
     
-    cache_dir = os.path.join(os.getcwd(), "uploads", "audio_cache")
+    cache_dir = os.path.join(os.getcwd(), "data", "uploads", "audio_cache")
     os.makedirs(cache_dir, exist_ok=True)
     cache_path = os.path.join(cache_dir, f"{cache_id}.wav")
 
@@ -53,7 +53,7 @@ async def get_cloned_speech(
             pass
 
     # 3. 如果沒有快取，發送推論請求給 VoxCPM
-    if preset.startswith("uploads/") or preset.endswith(".wav") or preset.endswith(".mp3"):
+    if preset.startswith("data/uploads/") or preset.startswith("uploads/") or preset.endswith(".wav") or preset.endswith(".mp3"):
         if not os.path.isabs(preset):
             ref_path = os.path.join(os.getcwd(), preset)
         else:
@@ -99,14 +99,14 @@ async def pregenerate_audio_cache(text: str, preset: str = "preset_01") -> str |
     hasher.update(f"{text.strip()}:{preset}".encode("utf-8"))
     cache_id = hasher.hexdigest()
     
-    cache_dir = os.path.join(os.getcwd(), "uploads", "audio_cache")
+    cache_dir = os.path.join(os.getcwd(), "data", "uploads", "audio_cache")
     os.makedirs(cache_dir, exist_ok=True)
     cache_path = os.path.join(cache_dir, f"{cache_id}.wav")
 
     if os.path.exists(cache_path):
         return cache_path
 
-    if preset.startswith("uploads/") or preset.endswith(".wav") or preset.endswith(".mp3"):
+    if preset.startswith("data/uploads/") or preset.startswith("uploads/") or preset.endswith(".wav") or preset.endswith(".mp3"):
         if not os.path.isabs(preset):
             ref_path = os.path.join(os.getcwd(), preset)
         else:
@@ -227,7 +227,7 @@ async def clear_audio_cache(
     清除音檔快取
     """
     import shutil
-    cache_dir = os.path.join(os.getcwd(), "uploads", "audio_cache")
+    cache_dir = os.path.join(os.getcwd(), "data", "uploads", "audio_cache")
     if os.path.exists(cache_dir):
         try:
             shutil.rmtree(cache_dir)

@@ -17,7 +17,7 @@ from app.arena.models.arena_question_pool import ArenaQuestionPoolModel, ArenaQu
 
 # 定義 public_courses 目錄的絕對或相對路徑
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
-COURSES_DIR = BASE_DIR / "public_courses"
+COURSES_DIR = BASE_DIR / "data" / "official_courses"
 
 SYSTEM_EMAIL = "public@learn8.system"
 SYSTEM_NAME = "Learn8 Public"

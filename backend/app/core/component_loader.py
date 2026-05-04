@@ -5,7 +5,7 @@ from typing import Dict, Any, List, Optional
 
 # 定義 game_modules 目錄的絕對或相對路徑
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
-MODULES_DIR = BASE_DIR / "game_modules"
+MODULES_DIR = BASE_DIR / "data" / "game_modules"
 
 
 class ComponentRegistryLoader:

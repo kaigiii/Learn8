@@ -47,7 +47,7 @@ EMAIL_RE = re.compile(r"^[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}$", re.IGNORECAS
 AVATAR_FILENAME_RE = re.compile(r"^[^/\\\x00]+\.png$")
 MAX_AVATAR_UPLOAD_BYTES = 20 * 1024 * 1024
 BACKEND_ROOT_DIR = Path(__file__).resolve().parents[4]
-AVATAR_IMAGE_DIR = BACKEND_ROOT_DIR / "uploads" / "avatar"
+AVATAR_IMAGE_DIR = BACKEND_ROOT_DIR / "data" / "uploads" / "avatar"
 DEFAULT_AVATAR_PATH = BACKEND_ROOT_DIR.parent / "frontend" / "public" / "avatar" / "chicken.png"
 
 

@@ -6,7 +6,7 @@ from app.services.commons.activity_logger import activity_logger
 
 class FileService:
     def get_upload_dir(self, user_id: int, course_folder: str = None) -> str:
-        base_path = os.path.join(os.getcwd(), "uploads", str(user_id))
+        base_path = os.path.join(os.getcwd(), "data", "uploads", str(user_id))
         if course_folder:
             base_path = os.path.join(base_path, course_folder)
         return base_path
