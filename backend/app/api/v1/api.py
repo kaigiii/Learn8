@@ -7,6 +7,9 @@ from app.api.v1.endpoints import (
     jobs,
     audio,
     social,
+    custom_courses,
+    social_sharing,
+    chat,
 )
 from app.arena.api import arena, arena_admin, arena_rank
 
@@ -21,5 +24,7 @@ api_router.include_router(lessons.router, prefix="/lessons", tags=["lessons"])
 api_router.include_router(jobs.router, prefix="/jobs", tags=["jobs"])
 api_router.include_router(audio.router, prefix="/audio", tags=["audio"])
 api_router.include_router(social.router, prefix="/social", tags=["social"])
-
+api_router.include_router(social_sharing.router, prefix="/social/sharing", tags=["social-sharing"])
+api_router.include_router(chat.router, prefix="/social/chat", tags=["chat"])
+api_router.include_router(custom_courses.router, prefix="/custom-courses", tags=["custom-courses"])
 

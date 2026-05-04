@@ -65,6 +65,7 @@ def get_courses(
             "topic": c.topic,
             "status": c.status,
             "draft_json": c.draft_json,
+            "syllabus_json": c.syllabus_json,
             "folder_name": c.folder_name,
             "created_at": c.created_at,
         }
@@ -193,12 +194,16 @@ def get_course_detail(
         for node in unit.nodes:
             node.hasGeneratedLesson = node.id in generated_node_ids
 
-    # Patch for public courses: dynamically update status based on current_user's completions
+    # Patch for public and custom courses: dynamically update status based on current_user's completions
     system_user = db.query(UserModel).filter(UserModel.email == SYSTEM_USER_EMAIL).first()
-    if system_user and course.user_id == system_user.id:
-        path.isPublic = True
-        # For public courses, the nodes in syllabus_json don't have statuses
-        # We must map current_user's completions
+    is_custom = course and system_user and course.user_id != system_user.id
+    if is_custom:
+        path.isCustom = True
+
+    if (system_user and course.user_id == system_user.id) or is_custom:
+        if system_user and course.user_id == system_user.id:
+            path.isPublic = True
+
         completed_node_ids = {
             row[0]
             for row in db.query(LessonSessionModel.node_id)
@@ -219,10 +224,8 @@ def get_course_detail(
             if node.id in completed_node_ids:
                 node.status = NodeStatus.COMPLETED
             elif i == 0:
-                # First node is always available if not completed
                 node.status = NodeStatus.AVAILABLE
             elif all_nodes_flat[i - 1].id in completed_node_ids:
-                # Node is available if previous node is completed
                 node.status = NodeStatus.AVAILABLE
             else:
                 node.status = NodeStatus.LOCKED

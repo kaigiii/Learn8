@@ -4,6 +4,8 @@ from app.models.friend import FriendModel
 from app.models.group import GroupModel, GroupMemberModel
 from app.models.password_reset import PasswordResetTokenModel
 from app.models.public_course import PublicCourseModel
+from app.models.group_course import GroupCourseModel
+from app.models.chat_message import ChatMessageModel
 from app.arena.models.arena_question_pool import ArenaQuestionPoolItemModel, ArenaQuestionPoolModel
 from app.models.course import CourseModel, NodeModel
 from app.models.course_media_asset import CourseMediaAssetModel

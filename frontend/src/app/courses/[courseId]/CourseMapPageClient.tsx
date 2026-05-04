@@ -99,7 +99,7 @@ export default function CourseMapPageClient({
 
   const selectedNode =
     nodes.find((node) => node.id === selectedNodeId) ?? null;
-  const showAssistantPanel = Boolean(coursePath && !coursePath.isPublic);
+  const showAssistantPanel = Boolean(coursePath && !coursePath.isPublic && !coursePath.isCustom);
 
   if (!isBackendCourse) {
     return null;

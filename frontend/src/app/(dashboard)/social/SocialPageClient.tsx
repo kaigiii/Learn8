@@ -7,6 +7,7 @@ import { apiFetch } from "@/lib/apiClient";
 import { useAuthStore } from "@/stores/app/useAuthStore";
 import TopStatsBar from "@/components/layout/TopStatsBar";
 import DeepGlassCard from "@/components/ui/DeepGlassCard";
+import ChatroomPanel from "./components/ChatroomPanel";
 
 interface Friend {
   friend_record_id: number;
@@ -52,6 +53,7 @@ export default function SocialPageClient() {
   const token = useAuthStore((s) => s.token);
   const authUser = useAuthStore((s) => s.user);
   const [activeTab, setActiveTab] = useState<"friends" | "groups">("friends");
+  const [activeChat, setActiveChat] = useState<{ id: number; type: "friend" | "group"; title: string } | null>(null);
 
   // Friends & Invites State
   const [friends, setFriends] = useState<Friend[]>([]);
@@ -69,6 +71,7 @@ export default function SocialPageClient() {
   const [groupName, setGroupName] = useState("");
   const [groupDesc, setGroupDesc] = useState("");
   const [inviteCode, setInviteCode] = useState("");
+  const [groupActiveMatches, setGroupActiveMatches] = useState<Record<number, any[]>>({});
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
@@ -89,6 +92,15 @@ export default function SocialPageClient() {
     try {
       const data = await apiFetch<Group[]>("/social/groups");
       setGroups(data || []);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const loadGroupMatches = async (groupId: number) => {
+    try {
+      const data = await apiFetch<any[]>(`/social/sharing/groups/${groupId}/active-matches`);
+      setGroupActiveMatches(prev => ({ ...prev, [groupId]: data || [] }));
     } catch (err) {
       console.error(err);
     }
@@ -123,6 +135,12 @@ export default function SocialPageClient() {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [token]);
+
+  useEffect(() => {
+    if (activeChat?.type === "group" && activeChat.id) {
+      loadGroupMatches(activeChat.id);
+    }
+  }, [activeChat]);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -247,31 +265,8 @@ export default function SocialPageClient() {
     }
   };
 
-  const handleRemoveGroupMember = async (groupId: number, userId: number) => {
-    if (!confirm("Are you sure you want to remove this member from the group?")) return;
-    try {
-      setMessage(null);
-      await apiFetch<any>(`/social/groups/${groupId}/members/${userId}`, {
-        method: "DELETE",
-      });
-      setMessage({ text: "Member removed from group successfully", type: "success" });
-      loadGroupsData();
-    } catch (err: any) {
-      setMessage({ text: err.detail || "Failed to remove member", type: "error" });
-    }
-  };
-
-  const handleCopyCode = (code: string) => {
-    navigator.clipboard.writeText(code);
-    alert(`Invite code ${code} copied to clipboard!`);
-  };
-
-  const handleInviteToArena = () => {
-    router.push("/multiplayer");
-  };
-
   return (
-    <div className="relative min-h-screen app-shared-bg pb-20">
+    <div className="min-h-screen app-shared-bg overflow-auto pb-20 relative">
       <TopStatsBar
         pageTitle="Social Hub"
         backHref="/home"
@@ -294,212 +289,86 @@ export default function SocialPageClient() {
         ]}
       />
 
-      <div className="relative z-10 mx-auto max-w-[1140px] px-4 py-8">
-        {/* Header tabs */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-          <div>
-            <h1 className="font-heading text-4xl font-extrabold text-brand-gray-700">Social Center</h1>
-            <p className="mt-1 text-sm text-brand-gray-500">Connect with friends, manage groups, and prepare for competitive matches together.</p>
+      <div className="mx-auto max-w-6xl w-full px-4 py-8 relative z-10 animate-fade-in">
+        <div className="flex h-[620px] border border-white/40 bg-white/40 backdrop-blur-md rounded-2xl overflow-hidden shadow-xl">
+          {/* Left Sidebar - Contacts & Groups */}
+          <div className="w-full md:w-[410px] flex flex-col border-r border-white/20 bg-white/40 backdrop-blur-md">
+          {/* Header & Tabs */}
+          <div className="p-4 border-b border-white/20">
+            <h1 className="font-heading text-2xl font-extrabold text-brand-gray-700 mb-4 tracking-tight">Contacts</h1>
+            <div className="flex rounded-xl border border-white/80 bg-white/60 p-1 shadow-sm">
+              <button
+                onClick={() => { setActiveTab("friends"); setActiveChat(null); }}
+                className={`flex-1 rounded-lg py-2 text-sm font-bold tracking-wide transition duration-150 ${
+                  activeTab === "friends"
+                    ? "bg-brand-teal text-white shadow"
+                    : "text-brand-gray-600 hover:text-brand-teal"
+                }`}
+              >
+                👥 Friends
+              </button>
+              <button
+                onClick={() => { setActiveTab("groups"); setActiveChat(null); }}
+                className={`flex-1 rounded-lg py-2 text-sm font-bold tracking-wide transition duration-150 ${
+                  activeTab === "groups"
+                    ? "bg-brand-teal text-white shadow"
+                    : "text-brand-gray-600 hover:text-brand-teal"
+                }`}
+              >
+                🏢 Groups
+              </button>
+            </div>
           </div>
-          <div className="inline-flex rounded-2xl border border-white/80 bg-white/40 p-1 shadow-sm backdrop-blur">
-            <button
-              onClick={() => setActiveTab("friends")}
-              className={`rounded-xl px-5 py-2.5 text-sm font-bold tracking-wide transition ${
-                activeTab === "friends"
-                  ? "bg-brand-teal text-white shadow"
-                  : "text-brand-gray-600 hover:text-brand-teal"
-              }`}
-            >
-              👥 Friends
-            </button>
-            <button
-              onClick={() => setActiveTab("groups")}
-              className={`rounded-xl px-5 py-2.5 text-sm font-bold tracking-wide transition ${
-                activeTab === "groups"
-                  ? "bg-brand-teal text-white shadow"
-                  : "text-brand-gray-600 hover:text-brand-teal"
-              }`}
-            >
-              🏢 Groups
-            </button>
-          </div>
-        </div>
 
-        {/* Global Notifications */}
-        {message && (
-          <div
-            className={`mb-6 rounded-2xl border px-4 py-3.5 text-sm font-medium shadow-sm transition-all duration-300 ${
-              message.type === "success"
-                ? "border-emerald-200 bg-emerald-50/85 text-emerald-700"
-                : "border-rose-200 bg-rose-50/85 text-rose-700"
-            }`}
-          >
-            {message.type === "success" ? "✨ " : "⚠️ "}
-            {message.text}
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {activeTab === "friends" ? (
-            <>
-              {/* Friends Main View */}
-              <div className="lg:col-span-2 space-y-6">
-                <DeepGlassCard className="p-6 border border-white/70 bg-white/78 shadow-sm">
-                  <h2 className="font-heading text-2xl font-extrabold text-brand-gray-700 mb-4">My Friends</h2>
-                  {friends.length === 0 ? (
-                    <div className="text-center py-10 text-brand-gray-400 text-sm">
-                      No friends yet. Add friends using their email to start challenges!
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {friends.map((friend) => (
-                        <div
-                          key={friend.id}
-                          className="rounded-2xl border border-white/60 bg-white/70 hover:bg-white/90 p-4 flex items-center justify-between shadow-sm transition"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="relative w-12 h-12 flex-none rounded-full bg-brand-gray-50 flex items-center justify-center text-xl overflow-hidden border border-brand-gray-200">
-                              {friend.avatar_url ? (
-                                <Image
-                                  src={friend.avatar_url}
-                                  alt="Friend avatar"
-                                  fill
-                                  sizes="48px"
-                                  className="object-cover"
-                                />
-                              ) : (
-                                "👤"
-                              )}
-                            </div>
-                            <div>
-                              <p className="font-heading font-extrabold text-brand-gray-700 flex items-center gap-1.5 flex-wrap">
-                                {friend.full_name || friend.email.split("@")[0]}
-                                {friend.is_online ? (
-                                  <span className="flex items-center gap-1 bg-emerald-50 text-emerald-600 border border-emerald-200/50 px-1.5 py-0.5 rounded-lg text-[10px] font-bold animate-pulse leading-none flex-none select-none">
-                                    <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
-                                    Online
-                                  </span>
-                                ) : (
-                                  <span className="flex items-center gap-1 bg-gray-50 text-gray-400 border border-gray-200/50 px-1.5 py-0.5 rounded-lg text-[10px] font-bold leading-none flex-none select-none">
-                                    <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
-                                    Offline
-                                  </span>
-                                )}
-                              </p>
-                              <p className="text-xs text-brand-gray-500 truncate max-w-[140px]">{friend.email}</p>
-                              <p className="text-xs text-brand-teal font-bold mt-0.5">
-                                ⭐ {friend.rating} • {friend.tier}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={handleInviteToArena}
-                              title="Invite to Arena"
-                              className="w-10 h-10 flex items-center justify-center rounded-xl bg-gradient-to-tr from-brand-teal/10 to-brand-teal/20 border border-brand-teal/30 hover:from-brand-teal hover:to-brand-teal/80 text-brand-teal hover:text-white transition shadow-sm"
-                            >
-                              ⚔️
-                            </button>
-                            <button
-                              onClick={() => handleDeleteFriend(friend.id)}
-                              title="Remove friend"
-                              className="w-10 h-10 flex items-center justify-center rounded-xl bg-gradient-to-tr from-rose-50 to-rose-100/60 border border-rose-200 hover:from-rose-500 hover:to-rose-600 hover:border-rose-600 text-rose-500 hover:text-white transition shadow-sm"
-                            >
-                              🗑️
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </DeepGlassCard>
-
-                {receivedInvites.length > 0 && (
-                  <DeepGlassCard className="p-6 border border-white/70 bg-white/78 shadow-sm">
-                    <h2 className="font-heading text-2xl font-extrabold text-brand-gray-700 mb-4">Pending Invitations</h2>
-                    <div className="space-y-3">
-                      {receivedInvites.map((invite) => (
-                        <div
-                          key={invite.id}
-                          className="rounded-2xl border border-white/60 bg-white/70 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm"
-                        >
-                          <div>
-                            <p className="font-heading font-extrabold text-brand-gray-700">
-                              {invite.full_name || invite.email.split("@")[0]}
-                            </p>
-                            <p className="text-xs text-brand-gray-500">{invite.email}</p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => handleRespondInvite(invite.id, "accept")}
-                              className="px-4 py-2 text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl transition shadow-sm"
-                            >
-                              Accept
-                            </button>
-                            <button
-                              onClick={() => handleRespondInvite(invite.id, "reject")}
-                              className="px-4 py-2 text-xs font-bold bg-white border border-brand-gray-200 hover:bg-brand-gray-50 text-brand-gray-600 rounded-xl transition shadow-sm"
-                            >
-                              Reject
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </DeepGlassCard>
-                )}
+          {/* Global Notifications */}
+          {message && (
+            <div className="px-4 pt-4">
+              <div
+                className={`rounded-xl border px-4 py-3 text-sm font-medium shadow-sm transition-all duration-300 animate-fade-in ${
+                  message.type === "success"
+                    ? "border-emerald-200 bg-emerald-50/85 text-emerald-700"
+                    : "border-rose-200 bg-rose-50/85 text-rose-700"
+                }`}
+              >
+                {message.type === "success" ? "✨ " : "⚠️ "}
+                {message.text}
               </div>
+            </div>
+          )}
 
-              {/* Find/Add Friend Sidebar */}
-              <div className="space-y-6">
-                <DeepGlassCard className="p-5 border border-white/70 bg-white/78 shadow-sm">
-                  <div className="flex items-center justify-between gap-2 mb-3">
-                    <h3 className="font-heading text-xl font-extrabold text-brand-gray-700">Add Friend</h3>
-                    {authUser?.id && (
-                      <span className="bg-brand-teal/5 text-brand-teal border border-brand-teal/20 px-2 py-0.5 rounded-lg text-xs font-bold font-mono">
-                        UID: #{authUser.id}
-                      </span>
-                    )}
-                  </div>
-                  <form onSubmit={handleSearch} className="space-y-3">
-                    <div>
-                      <input
-                        type="text"
-                        placeholder="Search by ID, name or email..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full rounded-xl border border-white/80 bg-white/75 px-4 py-3 text-sm focus:outline-none focus:border-brand-teal focus:ring-1 focus:ring-brand-teal transition shadow-sm"
-                      />
-                    </div>
+          {/* Lists Content (Scrollable) */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-6">
+            {activeTab === "friends" ? (
+              <>
+                {/* Search / Add Friend Section */}
+                <div className="space-y-3">
+                  <form onSubmit={handleSearch} className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Add friend by email..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full rounded-xl border border-white/80 bg-white/75 px-4 py-2.5 text-sm focus:outline-none focus:border-brand-teal focus:ring-1 focus:ring-brand-teal transition shadow-sm"
+                    />
                     <button
                       type="submit"
                       disabled={searchLoading}
-                      className="w-full rounded-xl bg-brand-teal px-4 py-3 text-sm font-bold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-55 shadow-sm"
+                      className="rounded-xl bg-brand-teal px-4 py-2.5 text-sm font-bold text-white transition hover:bg-brand-teal/90 disabled:opacity-55 shadow-sm whitespace-nowrap"
                     >
-                      {searchLoading ? "Searching..." : "Search Users"}
+                      {searchLoading ? "..." : "Search"}
                     </button>
                   </form>
-
                   {searchResults.length > 0 && (
-                    <div className="mt-4 space-y-2 border-t border-brand-gray-100 pt-4 max-h-[220px] overflow-y-auto">
+                    <div className="space-y-2 max-h-[160px] overflow-y-auto">
                       {searchResults.map((user) => (
-                        <div
-                          key={user.id}
-                          className="rounded-xl border border-white/60 bg-white/70 p-3 flex items-center justify-between gap-2 shadow-sm"
-                        >
+                        <div key={user.id} className="rounded-xl border border-white/60 bg-white/70 p-2 flex items-center justify-between gap-2 shadow-sm animate-fade-in">
                           <div className="min-w-0">
-                            <p className="text-sm font-bold text-brand-gray-700 truncate">
-                              {user.full_name || user.email.split("@")[0]}
-                              <span className="ml-1.5 bg-brand-teal/5 text-brand-teal px-1.5 py-0.5 rounded text-[10px] font-mono border border-brand-teal/15">
-                                UID #{user.id}
-                              </span>
-                            </p>
-                            <p className="text-xs text-brand-gray-400 truncate">{user.email}</p>
+                            <p className="text-xs font-bold text-brand-gray-700 truncate">{user.full_name || user.email.split("@")[0]}</p>
+                            <p className="text-[10px] text-brand-gray-400 truncate">{user.email}</p>
                           </div>
                           <button
                             onClick={() => handleSendInvite(user.id)}
-                            className="flex-none px-3 py-1.5 bg-brand-teal/10 hover:bg-brand-teal text-brand-teal hover:text-white rounded-xl text-xs font-bold transition border border-brand-teal/20"
+                            className="px-2 py-1 bg-brand-teal/10 text-brand-teal rounded-lg text-xs font-bold transition border border-brand-teal/20"
                           >
                             Add
                           </button>
@@ -507,203 +376,194 @@ export default function SocialPageClient() {
                       ))}
                     </div>
                   )}
-                </DeepGlassCard>
+                </div>
 
-                {sentInvites.length > 0 && (
-                  <DeepGlassCard className="p-5 border border-white/70 bg-white/78 shadow-sm">
-                    <h3 className="font-heading text-xl font-extrabold text-brand-gray-700 mb-3">Sent Requests</h3>
-                    <div className="space-y-2 max-h-[240px] overflow-y-auto">
-                      {sentInvites.map((invite) => (
-                        <div
-                          key={invite.id}
-                          className="rounded-xl border border-white/60 bg-white/70 p-3 flex items-center justify-between gap-2 shadow-sm"
-                        >
-                          <div className="min-w-0">
-                            <p className="text-sm font-bold text-brand-gray-700 truncate">
-                              {invite.full_name || invite.email.split("@")[0]}
-                            </p>
-                            <p className="text-xs text-brand-gray-400 truncate">{invite.email}</p>
+                {/* Pending Invites */}
+                {receivedInvites.length > 0 && (
+                  <div className="animate-fade-in">
+                    <h3 className="text-xs font-extrabold uppercase tracking-widest text-brand-gray-400 mb-2">Pending Invites</h3>
+                    <div className="space-y-2">
+                      {receivedInvites.map((invite) => (
+                        <div key={invite.id} className="rounded-xl border border-amber-200/50 bg-amber-50/50 p-2 shadow-sm">
+                          <p className="text-sm font-bold text-brand-gray-700 truncate">{invite.full_name || invite.email.split("@")[0]}</p>
+                          <div className="flex gap-2 mt-2">
+                            <button onClick={() => handleRespondInvite(invite.id, "accept")} className="flex-1 py-1.5 text-xs font-bold bg-emerald-500 text-white rounded-lg">Accept</button>
+                            <button onClick={() => handleRespondInvite(invite.id, "reject")} className="flex-1 py-1.5 text-xs font-bold bg-white text-brand-gray-600 rounded-lg border">Reject</button>
                           </div>
-                          <span className="flex-none px-2.5 py-1 bg-amber-50 text-amber-600 border border-amber-200/50 rounded-xl text-xs font-bold">
-                            Pending
-                          </span>
                         </div>
                       ))}
                     </div>
-                  </DeepGlassCard>
+                  </div>
                 )}
-              </div>
-            </>
-          ) : (
-            <>
-              {/* Groups Main View */}
-              <div className="lg:col-span-2 space-y-6">
-                <DeepGlassCard className="p-6 border border-white/70 bg-white/78 shadow-sm">
-                  <h2 className="font-heading text-2xl font-extrabold text-brand-gray-700 mb-4">My Groups</h2>
-                  {groups.length === 0 ? (
-                    <div className="text-center py-10 text-brand-gray-400 text-sm">
-                      No groups yet. Create a group or use an invite code to join one.
-                    </div>
-                  ) : (
-                    <div className="space-y-6">
-                      {groups.map((group) => (
-                        <div
-                          key={group.id}
-                          className="rounded-2xl border border-white/60 bg-white/70 hover:bg-white/90 p-5 shadow-sm transition space-y-4"
-                        >
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-2xl leading-none">🏢</span>
-                                <h3 className="font-heading text-xl font-extrabold text-brand-gray-700">{group.name}</h3>
-                              </div>
-                              {group.description && <p className="text-sm text-brand-gray-500 mt-1">{group.description}</p>}
-                              <div className="flex items-center gap-2 text-xs font-bold text-brand-teal mt-1">
-                                <span>Invite Code:</span>
-                                <span className="font-mono bg-brand-teal/5 border border-brand-teal/20 px-1.5 py-0.5 rounded tracking-wide select-all">
-                                  {group.invite_code}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => handleCopyCode(group.invite_code)}
-                                  className="text-[10px] bg-white border border-brand-teal/30 hover:bg-brand-teal/5 text-brand-teal px-1.5 py-1 rounded-lg transition shadow-sm uppercase tracking-wide font-extrabold"
-                                >
-                                  📋 Copy
-                                </button>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {group.is_owner ? (
-                                <button
-                                  onClick={() => handleDeleteGroup(group.id)}
-                                  className="px-3 py-2 text-xs font-bold bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 hover:border-rose-300 rounded-xl transition shadow-sm"
-                                >
-                                  Disband
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={() => handleLeaveGroup(group.id)}
-                                  className="px-3 py-2 text-xs font-bold bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 hover:border-rose-300 rounded-xl transition shadow-sm"
-                                >
-                                  Leave
-                                </button>
-                              )}
-                            </div>
-                          </div>
 
-                          <div className="border-t border-white/60 pt-3">
-                            <p className="text-xs font-extrabold uppercase tracking-wider text-brand-gray-400 mb-2">Group Leaderboard</p>
-                            <div className="space-y-1.5">
-                              {group.members.map((member, index) => (
-                                <div
-                                  key={member.id}
-                                  className={`rounded-xl border px-3 py-2 flex items-center justify-between gap-3 transition ${
-                                    index === 0
-                                      ? "bg-gradient-to-r from-amber-50/70 to-white/70 border-amber-200"
-                                      : "bg-white/60 border-white/65"
-                                  }`}
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs font-bold w-4 flex-none text-brand-gray-400">
-                                      {index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `${index + 1}`}
-                                    </span>
-                                    <div>
-                                      <p className="text-sm font-bold text-brand-gray-700 flex items-center gap-1.5">
-                                        {member.full_name || member.email.split("@")[0]}
-                                        {member.is_admin && (
-                                          <span className="bg-amber-100 text-amber-700 border border-amber-200 text-[10px] px-1.5 py-0.5 rounded-lg font-bold flex items-center gap-0.5">
-                                            👑 Admin
-                                          </span>
-                                        )}
-                                      </p>
-                                      <p className="text-xs text-brand-gray-400 truncate max-w-[150px]">{member.email}</p>
-                                    </div>
-                                  </div>
-                                  <div className="text-right flex-none flex items-center gap-3">
-                                    <div>
-                                      <p className="text-sm font-bold text-brand-teal">⭐ {member.rating}</p>
-                                      <p className="text-xs text-brand-gray-400">{member.tier}</p>
-                                    </div>
-                                    {group.is_owner && member.id !== authUser?.id && (
-                                      <button
-                                        onClick={() => handleRemoveGroupMember(group.id, member.id)}
-                                        title="Remove member from group"
-                                        className="w-8 h-8 flex items-center justify-center rounded-xl bg-white hover:bg-rose-50 text-rose-500 border border-rose-200 hover:border-rose-300 transition shadow-sm"
-                                      >
-                                        🗑️
-                                      </button>
-                                    )}
-                                  </div>
-                                </div>
-                              ))}
+                {/* Friends List */}
+                <div>
+                  <h3 className="text-xs font-extrabold uppercase tracking-widest text-brand-gray-400 mb-2">My Friends</h3>
+                  {friends.length === 0 ? (
+                    <div className="text-center py-6 text-brand-gray-400 text-sm">No friends yet.</div>
+                  ) : (
+                    <div className="space-y-2">
+                      {friends.map((friend) => (
+                        <div
+                          key={friend.id}
+                          onClick={() => setActiveChat({ id: friend.id, type: "friend", title: friend.full_name || friend.email.split("@")[0] })}
+                          className={`group cursor-pointer rounded-xl border p-3 flex items-center justify-between shadow-sm transition ${
+                            activeChat?.id === friend.id && activeChat?.type === "friend"
+                              ? "bg-brand-teal/10 border-brand-teal/30"
+                              : "border-white/60 bg-white/70 hover:bg-white/90"
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="relative w-10 h-10 flex-none rounded-full bg-brand-gray-50 flex items-center justify-center overflow-hidden border border-brand-gray-200">
+                              {friend.avatar_url ? (
+                                <Image src={friend.avatar_url} alt="Avatar" fill sizes="40px" className="object-cover" />
+                              ) : "👤"}
+                              {friend.is_online && <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-full border border-white"></div>}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-heading font-bold text-brand-gray-700 truncate text-sm">
+                                {friend.full_name || friend.email.split("@")[0]}
+                              </p>
+                              <p className="text-[10px] text-brand-gray-400 truncate">{friend.email}</p>
                             </div>
                           </div>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDeleteFriend(friend.id); }}
+                            className="opacity-0 group-hover:opacity-100 p-1.5 text-rose-400 hover:bg-rose-50 rounded-lg transition shrink-0"
+                          >
+                            🗑️
+                          </button>
                         </div>
                       ))}
                     </div>
                   )}
-                </DeepGlassCard>
-              </div>
-
-              {/* Manage Groups Sidebar */}
-              <div className="space-y-6">
-                <DeepGlassCard className="p-5 border border-white/70 bg-white/78 shadow-sm">
-                  <h3 className="font-heading text-xl font-extrabold text-brand-gray-700 mb-3">Create Group</h3>
-                  <form onSubmit={handleCreateGroup} className="space-y-3">
-                    <div>
-                      <input
-                        type="text"
-                        placeholder="Group Name (e.g. My Study Group)..."
-                        value={groupName}
-                        onChange={(e) => setGroupName(e.target.value)}
-                        className="w-full rounded-xl border border-white/80 bg-white/75 px-4 py-3 text-sm focus:outline-none focus:border-brand-teal focus:ring-1 focus:ring-brand-teal transition shadow-sm"
-                      />
-                    </div>
-                    <div>
-                      <input
-                        type="text"
-                        placeholder="Group Description (Optional)..."
-                        value={groupDesc}
-                        onChange={(e) => setGroupDesc(e.target.value)}
-                        className="w-full rounded-xl border border-white/80 bg-white/75 px-4 py-3 text-sm focus:outline-none focus:border-brand-teal focus:ring-1 focus:ring-brand-teal transition shadow-sm"
-                      />
-                    </div>
-                    <button
-                      type="submit"
-                      disabled={!groupName.trim()}
-                      className="w-full rounded-xl bg-brand-teal px-4 py-3 text-sm font-bold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-55 shadow-sm"
-                    >
-                      Create
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Groups Tab Content */}
+                <div className="space-y-4">
+                  {/* Create / Join Group Forms */}
+                  <form onSubmit={handleJoinGroup} className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Join via Invite Code..."
+                      value={inviteCode}
+                      onChange={(e) => setInviteCode(e.target.value)}
+                      className="w-full rounded-xl border border-white/80 bg-white/75 px-4 py-2.5 text-sm uppercase focus:outline-none focus:border-brand-teal shadow-sm"
+                    />
+                    <button type="submit" disabled={!inviteCode.trim()} className="rounded-xl bg-brand-teal px-4 py-2.5 text-sm font-bold text-white shadow-sm disabled:opacity-50 hover:bg-brand-teal/90 transition">Join</button>
+                  </form>
+                  
+                  <form onSubmit={handleCreateGroup} className="space-y-2">
+                    <input
+                      type="text"
+                      placeholder="New Group Name..."
+                      value={groupName}
+                      onChange={(e) => setGroupName(e.target.value)}
+                      className="w-full rounded-xl border border-white/80 bg-white/75 px-4 py-2.5 text-sm focus:outline-none focus:border-brand-teal shadow-sm"
+                    />
+                    <button type="submit" disabled={!groupName.trim()} className="w-full rounded-xl border-2 border-dashed border-brand-teal/40 bg-brand-teal/5 text-brand-teal py-2 text-sm font-bold shadow-sm disabled:opacity-50 hover:bg-brand-teal/10 hover:border-brand-teal/60 transition">
+                      + Create Group
                     </button>
                   </form>
-                </DeepGlassCard>
+                </div>
 
-                <DeepGlassCard className="p-5 border border-white/70 bg-white/78 shadow-sm">
-                  <h3 className="font-heading text-xl font-extrabold text-brand-gray-700 mb-3">Join Group</h3>
-                  <form onSubmit={handleJoinGroup} className="space-y-3">
-                    <div>
-                      <input
-                        type="text"
-                        placeholder="Group Invite Code..."
-                        value={inviteCode}
-                        onChange={(e) => setInviteCode(e.target.value)}
-                        className="w-full rounded-xl border border-white/80 bg-white/75 px-4 py-3 text-sm uppercase focus:outline-none focus:border-brand-teal focus:ring-1 focus:ring-brand-teal transition shadow-sm"
-                      />
+                {/* Groups List */}
+                <div className="mt-6">
+                  <h3 className="text-xs font-extrabold uppercase tracking-widest text-brand-gray-400 mb-2">My Groups</h3>
+                  {groups.length === 0 ? (
+                    <div className="text-center py-6 text-brand-gray-400 text-sm">No groups yet.</div>
+                  ) : (
+                    <div className="space-y-3">
+                      {groups.map((group) => (
+                        <div
+                          key={group.id}
+                          className={`rounded-xl border shadow-sm transition overflow-hidden flex flex-col ${
+                            activeChat?.id === group.id && activeChat?.type === "group"
+                              ? "bg-brand-teal/5 border-brand-teal/30 ring-1 ring-brand-teal/10"
+                              : "border-white/60 bg-white/70 hover:bg-white/90"
+                          }`}
+                        >
+                          <div 
+                            className="p-3 cursor-pointer flex items-center justify-between"
+                            onClick={() => setActiveChat({ id: group.id, type: "group", title: group.name })}
+                          >
+                            <div className="flex items-center gap-3">
+                              <span className="text-2xl">🏢</span>
+                              <div>
+                                <p className="font-heading font-bold text-brand-gray-700 text-sm">{group.name}</p>
+                                <p className="text-xs text-brand-gray-500">{group.members.length} members</p>
+                              </div>
+                            </div>
+                          </div>
+                          {activeChat?.id === group.id && activeChat?.type === "group" && (
+                            <div className="px-3 pb-3 border-t border-brand-teal/10 pt-2 flex flex-col gap-2 bg-white/40">
+                              <div className="flex items-center justify-between">
+                                <div className="text-[10px] text-brand-teal font-mono tracking-wider font-bold">
+                                  Code: {group.invite_code}
+                                </div>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); group.is_owner ? handleDeleteGroup(group.id) : handleLeaveGroup(group.id); }}
+                                  className="text-[10px] text-rose-500 hover:underline font-bold"
+                                >
+                                  {group.is_owner ? "Disband Group" : "Leave Group"}
+                                </button>
+                              </div>
+
+                              {groupActiveMatches[group.id] && groupActiveMatches[group.id].length > 0 && (
+                                <div className="border-t border-brand-gray-100/50 mt-1 pt-2 space-y-1.5 animate-fade-in">
+                                  <p className="text-[10px] font-extrabold text-brand-gray-500 uppercase tracking-wider">🔥 Active Matches</p>
+                                  {groupActiveMatches[group.id].map((m: any) => (
+                                    <div key={m.match_id} className="flex items-center justify-between bg-white/60 p-2 rounded-xl border border-brand-teal/20 shadow-sm animate-fade-in">
+                                      <div className="min-w-0">
+                                        <p className="text-xs font-bold text-brand-gray-700 truncate">Match #{m.match_id} • {m.mode}</p>
+                                        <p className="text-[10px] text-brand-gray-400">Players: {m.players.join(", ")}</p>
+                                      </div>
+                                      <button 
+                                        onClick={() => router.push(`/arena/matches/${m.match_id}`)}
+                                        className="text-[10px] font-bold bg-brand-teal text-white px-2 py-1 rounded-lg hover:bg-brand-teal/90 transition shadow shrink-0"
+                                      >
+                                        ⚔️ Join
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))}
                     </div>
-                    <button
-                      type="submit"
-                      disabled={!inviteCode.trim()}
-                      className="w-full rounded-xl bg-brand-teal px-4 py-3 text-sm font-bold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-55 shadow-sm"
-                    >
-                      Join
-                    </button>
-                  </form>
-                </DeepGlassCard>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Right Area - Chat Room */}
+        <div className="flex-1 flex flex-col bg-white/20 backdrop-blur-sm">
+          {activeChat ? (
+            <ChatroomPanel 
+              chatId={activeChat.id} 
+              type={activeChat.type} 
+              title={activeChat.title} 
+              groupMembers={activeChat.type === "group" ? groups.find(g => g.id === activeChat.id)?.members : undefined}
+              friendInfo={activeChat.type === "friend" ? friends.find(f => f.id === activeChat.id) : undefined}
+            />
+          ) : (
+            <div className="flex-1 flex items-center justify-center animate-fade-in">
+              <div className="text-center">
+                <div className="text-6xl mb-4 opacity-50 drop-shadow-md select-none">💬</div>
+                <h2 className="text-xl font-heading font-extrabold text-brand-gray-400">Select a chat to start messaging</h2>
+                <p className="text-sm text-brand-gray-400 mt-2 max-w-sm mx-auto">Choose a friend or group from the left sidebar to open the chatroom.</p>
               </div>
-            </>
+            </div>
           )}
         </div>
       </div>
     </div>
+  </div>
   );
 }

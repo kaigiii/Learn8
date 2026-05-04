@@ -67,6 +67,7 @@ export interface CoursePath {
   courseTitle: string;
   description?: string;
   isPublic?: boolean;
+  isCustom?: boolean;
   units: CourseUnit[];
 }
 

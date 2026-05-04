@@ -5,6 +5,7 @@ from sqlalchemy import (
     JSON,
     DateTime,
     ForeignKey,
+    Boolean,
 )
 from sqlalchemy.orm import relationship
 from app.db.base import Base
@@ -21,6 +22,7 @@ class CourseModel(Base):
     title = Column(String)
     status = Column(String, nullable=False, default=CourseStatus.DRAFT, index=True)
     folder_name = Column(String, unique=True, nullable=True)
+    is_published = Column(Boolean, default=False, nullable=False, index=True)
     profile_json = Column(JSON, nullable=True)
     draft_json = Column(JSON, nullable=True)
     syllabus_json = Column(JSON, nullable=True)
