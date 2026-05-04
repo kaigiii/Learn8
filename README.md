@@ -1,80 +1,59 @@
 # Learn8
 
-Learn8 是一個 AI 驅動的學習平台，把 `course draft -> file upload / RAG -> questionnaire -> learner profile -> syllabus -> lesson -> remedial` 串成一條完整學習流程。
+Learn8 是一個先進且完整的 **AI 驅動型學習平台**。透過大語言模型（LLM）、向量語義檢索（RAG）、多代理人大綱審核與高擬真度語音合成技術，將 `Course Draft -> File Upload / RAG -> Questionnaire -> Learner Profile -> Syllabus -> Lesson -> Remedial` 串聯成極致流暢的學習閉環！
 
-## 文件導覽
+## 核心特色與亮點
 
-如果你想快速找到不同深度的資訊，建議這樣讀：
+- **多代理人協作大綱生成 (Planner & Auditor Agents)**：不單靠單次 Prompt 生成大綱，而是透過規劃者與審核者兩大 AI 代理人多輪迭代微調，確保課程結構兼具深度與邏輯流暢度。
+- **5 大核心關卡組件**：每個主題節點強制包含 5 大精心設計的學習體驗（`ExplainerMedia`, `FeynmanMirror`, `MatchingPairs`, `MultipleChoice`, `Ordering`），並與 AI 自動考官綁定。
+- **異步 SSE Job 佇列與中斷重連**：生成任務全部異步處理，經由 PostgreSQL `LISTEN/NOTIFY` 實時推播進度。
+- **實時競技場與 Elo 天梯排行**：支援多學員 WebSocket 實時對戰搶答，並提供基於 Elo 標準的天梯積分排行榜！
+- **高擬真 VoxCPM 語音助教**：提供聲音設計、可控與極致音色克隆三大模式，隨時預建題目的精準發音快取。
 
-- 專案總覽與啟動方式：本檔 [README.md](/Users/kaigiii/Coding/Learn8/README.md)
-- 後端完整架構、lifecycle、ledger、job、測試與維運說明：[BACKEND_DOCS.md](docs/BACKEND_DOCS.md)
+## 核心學習流程
 
-推薦閱讀路徑：
-
-1. 第一次進專案：先看 `README`
-2. 要改 API / model / worker / migration：接著看 `BACKEND_DOCS`
-3. 要排查 credits / XP / job recovery：直接跳 `BACKEND_DOCS` 裡對應章節
-
-你可以把目前文件分成兩層理解：
-
-- `README`：跨前後端的產品與開發入口
-- `BACKEND_DOCS`：偏內部工程文件，細到可直接用來維護與排障
-
-## 核心流程
-
-1. 建立 draft course
-2. 上傳文件到 course scope
-3. 後端解析文件、切 chunk、寫入 Chroma
-4. 建立 questionnaire generation job
-5. 問卷答案摘要成 learner profile，寫回 course
-6. 建立 syllabus generation job，產出 course path 與 nodes
-7. 使用者進入 node，建立 lesson generation job
-8. 進入 lesson session，逐題提交答案
-9. 後端判定 `result`
-10. 若有 failed stages，進入 remedial generation
-11. remedial 完成後，lesson / node 才算真正完成
-12. (競技擴充) 使用者參與 Arena 官方主題或私人房進行即時對戰
-
-## 快速定位
-
-如果你現在是帶著具體任務進來，可以直接跳這些區塊：
-
-- 本地開發：看 `本地啟動`
-- 測試與 AI 開關：看 `docs/TESTING.md`
-- 前端分層：看 `docs/FRONTEND_ARCHITECTURE.md`
-- 後端分層：看 `docs/BACKEND_ARCHITECTURE.md`
-- AI / RAG 流程：看 `docs/AI_PIPELINE.md`
-- 內容管理 (YAML 導入)：看 `docs/PUBLIC_CONTENT_MANAGEMENT.md`
-
+1. **建立課程草稿**：學員提交想探索的主題（Topic）或自訂學習偏好。
+2. **教材文件上傳與 RAG 提取**：後端讀取 PDF/Markdown 全文，切分 Chunk 並將向量特徵寫入 ChromaDB 本地持久化資料庫。
+3. **動態探索診斷問卷**：AI 依主題與知識庫提取的 Context 生成 3 道探索型問卷。
+4. **生成學員畫像 (Learner Profile)**：分析問卷回答，摘要出專屬的學習風格與能力層次。
+5. **多代理人生成知識大綱**：`SyllabusAgent` 的 **Planner** 與 **Auditor** 進行最多 N 次的對答與修正迭代，產出完整的單元與知識地圖節點（Units & Nodes）。
+6. **關卡題目生成**：為節點生成 5 大固定的學習組件。
+7. **作答與評估**：學員進入關卡逐題提交作答，後端動態對比或透過 AI 評量費曼（Feynman）論述。
+8. **錯題補救複習 (Remedial Phase)**：若在作答中答錯，系統自動觸發背景任務，針對錯題生成補救教學關卡。
+9. **解鎖節點與發放獎勵**：通關後解鎖下一知識地圖節點，同時發放 XP 經驗值與 Credits 點數，寫入不可竄改的用戶帳本！
+10. **社群分享與競技 PK**：學員可一鍵分享、Sandbox Fork 好友課程，或在競技場（Arena）中實時搶答、挑戰全站天梯排行榜！
 ## 技術棧
 
 ### Frontend
 
-- Next.js 14
-- React 18
-- TypeScript
-- Zustand
-- Tailwind CSS 3
-- Framer Motion
+- **Next.js 14** (App Router 支援)
+- **React 18** & **React DOM**
+- **TypeScript 5**
+- **Zustand 4** (全局狀態管理)
+- **Tailwind CSS 3** & **Autoprefixer / PostCSS**
+- **Framer Motion 12** (流暢 UI 微動畫)
+- **React Easy Crop** & **React Icons**
 
 ### Backend
 
-- FastAPI
-- SQLAlchemy 2
-- Alembic
-- PostgreSQL
-- ChromaDB
-- Pydantic 2
-- LangChain / LangGraph
-- Google Gemini
-- PostgreSQL `LISTEN/NOTIFY` + SSE
+- **FastAPI** (異步高效能 Web API)
+- **SQLAlchemy 2** (大綱地圖與多資料表連動)
+- **Alembic** (資料庫無縫遷移)
+- **PostgreSQL** (`psycopg2-binary`, `asyncpg`)
+- **PostgreSQL `LISTEN/NOTIFY` + SSE** (非同步背景 Job 進度推送)
+- **Redis 5** (高併發快取層)
+- **Pydantic 2** (大綱 Schema 驗證)
+- **LangChain / LangGraph** (多代理人核心)
+- **Google Gemini** & **OpenAI LLM APIs**
+- **ChromaDB** (`langchain-chroma`) & **PyMuPDF / PyPDF** (向量語義特徵庫與文件解析)
+- **PyYAML** & **JSON Repair** (YAML 題型解析與 JSON 輸出修復)
 
 ## 先安裝什麼
 
-- `Python 3.12`
-- `Node.js 20`
+- `Python 3.12+`
+- `Node.js 20+`
 - `PostgreSQL 14+`
-- `Redis`
+- `Redis 6+`
 - (選用) `Docker` / `Docker Compose`
 
 ## 本地啟動
@@ -146,22 +125,12 @@ npm run dev
   python3.12 -m alembic upgrade head
   ```
 
-## 管理入口
-
-Arena 管理台預設路徑：`/admin/arena`
-
-目前可管理：
-- `PublicCourse` (官方主題)
-- `ArenaQuestionPool` (各主題題池)
-- `ArenaSeason` (賽季設定)
-- 玩家舉報與異常對戰審核
-
 ## 相關文件
 
-- [BACKEND_DOCS.md](BACKEND_DOCS.md)
-- `docs/QUESTION_TYPES.md`
-- `docs/TESTING.md`
-- `docs/AI_PIPELINE.md`
-- `docs/CONTENT_MANAGEMENT.md`
-- `docs/FRONTEND_ARCHITECTURE.md`
-- `docs/BACKEND_ARCHITECTURE.md`
+- [1. 題型組件管理與增刪指南](docs/active_docs/1_component_management.md)
+- [2. API 服務與 VoxCPM 微服務指南](docs/active_docs/2_api_service_guide.md)
+- [3. 個人化課程生成流與核心流程功能](docs/active_docs/3_personalization_generation.md)
+- [4. 競技場功能與對決流程](docs/active_docs/4_arena_flows.md)
+- [5. 自製與自訂課程流程指南](docs/active_docs/5_custom_courses_flows.md)
+- [6. 全站技術架構與亮點總覽](docs/active_docs/6_architecture_overview.md)
+
