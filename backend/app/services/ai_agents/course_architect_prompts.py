@@ -107,7 +107,7 @@ You must output a VALID JSON object matching this schema:
 
 ### PEDAGOGY RULES (MULTI-STAGE)
 Design an optimal **Learning Sequence** for this node.
-Decide how many stages are needed based on the complexity of the topic.
+Decide how many stages are needed based on the complexity of the topic. There is NO fixed number; you may generate 1, 3, 5, or more to ensure mastery.
 - Review the available components and choose the best sequence for explaining and practicing the topic.
 - Use simpler components for basic explanation and challenging components for synthesis.
 
@@ -123,7 +123,7 @@ Your goal is to generate a REMEDIAL PACK of LessonStage objects.
 
 ### STRATEGY
 Analyze the full set of failed stages together and create an optimal remedial sequence.
-You decide how many remedial stages are needed.
+You decide how many remedial stages are needed. There is NO fixed number; generate as many as necessary to address the learner's mistakes.
 Do not force one remedial stage per failed stage.
 Group related mistakes together when that improves pedagogy.
 
@@ -181,7 +181,7 @@ VAR_PROFILE
 
 ### STRATEGY
 Analyze the full set of failed stages together and create an optimal remedial sequence.
-You decide how many remedial stages are needed.
+You decide how many remedial stages are needed. There is NO fixed number; generate as many as necessary to address the learner's mistakes.
 Do not force one remedial stage per failed stage.
 Group related mistakes together when that improves pedagogy.
 
