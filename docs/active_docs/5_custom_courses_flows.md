@@ -22,7 +22,7 @@ Learn8 的自製課程系統具備以下卓越架構亮點：
 - **背景任務**：非同步任務會為此課程發起多單元的學習大綱規劃，寫入 `syllabus_json` 欄位。
 
 ### 2.2 無 AI 干預的直接答題體驗
-- 自建課程點擊進入關卡後，前端會直接提取大綱內已設計好的 5 個經典題型組件（`ExplainerMedia`, `FeynmanMirror`, `MatchingPairs`, `MultipleChoice`, `Ordering`），提供極致順滑的通關答題體驗。
+- 自建課程點擊進入關卡後，前端會直接提取大綱內已設計好的學習組件序列（如 `ExplainerMedia`, `MultipleChoice` 等），提供極致順滑的通關答題體驗。組件數量與類型完全取決於大綱設計，具備高度靈活性。
 
 ---
 

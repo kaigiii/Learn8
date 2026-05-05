@@ -95,9 +95,9 @@ flowchart TD
 ---
 
 ### 階段 6: Lesson Generation
-- **用途**：為單一學習節點（Node）生成包含 5 大固定組件關卡的題目內容。
+- **用途**：為單一學習節點（Node）生成包含多樣化、可自訂組件關卡的題目內容。
 - **輸入**：當前節點主題、`LessonNode` 結構、學員畫像。
-- **輸出**：包含 5 大關卡組件（`ExplainerMedia`, `FeynmanMirror`, `MatchingPairs`, `MultipleChoice`, `Ordering`）的 `LessonStage[]`。
+- **輸出**：包含動態選擇的組件（如 `ExplainerMedia`, `FeynmanMirror`, `MultipleChoice` 等）的 `LessonStage[]`。AI 會根據知識點難度自動決定組件數量與順序。
 
 ### 階段 7: Remedial Generation
 - **用途**：將同一學習階段中答錯的題型組件打包，自動為學員生成針對性的補救複習題目。
