@@ -265,14 +265,35 @@ def delete_lesson_generation_preference(
 
 def _serialize_failed_record(record: LessonFailedStageModel) -> FailedStageRecord:
     return FailedStageRecord(
-        failedStage=TypeAdapter(LessonStage).validate_python(record.stage_snapshot_json),
+        failedStage=TypeAdapter(LessonStage).validate_python(
+            _normalize_stage_snapshot(record.stage_snapshot_json)
+        ),
         userInput=record.user_input_json,
     )
 
 
+def _normalize_stage_snapshot(snapshot: dict) -> dict:
+    if not isinstance(snapshot, dict):
+        return snapshot
+    if snapshot.get("component") != "MultipleChoice":
+        return snapshot
+
+    config = snapshot.get("config") if isinstance(snapshot.get("config"), dict) else {}
+    data = config.get("data") if isinstance(config.get("data"), dict) else {}
+    if "correctOptionId" not in data:
+        fallback = data.get("correctId") or data.get("correctAnswer")
+        if fallback is not None:
+            data["correctOptionId"] = fallback
+            config["data"] = data
+            snapshot["config"] = config
+    return snapshot
+
+
 def _stage_models_to_schema(stage_models: list[LessonSessionStageModel]) -> list[LessonStage]:
     return [
-        TypeAdapter(LessonStage).validate_python(item.stage_snapshot_json)
+        TypeAdapter(LessonStage).validate_python(
+            _normalize_stage_snapshot(item.stage_snapshot_json)
+        )
         for item in stage_models
         if isinstance(item.stage_snapshot_json, dict)
     ]
@@ -280,7 +301,9 @@ def _stage_models_to_schema(stage_models: list[LessonSessionStageModel]) -> list
 
 def _lesson_stage_models_to_schema(stage_models: list[LessonStageModel]) -> list[LessonStage]:
     return [
-        TypeAdapter(LessonStage).validate_python(item.stage_snapshot_json)
+        TypeAdapter(LessonStage).validate_python(
+            _normalize_stage_snapshot(item.stage_snapshot_json)
+        )
         for item in stage_models
         if isinstance(item.stage_snapshot_json, dict)
     ]
@@ -780,7 +803,7 @@ async def generate_lesson_from_node_endpoint(
                         data = {
                             "question": comp.get("question", "Question"),
                             "options": comp.get("options", []),
-                            "correctAnswer": comp.get("correctOptionId", "")
+                            "correctOptionId": comp.get("correctOptionId", "")
                         }
                     elif comp_type == "Ordering":
                         data = {
@@ -1165,7 +1188,7 @@ async def start_lesson_session(
                             data = {
                                 "question": comp.get("question", "Question"),
                                 "options": comp.get("options", []),
-                                "correctAnswer": comp.get("correctOptionId", "")
+                                "correctOptionId": comp.get("correctOptionId", "")
                             }
                         elif comp_type == "Ordering":
                             data = {

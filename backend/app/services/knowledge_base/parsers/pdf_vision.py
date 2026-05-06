@@ -24,8 +24,18 @@ class VisionPDFParser:
         course_folder: str = None,
     ) -> str:
         from app.services.commons.file_service import FileService
+        from app.core.predict import predict_image_bytes
 
         limit = max_chars if max_chars is not None else settings.MAX_FILE_READ_BYTES
+        filter_enabled = settings.IMAGE_FILTER_ENABLED
+        model_path = settings.IMAGE_FILTER_MODEL_PATH
+        image_size = settings.IMAGE_FILTER_IMAGE_SIZE
+
+        if filter_enabled and not os.path.exists(model_path):
+            activity_logger.warning(
+                f"Image filter model not found at {model_path}. Skipping image filtering."
+            )
+            filter_enabled = False
 
         try:
             doc = fitz.open(file_path)
@@ -53,17 +63,7 @@ class VisionPDFParser:
                 ]
 
                 if image_list and user_id and course_folder:
-                    images_dir = os.path.join(
-                        FileService().get_upload_dir(user_id, course_folder), "images"
-                    )
-                    os.makedirs(images_dir, exist_ok=True)
-
-                    content_parts.append(
-                        {
-                            "type": "text",
-                            "text": "Please integrate these embedded images into the Markdown:\n",
-                        }
-                    )
+                    kept_images = []
 
                     for img_index, img in enumerate(image_list):
                         xref = img[0]
@@ -73,25 +73,58 @@ class VisionPDFParser:
                         if ext.lower() not in ["png", "jpeg", "jpg", "webp"]:
                             ext = "png"  # Fallback for base64 mime type safely
 
-                        img_filename = f"p{page_num + 1}_img{img_index}.{ext}"
-                        img_path = os.path.join(images_dir, img_filename)
-                        with open(img_path, "wb") as f:
-                            f.write(image_bytes)
+                        if filter_enabled:
+                            try:
+                                pred = predict_image_bytes(
+                                    image_bytes,
+                                    model_path=model_path,
+                                    image_size=image_size,
+                                )
+                                activity_logger.info(
+                                    f"[ImageFilter] page={page_num + 1} image={img_index} pred={pred}"
+                                )
+                                if pred != 1:
+                                    continue
+                            except Exception as pred_error:
+                                activity_logger.warning(
+                                    f"Image filter failed on page {page_num + 1} image {img_index}: {pred_error}"
+                                )
 
-                        img_url = f"/api/v1/courses/files/images/{user_id}/{course_folder}/{img_filename}"
-                        b64_img = base64.b64encode(image_bytes).decode("utf-8")
+                        kept_images.append((img_index, image_bytes, ext))
 
-                        content_parts.append(
-                            {"type": "text", "text": f"Image URL: {img_url}\n"}
+                    if kept_images:
+                        images_dir = os.path.join(
+                            FileService().get_upload_dir(user_id, course_folder), "images"
                         )
+                        os.makedirs(images_dir, exist_ok=True)
+
                         content_parts.append(
                             {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:image/{ext};base64,{b64_img}"
-                                },
+                                "type": "text",
+                                "text": "Please integrate these embedded images into the Markdown:\n",
                             }
                         )
+
+                        for img_index, image_bytes, ext in kept_images:
+                            img_filename = f"p{page_num + 1}_img{img_index}.{ext}"
+                            img_path = os.path.join(images_dir, img_filename)
+                            with open(img_path, "wb") as f:
+                                f.write(image_bytes)
+
+                            img_url = f"/api/v1/courses/files/images/{user_id}/{course_folder}/{img_filename}"
+                            b64_img = base64.b64encode(image_bytes).decode("utf-8")
+
+                            content_parts.append(
+                                {"type": "text", "text": f"Image URL: {img_url}\n"}
+                            )
+                            content_parts.append(
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": f"data:image/{ext};base64,{b64_img}"
+                                    },
+                                }
+                            )
 
                 # 送給 Vision LLM
                 user_msg = HumanMessage(content=content_parts)
