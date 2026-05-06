@@ -72,3 +72,5 @@ backend/data/uploads/*
 backend/data/uploads/avatar/*
 backend/data/logs/
 backend/data/temp/
+backend/logs/*
+!backend/logs/.gitkeep
