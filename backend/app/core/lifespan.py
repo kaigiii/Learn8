@@ -1,3 +1,4 @@
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
@@ -23,6 +24,13 @@ async def application_lifespan(app: FastAPI):
     from app.core.course_loader import registry as course_registry
     from app.db.session import SessionLocal
     
+    # Ensure activity.log exists
+    log_file_path = os.path.join(os.path.dirname(__file__), '../../logs/activity.log')
+    os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
+    if not os.path.exists(log_file_path):
+        with open(log_file_path, 'w') as log_file:
+            pass  # Create an empty file
+
     db = SessionLocal()
     try:
         # Note: sync_to_db performs database I/O. 
