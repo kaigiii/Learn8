@@ -62,6 +62,9 @@ class Settings(BaseSettings):
     PDF_PARSE_STRATEGY: str = "hybrid"  # basic | vision | hybrid
     VISION_LLM_PROVIDER: str = "google"
     VISION_GEMINI_MODEL: str = "gemini-2.5-flash"
+    IMAGE_FILTER_ENABLED: bool = True
+    IMAGE_FILTER_MODEL_PATH: str = str(BASE_DIR / "app" / "core" / "model.pth")
+    IMAGE_FILTER_IMAGE_SIZE: int = 224
 
     # Application Limits & Pricing
     COST_SYLLABUS_GENERATION: int = 50
