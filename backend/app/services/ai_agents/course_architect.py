@@ -189,8 +189,14 @@ class AIArchitectService:
         user_input: str,
         course_id: Optional[int] = None,
     ) -> dict:
+        context_str = "No specific reference material provided."
+        if course_id:
+            context_chunks = await self.rag_engine.query_context(topic, course_id=course_id)
+            if context_chunks:
+                context_str = "\n\n".join(context_chunks)
+
         messages = [
-            ("system", SYSTEM_PROMPT_FEYNMAN_STUDENT.format(topic=topic)),
+            ("system", SYSTEM_PROMPT_FEYNMAN_STUDENT.format(topic=topic, context=context_str)),
         ]
         # Append history
         for msg in conversation_history:
@@ -242,6 +248,7 @@ class AIArchitectService:
         conversation: Optional[List[dict]] = None,
         user_id: Optional[int] = None,
         course_folder: Optional[str] = None,
+        course_id: Optional[int] = None,
         learner_profile_summary: str = "",
     ) -> str:
         retrieval_query = " | ".join(
@@ -254,7 +261,7 @@ class AIArchitectService:
             ]
             if part
         )
-        context_chunks = await self.rag_engine.query_context(retrieval_query or course_topic)
+        context_chunks = await self.rag_engine.query_context(retrieval_query or course_topic, course_id=course_id)
         rag_context = (
             "\n\n".join(context_chunks)
             if context_chunks

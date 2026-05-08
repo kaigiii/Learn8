@@ -54,7 +54,7 @@ class Settings(BaseSettings):
 
     # Workflow Settings
     SYLLABUS_CONCURRENCY_LIMIT: int = 3
-    MAX_SYLLABUS_AUDIT_REFLECTIONS: int = 3
+    MAX_SYLLABUS_AUDIT_REFLECTIONS: int = 2
     PLANNER_AGENT_MODEL: str = "gemini-2.5-flash"
     AUDITOR_AGENT_MODEL: str = "gemini-2.5-flash"
 
@@ -71,7 +71,7 @@ class Settings(BaseSettings):
     COST_LESSON_GENERATION: int = 5
     COST_QUESTIONNAIRE_GENERATION: int = 5
     MAX_FILE_READ_BYTES: int = 50000
-    MAX_COURSE_CONTEXT_BYTES: int = 30000
+    MAX_COURSE_CONTEXT_BYTES: int = 100000
 
     # Content Whitelists (Comma-separated filenames)
     ENABLED_PUBLIC_COURSES: str = "ai_neural_networks.yaml,python_fundamentals.yaml,world_history.yaml"

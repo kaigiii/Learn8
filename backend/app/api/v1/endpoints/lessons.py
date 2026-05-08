@@ -1433,6 +1433,7 @@ async def respond_to_lesson_question(
         conversation=[message.model_dump() for message in request.conversation],
         user_id=current_user.id,
         course_folder=course_folder,
+        course_id=resolved_course_id,
         learner_profile_summary=learner_profile_summary,
     )
     return LessonAssistantResponse(answer=answer)
