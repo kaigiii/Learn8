@@ -25,6 +25,8 @@ class ArenaAdminQuestionPoolItemRequest(BaseModel):
     difficulty: str = "normal"
     knowledgeTags: List[str] = Field(default_factory=list)
     explanation: Optional[str] = None
+    sampleAnswer: Optional[str] = None
+    maxRounds: Optional[int] = None
     sourceUnitId: Optional[str] = None
     sourceNodeId: Optional[str] = None
     isActive: bool = True
@@ -42,6 +44,8 @@ class ArenaAdminSyllabusQuestionResponse(BaseModel):
     correctOptionId: Optional[str] = None
     difficulty: str = "normal"
     explanation: Optional[str] = None
+    sampleAnswer: Optional[str] = None
+    maxRounds: Optional[int] = None
 
 
 class ArenaAdminQuestionPoolUpsertRequest(BaseModel):
@@ -64,6 +68,8 @@ class ArenaAdminQuestionPoolItemResponse(BaseModel):
     difficulty: str
     knowledgeTags: List[str]
     explanation: Optional[str] = None
+    sampleAnswer: Optional[str] = None
+    maxRounds: Optional[int] = None
     sourceUnitId: Optional[str] = None
     sourceNodeId: Optional[str] = None
     isActive: bool

@@ -117,6 +117,8 @@ export default function CourseEditorPage() {
         { id: `p1_${Date.now()}`, left: "Left text A", right: "Right text A" },
         { id: `p2_${Date.now()}`, left: "Left text B", right: "Right text B" }
       ] : undefined,
+      sampleAnswer: type === "FeynmanMirror" ? "A simple explanation of the concept." : undefined,
+      maxRounds: type === "FeynmanMirror" ? 10 : undefined,
       successFeedback: "Great job! That's correct.",
       errorFeedback: "Oops! Try again."
     };
@@ -543,6 +545,31 @@ export default function CourseEditorPage() {
                         <option key={optIdx} value={opt}>{opt || `Option ${optIdx + 1}`}</option>
                       ))}
                     </select>
+                  </div>
+                )}
+                
+                {activeComponent.type === 'FeynmanMirror' && (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-bold text-brand-gray-500 uppercase tracking-wider mb-2">Sample Model Answer</label>
+                      <textarea 
+                        placeholder="The ideal explanation..." 
+                        value={activeComponent.sampleAnswer || ""}
+                        onChange={(e) => updateActiveComponentProperty("sampleAnswer", e.target.value)}
+                        className="w-full bg-white/80 border border-brand-gray-200 rounded-lg p-2 text-sm outline-none focus:border-brand-teal min-h-[100px]" 
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-brand-gray-500 uppercase tracking-wider mb-2">Max Dialog Rounds</label>
+                      <input 
+                        type="number"
+                        min="1"
+                        max="20"
+                        value={activeComponent.maxRounds || 10}
+                        onChange={(e) => updateActiveComponentProperty("maxRounds", parseInt(e.target.value))}
+                        className="w-full bg-white/80 border border-brand-gray-200 rounded-lg p-2 text-sm outline-none focus:border-brand-teal"
+                      />
+                    </div>
                   </div>
                 )}
 

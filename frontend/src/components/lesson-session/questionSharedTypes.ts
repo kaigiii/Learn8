@@ -10,6 +10,7 @@ export interface QuestionStageMeta {
   description?: string;
   difficulty?: "low" | "medium" | "high" | null;
   recommendedDurationMinutes?: number | null;
+  courseId?: number | null;
 }
 
 export interface QuestionFeedbackMessages {

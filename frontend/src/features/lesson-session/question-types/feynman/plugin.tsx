@@ -39,6 +39,7 @@ export function FeynmanStageRenderer({
       topic={stage.topic}
       difficulty={stage.difficulty}
       recommendedDurationMinutes={stage.recommendedDurationMinutes}
+      courseId={lesson.courseId}
       description={lesson.nodeDescription}
       prompt={parsedStage.prompt}
       sampleAnswer={parsedStage.sampleAnswer}
@@ -47,9 +48,9 @@ export function FeynmanStageRenderer({
         error: stage.feedback.error,
         hint: "Explain the concept as if the listener knows none of the jargon.",
       }}
-      onSubmit={async (answer) =>
+      onSubmit={async (answer, history) =>
         getFeynmanSubmitResult(
-          await actions.submitStage(stage, { explanation: answer })
+          await actions.submitStage(stage, { explanation: answer, history })
         )
       }
       onContinue={actions.continueStage}

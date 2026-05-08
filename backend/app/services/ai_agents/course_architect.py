@@ -20,7 +20,8 @@ from app.services.ai_agents.course_architect_prompts import (
     build_node_system_prompt,
     REMEDIAL_SYSTEM_PROMPT,
     build_remedial_system_prompt,
-    SYSTEM_PROMPT_FEYNMAN,
+    SYSTEM_PROMPT_FEYNMAN_STUDENT,
+    SYSTEM_PROMPT_FEYNMAN_ADVISOR,
 )
 
 # --- LOGIC ---
@@ -181,42 +182,51 @@ class AIArchitectService:
             activity_logger.error(f"Remedial Gen Error: {e}")
             raise LLMGenerationError(f"Failed to generate remedial stages: {e}")
 
-    async def grade_feynman_attempt(
+    async def interact_feynman_round(
         self,
-        user_explanation: str,
         topic: str,
-        prompt: str = "",
-        sample_answer: str = "",
+        conversation_history: List[dict],
+        user_input: str,
+        course_id: Optional[int] = None,
     ) -> dict:
-        context_chunks = await self.rag_engine.query_context(topic)
-        context_str = (
-            "\\n\\n".join(context_chunks) if context_chunks else "General Knowledge"
-        )
-
         messages = [
-            (
-                "system",
-                SYSTEM_PROMPT_FEYNMAN.format(
-                    topic=topic,
-                    prompt=prompt or topic,
-                    sample_answer=sample_answer or "No reference answer provided.",
-                    context=context_str,
-                ),
-            ),
-            ("user", f"STUDENT EXPLANATION: {user_explanation}"),
+            ("system", SYSTEM_PROMPT_FEYNMAN_STUDENT.format(topic=topic)),
         ]
+        # Append history
+        for msg in conversation_history:
+            role = "user" if msg["role"] == "teacher" else "assistant"
+            messages.append((role, msg["content"]))
+        
+        messages.append(("user", user_input))
 
         try:
+            class FeynmanStudentReply(BaseModel):
+                reply: str
+                isSatisfied: bool
 
-            class FeynmanGrade(BaseModel):
-                isCorrect: bool
-                feedback: str
-
-            result = await self.provider.generate_structured(messages, FeynmanGrade)
+            result = await self.provider.generate_structured(messages, FeynmanStudentReply)
             return result.model_dump()
         except Exception as e:
-            activity_logger.error(f"Feynman Grade Error: {e}")
-            raise LLMGenerationError(f"Failed to grade Feynman attempt: {e}")
+            activity_logger.error(f"Feynman Interaction Error: {e}")
+            raise LLMGenerationError(f"Failed to process Feynman round: {e}")
+
+    async def generate_feynman_remedial_suggestion(
+        self,
+        topic: str,
+        course_id: Optional[int] = None,
+    ) -> str:
+        context_chunks = await self.rag_engine.query_context(topic, course_id=course_id)
+        context_str = "\n\n".join(context_chunks) if context_chunks else "General Knowledge"
+
+        messages = [
+            ("system", SYSTEM_PROMPT_FEYNMAN_ADVISOR.format(topic=topic, context=context_str)),
+            ("user", f"Explain how I could have taught '{topic}' better."),
+        ]
+        try:
+            return await self.provider.generate_text(messages)
+        except Exception as e:
+            activity_logger.error(f"Feynman Advisor Error: {e}")
+            raise LLMGenerationError(f"Failed to generate Feynman advice: {e}")
 
     async def answer_lesson_question(
         self,

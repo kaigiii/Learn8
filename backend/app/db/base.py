@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from sqlalchemy.orm import as_declarative, declared_attr
 
@@ -7,6 +7,9 @@ from sqlalchemy.orm import as_declarative, declared_attr
 class Base:
     id: Any
     __name__: str
+
+    if TYPE_CHECKING:
+        def __init__(self, **kwargs: Any) -> None: ...
 
     # 自動產生 __tablename__
     @declared_attr

@@ -209,7 +209,16 @@ class AdminService:
             item.question_type = str(qtype)
             
             item.prompt = raw_item["prompt"].strip()
-            item.options_json = list(raw_item.get("options") or [])
+            
+            # Persist Feynman fields in options_json to avoid DB migration
+            if item.question_type == "FeynmanMirror":
+                item.options_json = [{
+                    "sampleAnswer": raw_item.get("sampleAnswer"),
+                    "maxRounds": raw_item.get("maxRounds")
+                }]
+            else:
+                item.options_json = list(raw_item.get("options") or [])
+                
             item.correct_option_id = str(raw_item.get("correctOptionId", "")).strip() if raw_item.get("correctOptionId") else None
             item.difficulty = raw_item.get("difficulty") or "normal"
             item.knowledge_tags_json = list(raw_item.get("knowledgeTags") or [])
@@ -330,6 +339,8 @@ class AdminService:
             item["prompt"] = data.get("prompt") or context["nodeTitle"]
             item["options"] = []
             item["correctOptionId"] = None
+            item["sampleAnswer"] = data.get("sampleAnswer")
+            item["maxRounds"] = data.get("maxRounds")
         elif component == "ExplainerMedia":
             item["prompt"] = data.get("title") or context["nodeTitle"]
             item["options"] = []
@@ -373,6 +384,8 @@ class AdminService:
                     "difficulty": item.difficulty,
                     "knowledgeTags": list(item.knowledge_tags_json or []),
                     "explanation": item.explanation,
+                    "sampleAnswer": item.options_json[0].get("sampleAnswer") if item.question_type == "FeynmanMirror" and item.options_json and isinstance(item.options_json[0], dict) else None,
+                    "maxRounds": item.options_json[0].get("maxRounds") if item.question_type == "FeynmanMirror" and item.options_json and isinstance(item.options_json[0], dict) else None,
                     "sourceUnitId": item.source_unit_id,
                     "sourceNodeId": item.source_node_id,
                     "isActive": bool(item.is_active),

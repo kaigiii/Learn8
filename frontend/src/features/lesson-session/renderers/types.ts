@@ -12,6 +12,7 @@ export interface LessonStageRendererViewModel {
   totalStages: number;
   stageLabel?: string;
   nodeDescription: string;
+  courseId: number | null;
 }
 
 export interface LessonStageActionHandlers {

@@ -137,6 +137,7 @@ export default function ArenaQuestionPreview({
               hideChrome
               prompt={prompt}
               sampleAnswer="This is a sample model answer for the feynman mirror challenge."
+              maxRounds={1}
               topic={prompt}
               difficulty={mappedDifficulty}
               stageIndex={0}

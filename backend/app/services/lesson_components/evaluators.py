@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Optional
 
 from app.schemas.lesson_schema import LessonStage
 from app.services.lesson_components.evaluator_registry import evaluator_registry
+from app.services.ai_agents.course_architect import AIArchitectService
 
 
 def _normalize_ordering_item(item: Any) -> str:
@@ -57,6 +58,7 @@ async def evaluate_multiple_choice(
     user_input: Any,
     _context_topic: str,
     _architect_service: Any,
+    course_id: Optional[int] = None,
 ):
     data = stage.config.data if isinstance(stage.config.data, dict) else {}
     validation = (
@@ -90,6 +92,7 @@ async def evaluate_ordering(
     user_input: Any,
     _context_topic: str,
     _architect_service: Any,
+    course_id: Optional[int] = None,
 ):
     data = stage.config.data if isinstance(stage.config.data, dict) else {}
     normalized_input = normalize_ordering_input(user_input)
@@ -114,6 +117,7 @@ async def evaluate_matching_pairs(
     user_input: Any,
     _context_topic: str,
     _architect_service: Any,
+    course_id: Optional[int] = None,
 ):
     data = stage.config.data if isinstance(stage.config.data, dict) else {}
     normalized_input = normalize_matching_input(user_input)
@@ -140,33 +144,65 @@ async def evaluate_feynman(
     stage: LessonStage,
     user_input: Any,
     context_topic: str,
-    architect_service: Any,
+    architect_service: AIArchitectService,
+    course_id: Optional[int] = None,
 ):
     data = stage.config.data if isinstance(stage.config.data, dict) else {}
     if isinstance(user_input, dict):
         explanation = str(user_input.get("explanation") or "").strip()
+        history = user_input.get("history", [])
     else:
         explanation = str(user_input or "").strip()
+        history = []
 
-    normalized_input = {"explanation": explanation}
-    grading = await architect_service.grade_feynman_attempt(
-        explanation,
-        context_topic or stage.topic,
-        prompt=str(data.get("prompt") or stage.topic),
-        sample_answer=str(data.get("sampleAnswer") or ""),
-    )
-    is_correct = bool(grading.get("isCorrect"))
+    normalized_input = {"explanation": explanation, "history": history}
+    
+    # Check if the last message in history (from student) was satisfied
+    # Or just re-evaluate if history is empty (backwards compatibility)
+    if not history:
+        grading = await architect_service.interact_feynman_round(
+            topic=context_topic or stage.topic,
+            conversation_history=[],
+            user_input=explanation,
+            course_id=course_id
+        )
+        is_correct = bool(grading.get("isSatisfied"))
+        message = grading.get("reply", "")
+    else:
+        # The frontend tells us if it's correct/incorrect based on the student's satisfaction
+        # But we should double check or just trust the last interaction result if passed
+        # For now, let's assume if we reached here via onSubmit, it's either satisfied or max rounds.
+        # We can re-run the satisfaction check on the last state.
+        last_teacher_input = history[-2]["content"] if len(history) >= 2 else explanation
+        prev_history = history[:-2] if len(history) >= 2 else []
+        
+        grading = await architect_service.interact_feynman_round(
+            topic=context_topic or stage.topic,
+            conversation_history=prev_history,
+            user_input=last_teacher_input,
+            course_id=course_id
+        )
+        is_correct = bool(grading.get("isSatisfied"))
+        message = grading.get("reply", "")
+        
+        if not is_correct:
+            # If not correct, it means we failed after max rounds.
+            # Get advisor advice
+            message = await architect_service.generate_feynman_remedial_suggestion(
+                context_topic or stage.topic,
+                course_id=course_id
+            )
+
     evaluation = {
         "prompt": str(data.get("prompt") or stage.topic),
         "sampleAnswer": str(data.get("sampleAnswer") or ""),
         "grading": grading,
+        "history": history
     }
+    
     return (
         "correct" if is_correct else "incorrect",
-        grading.get(
-            "feedback",
-            stage.feedback.success if is_correct else stage.feedback.error,
-        ),
+        message or (stage.feedback.success if is_correct else stage.feedback.error),
         normalized_input,
         evaluation,
     )
@@ -177,6 +213,7 @@ async def evaluate_explainer_media(
     user_input: Any,
     _context_topic: str,
     _architect_service: Any,
+    course_id: Optional[int] = None,
 ):
     normalized_input = (
         user_input

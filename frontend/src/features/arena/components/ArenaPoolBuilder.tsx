@@ -71,6 +71,8 @@ export default function ArenaPoolBuilder({
       knowledgeTags: [],
       knowledgeTagsText: "",
       explanation: q.explanation || "",
+      sampleAnswer: (q as any).sampleAnswer,
+      maxRounds: (q as any).maxRounds,
       sourceUnitId: q.unitId,
       sourceNodeId: q.nodeId,
       isActive: true,
