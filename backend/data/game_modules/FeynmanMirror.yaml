@@ -7,8 +7,13 @@ required_config_data_fields: []
 optional_config_data_fields:
   - prompt
   - sampleAnswer
+  - maxRounds
 submission_keys:
   - explanation
-description: If the goal is to verify deep understanding via user explanation (Feynman Technique).
+  - history
+description: If the goal is to verify deep understanding via interactive multi-turn teaching (Feynman Technique).
 schema_requirements: |
-  config.data requires no specific fields, just an empty object.
+  Component `FeynmanMirror` supports:
+  - `prompt` (string): The initial question or curiosity expressed by the AI student to start the conversation.
+  - `sampleAnswer` (string): A model explanation that represents deep understanding of the concept.
+  - `maxRounds` (integer, default 10): The maximum number of dialogue turns before the challenge ends.

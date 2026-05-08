@@ -319,6 +319,7 @@ export default function LessonSessionPageClient({
                   totalStages: headerTotalStages,
                   stageLabel: headerStageLabel,
                   nodeDescription,
+                  courseId: backendCourseId ?? currentCourseId,
                 }}
                 actions={{
                   submitStage,

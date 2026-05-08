@@ -842,7 +842,9 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
                 topic={q.prompt}
                 difficulty={mapDifficulty(q.difficulty)}
                 prompt={q.prompt}
-                sampleAnswer={displayRevealExplanation || displayRevealCorrectId || ""}
+                sampleAnswer={(q as any).sampleAnswer || displayRevealExplanation || displayRevealCorrectId || ""}
+                courseId={match?.publicCourseId ?? 0}
+                maxRounds={1}
                 feedbackMsg={{ success: "", error: "", hint: "Keep it simple." }}
                 isRevealed={showRevealMode}
                 onSubmit={async (answer: string) => {

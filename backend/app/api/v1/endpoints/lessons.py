@@ -1,6 +1,6 @@
 import logging
 import uuid
-from typing import Any, List
+from typing import Any, List, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.concurrency import run_in_threadpool
@@ -558,6 +558,7 @@ async def _evaluate_submission(
     user_input: Any,
     context_topic: str,
     architect_service: AIArchitectService,
+    course_id: Optional[int] = None,
 ) -> tuple[str, str, dict, dict]:
     if _is_skipped_submission(user_input):
         normalized_input = {"skipped": True}
@@ -571,7 +572,7 @@ async def _evaluate_submission(
 
     evaluator = evaluator_registry.get(stage.component)
     if evaluator is not None:
-        return await evaluator(stage, user_input, context_topic, architect_service)
+        return await evaluator(stage, user_input, context_topic, architect_service, course_id)
 
     normalized_input = {"raw": user_input}
     is_correct = bool(user_input)
@@ -1351,6 +1352,37 @@ async def get_lesson_session_summary(
     return _build_session_summary_payload(db, session)
 
 
+@router.post("/feynman/interact", response_model=dict)
+async def interact_feynman(
+    payload: dict,
+    architect_service: AIArchitectService = Depends(get_architect_service),
+):
+    """
+    Handles intermediate rounds of the Feynman interaction.
+    """
+    topic = payload.get("topic", "General")
+    history = payload.get("history", [])
+    user_input = payload.get("userInput", "")
+    course_id = payload.get("courseId")
+    
+    result = await architect_service.interact_feynman_round(
+        topic=topic,
+        conversation_history=history,
+        user_input=user_input,
+        course_id=course_id
+    )
+    
+    # If the student is satisfied, we might want to return that so the frontend can then call submit-answer
+    # Or we can return the advice if it's the last round.
+    
+    if not result.get("isSatisfied") and len(history) >= 18: # 9 rounds * 2 (user+ai) = 18
+        # Generate advice for the final failure
+        advice = await architect_service.generate_feynman_remedial_suggestion(topic, course_id=course_id)
+        result["advice"] = advice
+        
+    return result
+
+
 @router.post("/assistant/respond", response_model=LessonAssistantResponse)
 async def respond_to_lesson_question(
     request: LessonAssistantRequest,
@@ -1452,6 +1484,7 @@ async def submit_answer(
         submission.userInput,
         submission.context_topic or session.course_topic or stage.topic,
         architect_service,
+        course_id=session.course_id,
     )
     is_correct = result == "correct"
 

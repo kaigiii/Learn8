@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from typing import Any, Awaitable, Callable, Dict, Tuple
+from typing import Any, Awaitable, Callable, Dict, Optional, Tuple
 
 from app.schemas.lesson_schema import LessonStage
 
 EvaluationResult = tuple[str, str, dict, dict]
-Evaluator = Callable[[LessonStage, Any, str, Any], Awaitable[EvaluationResult]]
+Evaluator = Callable[[LessonStage, Any, str, Any, Optional[int]], Awaitable[EvaluationResult]]
 
 
 class LessonComponentEvaluatorRegistry:

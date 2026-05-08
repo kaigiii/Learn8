@@ -764,6 +764,8 @@ class RoundEngine:
                 "options": list(question.get("options") or []),
                 "difficulty": question.get("difficulty"),
                 "knowledgeTags": list(question.get("knowledge_tags") or []),
+                "sampleAnswer": question.get("sampleAnswer"),
+                "maxRounds": question.get("maxRounds"),
             },
             "submittedPlayerIds": [answer.user_id for answer in active_round.answers],
             "hasSubmitted": any(answer.user_id == current_user_id for answer in active_round.answers) if current_user_id else False,

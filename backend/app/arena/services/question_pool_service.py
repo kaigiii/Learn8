@@ -86,6 +86,8 @@ class QuestionPoolService:
             "difficulty": item.difficulty,
             "knowledge_tags": list(item.knowledge_tags_json or []),
             "explanation": item.explanation or "",
+            "sampleAnswer": item.options_json[0].get("sampleAnswer") if item.question_type == "FeynmanMirror" and item.options_json and isinstance(item.options_json[0], dict) else None,
+            "maxRounds": item.options_json[0].get("maxRounds") if item.question_type == "FeynmanMirror" and item.options_json and isinstance(item.options_json[0], dict) else None,
             "source_unit_id": item.source_unit_id,
             "source_node_id": item.source_node_id,
         }
