@@ -1,7 +1,16 @@
 # 🎨 個人化課程生成流與核心流程功能 (Complete Architectural Guide)
 
-Learn8 是一個先進的 **AI 驅動式學習平台**。本文檔完整梳理了平台最核心、技術門檻最高的端到端生成管線（AI Generation Pipeline），特別詳細闡述了**多代理人（Multi-Agent）大綱生成架構**與 AI 的輸入/輸出規格：
-`Course Draft -> File Upload / RAG -> Questionnaire -> Learner Profile -> Syllabus -> Lesson -> Remedial`
+Learn8 是一個先進的 **AI 驅動式學習平台**。本文檔完整梳理了平台最核心的生成管線，並重點闡述了如何透過技術手段實現**極致的個人化教學體驗**。
+
+---
+
+## 🌟 0. 產品價值與 UX 亮點 (Product Value)
+
+生成管線的設計理念在於將「複雜的 AI 運算」轉化為「簡單、直覺且充滿溫度」的用戶旅程：
+
+- **極致個人化 (Hyper-Personalization)**：透過「診斷問卷」與「學員畫像」技術，AI 不再是冷冰冰的複讀機，而是能讀懂學員痛點、根據學員程度調整難度的**虛擬私教**。
+- **透明的生成美學 (Generation Aesthetics)**：利用 SSE 非同步技術，將後端數十個 Agent 的思考過程化作前端流暢的進度推播，讓學員在等待時也能感受到內容正在被精心「編織」的過程。
+- **多樣化教學組件 (Pedagogical Variety)**：系統會自動根據知識點的屬性（是需要理解的原理，還是需要背誦的單字）來選擇最適合的關卡（如費曼技巧或排序題），實現「因材施教」。
 
 ---
 

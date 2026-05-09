@@ -22,6 +22,8 @@ Learn8 是一個先進且完整的 **AI 驅動型學習平台**。透過大語�
 8. **錯題補救複習 (Remedial Phase)**：若在作答中答錯，系統自動觸發背景任務，針對錯題生成補救教學關卡。
 9. **解鎖節點與發放獎勵**：通關後解鎖下一知識地圖節點，同時發放 XP 經驗值與 Credits 點數，寫入不可竄改的用戶帳本！
 10. **社群分享與競技 PK**：學員可一鍵分享、Sandbox Fork 好友課程，或在競技場（Arena）中實時搶答、挑戰全站天梯排行榜！
+
+
 ## 技術棧
 
 ### Frontend
@@ -41,11 +43,15 @@ Learn8 是一個先進且完整的 **AI 驅動型學習平台**。透過大語�
 - **Alembic** (資料庫無縫遷移)
 - **PostgreSQL** (`psycopg2-binary`, `asyncpg`)
 - **PostgreSQL `LISTEN/NOTIFY` + SSE** (非同步背景 Job 進度推送)
-- **Redis 5** (高併發快取層)
-- **Pydantic 2** (大綱 Schema 驗證)
-- **LangChain / LangGraph** (多代理人核心)
+- **WebSockets** (競技場實時對戰與社交聊天網關)
+- **Redis 5** (高併發快取層與 Pub/Sub 消息分發)
+- **Pydantic 2** (大綱 Schema 驗證與模型定義)
+- **LangChain / LangGraph** (多代理人協作與 RAG 核心)
 - **Google Gemini** & **OpenAI LLM APIs**
-- **ChromaDB** (`langchain-chroma`) & **PyMuPDF / PyPDF** (向量語義特徵庫與文件解析)
+- **VoxCPM Engine** (基於 PyTorch 的 Zero-shot 高擬真語音合成)
+- **ChromaDB** & **Vector Embeddings** (向量語義特徵庫與語義檢索)
+- **Media Processing** (`yt-dlp`, `ffmpeg`, `PyMuPDF`) (多媒體解析與文件處理)
+- **Security Architecture** (JWT 認證, Bcrypt 密碼雜湊, OAuth2 規範)
 - **PyYAML** & **JSON Repair** (YAML 題型解析與 JSON 輸出修復)
 
 ## 先安裝什麼
@@ -141,12 +147,25 @@ python -m uvicorn Learn8_tts.api:app --reload --port 15060
   python3.12 -m alembic upgrade head
   ```
 
-## 相關文件
 
-- [1. 題型組件管理與增刪指南](docs/active_docs/1_component_management.md)
-- [2. API 服務與 VoxCPM 微服務指南](docs/active_docs/2_api_service_guide.md)
-- [3. 個人化課程生成流與核心流程功能](docs/active_docs/3_personalization_generation.md)
-- [4. 競技場功能與對決流程](docs/active_docs/4_arena_flows.md)
-- [5. 自製與自訂課程流程指南](docs/active_docs/5_custom_courses_flows.md)
-- [6. 全站技術架構與亮點總覽](docs/active_docs/6_architecture_overview.md)
 
+
+---
+
+## 相關技術文件
+
+- [1. 題型組件與 AI 評估](./docs/active_docs/1_component_management.md)
+- [2. API 服務與 VoxCPM 微服務指南](./docs/active_docs/2_api_service_guide.md)
+- [3. 個人化課程生成流與核心流程功能](./docs/active_docs/3_personalization_generation.md)
+- [4. 競技場對戰流](./docs/active_docs/4_arena_flows.md)
+- [5. 自製與自訂課程流程指南](./docs/active_docs/5_custom_courses_flows.md)
+- [6. 全站技術架構與亮點總覽](./docs/active_docs/6_architecture_overview.md)
+- [7. VoxCPM 語音微服務](./docs/active_docs/7_voxcpm_microservice.md)
+- [8. 管理後台與運作機制](./docs/active_docs/8_admin_management_system.md)
+- [9. 社交好友與消息系統](./docs/active_docs/9_social_friendship_system.md)
+- [10. 資料庫模型與賬本](./docs/active_docs/10_database_schema_and_models.md)
+- [11. 背景任務調度系統](./docs/active_docs/11_background_workers_and_scheduling.md)
+- [12. 提示詞工程與 AI 代理人畫像](./docs/active_docs/12_prompt_engineering_and_agent_personas.md)
+- [13. 部署與環境配置](./docs/active_docs/13_deployment_and_environment_config.md)
+
+---

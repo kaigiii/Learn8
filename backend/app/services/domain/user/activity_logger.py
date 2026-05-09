@@ -7,8 +7,8 @@ from app.core.time import to_iso_utc
 
 from app.core.config import settings
 
-# Configure log directory (backend/logs)
-LOG_DIR = settings.BASE_DIR / "logs"
+# Configure log directory (backend/data/logs)
+LOG_DIR = settings.LOG_DIR
 os.makedirs(LOG_DIR, exist_ok=True)
 
 # Configure logger
