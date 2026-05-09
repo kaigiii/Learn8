@@ -46,9 +46,8 @@ router = APIRouter()
 EMAIL_RE = re.compile(r"^[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}$", re.IGNORECASE)
 AVATAR_FILENAME_RE = re.compile(r"^[^/\\\x00]+\.png$")
 MAX_AVATAR_UPLOAD_BYTES = 20 * 1024 * 1024
-BACKEND_ROOT_DIR = Path(__file__).resolve().parents[4]
-AVATAR_IMAGE_DIR = BACKEND_ROOT_DIR / "data" / "uploads" / "avatar"
-DEFAULT_AVATAR_PATH = BACKEND_ROOT_DIR.parent / "frontend" / "public" / "avatar" / "chicken.png"
+AVATAR_IMAGE_DIR = settings.UPLOAD_DIR / "avatar"
+DEFAULT_AVATAR_PATH = settings.BASE_DIR.parent / "frontend" / "public" / "avatar" / "chicken.png"
 
 
 def _normalize_email(email: str) -> str:

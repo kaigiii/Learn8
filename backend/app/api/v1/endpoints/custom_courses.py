@@ -116,8 +116,7 @@ def update_custom_course(
         # If unpublishing, remove the YAML file to actually take it off the public catalog
         if old_val and not new_val:
             yaml_filename = f"custom_{course.id}.yaml"
-            base_dir = Path(__file__).resolve().parent.parent.parent.parent.parent
-            yaml_path = base_dir / "data" / "custom_published_courses" / yaml_filename
+            yaml_path = settings.CUSTOM_COURSES_DIR / yaml_filename
             if yaml_path.exists():
                 os.remove(yaml_path)
             
@@ -210,9 +209,7 @@ def export_course_to_yaml(
     }
     
     yaml_filename = f"custom_{course.id}.yaml"
-    # Correct path: .parent.parent.parent.parent.parent to reach backend root
-    base_dir = Path(__file__).resolve().parent.parent.parent.parent.parent
-    yaml_path = base_dir / "data" / "custom_published_courses" / yaml_filename
+    yaml_path = settings.CUSTOM_COURSES_DIR / yaml_filename
     
     os.makedirs(os.path.dirname(yaml_path), exist_ok=True)
     with open(yaml_path, "w", encoding="utf-8") as f:
@@ -299,8 +296,7 @@ def delete_custom_course(
         
     # Also delete associated YAML if it exists
     yaml_filename = f"custom_{course.id}.yaml"
-    base_dir = Path(__file__).resolve().parent.parent.parent.parent.parent
-    yaml_path = base_dir / "data" / "custom_published_courses" / yaml_filename
+    yaml_path = settings.CUSTOM_COURSES_DIR / yaml_filename
     if yaml_path.exists():
         os.remove(yaml_path)
         

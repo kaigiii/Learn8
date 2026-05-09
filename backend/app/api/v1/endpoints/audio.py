@@ -1,22 +1,21 @@
 import httpx
 import hashlib
 import os
+from pathlib import Path
 from fastapi import APIRouter, HTTPException, Query, UploadFile, File, Depends
 from fastapi.responses import StreamingResponse
 from app.api.dependencies import get_current_user
+from app.core.config import settings
 from app.models.user import UserModel
 
 router = APIRouter()
 
-VOXCPM_URL = os.getenv("VOXCPM_URL", "http://127.0.0.1:15060/v1/audio/speech")
-VOXCPM_UPLOAD_URL = os.getenv("VOXCPM_UPLOAD_URL", "http://127.0.0.1:15060/v1/audio/upload")
-
 VOICE_PRESETS = {
-    "preset_01": os.path.join(os.getcwd(), "data", "presets", "gentle_sister.wav"),
-    "preset_02": os.path.join(os.getcwd(), "data", "presets", "wise_tutor.wav"),
-    "preset_03": os.path.join(os.getcwd(), "data", "presets", "energetic_partner.wav"),
-    "preset_04": os.path.join(os.getcwd(), "data", "presets", "calm_ai.wav"),
-    "preset_05": os.path.join(os.getcwd(), "data", "presets", "warm_uncle.wav")
+    "preset_01": settings.PRESETS_DIR / "gentle_sister.wav",
+    "preset_02": settings.PRESETS_DIR / "wise_tutor.wav",
+    "preset_03": settings.PRESETS_DIR / "energetic_partner.wav",
+    "preset_04": settings.PRESETS_DIR / "calm_ai.wav",
+    "preset_05": settings.PRESETS_DIR / "warm_uncle.wav"
 }
 
 @router.get("/speech")
@@ -32,13 +31,11 @@ async def get_cloned_speech(
         raise HTTPException(status_code=400, detail="文字內容不可為空")
 
     # 1. 產生音檔快取檔案名稱的 Hash 值
-    hasher = hashlib.md5()
-    hasher.update(f"{text.strip()}:{preset}".encode("utf-8"))
-    cache_id = hasher.hexdigest()
-    
-    cache_dir = os.path.join(os.getcwd(), "data", "uploads", "audio_cache")
+    text_hash = hashlib.md5(text.encode("utf-8")).hexdigest()
+    cache_filename = f"{preset}_{text_hash}.wav"
+    cache_dir = settings.UPLOAD_DIR / "audio_cache"
     os.makedirs(cache_dir, exist_ok=True)
-    cache_path = os.path.join(cache_dir, f"{cache_id}.wav")
+    cache_path = cache_dir / cache_filename
 
     # 2. 如果已有快取，直接讀取並回傳
     if os.path.exists(cache_path):
@@ -55,15 +52,15 @@ async def get_cloned_speech(
     # 3. 如果沒有快取，發送推論請求給 VoxCPM
     if preset.startswith("data/uploads/") or preset.startswith("uploads/") or preset.endswith(".wav") or preset.endswith(".mp3"):
         if not os.path.isabs(preset):
-            ref_path = os.path.join(os.getcwd(), preset)
+            ref_path = Path.cwd() / preset
         else:
-            ref_path = preset
+            ref_path = Path(preset)
     else:
         ref_path = VOICE_PRESETS.get(preset, VOICE_PRESETS["preset_01"])
 
     payload = {
         "text": text,
-        "reference_wav_path": ref_path,
+        "reference_wav_path": str(ref_path),
         "cfg_value": 2.0,
         "inference_timesteps": 15,
         "denoise": True
@@ -71,7 +68,7 @@ async def get_cloned_speech(
     
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.post(VOXCPM_URL, json=payload, timeout=180.0)
+            response = await client.post(settings.VOXCPM_URL, json=payload, timeout=180.0)
             
         if response.status_code != 200:
             raise HTTPException(status_code=response.status_code, detail=f"語音合成服務錯誤: {response.status_code}")
@@ -95,27 +92,25 @@ async def pregenerate_audio_cache(text: str, preset: str = "preset_01") -> str |
     if not text or not text.strip():
         return None
 
-    hasher = hashlib.md5()
-    hasher.update(f"{text.strip()}:{preset}".encode("utf-8"))
-    cache_id = hasher.hexdigest()
-    
-    cache_dir = os.path.join(os.getcwd(), "data", "uploads", "audio_cache")
+    text_hash = hashlib.md5(text.encode("utf-8")).hexdigest()
+    cache_filename = f"{preset}_{text_hash}.wav"
+    cache_dir = settings.UPLOAD_DIR / "audio_cache"
     os.makedirs(cache_dir, exist_ok=True)
-    cache_path = os.path.join(cache_dir, f"{cache_id}.wav")
+    cache_path = cache_dir / cache_filename
 
     if os.path.exists(cache_path):
-        return cache_path
+        return str(cache_path)
 
     if preset.startswith("data/uploads/") or preset.startswith("uploads/") or preset.endswith(".wav") or preset.endswith(".mp3"):
         if not os.path.isabs(preset):
-            ref_path = os.path.join(os.getcwd(), preset)
+            ref_path = Path.cwd() / preset
         else:
-            ref_path = preset
+            ref_path = Path(preset)
     else:
         ref_path = VOICE_PRESETS.get(preset, VOICE_PRESETS["preset_01"])
     payload = {
         "text": text,
-        "reference_wav_path": ref_path,
+        "reference_wav_path": str(ref_path),
         "cfg_value": 2.0,
         "inference_timesteps": 15,
         "denoise": True
@@ -123,12 +118,12 @@ async def pregenerate_audio_cache(text: str, preset: str = "preset_01") -> str |
     
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.post(VOXCPM_URL, json=payload, timeout=180.0)
+            response = await client.post(settings.VOXCPM_URL, json=payload, timeout=180.0)
             
         if response.status_code == 200:
             with open(cache_path, "wb") as f:
                 f.write(response.content)
-            return cache_path
+            return str(cache_path)
     except Exception as e:
         print(f"Pregenerate audio cache failed for: {text}, error: {str(e)}")
         
@@ -143,9 +138,9 @@ async def upload_voice_preset_bridge(
     檔案傳輸橋樑：Learn8 將檔案轉發給 VoxCPM 進行聲音克隆註冊
     """
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             files = {"file": (file.filename, await file.read(), file.content_type)}
-            response = await client.post(VOXCPM_UPLOAD_URL, files=files, timeout=60.0)
+            response = await client.post(settings.VOXCPM_UPLOAD_URL, files=files)
             
         if response.status_code != 200:
             raise HTTPException(status_code=response.status_code, detail=f"VoxCPM 檔案上傳失敗: {response.status_code}")
@@ -227,7 +222,7 @@ async def clear_audio_cache(
     清除音檔快取
     """
     import shutil
-    cache_dir = os.path.join(os.getcwd(), "data", "uploads", "audio_cache")
+    cache_dir = settings.UPLOAD_DIR / "audio_cache"
     if os.path.exists(cache_dir):
         try:
             shutil.rmtree(cache_dir)
