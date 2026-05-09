@@ -80,7 +80,7 @@ export default function FeynmanQuestion({
   onHintUse,
   hideChrome = false,
   isRevealed = false,
-  maxRounds: maxRoundsProp = 10,
+  maxRounds: maxRoundsProp = 8,
 }: FeynmanQuestionProps) {
   const [messages, setMessages] = useState<FeynmanMessage[]>([]);
   const [input, setInput] = useState("");
@@ -124,7 +124,8 @@ export default function FeynmanQuestion({
           topic,
           history: newHistory,
           userInput: teacherMsg,
-          courseId: courseId
+          courseId: courseId,
+          maxRounds: maxRounds
         })
       });
       

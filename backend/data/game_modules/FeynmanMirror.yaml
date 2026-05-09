@@ -16,4 +16,4 @@ schema_requirements: |
   Component `FeynmanMirror` supports:
   - `prompt` (string): The initial question or curiosity expressed by the AI student to start the conversation.
   - `sampleAnswer` (string): A model explanation that represents deep understanding of the concept.
-  - `maxRounds` (integer, default 10): The maximum number of dialogue turns before the challenge ends.
+  - `maxRounds` (integer): The maximum number of dialogue turns before the challenge ends. You should choose a value that is pedagogically appropriate for the complexity of the topic (e.g., 3-5 for simple concepts, 8-12 for complex ones).

@@ -1375,9 +1375,16 @@ async def interact_feynman(
     # If the student is satisfied, we might want to return that so the frontend can then call submit-answer
     # Or we can return the advice if it's the last round.
     
-    if not result.get("isSatisfied") and len(history) >= 18: # 9 rounds * 2 (user+ai) = 18
+    max_rounds = payload.get("maxRounds", 10)
+    round_count = len(history) // 2
+    
+    if not result.get("isSatisfied") and round_count >= max_rounds:
         # Generate advice for the final failure
-        advice = await architect_service.generate_feynman_remedial_suggestion(topic, course_id=course_id)
+        advice = await architect_service.generate_feynman_remedial_suggestion(
+            topic, 
+            round_count=round_count,
+            course_id=course_id
+        )
         result["advice"] = advice
         
     return result

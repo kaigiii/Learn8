@@ -187,9 +187,12 @@ async def evaluate_feynman(
         
         if not is_correct:
             # If not correct, it means we failed after max rounds.
+            # Calculate actual rounds from history (len(history) // 2)
+            round_count = len(history) // 2 if history else 1
             # Get advisor advice
             message = await architect_service.generate_feynman_remedial_suggestion(
-                context_topic or stage.topic,
+                topic=context_topic or stage.topic,
+                round_count=round_count,
                 course_id=course_id
             )
 

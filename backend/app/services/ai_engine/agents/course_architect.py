@@ -219,13 +219,14 @@ class AIArchitectService:
     async def generate_feynman_remedial_suggestion(
         self,
         topic: str,
+        round_count: int = 10,
         course_id: Optional[int] = None,
     ) -> str:
         context_chunks = await self.rag_engine.query_context(topic, course_id=course_id)
         context_str = "\n\n".join(context_chunks) if context_chunks else "General Knowledge"
 
         messages = [
-            ("system", SYSTEM_PROMPT_FEYNMAN_ADVISOR.format(topic=topic, context=context_str)),
+            ("system", SYSTEM_PROMPT_FEYNMAN_ADVISOR.format(topic=topic, context=context_str, round_count=round_count)),
             ("user", f"Explain how I could have taught '{topic}' better."),
         ]
         try:
