@@ -1,6 +1,16 @@
 # 🛠️ 自製與自訂課程流程指南 (Maximum Detail Edition)
 
-本文件詳細說明在 Learn8 中，使用者如何自訂設計個人化課程、將其分享到好友與群組進行學習交流，以及審核通過後轉為全站公開自建課程的完整代碼與檔案流。
+本文檔詳細說明在 Learn8 中，使用者如何自訂設計個人化課程、將其分享到好友與群組，以及轉化為全站公開課程的完整路徑。這是一套旨在鼓勵**知識創作與社群共享**的內容管理系統。
+
+---
+
+## 🌟 0. 產品價值與 UX 亮點 (Product Value)
+
+自製課程系統賦予了學員從「消費者」轉變為「知識建築師」的能力：
+
+- **知識共享經濟 (Knowledge Sharing Economy)**：透過一鍵分享與 Fork，學員可以基於前人的肩膀進行二次創作。這不僅是數據的複製，更是智慧的傳遞與演進。
+- **克隆即學習 (Clone-to-Learn)**：Fork 功能讓學員可以將心儀的課程「搬回家」並根據自己的步調修改。這種「沙盒式」的學習環境消除了犯錯的恐懼，鼓勵大膽探索。
+- **成就感與影響力 (Creator Impact)**：當學員自訂的課程通過審核發佈至公開目錄時，將會獲得全站推薦，建立個人的專業品牌與成就感。
 
 ---
 
@@ -40,11 +50,13 @@ Learn8 的自製課程系統具備以下卓越架構亮點：
 ## 🌐 4. 轉化為全站自建課程 (Publishing Architecture)
 
 ### 4.1 上架申請與轉換 (`POST /api/v1/custom-courses/{id}/publish`)
-1. 提交審核：後端會將該課程實體的 `is_published` 設為 `True`，`status` 改為 `approved`。
-2. YAML 資料持久化與歸檔：
+1. **狀態遷移**：後端會將該課程實體的 `is_published` 設為 `True`，`status` 從 `completed` 轉變為 `pending_review`。
+2. **管理員審核**：經由管理後台審核通過後，觸發正式發佈。
+3. **YAML 資料持久化與歸檔**：
    - 輸出的 YAML 檔案將被儲存於獨立的備份目錄中：**`backend/data/custom_published_courses/`**。
-   - 同步寫入全新的 **`PublicCourseModel`**。
+   - 同步寫入全新的 **`PublicCourseModel`**，並將原本的個人課程狀態改為 `approved`。
 
 ### 4.2 競技場開通
-- 完備該課程的 `PublicCourseModel` 後，系統會自動在 `ArenaQuestionPoolModel` 中為其建立一組競技場專屬題庫。
+- 完備該課程的 `PublicCourseModel` 後，管理員可進入競技場控制台。
+- 透過「一鍵提取題目」功能（`extract_questions_from_syllabus`），從大綱中自動生成 `ArenaQuestionPoolModel` 題庫。
 - 此課程正式開放給全體用戶學習與競技。

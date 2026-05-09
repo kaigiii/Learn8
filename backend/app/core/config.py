@@ -106,6 +106,10 @@ class Settings(BaseSettings):
     def GAME_MODULES_DIR(self) -> Path:
         return self.DATA_DIR / "game_modules"
 
+    @property
+    def LOG_DIR(self) -> Path:
+        return self.DATA_DIR / "logs"
+
     # Content Whitelists (Comma-separated filenames)
     ENABLED_PUBLIC_COURSES: str = "ai_neural_networks.yaml,python_fundamentals.yaml,world_history.yaml"
     ENABLED_GAME_MODULES: str = "ExplainerMedia.yaml,FeynmanMirror.yaml,MatchingPairs.yaml,MultipleChoice.yaml,Ordering.yaml"

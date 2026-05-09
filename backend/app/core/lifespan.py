@@ -25,7 +25,7 @@ async def application_lifespan(app: FastAPI):
     from app.db.session import SessionLocal
     
     # Ensure activity.log exists
-    log_file_path = settings.BASE_DIR / "logs" / "activity.log"
+    log_file_path = settings.LOG_DIR / "activity.log"
     log_file_path.parent.mkdir(parents=True, exist_ok=True)
     if not log_file_path.exists():
         log_file_path.touch()
