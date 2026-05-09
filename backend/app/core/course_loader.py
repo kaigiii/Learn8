@@ -17,7 +17,8 @@ from app.arena.models.arena_question_pool import ArenaQuestionPoolModel, ArenaQu
 
 # 定義 public_courses 目錄的絕對或相對路徑
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
-COURSES_DIR = BASE_DIR / "data" / "official_courses"
+OFFICIAL_COURSES_DIR = BASE_DIR / "data" / "official_courses"
+CUSTOM_COURSES_DIR = BASE_DIR / "data" / "custom_published_courses"
 
 SYSTEM_EMAIL = "public@learn8.system"
 SYSTEM_NAME = "Learn8 Public"
@@ -28,31 +29,37 @@ class PublicCourseRegistryLoader:
         self._load_all()
 
     def _load_all(self):
-        """從 public_courses 目錄中載入所有 YAML 檔案。"""
+        """從官方與自定義目錄中載入所有 YAML 檔案。"""
+        self.courses = {}
         from app.core.config import settings
         
-        if not COURSES_DIR.exists():
-            print(f"Warning: Public courses directory not found at {COURSES_DIR}")
-            return
+        # 載入官方課程
+        if OFFICIAL_COURSES_DIR.exists():
+            enabled_courses = [c.strip() for c in settings.ENABLED_PUBLIC_COURSES.split(",") if c.strip()]
+            for filename in os.listdir(OFFICIAL_COURSES_DIR):
+                if filename.endswith(".yaml") or filename.endswith(".yml"):
+                    if enabled_courses and filename not in enabled_courses:
+                        continue
+                    self._load_file(OFFICIAL_COURSES_DIR / filename)
 
-        enabled_courses = [c.strip() for c in settings.ENABLED_PUBLIC_COURSES.split(",") if c.strip()]
+        # 載入自定義發佈的課程 (全部載入，不受 ENABLED_PUBLIC_COURSES 限制)
+        if CUSTOM_COURSES_DIR.exists():
+            for filename in os.listdir(CUSTOM_COURSES_DIR):
+                if filename.endswith(".yaml") or filename.endswith(".yml"):
+                    self._load_file(CUSTOM_COURSES_DIR / filename)
 
-        for filename in os.listdir(COURSES_DIR):
-            if filename.endswith(".yaml") or filename.endswith(".yml"):
-                if enabled_courses and filename not in enabled_courses:
-                    continue
-
-                filepath = COURSES_DIR / filename
-                with open(filepath, "r", encoding="utf-8") as f:
-                    try:
-                        data = yaml.safe_load(f)
-                        if data:
-                            # Store original filename for reference
-                            data["_source_file"] = filename
-                            # Use title or filename as key
-                            self.courses[data.get("title", filename)] = data
-                    except yaml.YAMLError as exc:
-                        print(f"Error parsing YAML file {filepath}: {exc}")
+    def _load_file(self, filepath: Path):
+        print(f"  [Loader] Loading: {filepath}")
+        with open(filepath, "r", encoding="utf-8") as f:
+            try:
+                data = yaml.safe_load(f)
+                if data:
+                    # Store original filename for reference
+                    data["_source_file"] = filepath.name
+                    # Use title or filename as key
+                    self.courses[data.get("title", filepath.name)] = data
+            except yaml.YAMLError as exc:
+                print(f"Error parsing YAML file {filepath}: {exc}")
 
     def sync_to_db(self, db: Session):
         """將載入的 YAML 課程同步至資料庫。"""
@@ -154,12 +161,25 @@ class PublicCourseRegistryLoader:
         ).all()
         
         if orphans:
-            print(f"  [Cleanup] Found {len(orphans)} orphaned courses to remove.")
+            print(f"  [Cleanup] Found {len(orphans)} orphaned CourseModel entries to remove.")
             for course in orphans:
-                print(f"    - Deleting: {course.title}")
+                print(f"    - Deleting CourseModel: {course.title}")
                 db.delete(course)
-            db.flush()
-            db.commit()
+        
+        # Also cleanup PublicCourseModel
+        current_slugs = [title.lower().replace(" ", "-").replace("&", "and") for title in current_titles]
+        public_orphans = db.query(PublicCourseModel).filter(
+            PublicCourseModel.slug.not_in(current_slugs)
+        ).all()
+        
+        if public_orphans:
+            print(f"  [Cleanup] Found {len(public_orphans)} orphaned PublicCourseModel entries to remove.")
+            for pc in public_orphans:
+                print(f"    - Deleting PublicCourseModel: {pc.slug}")
+                db.delete(pc)
+
+        db.flush()
+        db.commit()
 
     def _seed_one_course(self, db: Session, user: UserModel, course_def: dict) -> None:
         title = course_def["title"]
@@ -174,12 +194,11 @@ class PublicCourseRegistryLoader:
         syllabus = self._build_syllabus_json(course_def)
         if existing:
             # Update attributes instead of deleting
-            existing.topic = course_def["topic"]
+            existing.topic = course_def.get("topic", title)
             existing.syllabus_json = syllabus
             existing.updated_at = now
             course = existing
-            # Clean up old nodes and lessons to re-seed?
-            # For simplicity, we'll keep the course but delete its children
+            # Clean up old nodes and lessons to re-seed
             db.query(NodeModel).filter(NodeModel.course_id == course.id).delete()
             db.query(LessonModel).filter(LessonModel.course_id == course.id).delete()
             db.flush()
@@ -187,19 +206,26 @@ class PublicCourseRegistryLoader:
             course = CourseModel(
                 user_id=user.id,
                 title=title,
-                topic=course_def["topic"],
+                topic=course_def.get("topic", title),
                 status=CourseStatus.READY,
+                is_published=True,
                 folder_name=str(uuid.uuid4()),
                 profile_json={"summary": "System-generated public course."},
-                draft_json={"topic": course_def["topic"]},
+                draft_json={"topic": course_def.get("topic", title)},
                 syllabus_json=syllabus,
             )
             db.add(course)
             db.flush()
 
-        for unit_def in course_def["units"]:
-            for node_def in unit_def["nodes"]:
-                is_first = node_def["id"] == course_def["units"][0]["nodes"][0]["id"]
+        # Find the ID of the very first node to set it as available
+        first_node_id = None
+        units = course_def.get("units", [])
+        if units and len(units) > 0 and units[0].get("nodes") and len(units[0]["nodes"]) > 0:
+            first_node_id = units[0]["nodes"][0]["id"]
+
+        for unit_def in units:
+            for node_def in unit_def.get("nodes", []):
+                is_first = first_node_id and node_def["id"] == first_node_id
                 node_status = NodeStatus.AVAILABLE if is_first else NodeStatus.LOCKED
 
                 db_node = NodeModel(
@@ -278,6 +304,7 @@ class PublicCourseRegistryLoader:
             meta = course_def.get("metadata", {})
             public_course.is_published = meta.get("isPublished", True)
             public_course.is_featured_arena = meta.get("isFeatured", False)
+            public_course.source_course_id = meta.get("sourceCourseId")
             
             if "tags" in meta:
                 public_course.tags_json = meta["tags"]
@@ -297,6 +324,7 @@ class PublicCourseRegistryLoader:
                 description=course_def.get("description", "System generated public course"),
                 is_published=meta.get("isPublished", True),
                 is_featured_arena=meta.get("isFeatured", False),
+                source_course_id=meta.get("sourceCourseId"),
                 tags_json=meta.get("tags", ["yaml-seeded"]),
                 syllabus_json=final_syllabus,
                 created_at=now,

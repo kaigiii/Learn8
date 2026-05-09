@@ -9,7 +9,7 @@ class UserModel(Base):
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
-    credits = Column(Integer, default=50)
+    credits = Column(Integer, default=500)
     xp = Column(Integer, default=0, nullable=False)
     level = Column(Integer, default=1, nullable=False)
     xp_to_next_level = Column(Integer, default=100, nullable=False)

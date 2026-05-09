@@ -16,7 +16,40 @@ from app.models.lesson import LessonModel, LessonStageModel
 
 class AdminService:
     def list_public_courses(self, db: Session) -> list[PublicCourseModel]:
-        return db.query(PublicCourseModel).order_by(PublicCourseModel.created_at.desc()).all()
+        return db.query(PublicCourseModel).order_by(PublicCourseModel.is_published.desc(), PublicCourseModel.created_at.desc()).all()
+
+    def toggle_public_course_status(self, db: Session, course_id: int, is_published: bool) -> PublicCourseModel:
+        public_course = db.query(PublicCourseModel).filter(PublicCourseModel.id == course_id).first()
+        if not public_course:
+            raise HTTPException(status_code=404, detail="Public course not found")
+        
+        public_course.is_published = is_published
+        public_course.updated_at = utc_now()
+        
+        # 1. Sync to the Original Creator's Course
+        if public_course.source_course_id:
+            from app.models.course import CourseModel
+            original_course = db.query(CourseModel).filter(CourseModel.id == public_course.source_course_id).first()
+            if original_course:
+                original_course.is_published = is_published
+
+        # 2. Sync to the system-owned CourseModel (Learning Catalog)
+        from app.api.v1.endpoints.courses import SYSTEM_USER_EMAIL
+        system_user = db.query(UserModel).filter(UserModel.email == SYSTEM_USER_EMAIL).first()
+        if system_user:
+            from app.models.course import CourseModel
+            system_course = db.query(CourseModel).filter(
+                CourseModel.user_id == system_user.id,
+                CourseModel.topic == public_course.topic
+            ).first()
+            if system_course:
+                from app.domain.statuses import CourseStatus
+                system_course.is_published = is_published
+                system_course.status = CourseStatus.READY if is_published else CourseStatus.ARCHIVED
+        
+        db.commit()
+        db.refresh(public_course)
+        return public_course
 
 
     def list_question_pools(
@@ -352,6 +385,22 @@ class AdminService:
 
 
     def serialize_public_course(self, course: PublicCourseModel) -> dict:
+        syllabus = dict(course.syllabus_json or {})
+        
+        # Unify stages into components for frontend preview
+        if "units" in syllabus:
+            for unit in syllabus["units"]:
+                for node in unit.get("nodes", []):
+                    # For YAML-sourced courses, flatten 'stages' into 'components'
+                    if "stages" in node and not node.get("components"):
+                        flattened = []
+                        for stage in node["stages"]:
+                            # Merge stage top-level into data for easier frontend access
+                            comp = dict(stage.get("data", {}))
+                            comp["type"] = stage.get("component")
+                            flattened.append(comp)
+                        node["components"] = flattened
+                        
         return {
             "id": course.id,
             "slug": course.slug,
@@ -360,7 +409,9 @@ class AdminService:
             "description": course.description,
             "isPublished": bool(course.is_published),
             "isFeatured": bool(course.is_featured_arena),
+            "sourceCourseId": course.source_course_id,
             "tags": list(course.tags_json or []),
+            "syllabus_json": syllabus,
         }
 
     def serialize_question_pool(self, pool: ArenaQuestionPoolModel) -> dict:

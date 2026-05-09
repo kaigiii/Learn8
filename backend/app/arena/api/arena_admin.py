@@ -64,6 +64,19 @@ def list_admin_public_courses(
     del current_user
     service = AdminService()
     return [service.serialize_public_course(course) for course in service.list_public_courses(db)]
+    
+@router.patch("/public-courses/{course_id}/status", response_model=ArenaAdminPublicCourseResponse)
+def update_public_course_status(
+    course_id: int,
+    payload: dict,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_arena_admin),
+):
+    del current_user
+    service = AdminService()
+    is_published = payload.get("isPublished", True)
+    course = service.toggle_public_course_status(db, course_id, is_published)
+    return ArenaAdminPublicCourseResponse(**service.serialize_public_course(course))
 
 
 

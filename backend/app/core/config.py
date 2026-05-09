@@ -76,5 +76,6 @@ class Settings(BaseSettings):
     # Content Whitelists (Comma-separated filenames)
     ENABLED_PUBLIC_COURSES: str = "ai_neural_networks.yaml,python_fundamentals.yaml,world_history.yaml"
     ENABLED_GAME_MODULES: str = "ExplainerMedia.yaml,FeynmanMirror.yaml,MatchingPairs.yaml,MultipleChoice.yaml,Ordering.yaml"
+    FEYNMAN_DEFAULT_MAX_ROUNDS: int = 10
 
 settings = Settings()

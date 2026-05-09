@@ -13,7 +13,9 @@ class ArenaAdminPublicCourseResponse(BaseModel):
     description: Optional[str] = None
     isPublished: bool
     isFeatured: bool
+    sourceCourseId: Optional[int] = None
     tags: List[str] = Field(default_factory=list)
+    syllabus_json: Optional[dict] = None
 
 
 class ArenaAdminQuestionPoolItemRequest(BaseModel):

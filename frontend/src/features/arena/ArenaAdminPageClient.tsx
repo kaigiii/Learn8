@@ -15,7 +15,8 @@ import {
   FiArrowRight,
   FiSearch,
   FiTerminal,
-  FiVolume2
+  FiVolume2,
+  FiGlobe
 } from "react-icons/fi";
 
 import TopStatsBar from "@/components/layout/TopStatsBar";
@@ -50,6 +51,7 @@ import type {
   ArenaAdminSyllabusQuestion,
 } from "@/lib/apiTypes";
 import ArenaPoolBuilder from "./components/ArenaPoolBuilder";
+import PublicCourseManagementTab from "./components/PublicCourseManagementTab";
 
 /* ═══════════════════ Types ═══════════════════ */
 
@@ -145,7 +147,7 @@ export default function ArenaAdminPageClient() {
   const [playerMatchSearch, setPlayerMatchSearch] = useState("");
 
   // UI Tabs State
-  const [activeTab, setActiveTab] = useState<"builder" | "topics" | "seasons" | "operations" | "voice">("builder");
+  const [activeTab, setActiveTab] = useState<"builder" | "topics" | "seasons" | "operations" | "voice" | "catalog">("builder");
   const [availableQuestions, setAvailableQuestions] = useState<ArenaAdminSyllabusQuestion[]>([]);
   const [loadingAvailable, setLoadingAvailable] = useState(false);
 
@@ -483,10 +485,7 @@ export default function ArenaAdminPageClient() {
               <NavButton active={activeTab === "seasons"} onClick={() => setActiveTab("seasons")} icon={<FiCalendar />} label="Seasons" />
               <NavButton active={activeTab === "operations"} onClick={() => setActiveTab("operations")} icon={<FiActivity />} label="Operations" />
               <NavButton active={activeTab === "voice"} onClick={() => setActiveTab("voice")} icon={<FiVolume2 />} label="Voice Assistant" />
-              <Link href="/admin/course-reviews" className="flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold bg-white/60 text-brand-gray-500 hover:bg-white/80 hover:text-brand-teal hover:scale-105 transition-all">
-                <span className="text-brand-teal"><FiBookOpen /></span>
-                Course Reviews
-              </Link>
+              <NavButton active={activeTab === "catalog"} onClick={() => setActiveTab("catalog")} icon={<FiGlobe />} label="Course Catalog" />
             </div>
           </div>
 
@@ -775,6 +774,10 @@ export default function ArenaAdminPageClient() {
                   </div>
                 </DeepGlassCard>
               </motion.div>
+            )}
+
+            {activeTab === "catalog" && (
+              <PublicCourseManagementTab />
             )}
           </div>
         )}
