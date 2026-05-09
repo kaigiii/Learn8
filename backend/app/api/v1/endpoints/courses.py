@@ -24,13 +24,13 @@ from app.schemas.course_schema import (
     UpdateNodeStatusRequest,
 )
 from app.schemas.questionnaire_schema import LearnerProfile, QuestionnaireSubmitRequest
-from app.services.ai_agents.questionnaire_agent import (
+from app.services.ai_engine.agents.questionnaire_agent import (
     QuestionnaireAgent,
     get_questionnaire_agent,
 )
-from app.services.commons.file_service import FileService, get_file_service
-from app.services.commons.user_credits import has_sufficient_credits
-from app.services.commons.course_lifecycle import (
+from app.services.infra.files.service import FileService, get_file_service
+from app.services.domain.user.credits import has_sufficient_credits
+from app.services.domain.course.lifecycle import (
     ensure_course_can_edit_draft,
     ensure_course_can_generate_questionnaire,
     ensure_course_can_submit_questionnaire,
@@ -39,8 +39,8 @@ from app.services.commons.course_lifecycle import (
     mark_questionnaire_started,
     sync_questionnaire_readiness_from_draft,
 )
-from app.services.knowledge_base.rag_engine import RAGEngine, get_rag_engine
-from app.services.workers.questionnaire_worker import run_questionnaire_generation_job
+from app.services.ai_engine.kb.rag_engine import RAGEngine, get_rag_engine
+from app.services.infra.scheduler.workers.questionnaire_worker import run_questionnaire_generation_job
 from app.core.config import settings
 
 router = APIRouter()

@@ -5,7 +5,7 @@ from sqlalchemy import text
 
 from app.core.time import utc_now
 from app.arena.models.arena_match import ArenaMatchModel
-from app.services.commons.user_economy import award_arena_match_reward
+from app.services.domain.user.economy import award_arena_match_reward
 from app.models.user import UserModel
 
 logger = logging.getLogger(__name__)

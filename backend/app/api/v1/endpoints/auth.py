@@ -33,25 +33,19 @@ from app.schemas.auth_schema import (
     UserLedgerResponse,
     UserUpdate,
 )
-from app.services.commons.activity_logger import ActivityLogger
+from app.services.domain.user.activity_logger import ActivityLogger
 from app.core.config import settings
-from app.services.commons.user_economy import (
+from app.services.domain.user.economy import (
     list_user_ledger_events,
     spend_user_credits as apply_credit_spend,
     top_up_user_credits as apply_credit_top_up,
 )
-from app.services.commons.user_progress import ensure_user_progress_fields
+from app.services.domain.user.progress import ensure_user_progress_fields
+from app.services.domain.user.service import UserService
 
 router = APIRouter()
-EMAIL_RE = re.compile(r"^[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}$", re.IGNORECASE)
-AVATAR_FILENAME_RE = re.compile(r"^[^/\\\x00]+\.png$")
-MAX_AVATAR_UPLOAD_BYTES = 20 * 1024 * 1024
 AVATAR_IMAGE_DIR = settings.UPLOAD_DIR / "avatar"
 DEFAULT_AVATAR_PATH = settings.BASE_DIR.parent / "frontend" / "public" / "avatar" / "chicken.png"
-
-
-def _normalize_email(email: str) -> str:
-    return email.strip().lower()
 
 
 def _normalize_optional_text(value: str | None) -> str | None:
@@ -61,68 +55,17 @@ def _normalize_optional_text(value: str | None) -> str | None:
     return cleaned or None
 
 
-def _validate_email(email: str) -> None:
-    if not EMAIL_RE.match(email):
-        raise HTTPException(status_code=400, detail="Please enter a valid email address")
-
-
 def _remaining_lockout_minutes(locked_until: datetime) -> int:
     remaining = locked_until - datetime.now(timezone.utc)
     total_seconds = max(int(remaining.total_seconds()), 0)
     return max((total_seconds + 59) // 60, 1)
 
 
-def _ensure_avatar_dir() -> Path:
-    AVATAR_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
-    return AVATAR_IMAGE_DIR
-
-
-def _avatar_filename_for_user(email: str) -> str:
-    normalized_email = (email or "").strip().lower()
-    if not normalized_email:
-        raise HTTPException(status_code=400, detail="User email is required for avatar naming")
-    safe_email = re.sub(r'[<>:"/\\|?*\x00-\x1F]+', "_", normalized_email).strip()
-    if not safe_email:
-        raise HTTPException(status_code=400, detail="User email is required for avatar naming")
-    return f"{safe_email}.png"
-
-
-def _avatar_url_for_filename(filename: str) -> str:
-    return f"{settings.API_V1_STR}/auth/avatar-images/{quote(filename, safe='')}"
-
-
-def _sync_legacy_avatar_url(user: UserModel) -> bool:
-    current_avatar_url = (user.avatar_url or "").strip()
-    if not current_avatar_url or "/auth/avatar-images/" not in current_avatar_url:
-        return False
-
-    current_encoded_filename = current_avatar_url.rsplit("/auth/avatar-images/", 1)[-1].split("?", 1)[0]
-    current_filename = unquote(current_encoded_filename)
-    if not AVATAR_FILENAME_RE.match(current_filename):
-        user.avatar_url = None
-        return True
-
-    expected_filename = _avatar_filename_for_user(user.email)
-    expected_avatar_path = AVATAR_IMAGE_DIR / expected_filename
-    current_avatar_path = AVATAR_IMAGE_DIR / current_filename
-
-    if not expected_avatar_path.exists() or not expected_avatar_path.is_file():
-        if current_avatar_path.exists() and current_avatar_path.is_file():
-            expected_avatar_path.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(current_avatar_path, expected_avatar_path)
-        else:
-            user.avatar_url = None
-            return True
-
-    user.avatar_url = _avatar_url_for_filename(expected_filename)
-    return True
-
-
 @router.post("/register")
 def register(user: UserCreate, db: Session = Depends(get_db)):
     try:
-        normalized_email = _normalize_email(user.email)
-        _validate_email(normalized_email)
+        normalized_email = UserService.normalize_email(user.email)
+        UserService.validate_email(normalized_email)
 
         # 驗證密碼強度
         password = user.password
@@ -158,8 +101,8 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=Token)
 def login(user: UserLogin, db: Session = Depends(get_db)):
-    normalized_email = _normalize_email(user.email)
-    _validate_email(normalized_email)
+    normalized_email = UserService.normalize_email(user.email)
+    UserService.validate_email(normalized_email)
 
     db_user = db.query(UserModel).filter(UserModel.email == normalized_email).first()
     if not db_user:
@@ -199,8 +142,8 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
 
 @router.post("/forgot-password", response_model=PasswordResetResponse)
 def forgot_password(request: PasswordResetRequest, db: Session = Depends(get_db)):
-    normalized_email = _normalize_email(request.email)
-    _validate_email(normalized_email)
+    normalized_email = UserService.normalize_email(request.email)
+    UserService.validate_email(normalized_email)
 
     user = db.query(UserModel).filter(UserModel.email == normalized_email).first()
     ActivityLogger.log_password_reset_requested(normalized_email)
@@ -322,7 +265,7 @@ def read_users_me(
 ):
     ensure_user_progress_fields(current_user)
 
-    if _sync_legacy_avatar_url(current_user):
+    if UserService.sync_legacy_avatar(db, current_user):
         db.commit()
         db.refresh(current_user)
 
@@ -407,32 +350,8 @@ async def upload_user_avatar(
     current_user: UserModel = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    raw_bytes = await file.read()
-    if not raw_bytes:
-        raise HTTPException(status_code=400, detail="Uploaded image is empty.")
-    if len(raw_bytes) > MAX_AVATAR_UPLOAD_BYTES:
-        raise HTTPException(status_code=400, detail="Avatar image is too large (max 20MB).")
-
-    try:
-        with Image.open(io.BytesIO(raw_bytes)) as source:
-            has_alpha = source.mode in ("RGBA", "LA") or (
-                source.mode == "P" and "transparency" in source.info
-            )
-            converted = source.convert("RGBA" if has_alpha else "RGB")
-    except UnidentifiedImageError:
-        raise HTTPException(status_code=400, detail="Unsupported image format.")
-    except Exception:
-        raise HTTPException(status_code=400, detail="Failed to process avatar image.")
-
-    avatar_dir = _ensure_avatar_dir()
-    avatar_filename = _avatar_filename_for_user(current_user.email)
-    avatar_path = avatar_dir / avatar_filename
-    try:
-        converted.save(avatar_path, format="PNG")
-    except Exception:
-        raise HTTPException(status_code=500, detail="Failed to save avatar image.")
-
-    current_user.avatar_url = _avatar_url_for_filename(avatar_filename)
+    avatar_filename = await UserService.process_and_save_avatar(file, current_user.email)
+    current_user.avatar_url = UserService.get_avatar_url(avatar_filename)
     db.commit()
     db.refresh(current_user)
 
@@ -444,7 +363,7 @@ async def upload_user_avatar(
 def get_avatar_image(filename: str):
     decoded_filename = unquote(filename)
 
-    if not AVATAR_FILENAME_RE.match(decoded_filename):
+    if not UserService.AVATAR_FILENAME_RE.match(decoded_filename):
         raise HTTPException(status_code=404, detail="Avatar not found")
 
     avatar_path = AVATAR_IMAGE_DIR / decoded_filename
