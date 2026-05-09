@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     CORS_ALLOW_ORIGINS: str = "*"
 
+    # VoxCPM (Audio Service)
+    VOXCPM_URL: str = "http://127.0.0.1:15060/v1/audio/speech"
+    VOXCPM_UPLOAD_URL: str = "http://127.0.0.1:15060/v1/audio/upload"
+
     # Security
     SECRET_KEY: str = "supersecretkey123"
     ALGORITHM: str = "HS256"
@@ -72,6 +76,35 @@ class Settings(BaseSettings):
     COST_QUESTIONNAIRE_GENERATION: int = 5
     MAX_FILE_READ_BYTES: int = 50000
     MAX_COURSE_CONTEXT_BYTES: int = 100000
+
+    # Paths (Centralized Path Management)
+    @property
+    def BASE_DIR(self) -> Path:
+        return BASE_DIR
+
+    @property
+    def DATA_DIR(self) -> Path:
+        return BASE_DIR / "data"
+
+    @property
+    def UPLOAD_DIR(self) -> Path:
+        return self.DATA_DIR / "uploads"
+
+    @property
+    def PRESETS_DIR(self) -> Path:
+        return self.DATA_DIR / "presets"
+
+    @property
+    def CUSTOM_COURSES_DIR(self) -> Path:
+        return self.DATA_DIR / "custom_published_courses"
+
+    @property
+    def OFFICIAL_COURSES_DIR(self) -> Path:
+        return self.DATA_DIR / "official_courses"
+
+    @property
+    def GAME_MODULES_DIR(self) -> Path:
+        return self.DATA_DIR / "game_modules"
 
     # Content Whitelists (Comma-separated filenames)
     ENABLED_PUBLIC_COURSES: str = "ai_neural_networks.yaml,python_fundamentals.yaml,world_history.yaml"

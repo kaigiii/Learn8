@@ -4,8 +4,8 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 
 # 定義 game_modules 目錄的絕對或相對路徑
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
-MODULES_DIR = BASE_DIR / "data" / "game_modules"
+from app.core.config import settings
+MODULES_DIR = settings.GAME_MODULES_DIR
 
 
 class ComponentRegistryLoader:

@@ -2,13 +2,15 @@ import os
 import shutil
 from fastapi import UploadFile, HTTPException
 from app.services.commons.activity_logger import activity_logger
+from app.core.config import settings
+from pathlib import Path
 
 
 class FileService:
-    def get_upload_dir(self, user_id: int, course_folder: str = None) -> str:
-        base_path = os.path.join(os.getcwd(), "data", "uploads", str(user_id))
+    def get_upload_dir(self, user_id: int, course_folder: str = None) -> Path:
+        base_path = settings.UPLOAD_DIR / str(user_id)
         if course_folder:
-            base_path = os.path.join(base_path, course_folder)
+            base_path = base_path / course_folder
         return base_path
 
     def save_upload_file(
@@ -17,13 +19,12 @@ class FileService:
         upload_dir = self.get_upload_dir(user_id, course_folder)
         os.makedirs(upload_dir, exist_ok=True)
 
-        # 可以在此加入基礎的檔名清理邏輯 (Sanitization)
-        file_path = os.path.abspath(os.path.join(upload_dir, file.filename))
+        file_path = upload_dir / file.filename
 
         try:
             with open(file_path, "wb") as buffer:
                 shutil.copyfileobj(file.file, buffer)
-            return file_path
+            return str(file_path.absolute())
         except Exception as e:
             activity_logger.error(f"File save failed for {file.filename}: {e}")
             raise HTTPException(status_code=500, detail=f"File save failed: {str(e)}")

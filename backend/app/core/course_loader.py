@@ -15,11 +15,11 @@ from app.models.lesson import LessonModel, LessonStageModel
 from app.models.user import UserModel
 from app.models.public_course import PublicCourseModel
 from app.arena.models.arena_question_pool import ArenaQuestionPoolModel, ArenaQuestionPoolItemModel
+from app.core.config import settings
 
 # 定義 public_courses 目錄的絕對或相對路徑
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
-OFFICIAL_COURSES_DIR = BASE_DIR / "data" / "official_courses"
-CUSTOM_COURSES_DIR = BASE_DIR / "data" / "custom_published_courses"
+OFFICIAL_COURSES_DIR = settings.OFFICIAL_COURSES_DIR
+CUSTOM_COURSES_DIR = settings.CUSTOM_COURSES_DIR
 
 SYSTEM_EMAIL = "public@learn8.system"
 SYSTEM_NAME = "Learn8 Public"
