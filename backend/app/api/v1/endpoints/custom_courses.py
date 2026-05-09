@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from sqlalchemy import select, or_, and_
 from typing import List, Any
@@ -123,6 +123,9 @@ def update_custom_course(
             
             # Trigger sync to remove the system-owned course record
             from app.core.course_loader import registry
+            # We still need a full reload if a file is DELETED to cleanup orphans, 
+            # but unpublishing is rare enough or we can optimize it later.
+            # For now, let's at least keep it consistent.
             registry._load_all()
             registry.sync_to_db(db)
             
@@ -133,6 +136,7 @@ def update_custom_course(
 @router.post("/{course_id}/export-yaml", response_model=Any)
 def export_course_to_yaml(
     course_id: int,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_arena_admin),
 ):
@@ -219,13 +223,11 @@ def export_course_to_yaml(
     course.status = "approved"
     db.commit()
 
-    # --- Trigger System-wide Reload ---
-    # Instead of manual sync, we use the registry loader to ensure consistency
+    # --- Trigger Background System Update ---
     from app.core.course_loader import registry
-    registry._load_all()
-    registry.sync_to_db(db)
+    background_tasks.add_task(registry.sync_one_file, yaml_path, db)
     
-    return {"status": "success", "file": yaml_filename}
+    return {"status": "success", "file": yaml_filename, "message": "Course export started in background"}
 
 @router.post("/{course_id}/fork", response_model=Any)
 def fork_course(

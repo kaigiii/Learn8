@@ -41,7 +41,17 @@ export default function PublicCourseManagementTab() {
       await apiFetch<any>(`/custom-courses/${courseId}/export-yaml`, {
         method: "POST"
       });
-      fetchData();
+      // OPTIMIZATION: Instead of full fetchData(), move the course locally
+      const publishedCourse = pendingCourses.find(c => c.id === courseId);
+      if (publishedCourse) {
+        setPendingCourses(prev => prev.filter(c => c.id !== courseId));
+        setPublicCourses(prev => [
+          ...prev, 
+          { ...publishedCourse, isPublished: true, type: 'public', sourceCourseId: courseId }
+        ]);
+      } else {
+        fetchData(); // Fallback
+      }
     } catch (err) {
       alert("Failed to publish course");
     } finally {
@@ -56,7 +66,10 @@ export default function PublicCourseManagementTab() {
         method: "PATCH",
         body: JSON.stringify({ isPublished: !currentStatus })
       });
-      fetchData();
+      // OPTIMIZATION: Patch local state
+      setPublicCourses(prev => prev.map(c => 
+        c.id === courseId ? { ...c, isPublished: !currentStatus } : c
+      ));
     } catch (err) {
       alert("Failed to update course status");
     } finally {
@@ -216,7 +229,8 @@ export default function PublicCourseManagementTab() {
                                   method: "PUT",
                                   body: JSON.stringify({ is_published: false })
                                 });
-                                fetchData();
+                                // OPTIMIZATION: Remove from local state
+                                setPublicCourses(prev => prev.filter(c => c.id !== course.id));
                               } catch (err) {
                                 alert("Failed to unpublish");
                               } finally {
