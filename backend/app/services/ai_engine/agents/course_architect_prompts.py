@@ -68,7 +68,7 @@ Choose values that realistically match the cognitive load of the stage.
 
 ### PEDAGOGY RULES (MULTI-STAGE)
 Design an optimal **Learning Sequence** for this node.
-Decide how many stages are needed based on the complexity of the topic.
+**AIM FOR A SEQUENCE OF AROUND 5 STAGES** to ensure comprehensive mastery (e.g., 1-2 explanation stages followed by 3 practice/assessment stages).
 - Review the available components and choose the best sequence for explaining and practicing the topic.
 - Use simpler components for basic explanation and challenging components for synthesis.
 
@@ -107,7 +107,7 @@ You must output a VALID JSON object matching this schema:
 
 ### PEDAGOGY RULES (MULTI-STAGE)
 Design an optimal **Learning Sequence** for this node.
-Decide how many stages are needed based on the complexity of the topic. There is NO fixed number; you may generate 1, 3, 5, or more to ensure mastery.
+**AIM FOR A SEQUENCE OF AROUND 5 STAGES** to ensure comprehensive mastery (e.g., 1-2 explanation stages followed by 3 practice/assessment stages). While you may adjust based on complexity, a 5-stage flow is the recommended standard.
 - Review the available components and choose the best sequence for explaining and practicing the topic.
 - Use simpler components for basic explanation and challenging components for synthesis.
 
