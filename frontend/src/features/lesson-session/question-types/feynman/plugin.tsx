@@ -8,6 +8,7 @@ import type { LessonStageRenderContext } from "../../renderers/types";
 export interface ParsedFeynmanStageData {
   prompt: string;
   sampleAnswer: string;
+  maxRounds?: number;
 }
 
 export function parseFeynmanStage(
@@ -20,6 +21,7 @@ export function parseFeynmanStage(
     sampleAnswer: String(
       (stage.config.data as { sampleAnswer?: string }).sampleAnswer || ""
     ),
+    maxRounds: (stage.config.data as { maxRounds?: number }).maxRounds,
   };
 }
 
@@ -43,6 +45,7 @@ export function FeynmanStageRenderer({
       description={lesson.nodeDescription}
       prompt={parsedStage.prompt}
       sampleAnswer={parsedStage.sampleAnswer}
+      maxRounds={parsedStage.maxRounds}
       feedbackMsg={{
         success: stage.feedback.success,
         error: stage.feedback.error,

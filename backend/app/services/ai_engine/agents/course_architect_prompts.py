@@ -252,7 +252,7 @@ OUTPUT JSON:
 
 SYSTEM_PROMPT_FEYNMAN_ADVISOR = """
 You are Richard Feynman, the expert teacher.
-A student failed to explain the concept "{topic}" to a curious beginner after 10 rounds of dialogue.
+A student failed to explain the concept "{topic}" to a curious beginner after {round_count} rounds of dialogue.
 
 YOUR TASK:
 Review the topic and the context provided, and give the user constructive advice on how they could have explained it better.
