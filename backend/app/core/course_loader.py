@@ -1,5 +1,6 @@
 import os
 import uuid
+import hashlib
 from typing import Any, List, Dict, Optional
 from pathlib import Path
 import yaml
@@ -26,6 +27,8 @@ SYSTEM_NAME = "Learn8 Public"
 class PublicCourseRegistryLoader:
     def __init__(self):
         self.courses: Dict[str, Dict[str, Any]] = {}
+        # Memory cache for hashes to skip unchanged files during a single runtime
+        self._hash_cache: Dict[str, str] = {}
         self._load_all()
 
     def _load_all(self):
@@ -40,29 +43,60 @@ class PublicCourseRegistryLoader:
                 if filename.endswith(".yaml") or filename.endswith(".yml"):
                     if enabled_courses and filename not in enabled_courses:
                         continue
-                    self._load_file(OFFICIAL_COURSES_DIR / filename)
+                    data = self._load_file(OFFICIAL_COURSES_DIR / filename)
+                    if data:
+                        self.courses[data.get("title", filename)] = data
 
         # 載入自定義發佈的課程 (全部載入，不受 ENABLED_PUBLIC_COURSES 限制)
         if CUSTOM_COURSES_DIR.exists():
             for filename in os.listdir(CUSTOM_COURSES_DIR):
                 if filename.endswith(".yaml") or filename.endswith(".yml"):
-                    self._load_file(CUSTOM_COURSES_DIR / filename)
+                    data = self._load_file(CUSTOM_COURSES_DIR / filename)
+                    if data:
+                        self.courses[data.get("title", filename)] = data
 
-    def _load_file(self, filepath: Path):
-        print(f"  [Loader] Loading: {filepath}")
+    def _load_file(self, filepath: Path) -> Optional[dict]:
+        """讀取單一 YAML 檔案並回傳資料。"""
+        if not filepath.exists():
+            return None
+            
         with open(filepath, "r", encoding="utf-8") as f:
             try:
                 data = yaml.safe_load(f)
                 if data:
-                    # Store original filename for reference
                     data["_source_file"] = filepath.name
-                    # Use title or filename as key
-                    self.courses[data.get("title", filepath.name)] = data
+                    data["_file_hash"] = self._calculate_file_hash(filepath)
+                    return data
             except yaml.YAMLError as exc:
                 print(f"Error parsing YAML file {filepath}: {exc}")
+        return None
+
+    def _calculate_file_hash(self, filepath: Path) -> str:
+        """計算檔案的 MD5 Hash。"""
+        hasher = hashlib.md5()
+        with open(filepath, "rb") as f:
+            buf = f.read()
+            hasher.update(buf)
+        return hasher.hexdigest()
+
+    def sync_one_file(self, filepath: Path, db: Session):
+        """細粒度同步：僅同步指定的單一 YAML 檔案。"""
+        data = self._load_file(filepath)
+        if not data:
+            print(f"  [Loader] Failed to load {filepath}, skipping sync.")
+            return
+
+        title = data.get("title", filepath.name)
+        self.courses[title] = data
+        
+        system_user = self._get_or_create_system_user(db)
+        self._seed_one_course(db, system_user, data)
+        self._hash_cache[data["_source_file"]] = data["_file_hash"]
+        db.commit()
+        print(f"  [Loader] Successfully synced: {title}")
 
     def sync_to_db(self, db: Session):
-        """將載入的 YAML 課程同步至資料庫。"""
+        """將載入的 YAML 課程同步至資料庫 (增加 Hash 比對優化)。"""
         if not self.courses:
             print("No public courses loaded to sync.")
             return
@@ -73,8 +107,21 @@ class PublicCourseRegistryLoader:
 
         # Seed courses
         current_titles = list(self.courses.keys())
+        skipped_count = 0
         for course_def in self.courses.values():
+            file_name = course_def["_source_file"]
+            file_hash = course_def["_file_hash"]
+            
+            # 如果 Hash 沒變且不在啟動強制同步名單，則跳過
+            if self._hash_cache.get(file_name) == file_hash:
+                skipped_count += 1
+                continue
+                
             self._seed_one_course(db, system_user, course_def)
+            self._hash_cache[file_name] = file_hash
+
+        if skipped_count > 0:
+            print(f"  [Loader] Skipped {skipped_count} unchanged courses (Hash match).")
 
         # Cleanup ones no longer in the list
         self._cleanup_orphaned_courses(db, system_user, current_titles)
