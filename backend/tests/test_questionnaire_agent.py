@@ -3,8 +3,8 @@ import asyncio
 import pytest
 
 from app.schemas.questionnaire_schema import QuestionnaireResponse, QuestionnaireSubmission
-from app.services.ai_agents.questionnaire_agent import QuestionnaireAgent
-from app.services.llm_clients.factory import LLMFactory
+from app.services.ai_engine.agents.questionnaire_agent import QuestionnaireAgent
+from app.services.ai_engine.clients.factory import LLMFactory
 
 
 def test_questionnaire_agent_uses_fake_provider_by_default(fake_provider, fake_rag_engine):
