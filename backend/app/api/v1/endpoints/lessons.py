@@ -53,16 +53,16 @@ from app.schemas.lesson_schema import (
     SubmissionRequest,
     SubmissionResponse,
 )
-from app.services.ai_agents.course_architect import AIArchitectService, get_architect_service
-from app.services.commons.user_credits import has_sufficient_credits
-from app.services.commons.lesson_persistence import count_stage_items, sync_session_stages
-from app.services.commons.profile_context import build_generation_profile_context
-from app.services.commons.user_economy import (
+from app.services.ai_engine.agents.course_architect import AIArchitectService, get_architect_service
+from app.services.domain.user.credits import has_sufficient_credits
+from app.services.domain.learning.lesson_persistence import count_stage_items, sync_session_stages
+from app.services.domain.user.profile_context import build_generation_profile_context
+from app.services.domain.user.economy import (
     award_lesson_completion_xp,
 )
-from app.services.lesson_components.evaluator_registry import evaluator_registry
-from app.services.lesson_components import evaluators as _lesson_component_evaluators  # noqa: F401
-from app.services.workers.lesson_worker import (
+from app.services.domain.learning.lesson_components.evaluator_registry import evaluator_registry
+from app.services.domain.learning.lesson_components import evaluators as _lesson_component_evaluators  # noqa: F401
+from app.services.infra.scheduler.workers.lesson_worker import (
     run_lesson_generation_job,
     run_remedial_generation_job,
 )

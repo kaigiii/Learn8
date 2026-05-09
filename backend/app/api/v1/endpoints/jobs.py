@@ -23,21 +23,21 @@ from app.models.job import JobModel
 from app.models.course import CourseModel
 from app.models.lesson import LessonFailedStageModel, LessonSessionModel
 from app.schemas.course_schema import LessonNode
-from app.services.commons.file_service import FileService
-from app.services.workers.job_notifier import _notify_job_update
-from app.services.workers.questionnaire_worker import run_questionnaire_generation_job
-from app.services.workers.syllabus_worker import run_syllabus_generation_job
-from app.services.workers.lesson_worker import (
+from app.services.infra.files.service import FileService
+from app.services.infra.scheduler.workers.job_notifier import _notify_job_update
+from app.services.infra.scheduler.workers.questionnaire_worker import run_questionnaire_generation_job
+from app.services.infra.scheduler.workers.syllabus_worker import run_syllabus_generation_job
+from app.services.infra.scheduler.workers.lesson_worker import (
     run_lesson_generation_job,
     run_remedial_generation_job,
 )
-from app.services.commons.course_lifecycle import (
+from app.services.domain.course.lifecycle import (
     ensure_course_can_generate_questionnaire,
     ensure_course_can_generate_syllabus,
     mark_questionnaire_started,
     mark_syllabus_started,
 )
-from app.services.commons.profile_context import build_generation_profile_context
+from app.services.domain.user.profile_context import build_generation_profile_context
 import logging
 
 logger = logging.getLogger(__name__)

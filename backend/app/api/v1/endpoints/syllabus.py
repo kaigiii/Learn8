@@ -11,17 +11,17 @@ from app.models.user import UserModel
 from app.models.course import CourseModel, NodeModel
 from app.models.job import JobModel
 from app.schemas.course_schema import CoursePath, RefineSyllabusRequest
-from app.services.workers.syllabus_worker import run_syllabus_generation_job
+from app.services.infra.scheduler.workers.syllabus_worker import run_syllabus_generation_job
 from app.core.config import settings
-from app.services.workflows.syllabus_workflow import syllabus_graph
-from app.services.commons.activity_logger import ActivityLogger
-from app.services.ai_agents.course_architect import AIArchitectService, get_architect_service
-from app.services.commons.course_lifecycle import (
+from app.services.ai_engine.workflows.syllabus_workflow import syllabus_graph
+from app.services.domain.user.activity_logger import ActivityLogger
+from app.services.ai_engine.agents.course_architect import AIArchitectService, get_architect_service
+from app.services.domain.course.lifecycle import (
     ensure_course_can_generate_syllabus,
     mark_syllabus_started,
 )
-from app.services.commons.user_credits import has_sufficient_credits
-from app.services.commons.profile_context import build_generation_profile_context
+from app.services.domain.user.credits import has_sufficient_credits
+from app.services.domain.user.profile_context import build_generation_profile_context
 
 router = APIRouter()
 
@@ -88,7 +88,7 @@ async def generate_syllabus(
     full_text_context = ""
     files = []
     if course_folder_name:
-        from app.services.commons.file_service import FileService
+        from app.services.infra.files.service import FileService
 
         file_service = FileService()
         files = file_service.list_files(current_user.id, course_folder_name)

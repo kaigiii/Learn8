@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.core.config import settings
-from app.services.jobs.job_registry import JobRegistry
+from app.services.infra.scheduler.jobs.job_registry import JobRegistry
 from app.arena.services.maintenance_service import ArenaMaintenanceService
 
 @asynccontextmanager
@@ -25,11 +25,10 @@ async def application_lifespan(app: FastAPI):
     from app.db.session import SessionLocal
     
     # Ensure activity.log exists
-    log_file_path = os.path.join(os.path.dirname(__file__), '../../logs/activity.log')
-    os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
-    if not os.path.exists(log_file_path):
-        with open(log_file_path, 'w') as log_file:
-            pass  # Create an empty file
+    log_file_path = settings.BASE_DIR / "logs" / "activity.log"
+    log_file_path.parent.mkdir(parents=True, exist_ok=True)
+    if not log_file_path.exists():
+        log_file_path.touch()
 
     db = SessionLocal()
     try:
