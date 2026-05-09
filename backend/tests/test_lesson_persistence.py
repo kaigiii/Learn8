@@ -12,7 +12,7 @@ from app.schemas.lesson_schema import (
     Validation,
     ValidationType,
 )
-from app.services.commons.lesson_persistence import (
+from app.services.domain.learning.lesson_persistence import (
     sync_lesson_stages,
     sync_remedial_stages,
     sync_session_stages,

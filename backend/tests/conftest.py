@@ -12,7 +12,7 @@ from app.db.base import Base
 from app.db import registry  # noqa: F401
 from app.models.user import UserModel
 from app.schemas.questionnaire_schema import LearnerProfile, Question
-from app.services.llm_clients.base_provider import BaseLLMProvider
+from app.services.ai_engine.clients.base_provider import BaseLLMProvider
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:

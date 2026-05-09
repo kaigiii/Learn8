@@ -1,4 +1,4 @@
-from app.services.commons.user_ledger import (
+from app.services.domain.user.ledger import (
     LedgerEventType,
     apply_user_ledger_event,
 )

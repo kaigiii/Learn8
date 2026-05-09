@@ -409,21 +409,23 @@ class CompetitiveService:
         return max(0, int((now - ensure_aware(queue_entry.created_at)).total_seconds()))
 
     def _get_recent_opponent_ids(self, db: Session, user_id: int) -> set[int]:
-        # Subquery to find recent match IDs for this user
-        recent_match_ids_sub = (
-            db.query(ArenaMatchPlayerModel.match_id)
+        # 1. Fetch recent match IDs for this user
+        recent_match_ids = [
+            r[0] for r in db.query(ArenaMatchPlayerModel.match_id)
             .filter(ArenaMatchPlayerModel.user_id == user_id)
             .order_by(ArenaMatchPlayerModel.id.desc())
             .limit(arena_settings.ARENA_MATCHMAKING_RECENT_REMATCH_LOOKBACK)
-            .subquery()
-        )
+            .all()
+        ]
         
-        from sqlalchemy import select
-        # Find all other players in those matches
+        if not recent_match_ids:
+            return set()
+
+        # 2. Find all other players in those matches
         other_players = (
             db.query(ArenaMatchPlayerModel.user_id)
             .filter(
-                ArenaMatchPlayerModel.match_id.in_(select(recent_match_ids_sub.c.match_id)),
+                ArenaMatchPlayerModel.match_id.in_(recent_match_ids),
                 ArenaMatchPlayerModel.user_id != user_id,
             )
             .all()
