@@ -14,6 +14,7 @@ class PublicCourseModel(Base):
     description = Column(String, nullable=True)
     is_published = Column(Boolean, nullable=False, default=False, index=True)
     is_featured_arena = Column(Boolean, nullable=False, default=False, index=True)
+    source_course_id = Column(Integer, nullable=True, index=True)
     tags_json = Column(JSON, nullable=False, default=list)
     metadata_json = Column(JSON, nullable=True)
     syllabus_json = Column(JSON, nullable=True)

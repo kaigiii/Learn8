@@ -33,6 +33,41 @@ export default function CourseEditorPage() {
   const [activeUnitId, setActiveUnitId] = useState<string | null>(null);
   const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
   const [activeComponentId, setActiveComponentId] = useState<string | null>(null);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+
+  const handleDragStart = (index: number) => {
+    setDraggedIndex(index);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (toIndex: number) => {
+    if (draggedIndex === null || draggedIndex === toIndex) return;
+    
+    const newUnits = [...units];
+    const components = [...newUnits[activeUnitIndex].nodes[activeNodeIndex].components];
+    const [removed] = components.splice(draggedIndex, 1);
+    components.splice(toIndex, 0, removed);
+    newUnits[activeUnitIndex].nodes[activeNodeIndex].components = components;
+    
+    setUnits(newUnits);
+    setDraggedIndex(null);
+  };
+
+  const handleNodeDrop = (uIdx: number, toIndex: number) => {
+    if (draggedIndex === null || draggedIndex === toIndex) return;
+    
+    const newUnits = [...units];
+    const nodes = [...newUnits[uIdx].nodes];
+    const [removed] = nodes.splice(draggedIndex, 1);
+    nodes.splice(toIndex, 0, removed);
+    newUnits[uIdx].nodes = nodes;
+    
+    setUnits(newUnits);
+    setDraggedIndex(null);
+  };
 
   useEffect(() => {
     fetchCourse();
@@ -220,8 +255,12 @@ export default function CourseEditorPage() {
                   {unit.nodes?.map((node: any, nIdx: number) => (
                     <div 
                       key={node.id} 
+                      draggable
+                      onDragStart={() => handleDragStart(nIdx)}
+                      onDragOver={handleDragOver}
+                      onDrop={() => handleNodeDrop(uIdx, nIdx)}
                       onClick={() => { setActiveUnitId(unit.unitId); setActiveNodeId(node.id); setActiveComponentId(null); }}
-                      className={`text-xs p-1.5 rounded-lg cursor-pointer flex items-center gap-2 transition ${activeNodeId === node.id ? 'bg-brand-teal/15 text-brand-teal font-bold shadow-sm' : 'text-brand-gray-500 hover:bg-white/60'}`}
+                      className={`text-xs p-1.5 rounded-lg cursor-pointer flex items-center gap-2 transition ${activeNodeId === node.id ? 'bg-brand-teal/15 text-brand-teal font-bold shadow-sm' : 'text-brand-gray-500 hover:bg-white/60'} ${draggedIndex === nIdx && activeUnitId === unit.unitId ? 'opacity-30' : ''}`}
                     >
                       <MdOutlinePlayLesson className={activeNodeId === node.id ? 'text-brand-teal' : 'text-brand-gray-400'} />
                       <span className="truncate">{node.title || "Untitled Node"}</span>
@@ -266,346 +305,413 @@ export default function CourseEditorPage() {
                 />
               </div>
 
-              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              <div className="flex-1 overflow-y-auto p-6 space-y-6">
                 {(!activeNode.components || activeNode.components.length === 0) && (
-                  <div className="text-center py-10 border-2 border-dashed border-brand-gray-200 rounded-2xl">
-                    <p className="text-sm font-bold text-brand-gray-400">No components in this node yet.</p>
+                  <div className="text-center py-16 border-2 border-dashed border-brand-gray-200 rounded-3xl bg-white/30">
+                    <FiPlus className="text-4xl text-brand-gray-300 mx-auto mb-3" />
+                    <p className="text-sm font-bold text-brand-gray-400">Add your first learning component below</p>
                   </div>
                 )}
                 
                 {activeNode.components?.map((comp: any, cIdx: number) => (
                   <DeepGlassCard 
                     key={comp.id} 
-                    className={`p-4 border-2 transition-all cursor-pointer ${activeComponentId === comp.id ? 'border-brand-teal shadow-md ring-2 ring-brand-teal/20' : 'border-transparent hover:border-brand-teal/30 shadow-sm'}`}
+                    draggable
+                    onDragStart={() => handleDragStart(cIdx)}
+                    onDragOver={handleDragOver}
+                    onDrop={() => handleDrop(cIdx)}
+                    className={`p-5 border-2 transition-all relative group ${activeComponentId === comp.id ? 'border-brand-teal shadow-xl ring-4 ring-brand-teal/10 translate-x-1' : 'border-white/60 hover:border-brand-teal/30 shadow-sm'} ${draggedIndex === cIdx ? 'opacity-40 scale-95 border-brand-teal/50' : ''}`}
                     onClick={() => setActiveComponentId(comp.id)}
                   >
-                    <div className="flex items-center gap-3 mb-3">
-                      <MdDragIndicator className="text-brand-gray-300" />
-                      <span className="text-xs font-bold uppercase tracking-wider text-brand-teal bg-brand-teal/10 px-2 py-0.5 rounded flex items-center gap-1.5">
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const newUnits = [...units];
+                        newUnits[activeUnitIndex].nodes[activeNodeIndex].components.splice(cIdx, 1);
+                        setUnits(newUnits);
+                        if (activeComponentId === comp.id) setActiveComponentId(null);
+                      }}
+                      className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 p-2 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-full transition-all"
+                    >
+                      <FiPlus className="rotate-45 w-5 h-5" />
+                    </button>
+
+                    <div className="flex items-center gap-3 mb-4">
+                      <MdDragIndicator className="text-brand-gray-300 cursor-grab active:cursor-grabbing" />
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-teal bg-brand-teal/10 px-3 py-1 rounded-full flex items-center gap-2 border border-brand-teal/20">
                         {getComponentIcon(comp.type)}
                         {comp.type}
                       </span>
+                      <div className="h-px flex-1 bg-gradient-to-r from-brand-teal/20 to-transparent" />
                     </div>
                     
-                    <textarea 
-                      value={comp.question || comp.content || ""}
-                      onChange={(e) => {
-                        const newUnits = [...units];
-                        newUnits[activeUnitIndex].nodes[activeNodeIndex].components[cIdx][['ExplainerMedia', 'FeynmanMirror'].includes(comp.type) ? 'content' : 'question'] = e.target.value;
-                        setUnits(newUnits);
-                      }}
-                      placeholder={`Enter ${comp.type} content/question here...`}
-                      className="w-full bg-white/50 border border-brand-gray-200 rounded-lg p-3 text-sm focus:outline-none focus:border-brand-teal min-h-[80px]"
-                    />
-
-                    {comp.type === 'MultipleChoice' && (
-                      <div className="mt-3 space-y-2 pl-4 border-l-2 border-brand-teal/20">
-                        <label className="text-xs font-bold text-brand-gray-500 uppercase tracking-wider block mb-1">Answer Options</label>
-                        {comp.options?.map((opt: string, optIdx: number) => (
-                          <div key={optIdx} className="flex items-center gap-2">
-                            <span className="text-xs font-mono font-bold text-brand-teal/50">{String.fromCharCode(65 + optIdx)}.</span>
-                            <input 
-                              value={opt}
-                              onChange={(e) => {
-                                const newUnits = [...units];
-                                newUnits[activeUnitIndex].nodes[activeNodeIndex].components[cIdx].options[optIdx] = e.target.value;
-                                setUnits(newUnits);
-                              }}
-                              className="text-sm bg-white/50 border border-brand-gray-200 rounded p-1.5 outline-none focus:border-brand-teal flex-1"
-                              placeholder={`Option ${optIdx + 1}`}
-                            />
-                            {comp.options.length > 2 && (
-                              <button 
-                                onClick={() => {
-                                  const newUnits = [...units];
-                                  newUnits[activeUnitIndex].nodes[activeNodeIndex].components[cIdx].options.splice(optIdx, 1);
-                                  setUnits(newUnits);
-                                }}
-                                className="text-xs font-bold text-rose-500 bg-rose-50 hover:bg-rose-100 rounded px-2 py-1"
-                              >
-                                Delete
-                              </button>
-                            )}
-                          </div>
-                        ))}
-                        <button 
-                          onClick={() => {
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-[10px] font-black text-brand-gray-400 uppercase tracking-widest mb-1.5 ml-1">
+                          {comp.type === 'ExplainerMedia' ? 'Instruction / Script' : 'Question / Prompt'}
+                        </label>
+                        <textarea 
+                          value={comp.question || comp.content || ""}
+                          onChange={(e) => {
                             const newUnits = [...units];
-                            if (!newUnits[activeUnitIndex].nodes[activeNodeIndex].components[cIdx].options) {
-                              newUnits[activeUnitIndex].nodes[activeNodeIndex].components[cIdx].options = [];
-                            }
-                            newUnits[activeUnitIndex].nodes[activeNodeIndex].components[cIdx].options.push(`New Option`);
+                            const key = ['ExplainerMedia', 'FeynmanMirror'].includes(comp.type) ? 'content' : 'question';
+                            newUnits[activeUnitIndex].nodes[activeNodeIndex].components[cIdx][key] = e.target.value;
                             setUnits(newUnits);
                           }}
-                          className="text-xs font-bold bg-brand-teal/10 hover:bg-brand-teal/20 text-brand-teal rounded px-3 py-1.5 mt-2 inline-flex items-center gap-1"
-                        >
-                          + Add Option
-                        </button>
+                          placeholder={`Enter ${comp.type} main content here...`}
+                          className="w-full bg-white/60 border border-brand-gray-100 rounded-2xl p-4 text-sm font-medium text-brand-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-teal/20 focus:border-brand-teal transition-all min-h-[100px] shadow-inner"
+                        />
                       </div>
-                    )}
 
-                    {comp.type === 'Ordering' && (
-                      <div className="mt-3 space-y-2 pl-4 border-l-2 border-brand-teal/20">
-                        <label className="text-xs font-bold text-brand-gray-500 uppercase tracking-wider block mb-1">Steps in Correct Order</label>
-                        {comp.steps?.map((step: string, stepIdx: number) => (
-                          <div key={stepIdx} className="flex items-center gap-2">
-                            <span className="text-xs font-mono font-bold text-brand-teal/50">{stepIdx + 1}.</span>
-                            <input 
-                              value={step}
-                              onChange={(e) => {
-                                const newUnits = [...units];
-                                newUnits[activeUnitIndex].nodes[activeNodeIndex].components[cIdx].steps[stepIdx] = e.target.value;
-                                setUnits(newUnits);
-                              }}
-                              className="text-sm bg-white/50 border border-brand-gray-200 rounded p-1.5 outline-none focus:border-brand-teal flex-1"
-                              placeholder={`Step ${stepIdx + 1}`}
-                            />
-                            {comp.steps.length > 2 && (
-                              <button 
-                                onClick={() => {
-                                  const newUnits = [...units];
-                                  newUnits[activeUnitIndex].nodes[activeNodeIndex].components[cIdx].steps.splice(stepIdx, 1);
-                                  setUnits(newUnits);
-                                }}
-                                className="text-xs font-bold text-rose-500 bg-rose-50 hover:bg-rose-100 rounded px-2 py-1"
-                              >
-                                Delete
-                              </button>
-                            )}
-                          </div>
-                        ))}
-                        <button 
-                          onClick={() => {
-                            const newUnits = [...units];
-                            if (!newUnits[activeUnitIndex].nodes[activeNodeIndex].components[cIdx].steps) {
-                              newUnits[activeUnitIndex].nodes[activeNodeIndex].components[cIdx].steps = [];
-                            }
-                            newUnits[activeUnitIndex].nodes[activeNodeIndex].components[cIdx].steps.push(`New Step`);
-                            setUnits(newUnits);
-                          }}
-                          className="text-xs font-bold bg-brand-teal/10 hover:bg-brand-teal/20 text-brand-teal rounded px-3 py-1.5 mt-2 inline-flex items-center gap-1"
-                        >
-                          + Add Step
-                        </button>
-                      </div>
-                    )}
-
-                    {comp.type === 'MatchingPairs' && (
-                      <div className="mt-3 space-y-2 pl-4 border-l-2 border-brand-teal/20">
-                        <label className="text-xs font-bold text-brand-gray-500 uppercase tracking-wider block mb-1">Left & Right Match Pairs</label>
-                        {comp.pairs?.map((pair: any, pairIdx: number) => (
-                          <div key={pairIdx} className="space-y-1 bg-white/30 border border-brand-gray-100 p-2 rounded-lg relative">
-                            <div className="flex gap-2 items-center">
+                      {comp.type === 'MultipleChoice' && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+                          {comp.options?.map((opt: string, optIdx: number) => (
+                            <div key={optIdx} className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${comp.correctOptionId === opt ? 'bg-brand-teal/5 border-brand-teal/30 ring-1 ring-brand-teal/20' : 'bg-white/40 border-brand-gray-100'}`}>
+                              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black ${comp.correctOptionId === opt ? 'bg-brand-teal text-white' : 'bg-brand-gray-100 text-brand-gray-400'}`}>
+                                {String.fromCharCode(65 + optIdx)}
+                              </div>
                               <input 
-                                value={pair.left || ""}
+                                value={opt}
                                 onChange={(e) => {
                                   const newUnits = [...units];
-                                  newUnits[activeUnitIndex].nodes[activeNodeIndex].components[cIdx].pairs[pairIdx].left = e.target.value;
+                                  newUnits[activeUnitIndex].nodes[activeNodeIndex].components[cIdx].options[optIdx] = e.target.value;
                                   setUnits(newUnits);
                                 }}
-                                className="text-xs bg-white/50 border border-brand-gray-200 rounded p-1.5 outline-none focus:border-brand-teal flex-1"
-                                placeholder="Left side..."
+                                className="bg-transparent border-none outline-none text-xs font-bold text-brand-gray-700 flex-1"
+                                placeholder={`Option ${optIdx + 1}`}
                               />
-                              <span className="text-xs font-bold text-brand-gray-400">⇆</span>
-                              <input 
-                                value={pair.right || ""}
-                                onChange={(e) => {
-                                  const newUnits = [...units];
-                                  newUnits[activeUnitIndex].nodes[activeNodeIndex].components[cIdx].pairs[pairIdx].right = e.target.value;
-                                  setUnits(newUnits);
-                                }}
-                                className="text-xs bg-white/50 border border-brand-gray-200 rounded p-1.5 outline-none focus:border-brand-teal flex-1"
-                                placeholder="Right side..."
-                              />
-                              {comp.pairs.length > 1 && (
-                                <button 
-                                  onClick={() => {
-                                    const newUnits = [...units];
-                                    newUnits[activeUnitIndex].nodes[activeNodeIndex].components[cIdx].pairs.splice(pairIdx, 1);
-                                    setUnits(newUnits);
-                                  }}
-                                  className="text-xs font-bold text-rose-500 bg-rose-50 hover:bg-rose-100 rounded px-2 py-1 shrink-0"
-                                >
-                                  ×
-                                </button>
-                              )}
                             </div>
-                          </div>
-                        ))}
-                        <button 
-                          onClick={() => {
-                            const newUnits = [...units];
-                            if (!newUnits[activeUnitIndex].nodes[activeNodeIndex].components[cIdx].pairs) {
-                              newUnits[activeUnitIndex].nodes[activeNodeIndex].components[cIdx].pairs = [];
-                            }
-                            newUnits[activeUnitIndex].nodes[activeNodeIndex].components[cIdx].pairs.push({
-                              id: `p_${Date.now()}`,
-                              left: "Left text",
-                              right: "Right text"
-                            });
-                            setUnits(newUnits);
-                          }}
-                          className="text-xs font-bold bg-brand-teal/10 hover:bg-brand-teal/20 text-brand-teal rounded px-3 py-1.5 mt-2 inline-flex items-center gap-1"
-                        >
-                          + Add Pair
-                        </button>
-                      </div>
-                    )}
+                          ))}
+                        </div>
+                      )}
+
+                      {comp.type === 'Ordering' && (
+                        <div className="space-y-2 mt-4">
+                          {comp.steps?.map((step: string, stepIdx: number) => (
+                            <div key={stepIdx} className="flex items-center gap-3 p-3 rounded-xl border border-brand-gray-100 bg-white/40">
+                              <div className="w-6 h-6 rounded-lg bg-indigo-50 text-indigo-500 flex items-center justify-center text-[10px] font-black border border-indigo-100">
+                                {stepIdx + 1}
+                              </div>
+                              <input 
+                                value={step}
+                                onChange={(e) => {
+                                  const newUnits = [...units];
+                                  newUnits[activeUnitIndex].nodes[activeNodeIndex].components[cIdx].steps[stepIdx] = e.target.value;
+                                  setUnits(newUnits);
+                                }}
+                                className="bg-transparent border-none outline-none text-xs font-bold text-brand-gray-700 flex-1"
+                                placeholder={`Step ${stepIdx + 1}`}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </DeepGlassCard>
                 ))}
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-4 border-t border-brand-gray-200">
-                  <button onClick={() => addComponentToActiveNode('ExplainerMedia')} className="p-3 border border-white/60 bg-white/70 hover:bg-brand-teal/5 rounded-xl text-xs font-bold text-brand-gray-600 flex flex-col items-center gap-2 transition shadow-sm hover:text-brand-teal hover:border-brand-teal/30">
-                    <FiVideo className="text-xl" /> Explainer
-                  </button>
-                  <button onClick={() => addComponentToActiveNode('MultipleChoice')} className="p-3 border border-white/60 bg-white/70 hover:bg-brand-teal/5 rounded-xl text-xs font-bold text-brand-gray-600 flex flex-col items-center gap-2 transition shadow-sm hover:text-brand-teal hover:border-brand-teal/30">
-                    <FiCheckSquare className="text-xl" /> Choice
-                  </button>
-                  <button onClick={() => addComponentToActiveNode('Ordering')} className="p-3 border border-white/60 bg-white/70 hover:bg-brand-teal/5 rounded-xl text-xs font-bold text-brand-gray-600 flex flex-col items-center gap-2 transition shadow-sm hover:text-brand-teal hover:border-brand-teal/30">
-                    <FiList className="text-xl" /> Ordering
-                  </button>
-                  <button onClick={() => addComponentToActiveNode('MatchingPairs')} className="p-3 border border-white/60 bg-white/70 hover:bg-brand-teal/5 rounded-xl text-xs font-bold text-brand-gray-600 flex flex-col items-center gap-2 transition shadow-sm hover:text-brand-teal hover:border-brand-teal/30">
-                    <FiLayout className="text-xl" /> Matching
-                  </button>
-                  <button onClick={() => addComponentToActiveNode('FeynmanMirror')} className="p-3 border border-white/60 bg-white/70 hover:bg-brand-teal/5 rounded-xl text-xs font-bold text-brand-gray-600 flex flex-col items-center gap-2 transition shadow-sm hover:text-brand-teal hover:border-brand-teal/30">
-                    <FiSettings className="text-xl" /> Feynman
-                  </button>
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-6 border-t border-brand-gray-200">
+                  {[
+                    { type: 'ExplainerMedia', label: 'Explainer', icon: <FiVideo /> },
+                    { type: 'MultipleChoice', label: 'Choice', icon: <FiCheckSquare /> },
+                    { type: 'Ordering', label: 'Ordering', icon: <FiList /> },
+                    { type: 'MatchingPairs', label: 'Matching', icon: <FiLayout /> },
+                    { type: 'FeynmanMirror', label: 'Feynman', icon: <FiSettings /> },
+                  ].map((btn) => (
+                    <button 
+                      key={btn.type}
+                      onClick={() => addComponentToActiveNode(btn.type)} 
+                      className="p-3 border border-white/60 bg-white/80 hover:bg-brand-teal/5 rounded-2xl text-[10px] font-black text-brand-gray-500 flex flex-col items-center gap-2 transition-all shadow-sm hover:text-brand-teal hover:border-brand-teal/40 hover:-translate-y-1 active:scale-95 uppercase tracking-tighter"
+                    >
+                      <div className="w-10 h-10 rounded-xl bg-brand-gray-50 flex items-center justify-center text-xl transition-colors group-hover:bg-white">
+                        {btn.icon}
+                      </div>
+                      {btn.label}
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>
           ) : (
             <div className="flex-1 flex items-center justify-center">
-              <div className="text-center">
-                <FiList className="text-6xl text-brand-gray-300 mx-auto mb-4" />
-                <h3 className="font-heading text-xl font-extrabold text-brand-gray-500">Select a Node</h3>
-                <p className="text-sm text-brand-gray-400 mt-2">Choose a node from the syllabus tree to edit its components.</p>
+              <div className="text-center p-12 max-w-sm">
+                <div className="w-24 h-24 bg-brand-teal/5 rounded-full flex items-center justify-center mx-auto mb-6 border border-brand-teal/10">
+                  <FiList className="text-4xl text-brand-teal/30" />
+                </div>
+                <h3 className="font-heading text-2xl font-extrabold text-brand-gray-700 mb-2">Select a Lesson</h3>
+                <p className="text-sm text-brand-gray-400 font-medium leading-relaxed">Choose a node from the syllabus tree on the left to start building its learning journey.</p>
               </div>
             </div>
           )}
         </div>
 
-        {/* RIGHT COLUMN: Inspector & Preview */}
-        <DeepGlassCard className="w-80 flex flex-col flex-none overflow-hidden border border-white/60 bg-white/70">
-          <div className="p-4 border-b border-white/40 bg-white/40">
-            <h3 className="font-heading text-xs font-extrabold text-brand-gray-500 uppercase tracking-widest flex items-center gap-2"><FiSettings /> Inspector</h3>
-          </div>
-          <div className="flex-1 overflow-y-auto p-4">
-            {activeComponent ? (
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-xs font-bold text-brand-gray-500 uppercase tracking-wider mb-2">Topic / Tags</label>
-                  <input 
-                    type="text" 
-                    placeholder="e.g. loops, logic" 
-                    value={activeComponent.topic || ""}
-                    onChange={(e) => updateActiveComponentProperty("topic", e.target.value)}
-                    className="w-full bg-white/80 border border-brand-gray-200 rounded-lg p-2 text-sm outline-none focus:border-brand-teal" 
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-brand-gray-500 uppercase tracking-wider mb-2">Difficulty</label>
-                  <select 
-                    value={activeComponent.difficulty || "medium"}
-                    onChange={(e) => updateActiveComponentProperty("difficulty", e.target.value)}
-                    className="w-full bg-white/80 border border-brand-gray-200 rounded-lg p-2 text-sm outline-none focus:border-brand-teal"
-                  >
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-brand-gray-500 uppercase tracking-wider mb-2">Success Feedback</label>
-                  <textarea 
-                    placeholder="Great job! The reason is..." 
-                    value={activeComponent.successFeedback || ""}
-                    onChange={(e) => updateActiveComponentProperty("successFeedback", e.target.value)}
-                    className="w-full bg-white/80 border border-brand-gray-200 rounded-lg p-2 text-sm outline-none focus:border-brand-teal min-h-[60px]" 
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-brand-gray-500 uppercase tracking-wider mb-2">Error Feedback</label>
-                  <textarea 
-                    placeholder="Try again! Remember that..." 
-                    value={activeComponent.errorFeedback || ""}
-                    onChange={(e) => updateActiveComponentProperty("errorFeedback", e.target.value)}
-                    className="w-full bg-white/80 border border-brand-gray-200 rounded-lg p-2 text-sm outline-none focus:border-brand-teal min-h-[60px]" 
-                  />
-                </div>
-                
-                {activeComponent.type === 'MultipleChoice' && (
-                  <div>
-                    <label className="block text-xs font-bold text-brand-gray-500 uppercase tracking-wider mb-2">Correct Option</label>
-                    <select
-                      value={activeComponent.correctOptionId || activeComponent.options?.[0] || ""}
-                      onChange={(e) => updateActiveComponentProperty("correctOptionId", e.target.value)}
-                      className="w-full bg-white/80 border border-brand-gray-200 rounded-lg p-2 text-sm outline-none focus:border-brand-teal"
-                    >
-                      {activeComponent.options?.map((opt: string, optIdx: number) => (
-                        <option key={optIdx} value={opt}>{opt || `Option ${optIdx + 1}`}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-                
-                {activeComponent.type === 'FeynmanMirror' && (
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-xs font-bold text-brand-gray-500 uppercase tracking-wider mb-2">Sample Model Answer</label>
-                      <textarea 
-                        placeholder="The ideal explanation..." 
-                        value={activeComponent.sampleAnswer || ""}
-                        onChange={(e) => updateActiveComponentProperty("sampleAnswer", e.target.value)}
-                        className="w-full bg-white/80 border border-brand-gray-200 rounded-lg p-2 text-sm outline-none focus:border-brand-teal min-h-[100px]" 
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-brand-gray-500 uppercase tracking-wider mb-2">Max Dialog Rounds</label>
-                      <input 
-                        type="number"
-                        min="1"
-                        max="20"
-                        value={activeComponent.maxRounds || 10}
-                        onChange={(e) => updateActiveComponentProperty("maxRounds", parseInt(e.target.value))}
-                        className="w-full bg-white/80 border border-brand-gray-200 rounded-lg p-2 text-sm outline-none focus:border-brand-teal"
-                      />
-                    </div>
-                  </div>
-                )}
 
-                <div className="pt-4 border-t border-brand-gray-200">
-                  <label className="block text-xs font-bold text-brand-gray-500 uppercase tracking-wider mb-2">Live Preview</label>
-                  <div className="rounded-xl border border-brand-gray-200 bg-white p-4 shadow-inner min-h-[150px] flex items-center justify-center relative overflow-hidden">
-                     {activeComponent.type === 'MultipleChoice' && (
-                       <div className="w-full">
-                         <p className="text-sm font-bold text-brand-gray-700 mb-3">{activeComponent.question || "Empty Question"}</p>
-                         <div className="space-y-2">
-                           {activeComponent.options?.map((opt: string, i: number) => (
-                             <div key={i} className="px-3 py-2 border rounded-lg text-xs text-brand-gray-600 bg-gray-50">{opt || "Empty Option"}</div>
-                           ))}
-                         </div>
-                       </div>
-                     )}
-                     {activeComponent.type === 'ExplainerMedia' && (
-                       <div className="w-full h-24 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400 text-xs">
-                         <FiVideo className="text-2xl mb-1 block mx-auto" /> Media Player Placeholder
-                       </div>
-                     )}
-                     {false && (
-                       <div className="w-full">
-                         <p className="text-sm font-bold text-brand-gray-700 mb-3">{activeComponent.question || "Question Text"}</p>
-                         <div className="h-8 border-b-2 border-brand-gray-300 w-full"></div>
-                       </div>
-                     )}
-                     {['Ordering', 'MatchingPairs', 'FeynmanMirror'].includes(activeComponent.type) && (
-                       <p className="text-sm text-brand-gray-600 italic">[{activeComponent.type} Preview Placeholder]</p>
-                     )}
+        {/* RIGHT COLUMN: Inspector & Preview */}
+        <DeepGlassCard className="w-96 flex flex-col flex-none overflow-hidden border border-white/60 bg-white/80 shadow-2xl">
+          <div className="p-5 border-b border-white/40 bg-white/40 flex items-center justify-between">
+            <h3 className="font-heading text-xs font-black text-brand-gray-500 uppercase tracking-[0.2em] flex items-center gap-2">
+              <FiSettings className="animate-spin-slow" /> Component Inspector
+            </h3>
+            {activeComponent && (
+               <span className="text-[10px] font-bold text-brand-teal bg-brand-teal/10 px-2 py-0.5 rounded-full">
+                 Active
+               </span>
+            )}
+          </div>
+          
+          <div className="flex-1 overflow-y-auto p-5 space-y-8">
+            {activeComponent ? (
+              <div className="space-y-8">
+                {/* Section: Common Settings */}
+                <div className="space-y-5">
+                   <div className="flex items-center gap-2 mb-2">
+                     <div className="h-4 w-1 bg-brand-teal rounded-full" />
+                     <h4 className="text-[10px] font-black text-brand-gray-400 uppercase tracking-widest">Base Metadata</h4>
+                   </div>
+                   
+                   <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="block text-[10px] font-black text-brand-gray-500 uppercase tracking-wider ml-1">Learning Topic</label>
+                        <input 
+                          type="text" 
+                          placeholder="e.g. loops, logic" 
+                          value={activeComponent.topic || ""}
+                          onChange={(e) => updateActiveComponentProperty("topic", e.target.value)}
+                          className="w-full bg-white border border-brand-gray-100 rounded-xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-brand-teal/20 focus:border-brand-teal transition-all shadow-sm" 
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="block text-[10px] font-black text-brand-gray-500 uppercase tracking-wider ml-1">Complexity</label>
+                        <select 
+                          value={activeComponent.difficulty || "medium"}
+                          onChange={(e) => updateActiveComponentProperty("difficulty", e.target.value)}
+                          className="w-full bg-white border border-brand-gray-100 rounded-xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-brand-teal/20 focus:border-brand-teal transition-all shadow-sm appearance-none"
+                        >
+                          <option value="low">Low (Foundation)</option>
+                          <option value="medium">Medium (Standard)</option>
+                          <option value="high">High (Advanced)</option>
+                        </select>
+                      </div>
+                   </div>
+                </div>
+
+                {/* Section: Dynamic Content Editors */}
+                <div className="space-y-5 pt-5 border-t border-brand-gray-100">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="h-4 w-1 bg-indigo-500 rounded-full" />
+                    <h4 className="text-[10px] font-black text-brand-gray-400 uppercase tracking-widest">Component Content</h4>
                   </div>
+
+                  {activeComponent.type === 'MultipleChoice' && (
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-[10px] font-black text-brand-gray-500 uppercase tracking-wider mb-2 ml-1">Correct Answer</label>
+                        <select
+                          value={activeComponent.correctOptionId || activeComponent.options?.[0] || ""}
+                          onChange={(e) => updateActiveComponentProperty("correctOptionId", e.target.value)}
+                          className="w-full bg-brand-teal text-white border-none rounded-xl p-3 text-xs font-black outline-none shadow-md shadow-brand-teal/20 hover:bg-brand-teal/90 transition-all cursor-pointer"
+                        >
+                          {activeComponent.options?.map((opt: string, optIdx: number) => (
+                            <option key={optIdx} value={opt} className="text-brand-gray-700 bg-white font-bold">{opt || `Option ${optIdx + 1}`}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                         <label className="block text-[10px] font-black text-brand-gray-500 uppercase tracking-wider mb-2 ml-1">Manage Options</label>
+                         {activeComponent.options?.map((opt: string, i: number) => (
+                            <div key={i} className="flex items-center gap-2 group">
+                               <input 
+                                 value={opt}
+                                 onChange={(e) => {
+                                   const newOpts = [...activeComponent.options];
+                                   newOpts[i] = e.target.value;
+                                   updateActiveComponentProperty("options", newOpts);
+                                 }}
+                                 className="flex-1 bg-white border border-brand-gray-100 rounded-xl p-2.5 text-xs font-medium outline-none focus:border-brand-teal"
+                               />
+                               <button 
+                                 onClick={() => {
+                                   const newOpts = activeComponent.options.filter((_: any, idx: number) => idx !== i);
+                                   updateActiveComponentProperty("options", newOpts);
+                                 }}
+                                 className="text-rose-400 hover:text-rose-600 transition"
+                               >
+                                 <FiPlus className="rotate-45" />
+                               </button>
+                            </div>
+                         ))}
+                         <button 
+                            onClick={() => updateActiveComponentProperty("options", [...(activeComponent.options || []), "New Option"])}
+                            className="w-full py-2 rounded-xl border border-dashed border-brand-teal/30 text-[10px] font-black text-brand-teal hover:bg-brand-teal/5 transition-colors uppercase tracking-widest"
+                         >
+                            + Add Option
+                         </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {activeComponent.type === 'Ordering' && (
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                         <label className="block text-[10px] font-black text-brand-gray-500 uppercase tracking-wider mb-2 ml-1">Sequence Steps</label>
+                         {activeComponent.steps?.map((step: string, i: number) => (
+                            <div key={i} className="flex items-center gap-2">
+                               <div className="w-5 h-5 flex-shrink-0 bg-brand-gray-100 text-[10px] font-black flex items-center justify-center rounded text-brand-gray-400">
+                                 {i + 1}
+                               </div>
+                               <input 
+                                 value={step}
+                                 onChange={(e) => {
+                                   const newSteps = [...activeComponent.steps];
+                                   newSteps[i] = e.target.value;
+                                   updateActiveComponentProperty("steps", newSteps);
+                                 }}
+                                 className="flex-1 bg-white border border-brand-gray-100 rounded-xl p-2.5 text-xs font-medium outline-none focus:border-brand-teal"
+                               />
+                               <button 
+                                 onClick={() => {
+                                   const newSteps = activeComponent.steps.filter((_: any, idx: number) => idx !== i);
+                                   updateActiveComponentProperty("steps", newSteps);
+                                 }}
+                                 className="text-rose-400 hover:text-rose-600 transition"
+                               >
+                                 <FiPlus className="rotate-45" />
+                               </button>
+                            </div>
+                         ))}
+                         <button 
+                            onClick={() => updateActiveComponentProperty("steps", [...(activeComponent.steps || []), "New Step"])}
+                            className="w-full py-2 rounded-xl border border-dashed border-brand-teal/30 text-[10px] font-black text-brand-teal hover:bg-brand-teal/5 transition-colors uppercase tracking-widest"
+                         >
+                            + Add Step
+                         </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {activeComponent.type === 'MatchingPairs' && (
+                    <div className="space-y-4">
+                       <label className="block text-[10px] font-black text-brand-gray-500 uppercase tracking-wider ml-1">Match Pairs (L ⇆ R)</label>
+                       {activeComponent.pairs?.map((pair: any, i: number) => (
+                          <div key={pair.id || i} className="p-3 bg-white border border-brand-gray-100 rounded-2xl space-y-2 relative group shadow-sm">
+                             <input 
+                               value={pair.left || ""}
+                               placeholder="Term..."
+                               onChange={(e) => {
+                                 const newPairs = [...activeComponent.pairs];
+                                 newPairs[i].left = e.target.value;
+                                 updateActiveComponentProperty("pairs", newPairs);
+                               }}
+                               className="w-full bg-brand-gray-50 border-none rounded-lg p-2 text-[11px] font-bold outline-none focus:ring-1 focus:ring-brand-teal/30"
+                             />
+                             <div className="flex justify-center py-1">
+                                <div className="h-px w-8 bg-brand-gray-200 relative">
+                                   <div className="absolute inset-0 flex items-center justify-center -top-2 text-[10px]">⇆</div>
+                                </div>
+                             </div>
+                             <input 
+                               value={pair.right || ""}
+                               placeholder="Definition..."
+                               onChange={(e) => {
+                                 const newPairs = [...activeComponent.pairs];
+                                 newPairs[i].right = e.target.value;
+                                 updateActiveComponentProperty("pairs", newPairs);
+                               }}
+                               className="w-full bg-brand-teal/5 border-none rounded-lg p-2 text-[11px] font-bold text-brand-teal outline-none focus:ring-1 focus:ring-brand-teal/30"
+                             />
+                             <button 
+                               onClick={() => {
+                                 const newPairs = activeComponent.pairs.filter((_: any, idx: number) => idx !== i);
+                                 updateActiveComponentProperty("pairs", newPairs);
+                               }}
+                               className="absolute -top-2 -right-2 bg-white shadow-sm border border-brand-gray-100 rounded-full p-1 text-rose-400 opacity-0 group-hover:opacity-100 transition-all"
+                             >
+                               <FiPlus className="rotate-45 w-3 h-3" />
+                             </button>
+                          </div>
+                       ))}
+                       <button 
+                          onClick={() => updateActiveComponentProperty("pairs", [...(activeComponent.pairs || []), { id: Date.now().toString(), left: "", right: "" }])}
+                          className="w-full py-2 rounded-xl border border-dashed border-brand-teal/30 text-[10px] font-black text-brand-teal hover:bg-brand-teal/5 transition-colors uppercase tracking-widest"
+                       >
+                          + Add New Pair
+                       </button>
+                    </div>
+                  )}
+
+                  {activeComponent.type === 'FeynmanMirror' && (
+                    <div className="space-y-5">
+                      <div className="space-y-1.5">
+                        <label className="block text-[10px] font-black text-brand-gray-500 uppercase tracking-wider ml-1">Ideal Model Answer</label>
+                        <textarea 
+                          placeholder="What would a perfect explanation look like?" 
+                          value={activeComponent.sampleAnswer || ""}
+                          onChange={(e) => updateActiveComponentProperty("sampleAnswer", e.target.value)}
+                          className="w-full bg-white border border-brand-gray-100 rounded-xl p-3 text-xs font-medium outline-none focus:ring-2 focus:ring-brand-teal/20 focus:border-brand-teal transition-all min-h-[120px] shadow-sm leading-relaxed" 
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="block text-[10px] font-black text-brand-gray-500 uppercase tracking-wider ml-1">Max Dialogue Depth</label>
+                        <div className="flex items-center gap-3">
+                           <input 
+                            type="range"
+                            min="1"
+                            max="20"
+                            step="1"
+                            value={activeComponent.maxRounds || 10}
+                            onChange={(e) => updateActiveComponentProperty("maxRounds", parseInt(e.target.value))}
+                            className="flex-1 accent-brand-teal"
+                          />
+                          <span className="w-8 text-center text-xs font-black text-brand-teal bg-brand-teal/10 py-1 rounded-lg border border-brand-teal/20">
+                            {activeComponent.maxRounds || 10}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Section: Feedback & Results */}
+                <div className="space-y-5 pt-5 border-t border-brand-gray-100">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="h-4 w-1 bg-amber-500 rounded-full" />
+                    <h4 className="text-[10px] font-black text-brand-gray-400 uppercase tracking-widest">Feedback Messages</h4>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-black text-brand-gray-500 uppercase tracking-wider ml-1">Success Response</label>
+                      <textarea 
+                        placeholder="Excellent explanation! You've mastered..." 
+                        value={activeComponent.successFeedback || ""}
+                        onChange={(e) => updateActiveComponentProperty("successFeedback", e.target.value)}
+                        className="w-full bg-white border border-brand-gray-100 rounded-xl p-3 text-xs font-medium outline-none focus:ring-2 focus:ring-green-500/10 focus:border-green-500/40 transition-all min-h-[60px] shadow-sm" 
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-black text-brand-gray-500 uppercase tracking-wider ml-1">Error Guidance</label>
+                      <textarea 
+                        placeholder="Not quite. Try focusing on the concept of..." 
+                        value={activeComponent.errorFeedback || ""}
+                        onChange={(e) => updateActiveComponentProperty("errorFeedback", e.target.value)}
+                        className="w-full bg-white border border-brand-gray-100 rounded-xl p-3 text-xs font-medium outline-none focus:ring-2 focus:ring-rose-500/10 focus:border-rose-500/40 transition-all min-h-[60px] shadow-sm" 
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-8 text-center pb-10">
+                   <p className="text-[9px] font-black text-brand-gray-300 uppercase tracking-[0.3em]">
+                     Auto-saving to cloud...
+                   </p>
                 </div>
               </div>
             ) : (
-              <div className="text-center py-10">
-                <p className="text-sm text-brand-gray-400">Select a component to inspect properties.</p>
+              <div className="flex flex-col items-center justify-center h-full text-center p-10">
+                <div className="w-16 h-16 bg-brand-gray-50 rounded-2xl flex items-center justify-center mb-4 border border-brand-gray-100 rotate-12">
+                  <FiSettings className="text-2xl text-brand-gray-200" />
+                </div>
+                <p className="text-xs font-bold text-brand-gray-400 max-w-[200px]">Select any component in the canvas to adjust its pedagogical properties.</p>
               </div>
             )}
           </div>
