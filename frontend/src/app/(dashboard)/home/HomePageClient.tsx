@@ -210,6 +210,7 @@ export default function HomePage() {
     const seenIds = new Set<number>();
     courses.forEach((course, index) => {
       if (!course?.id || seenIds.has(course.id)) return;
+      if (currentCourse && course.id === currentCourse.id) return; // Hide card during upload/forge phase
       seenIds.add(course.id);
 
       const draft = draftsByCourse[course.id] || course.draft_json || {};
