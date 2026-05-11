@@ -2,11 +2,16 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { UserProfile } from "@/lib/apiTypes";
 import { deriveOnboardingStateFromProfile } from "@/lib/auth/onboarding";
+import {
+  DEFAULT_LANGUAGE_LABEL,
+  resolveLanguageLabel,
+} from "@/lib/i18n/languages";
 
 export interface UserPreferences {
   soundOn: boolean;
   darkGlass: boolean;
   difficulty: number;
+  preferredLanguage: string;
   voiceAssistant?: string;
   autoPlaySpeech?: boolean;
 }
@@ -110,6 +115,7 @@ const INITIAL_STATE: UserState = {
       soundOn: true,
       darkGlass: true,
       difficulty: 50,
+      preferredLanguage: DEFAULT_LANGUAGE_LABEL,
       voiceAssistant: "preset_01",
       autoPlaySpeech: false,
     },
@@ -148,6 +154,16 @@ function migratePersistedState(persistedState: unknown): UserState {
   const serverBacked = raw.serverBacked as Partial<ServerBackedUserState> | undefined;
   const clientOnly = raw.clientOnly as Partial<ClientOnlyUserState> | undefined;
 
+  const mergedPreferences: UserPreferences = {
+    ...INITIAL_STATE.clientOnly.preferences,
+    ...(legacyPreferences || {}),
+    ...((clientOnly?.preferences as Partial<UserPreferences> | undefined) || {}),
+  };
+
+  mergedPreferences.preferredLanguage = resolveLanguageLabel(
+    mergedPreferences.preferredLanguage
+  );
+
   return {
     serverBacked: {
       identity: {
@@ -173,9 +189,7 @@ function migratePersistedState(persistedState: unknown): UserState {
         ...((clientOnly?.navigation as Partial<UserNavigationState> | undefined) || {}),
       },
       preferences: {
-        ...INITIAL_STATE.clientOnly.preferences,
-        ...(legacyPreferences || {}),
-        ...((clientOnly?.preferences as Partial<UserPreferences> | undefined) || {}),
+        ...mergedPreferences,
       },
       onboarding: {
         ...INITIAL_STATE.clientOnly.onboarding,
@@ -332,6 +346,10 @@ const useUserStore = create<UserState & UserActions>()(
           },
           clientOnly: {
             ...state.clientOnly,
+            preferences: {
+              ...state.clientOnly.preferences,
+              preferredLanguage: resolveLanguageLabel(profile.preferred_language),
+            },
             onboarding: deriveOnboardingStateFromProfile(profile),
           },
         })),
@@ -340,7 +358,7 @@ const useUserStore = create<UserState & UserActions>()(
     }),
     {
       name: "learn8-user",
-      version: 5,
+      version: 6,
       migrate: (persistedState) => migratePersistedState(persistedState),
     }
   )

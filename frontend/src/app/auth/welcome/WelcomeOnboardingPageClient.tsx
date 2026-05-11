@@ -15,71 +15,68 @@ import {
 } from "@/lib/auth/onboarding";
 import { syncPersistedProfile, uploadAuthenticatedAvatar } from "@/lib/auth/profileSync";
 import type { UserProfile } from "@/lib/apiTypes";
+import {
+  DEFAULT_LANGUAGE_LABEL,
+  resolveLanguageLabel,
+} from "@/lib/i18n/languages";
+import { useI18n } from "@/lib/i18n/useI18n";
+import type { TranslationKey } from "@/lib/i18n/translations";
 import { useAuthStore } from "@/stores/app/useAuthStore";
 import useUserStore from "@/stores/app/useUserStore";
 
 interface Step {
   key: string;
-  title: string;
-  mascotMsg: string;
+  titleKey: TranslationKey;
+  mascotKey: TranslationKey;
 }
 
 const STEPS: Step[] = [
   {
     key: "name",
-    title: "What should we call you?",
-    mascotMsg: "Let’s set up the profile your course space will use.",
+    titleKey: "onboarding.step.name.title",
+    mascotKey: "onboarding.step.name.mascot",
   },
   {
     key: "role",
-    title: "What best describes you?",
-    mascotMsg: "This helps us personalize your explanations and examples.",
+    titleKey: "onboarding.step.role.title",
+    mascotKey: "onboarding.step.role.mascot",
   },
   {
     key: "education",
-    title: "What is your education level?",
-    mascotMsg: "We’ll tune the difficulty and pacing to fit your background.",
+    titleKey: "onboarding.step.education.title",
+    mascotKey: "onboarding.step.education.mascot",
   },
   {
     key: "language",
-    title: "What language do you prefer?",
-    mascotMsg: "We’ll use this as the default language when AI generates lessons and course content.",
+    titleKey: "onboarding.step.language.title",
+    mascotKey: "onboarding.step.language.mascot",
   },
   {
     key: "goal",
-    title: "Set your daily goal",
-    mascotMsg: "How much time can you realistically spare each day?",
+    titleKey: "onboarding.step.goal.title",
+    mascotKey: "onboarding.step.goal.mascot",
   },
   {
     key: "avatar",
-    title: "Choose your avatar",
-    mascotMsg: "Upload a photo or keep the default avatar for now.",
+    titleKey: "onboarding.step.avatar.title",
+    mascotKey: "onboarding.step.avatar.mascot",
   },
 ];
 
-const EDUCATION_LEVELS = [
-  "Middle School",
-  "High School",
-  "Undergraduate",
-  "Graduate",
-  "Professional",
-  "Self-Taught",
+const EDUCATION_LEVELS: Array<{ value: string; labelKey: TranslationKey }> = [
+  { value: "Middle School", labelKey: "onboarding.education.middleSchool" },
+  { value: "High School", labelKey: "onboarding.education.highSchool" },
+  { value: "Undergraduate", labelKey: "onboarding.education.undergraduate" },
+  { value: "Graduate", labelKey: "onboarding.education.graduate" },
+  { value: "Professional", labelKey: "onboarding.education.professional" },
+  { value: "Self-Taught", labelKey: "onboarding.education.selfTaught" },
 ];
 
-const GOALS = [
-  { id: "casual", label: "5 min / day", desc: "Casual" },
-  { id: "regular", label: "10 min / day", desc: "Regular" },
-  { id: "serious", label: "20 min / day", desc: "Serious" },
-  { id: "intense", label: "30 min / day", desc: "Intense" },
-];
-
-const PREFERRED_LANGUAGES = [
-  "English",
-  "繁體中文",
-  "简体中文",
-  "日本語",
-  "한국어",
-  "Español",
+const GOALS: Array<{ id: string; labelKey: TranslationKey; descKey: TranslationKey }> = [
+  { id: "casual", labelKey: "onboarding.goal.casual.label", descKey: "onboarding.goal.casual.desc" },
+  { id: "regular", labelKey: "onboarding.goal.regular.label", descKey: "onboarding.goal.regular.desc" },
+  { id: "serious", labelKey: "onboarding.goal.serious.label", descKey: "onboarding.goal.serious.desc" },
+  { id: "intense", labelKey: "onboarding.goal.intense.label", descKey: "onboarding.goal.intense.desc" },
 ];
 
 const DEFAULT_AVATARS = [
@@ -147,6 +144,7 @@ async function cropImageToPngBlob(imageSrc: string, cropArea: Area) {
 
 export default function WelcomeOnboardingPageClient() {
   const router = useRouter();
+  const { t, setLanguageLabel, languageOptions } = useI18n();
   const token = useAuthStore((s) => s.token);
   const authUser = useAuthStore((s) => s.user);
   const completeOnboarding = useUserStore((s) => s.completeOnboarding);
@@ -155,7 +153,7 @@ export default function WelcomeOnboardingPageClient() {
   const [name, setName] = useState("");
   const [jobTitle, setJobTitle] = useState("");
   const [educationLevel, setEducationLevel] = useState("");
-  const [preferredLanguage, setPreferredLanguage] = useState("");
+  const [preferredLanguage, setPreferredLanguage] = useState(DEFAULT_LANGUAGE_LABEL);
   const [selectedGoal, setSelectedGoal] = useState("");
   const [avatarChoice, setAvatarChoice] = useState<"" | "default" | "upload">("default");
   const [selectedDefaultAvatar, setSelectedDefaultAvatar] = useState<string>(DEFAULT_AVATARS[0].src);
@@ -192,13 +190,15 @@ export default function WelcomeOnboardingPageClient() {
     setName(authUser.full_name ?? "");
     setJobTitle(authUser.job_title ?? "");
     setEducationLevel(authUser.education_level ?? "");
-    setPreferredLanguage(authUser.preferred_language ?? "");
+    const normalizedLanguage = resolveLanguageLabel(authUser.preferred_language);
+    setPreferredLanguage(normalizedLanguage);
+    setLanguageLabel(normalizedLanguage);
     setSelectedGoal(goalMinutesToPreset(authUser.daily_learning_goal_minutes));
     setAvatarChoice("default");
     setSelectedDefaultAvatar(DEFAULT_AVATARS[0].src);
     setAvatarFile(null);
     setAvatarPreviewUrl(null);
-  }, [authUser]);
+  }, [authUser, setLanguageLabel]);
 
   useEffect(() => {
     return () => {
@@ -230,7 +230,7 @@ export default function WelcomeOnboardingPageClient() {
 
   const confirmAvatarCrop = useCallback(async () => {
     if (!cropSourceUrl || !cropPixels) {
-      setError("Please adjust the crop area first.");
+      setError(t("onboarding.error.adjustCrop"));
       return;
     }
 
@@ -253,14 +253,12 @@ export default function WelcomeOnboardingPageClient() {
       closeCropModal();
     } catch (err) {
       setError(
-        err instanceof ApiError
-          ? err.detail
-          : "Failed to upload avatar. Please try another file."
+        err instanceof ApiError ? err.detail : t("onboarding.error.uploadAvatar")
       );
     } finally {
       setIsCropping(false);
     }
-  }, [avatarPreviewUrl, closeCropModal, cropFileName, cropPixels, cropSourceUrl]);
+  }, [avatarPreviewUrl, closeCropModal, cropFileName, cropPixels, cropSourceUrl, t]);
 
   const handleAvatarFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const nextFile = event.target.files?.[0] ?? null;
@@ -269,7 +267,7 @@ export default function WelcomeOnboardingPageClient() {
     }
 
     if (!nextFile.type.startsWith("image/")) {
-      setError("Please choose an image file.");
+      setError(t("onboarding.error.chooseImage"));
       return;
     }
 
@@ -329,6 +327,14 @@ export default function WelcomeOnboardingPageClient() {
     avatarFile,
   ]);
 
+  const handleLanguageSelect = useCallback(
+    (language: string) => {
+      setPreferredLanguage(language);
+      setLanguageLabel(language);
+    },
+    [setLanguageLabel]
+  );
+
   const handleNext = async () => {
     setError("");
     if (step < STEPS.length - 1) {
@@ -361,11 +367,7 @@ export default function WelcomeOnboardingPageClient() {
       }
       router.push("/home");
     } catch (err) {
-      setError(
-        err instanceof ApiError
-          ? err.detail
-          : "Failed to save your onboarding profile."
-      );
+      setError(err instanceof ApiError ? err.detail : t("onboarding.error.saveProfile"));
     } finally {
       setIsSubmitting(false);
     }
@@ -391,7 +393,7 @@ export default function WelcomeOnboardingPageClient() {
           <div className="relative z-10 w-full max-w-2xl rounded-[28px] border border-brand-gray-200 bg-white p-5 shadow-[0_26px_60px_rgba(15,23,42,0.25)] sm:p-6">
             <div className="flex items-center justify-between gap-4">
               <h2 className="font-heading text-2xl font-extrabold text-brand-gray-700 sm:text-3xl">
-                Crop your new avatar
+                {t("onboarding.avatar.cropTitle")}
               </h2>
               <button
                 type="button"
@@ -407,7 +409,7 @@ export default function WelcomeOnboardingPageClient() {
             </div>
 
             <p className="mt-2 text-sm text-brand-gray-500">
-              Drag the image and adjust zoom to set your visible avatar area.
+              {t("onboarding.avatar.cropHint")}
             </p>
 
             <div className="relative mt-5 h-[320px] overflow-hidden rounded-2xl border border-brand-gray-200 bg-white">
@@ -427,7 +429,7 @@ export default function WelcomeOnboardingPageClient() {
             </div>
 
             <div className="mt-4 flex items-center gap-3">
-              <span className="text-sm font-semibold text-brand-gray-600">Zoom</span>
+              <span className="text-sm font-semibold text-brand-gray-600">{t("common.zoom")}</span>
               <input
                 type="range"
                 min={1}
@@ -445,7 +447,7 @@ export default function WelcomeOnboardingPageClient() {
                 onClick={closeCropModal}
                 className="rounded-xl border border-brand-gray-300 px-4 py-2 text-sm font-semibold text-brand-gray-600 transition hover:bg-brand-gray-100"
               >
-                Cancel
+                {t("common.cancel")}
               </button>
               <button
                 type="button"
@@ -453,7 +455,7 @@ export default function WelcomeOnboardingPageClient() {
                 disabled={isCropping || !cropPixels}
                 className="rounded-xl bg-brand-teal px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-55"
               >
-                {isCropping ? "Uploading..." : "Set new avatar"}
+                {isCropping ? t("common.uploading") : t("onboarding.avatar.setNew")}
               </button>
             </div>
           </div>
@@ -485,10 +487,10 @@ export default function WelcomeOnboardingPageClient() {
                 transition={{ duration: 0.35, ease: "easeOut" }}
               >
                 <h1 className="text-center font-heading text-3xl font-extrabold text-brand-gray-700 md:text-4xl">
-                  {currentStep.title}
+                  {t(currentStep.titleKey)}
                 </h1>
                 <div className="mt-4 flex justify-center">
-                  <MascotHint message={currentStep.mascotMsg} />
+                  <MascotHint message={t(currentStep.mascotKey)} />
                 </div>
 
                 <div className="mt-8">
@@ -496,7 +498,7 @@ export default function WelcomeOnboardingPageClient() {
                     <input
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      placeholder="Enter your full name"
+                      placeholder={t("onboarding.placeholder.name")}
                       className="w-full rounded-2xl border border-white/50 bg-white/75 px-5 py-4 text-center text-lg text-brand-gray-700 outline-none focus:border-brand-teal"
                     />
                   )}
@@ -505,7 +507,7 @@ export default function WelcomeOnboardingPageClient() {
                     <input
                       value={jobTitle}
                       onChange={(e) => setJobTitle(e.target.value)}
-                      placeholder="Student, Product Designer, Physician..."
+                      placeholder={t("onboarding.placeholder.role")}
                       className="w-full rounded-2xl border border-white/50 bg-white/75 px-5 py-4 text-center text-lg text-brand-gray-700 outline-none focus:border-brand-teal"
                     />
                   )}
@@ -513,12 +515,12 @@ export default function WelcomeOnboardingPageClient() {
                   {step === 2 && (
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       {EDUCATION_LEVELS.map((level) => {
-                        const selected = educationLevel === level;
+                        const selected = educationLevel === level.value;
                         return (
                           <button
-                            key={level}
+                            key={level.value}
                             type="button"
-                            onClick={() => setEducationLevel(level)}
+                            onClick={() => setEducationLevel(level.value)}
                             className={`rounded-2xl border px-5 py-5 text-left transition ${
                               selected
                                 ? "border-brand-teal bg-brand-teal/10"
@@ -526,7 +528,7 @@ export default function WelcomeOnboardingPageClient() {
                             }`}
                           >
                             <div className="font-semibold text-brand-gray-700">
-                              {level}
+                              {t(level.labelKey)}
                             </div>
                           </button>
                         );
@@ -536,13 +538,13 @@ export default function WelcomeOnboardingPageClient() {
 
                   {step === 3 && (
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                      {PREFERRED_LANGUAGES.map((language) => {
-                        const selected = preferredLanguage === language;
+                      {languageOptions.map((option) => {
+                        const selected = preferredLanguage === option.label;
                         return (
                           <button
-                            key={language}
+                            key={option.label}
                             type="button"
-                            onClick={() => setPreferredLanguage(language)}
+                            onClick={() => handleLanguageSelect(option.label)}
                             className={`rounded-2xl border px-5 py-5 text-left transition ${
                               selected
                                 ? "border-brand-teal bg-brand-teal/10"
@@ -550,7 +552,7 @@ export default function WelcomeOnboardingPageClient() {
                             }`}
                           >
                             <div className="font-semibold text-brand-gray-700">
-                              {language}
+                              {option.label}
                             </div>
                           </button>
                         );
@@ -574,10 +576,10 @@ export default function WelcomeOnboardingPageClient() {
                             }`}
                           >
                             <div className="font-semibold text-brand-gray-700">
-                              {goal.label}
+                              {t(goal.labelKey)}
                             </div>
                             <div className="mt-1 text-sm text-brand-gray-500">
-                              {goal.desc}
+                              {t(goal.descKey)}
                             </div>
                           </button>
                         );
@@ -588,9 +590,9 @@ export default function WelcomeOnboardingPageClient() {
                   {step === 5 && (
                     <div className="space-y-4">
                       <div className="rounded-2xl px-5 py-5 text-left">
-                        <div className="font-semibold text-brand-gray-700">Choose an avatar</div>
+                        <div className="font-semibold text-brand-gray-700">{t("onboarding.avatar.title")}</div>
                         <div className="mt-1 text-sm text-brand-gray-500">
-                          Tap the first circle to upload your own image.
+                          {t("onboarding.avatar.hint")}
                         </div>
 
                         <input
@@ -612,7 +614,7 @@ export default function WelcomeOnboardingPageClient() {
                                 ? "ring-2 ring-brand-teal"
                                 : "ring-1 ring-transparent hover:ring-brand-teal/40"
                             }`}
-                            aria-label="Upload custom avatar"
+                            aria-label={t("onboarding.avatar.uploadCustom")}
                             aria-pressed={avatarChoice === "upload"}
                           >
                             {avatarPreviewUrl ? (
@@ -689,7 +691,7 @@ export default function WelcomeOnboardingPageClient() {
                     disabled={step === 0}
                     className="min-w-[120px] opacity-100 disabled:opacity-40"
                   >
-                    Back
+                    {t("common.back")}
                   </GameButton>
                   <GameButton
                     onClick={() => void handleNext()}
@@ -697,10 +699,10 @@ export default function WelcomeOnboardingPageClient() {
                     className="min-w-[160px]"
                   >
                     {isSubmitting
-                      ? "Saving..."
+                      ? t("common.saving")
                       : step === STEPS.length - 1
-                        ? "Enter Learn8"
-                        : "Next"}
+                        ? t("common.enterLearn8")
+                        : t("common.next")}
                   </GameButton>
                 </div>
               </motion.div>
@@ -719,12 +721,13 @@ function BgEffects() {
 }
 
 function SideHint({ side, step }: { side: "left" | "right"; step: Step }) {
+  const { t } = useI18n();
   return (
     <div
       className={`pointer-events-none absolute top-1/2 hidden -translate-y-1/2 xl:block ${side === "left" ? "left-10" : "right-10"}`}
     >
       <div className="max-w-[180px] rounded-2xl bg-white/30 px-4 py-3 text-sm text-brand-gray-500 backdrop-blur-md">
-        {step.mascotMsg}
+        {t(step.mascotKey)}
       </div>
     </div>
   );

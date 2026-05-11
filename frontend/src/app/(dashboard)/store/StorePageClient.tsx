@@ -7,29 +7,31 @@ import { StoreBackground } from "./components/StoreBackground";
 import { StorePaymentModal } from "./components/StorePaymentModal";
 import { StoreTierCard } from "./components/StoreTierCard";
 import { CREDIT_STORE_TIERS, type CreditStoreTier } from "./types";
+import { useI18n } from "@/lib/i18n/useI18n";
 
 /* ═══════════════════ Page ═══════════════════ */
 
 export default function StorePageClient() {
+  const { t } = useI18n();
   const [selectedTier, setSelectedTier] = useState<CreditStoreTier | null>(null);
 
   return (
     <div className="relative min-h-screen overflow-hidden">
       <TopStatsBar
         backHref="/home"
-        pageTitle="Treasury / Top-Up Store"
+        pageTitle={t("store.pageTitle")}
         quickLinks={[
           {
             href: "/multiplayer",
-            label: "Multiplayer",
+            label: t("common.multiplayer"),
             iconSrc: "/svg/multiplayer-controller.svg",
-            iconAlt: "Multiplayer",
+            iconAlt: t("common.multiplayer"),
           },
           {
             href: "/arena/leaderboard",
-            label: "Leaderboard",
+            label: t("common.leaderboard"),
             iconSrc: "/svg/leaderboard-logo.svg",
-            iconAlt: "Leaderboard",
+            iconAlt: t("common.leaderboard"),
           },
         ]}
       />
@@ -37,10 +39,10 @@ export default function StorePageClient() {
       <div className="relative z-10 max-w-6xl mx-auto px-4 md:px-8 py-10 md:py-16">
         <div className="text-center mb-10 md:mb-14">
           <h1 className="font-heading text-3xl md:text-4xl font-extrabold text-brand-gray-700 mb-3">
-            Credits Sandbox
+            {t("store.creditsSandbox")}
           </h1>
           <p className="text-brand-gray-500 text-base md:text-lg">
-            This page tops up backend credits directly. It is a product sandbox, not a real payment checkout.
+            {t("store.sandboxDesc")}
           </p>
         </div>
 

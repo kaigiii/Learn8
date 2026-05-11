@@ -8,6 +8,7 @@ import {
   DEFAULT_LIBRARY_BACKGROUNDS,
   resolveCourseCardBackground,
 } from "@/lib/courseCardBackground";
+import { useI18n } from "@/lib/i18n/useI18n";
 import type { CourseModalState } from "../types";
 import { HomeCourseIcon } from "./HomeCourseIcon";
 
@@ -52,6 +53,7 @@ export function HomeLibrarySection({
   activeTab,
   onTabChange,
 }: HomeLibrarySectionProps) {
+  const { t } = useI18n();
   const [mobileActionItem, setMobileActionItem] = useState<HomeLibraryItem | null>(null);
   const [activeLongPressKey, setActiveLongPressKey] = useState<string | null>(null);
   const [canHover, setCanHover] = useState(false);
@@ -132,7 +134,7 @@ export function HomeLibrarySection({
       <div className="mb-4 flex items-center justify-between">
         <div>
           <h2 className="font-heading text-2xl font-extrabold text-brand-gray-700 md:text-3xl">
-            Your Library
+            {t("dashboard.yourLibrary")}
           </h2>
         </div>
         <div className="flex items-center gap-4">
@@ -140,7 +142,7 @@ export function HomeLibrarySection({
             href="/courses/custom"
             className="hidden sm:inline-flex rounded-full bg-brand-teal px-4 py-1.5 text-xs font-bold uppercase tracking-[0.1em] text-white shadow-sm transition hover:bg-brand-teal/90"
           >
-            Creator
+            {t("dashboard.creator")}
           </Link>
           <div className="inline-flex items-center rounded-full border border-white/85 bg-white/72 p-1 shadow-sm backdrop-blur-sm">
             <button
@@ -152,7 +154,7 @@ export function HomeLibrarySection({
                   : "text-brand-gray-500 hover:text-brand-gray-700"
               }`}
             >
-              Library
+              {t("dashboard.library")}
             </button>
             <button
               type="button"
@@ -163,7 +165,7 @@ export function HomeLibrarySection({
                   : "text-brand-gray-500 hover:text-brand-gray-700"
               }`}
             >
-              Public
+              {t("dashboard.public")}
             </button>
           </div>
           <div className="flex gap-2">
@@ -185,7 +187,7 @@ export function HomeLibrarySection({
 
       {libraryItems.length === 0 ? (
         <div className="rounded-2xl border border-white/60 bg-white/60 px-5 py-8 text-sm text-brand-gray-500 shadow-sm backdrop-blur-sm md:px-6 md:py-10 min-h-[220px] flex items-center justify-center">
-          No courses yet. Start by dropping a PDF or entering a topic.
+          {t("dashboard.noCoursesYet")}
         </div>
       ) : (
         <div
@@ -228,8 +230,8 @@ export function HomeLibrarySection({
                       openRenameModal(item);
                     }}
                     className="flex h-8 w-8 items-center justify-center rounded-full border border-teal-200/65 bg-teal-50/90 text-teal-700 transition-colors hover:bg-teal-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
-                    aria-label="Rename course"
-                    title="Rename"
+                    aria-label={t("common.rename")}
+                    title={t("common.rename")}
                   >
                     <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M12 20h9" />
@@ -243,8 +245,8 @@ export function HomeLibrarySection({
                       openDeleteModal(item);
                     }}
                     className="flex h-8 w-8 items-center justify-center rounded-full border border-rose-200/70 bg-rose-50/90 text-rose-600 transition-colors hover:bg-rose-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300"
-                    aria-label="Delete course"
-                    title="Delete"
+                    aria-label={t("common.delete")}
+                    title={t("common.delete")}
                   >
                     <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M3 6h18" />
@@ -306,7 +308,7 @@ export function HomeLibrarySection({
                 }}
                 className="rounded-xl border border-teal-200/70 bg-teal-50 px-4 py-3 text-sm font-semibold text-teal-700"
               >
-                Edit
+                {t("common.edit")}
               </button>
               <button
                 type="button"
@@ -316,7 +318,7 @@ export function HomeLibrarySection({
                 }}
                 className="rounded-xl border border-rose-200/70 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-600"
               >
-                Delete
+                {t("common.delete")}
               </button>
             </div>
 
@@ -325,7 +327,7 @@ export function HomeLibrarySection({
               onClick={closeMobileActions}
               className="mt-3 w-full rounded-xl border border-brand-gray-200 bg-white px-4 py-3 text-sm font-semibold text-brand-gray-600"
             >
-              Close
+              {t("common.close")}
             </button>
           </div>
         </div>

@@ -3,6 +3,24 @@
 import { motion } from "framer-motion";
 import DeepGlassCard from "@/components/ui/DeepGlassCard";
 import type { CreditStoreTier } from "../types";
+import { useI18n } from "@/lib/i18n/useI18n";
+import type { TranslationKey } from "@/lib/i18n/translations";
+
+const TIER_LABEL_KEYS: Record<string, TranslationKey> = {
+  starter: "store.tier.quickRefill.label",
+  popular: "store.tier.builderPack.label",
+  pro: "store.tier.studioBoost.label",
+};
+
+const TIER_NOTE_KEYS: Record<string, TranslationKey> = {
+  starter: "store.tier.quickRefill.note",
+  popular: "store.tier.builderPack.note",
+  pro: "store.tier.studioBoost.note",
+};
+
+const TIER_BADGE_KEYS: Record<string, TranslationKey> = {
+  popular: "store.tier.builderPack.badge",
+};
 
 export function StoreTierCard({
   tier,
@@ -11,6 +29,8 @@ export function StoreTierCard({
   tier: CreditStoreTier;
   onSelect: () => void;
 }) {
+  const { t } = useI18n();
+
   if (tier.variant === "pro") {
     return <StoreProTierCard tier={tier} onSelect={onSelect} />;
   }
@@ -21,7 +41,7 @@ export function StoreTierCard({
         <div className="absolute -top-0 -right-0 z-20">
           <div className="relative">
             <div className="origin-top-right rotate-0 rounded-bl-xl rounded-tr-2xl bg-gradient-to-r from-brand-green to-emerald-500 px-3 py-1 text-xs font-bold text-white shadow-lg">
-              {tier.badge}
+              {TIER_BADGE_KEYS[tier.id] ? t(TIER_BADGE_KEYS[tier.id]!) : tier.badge}
             </div>
           </div>
         </div>
@@ -36,7 +56,7 @@ export function StoreTierCard({
         onClick={onSelect}
       >
         <h3 className="mb-1 font-heading text-lg font-bold text-brand-gray-700">
-          {tier.label}
+          {TIER_LABEL_KEYS[tier.id] ? t(TIER_LABEL_KEYS[tier.id]!) : tier.label}
         </h3>
 
         <div className="my-6 flex h-28 items-center justify-center">
@@ -44,14 +64,16 @@ export function StoreTierCard({
         </div>
 
         <p className="mb-2 font-heading text-2xl font-extrabold text-brand-gray-700">
-          +{tier.credits.toLocaleString()} credits
+          {t("store.creditsAmount", { amount: tier.credits.toLocaleString() })}
         </p>
-        <p className="mb-5 text-sm text-brand-gray-500">{tier.note}</p>
+        <p className="mb-5 text-sm text-brand-gray-500">
+          {TIER_NOTE_KEYS[tier.id] ? t(TIER_NOTE_KEYS[tier.id]!) : tier.note}
+        </p>
 
         <div className="flex-1" />
 
         <button className="w-full rounded-xl border-b-4 border-[#4a9e9a] bg-gradient-to-b from-brand-teal to-[#5fb3af] py-3 font-heading font-bold text-white shadow-md transition-all hover:shadow-lg active:translate-y-0.5 active:shadow-sm">
-          Add Credits
+          {t("store.addCredits")}
         </button>
       </DeepGlassCard>
     </motion.div>
@@ -65,6 +87,7 @@ function StoreProTierCard({
   tier: CreditStoreTier;
   onSelect: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <motion.div whileHover={{ y: -6 }} className="relative h-full">
       <motion.div
@@ -79,7 +102,7 @@ function StoreProTierCard({
 
         <div className="relative z-10 flex h-full flex-col items-center px-6 py-8 text-center">
           <h3 className="mb-1 font-heading text-lg font-bold text-white">
-            {tier.label}
+            {TIER_LABEL_KEYS[tier.id] ? t(TIER_LABEL_KEYS[tier.id]!) : tier.label}
           </h3>
 
           <div className="my-6 flex h-28 items-center justify-center">
@@ -87,14 +110,16 @@ function StoreProTierCard({
           </div>
 
           <p className="mb-2 font-heading text-2xl font-extrabold text-white">
-            +{tier.credits.toLocaleString()} credits
+            {t("store.creditsAmount", { amount: tier.credits.toLocaleString() })}
           </p>
-          <p className="mb-5 text-sm text-white/75">{tier.note}</p>
+          <p className="mb-5 text-sm text-white/75">
+            {TIER_NOTE_KEYS[tier.id] ? t(TIER_NOTE_KEYS[tier.id]!) : tier.note}
+          </p>
 
           <div className="flex-1" />
 
           <button className="w-full rounded-xl border-b-4 border-yellow-600 bg-gradient-to-b from-amber-300 to-yellow-400 py-3 font-heading font-bold text-[#1a0533] shadow-md transition-all hover:shadow-lg active:translate-y-0.5 active:shadow-sm">
-            Add Credits
+            {t("store.addCredits")}
           </button>
         </div>
       </motion.div>

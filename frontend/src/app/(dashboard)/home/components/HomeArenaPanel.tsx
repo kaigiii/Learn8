@@ -15,11 +15,20 @@ import {
   joinArenaRoom,
 } from "@/lib/arena/api";
 import type { ArenaProfile, ArenaPublicCourse, ArenaSeasonSummary } from "@/lib/apiTypes";
+import { useI18n } from "@/lib/i18n/useI18n";
+import type { TranslationKey } from "@/lib/i18n/translations";
 
 const RANDOM_TOPIC_ID = -1;
 
+function translateRankTier(t: (key: TranslationKey) => string, tier?: string | null): string {
+  if (!tier) return "...";
+  const key = `leaderboard.tier.${tier.trim().toLowerCase()}` as TranslationKey;
+  return t(key);
+}
+
 export function HomeArenaPanel() {
   const router = useRouter();
+  const { t } = useI18n();
   const [courses, setCourses] = useState<ArenaPublicCourse[]>([]);
   const [season, setSeason] = useState<ArenaSeasonSummary | null>(null);
   const [profile, setProfile] = useState<ArenaProfile | null>(null);
@@ -48,7 +57,7 @@ export function HomeArenaPanel() {
         setSelectedCourseId((current) => current ?? RANDOM_TOPIC_ID);
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load Arena");
+          setError(err instanceof Error ? err.message : t("arena.failedLoadArena"));
         }
       } finally {
         if (!cancelled) {
@@ -70,7 +79,7 @@ export function HomeArenaPanel() {
   const dropdownOptions = useMemo(() => {
     if (courses.length === 0) return [] as Array<{ value: number; label: string }>;
     return [
-      { value: RANDOM_TOPIC_ID, label: "Random topic assignment" },
+      { value: RANDOM_TOPIC_ID, label: t("arena.randomTopicAssignment") },
       ...courses.map((course) => ({
         value: course.id,
         label: `${course.courseTitle} - ${course.title}`,
@@ -102,7 +111,7 @@ export function HomeArenaPanel() {
       });
       router.push("/arena/queue");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to join Arena competition");
+      setError(err instanceof Error ? err.message : t("arena.failedJoinCompetition"));
     } finally {
       setBusy(false);
     }
@@ -126,7 +135,7 @@ export function HomeArenaPanel() {
           : String(targetCourse.poolId);
       router.push(`/arena/lobby/${room.roomCode}?topic=${encodeURIComponent(topicPref)}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create room");
+      setError(err instanceof Error ? err.message : t("arena.failedCreateRoom"));
     } finally {
       setBusy(false);
     }
@@ -142,7 +151,7 @@ export function HomeArenaPanel() {
       const room = await joinArenaRoom(roomCode.trim().toUpperCase());
       router.push(`/arena/lobby/${room.roomCode}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to join room");
+      setError(err instanceof Error ? err.message : t("arena.failedJoinRoom"));
     } finally {
       setBusy(false);
     }
@@ -153,7 +162,7 @@ export function HomeArenaPanel() {
       <div className="space-y-4 sm:space-y-5">
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between md:gap-4">
           <p className="mt-0 font-heading text-xl font-extrabold leading-tight text-brand-gray-700 sm:text-2xl md:mt-1 md:text-3xl">
-            Multiplayer competitive mode
+            {t("arena.multiplayerMode")}
           </p>
           <div className="w-full rounded-2xl bg-white/72 px-3 py-2 text-left sm:text-right md:w-auto">
             {season?.name ? (
@@ -170,7 +179,7 @@ export function HomeArenaPanel() {
                 className="h-9 w-9 object-contain sm:h-10 sm:w-10"
               />
               <p className="font-heading text-lg font-extrabold text-brand-gray-700 sm:text-xl">
-                {profile?.rankTier ?? "..."}
+                {translateRankTier(t, profile?.rankTier)}
               </p>
             </div>
           </div>
@@ -178,18 +187,18 @@ export function HomeArenaPanel() {
 
         <div className="grid gap-3 md:gap-4 lg:grid-cols-2">
           <section className="flex h-full flex-col rounded-2xl border border-[#9ecbd4]/18 bg-white/52 p-3 shadow-[0_12px_30px_rgba(97,163,184,0.10)] backdrop-blur-sm sm:p-4">
-            <h3 className="font-heading text-xl font-bold text-brand-gray-700 sm:text-2xl">Official Competition</h3>
+            <h3 className="font-heading text-xl font-bold text-brand-gray-700 sm:text-2xl">{t("arena.officialCompetition")}</h3>
             <div className="mt-3 flex flex-1 flex-col justify-between gap-3 pb-4 sm:pb-5">
               <div>
                 <label className="block">
                   <span className="text-xs font-bold uppercase tracking-[0.18em] text-brand-gray-700">
-                    Public Course
+                    {t("arena.publicCourse")}
                   </span>
                   <div className="mt-2">
                     <ArenaCourseDropdown
                       value={selectedCourseId}
                       options={dropdownOptions}
-                      placeholder={loading ? "Loading competitions..." : "No competitions available"}
+                      placeholder={loading ? t("arena.loadingCompetitions") : t("arena.noCompetitions")}
                       disabled={loading || busy || courses.length === 0}
                       onChange={setSelectedCourseId}
                     />
@@ -198,7 +207,7 @@ export function HomeArenaPanel() {
 
                 <p className="mt-2 min-h-[2.5rem] line-clamp-2 text-xs leading-relaxed text-brand-gray-500">
                   {selectedCourseId === RANDOM_TOPIC_ID
-                    ? "A random Arena topic will be assigned when you join or create."
+                    ? t("arena.randomTopicHint")
                     : selectedCourse?.topic ?? ""}
                 </p>
               </div>
@@ -209,25 +218,25 @@ export function HomeArenaPanel() {
                 onClick={() => void handleJoinCompetition()}
                 disabled={courses.length === 0 || busy}
               >
-                Quick Match
+                {t("arena.quickMatch")}
               </GameButton>
             </div>
           </section>
 
           <section className="flex h-full flex-col rounded-2xl border border-[#9ecbd4]/18 bg-white/52 p-3 shadow-[0_12px_30px_rgba(97,163,184,0.10)] backdrop-blur-sm sm:p-4">
-            <h3 className="font-heading text-xl font-bold text-brand-gray-700 sm:text-2xl">Room Management</h3>
+            <h3 className="font-heading text-xl font-bold text-brand-gray-700 sm:text-2xl">{t("arena.roomManagement")}</h3>
 
             <div className="mt-3 flex flex-1 flex-col justify-between gap-3 pb-4 sm:pb-5">
               <label className="block">
                 <span className="text-xs font-bold uppercase tracking-[0.18em] text-brand-gray-700">
-                  Join a Private Room
+                  {t("arena.joinPrivateRoom")}
                 </span>
                 <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-stretch">
                   <input
                     className="min-w-0 flex-1 rounded-xl border border-brand-gray-200 bg-white px-4 py-3 text-sm uppercase text-brand-gray-700 outline-none"
                     value={roomCode}
                     onChange={(event) => setRoomCode(event.target.value.toUpperCase())}
-                    placeholder="Enter room code"
+                    placeholder={t("arena.enterRoomCode")}
                   />
                   <GameButton
                     variant="secondary"
@@ -235,7 +244,7 @@ export function HomeArenaPanel() {
                     onClick={() => void handleJoinRoom()}
                     disabled={!roomCode.trim() || busy}
                   >
-                    Join
+                    {t("arena.joinRoom")}
                   </GameButton>
                 </div>
               </label>
@@ -246,7 +255,7 @@ export function HomeArenaPanel() {
                 onClick={() => void handleCreateRoom()}
                 disabled={courses.length === 0 || busy}
               >
-                Create Room
+                {t("arena.createRoom")}
               </GameButton>
             </div>
           </section>

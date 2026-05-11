@@ -10,8 +10,10 @@ import { NODE_STATUS } from "@/lib/domain/statuses";
 import { HomeArenaPanel } from "../home/components/HomeArenaPanel";
 import { MultiplayerTopicsSection } from "./components/MultiplayerTopicsSection";
 import { HomeBackground } from "../home/components/HomeBackground";
+import { useI18n } from "@/lib/i18n/useI18n";
 
 export default function MultiplayerPage() {
+  const { t } = useI18n();
   const [courses, setCourses] = useState<CourseListItem[]>([]);
   const [courseProgressById, setCourseProgressById] = useState<Record<number, number>>({});
   const [loadingCourses, setLoadingCourses] = useState(true);
@@ -30,7 +32,7 @@ export default function MultiplayerPage() {
       })
       .catch((err) => {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load topics");
+          setError(err instanceof Error ? err.message : t("multiplayer.failedLoadTopics"));
         }
       })
       .finally(() => {
@@ -86,20 +88,20 @@ export default function MultiplayerPage() {
     <div className="relative min-h-screen overflow-hidden">
       <TopStatsBar
         backHref="/home"
-        pageTitle="Multiplayer"
+        pageTitle={t("common.multiplayer")}
         quickLinks={[
           {
             href: "/multiplayer",
-            label: "Multiplayer",
+            label: t("common.multiplayer"),
             active: true,
             iconSrc: "/svg/multiplayer-controller.svg",
-            iconAlt: "Multiplayer",
+            iconAlt: t("common.multiplayer"),
           },
           {
             href: "/arena/leaderboard",
-            label: "Leaderboard",
+            label: t("common.leaderboard"),
             iconSrc: "/svg/leaderboard-logo.svg",
-            iconAlt: "Leaderboard",
+            iconAlt: t("common.leaderboard"),
           },
         ]}
       />
@@ -113,7 +115,7 @@ export default function MultiplayerPage() {
 
         {loadingCourses ? (
           <div className="rounded-2xl border border-white/60 bg-white/65 px-4 py-3 text-sm text-brand-gray-600 shadow-sm backdrop-blur">
-            Loading Arena public topics...
+            {t("multiplayer.loadingTopics")}
           </div>
         ) : null}
 
