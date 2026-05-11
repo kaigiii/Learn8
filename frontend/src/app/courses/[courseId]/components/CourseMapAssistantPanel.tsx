@@ -120,14 +120,7 @@ export function CourseMapAssistantPanel({
           ? { duration: 0.2, ease: "easeOut" }
           : { delay: 0.3, type: "spring", damping: 18 }
       }
-      className="flex flex-col overflow-hidden rounded-3xl border border-white/50 bg-white/60 shadow-lg shadow-teal-200/20 backdrop-blur-xl"
-      style={
-        mobileOverlay
-          ? { height: "100%", minHeight: 0 }
-          : compact
-            ? { height: "100%", minHeight: 560 }
-            : { height: "78vh", minHeight: 560 }
-      }
+      className="flex flex-col overflow-hidden h-full"
     >
       <div className="flex items-center gap-3 px-6 pt-6 pb-4">
         <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-full shadow-md">

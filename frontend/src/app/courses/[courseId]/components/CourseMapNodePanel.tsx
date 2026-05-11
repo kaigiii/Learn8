@@ -179,7 +179,7 @@ export function CourseMapNodePanel({
       initial={{ opacity: 0, x: 40 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: 0.3, type: "spring", damping: 18 }}
-      className="flex h-full min-h-0 flex-col overflow-hidden rounded-3xl border border-white/50 bg-white/70 shadow-lg shadow-teal-200/20 backdrop-blur-xl lg:min-h-[560px]"
+      className="flex h-full min-h-0 flex-col overflow-hidden"
     >
       <div className="scrollbar-hide flex-1 space-y-5 overflow-y-auto px-6 py-5">
         <section className={`rounded-2xl border p-4 ${
