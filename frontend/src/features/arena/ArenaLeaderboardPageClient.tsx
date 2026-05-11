@@ -13,6 +13,8 @@ import {
 } from "@/lib/arena/api";
 import type { ArenaLeaderboardEntry, ArenaProfile, ArenaSeasonSummary } from "@/lib/apiTypes";
 import { useRequireAuthRedirect } from "@/lib/auth/useRequireAuthRedirect";
+import { useI18n } from "@/lib/i18n/useI18n";
+import type { TranslationKey } from "@/lib/i18n/translations";
 
 type LeaderboardTab = "global" | "season";
 type LeaderboardCategory = "rating" | "win_rate" | "matches";
@@ -31,7 +33,14 @@ function resolveAvatarUrl(value?: string | null) {
 
 export default function ArenaLeaderboardPageClient() {
   const { isReady } = useRequireAuthRedirect();
+  const { t } = useI18n();
   const authUser = useAuthStore((state) => state.user);
+
+  const translateRankTier = (tier?: string | null): string => {
+    if (!tier) return "-";
+    const key = `leaderboard.tier.${tier.trim().toLowerCase()}` as TranslationKey;
+    return t(key);
+  };
   const [tab, setTab] = useState<LeaderboardTab>("season");
   const [category, setCategory] = useState<LeaderboardCategory>("rating");
   const [profile, setProfile] = useState<ArenaProfile | null>(null);
@@ -84,7 +93,7 @@ export default function ArenaLeaderboardPageClient() {
   }, [isReady]);
 
   const activeBoard = tab === "season" ? seasonLeaderboard : globalLeaderboard;
-  const activeLabel = tab === "season" ? season?.name ?? "Current Season" : "Global Ladder";
+  const activeLabel = tab === "season" ? season?.name ?? t("leaderboard.currentSeason") : t("leaderboard.globalLadder");
 
   const sortedBoard = useMemo<RankedLeaderboardEntry[]>(() => {
     const entries = activeBoard.map((entry) => {
@@ -160,10 +169,10 @@ export default function ArenaLeaderboardPageClient() {
 
   const snapshotMetricLabel =
     category === "win_rate"
-      ? "Win Rate"
+      ? t("leaderboard.winRate")
       : category === "matches"
-        ? "Matches"
-        : "Current Rating";
+        ? t("leaderboard.matches")
+        : t("leaderboard.currentRating");
   const ratingProgress = Math.max(
     8,
     Math.min(100, ((profile?.rating ?? currentUserStanding?.entry.rating ?? 0) / 2000) * 100)
@@ -173,20 +182,20 @@ export default function ArenaLeaderboardPageClient() {
     <div className="min-h-screen app-shared-bg">
       <TopStatsBar
         backHref="/home"
-        pageTitle="Arena Leaderboard"
+        pageTitle={t("leaderboard.pageTitle")}
         quickLinks={[
           {
             href: "/multiplayer",
-            label: "Multiplayer",
+            label: t("common.multiplayer"),
             iconSrc: "/svg/multiplayer-controller.svg",
-            iconAlt: "Multiplayer",
+            iconAlt: t("common.multiplayer"),
           },
           {
             href: "/arena/leaderboard",
-            label: "Leaderboard",
+            label: t("common.leaderboard"),
             active: true,
             iconSrc: "/svg/leaderboard-logo.svg",
-            iconAlt: "Leaderboard",
+            iconAlt: t("common.leaderboard"),
           },
         ]}
       />
@@ -194,11 +203,10 @@ export default function ArenaLeaderboardPageClient() {
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
             <h1 className="font-heading text-3xl font-extrabold text-brand-gray-700 md:text-4xl">
-              Arena Leaderboard
+              {t("leaderboard.title")}
             </h1>
             <p className="mt-2 max-w-3xl text-sm leading-relaxed text-brand-gray-500 md:text-[1.03rem]">
-              Explore the live competitive ladder with multiple ranking viewer, from pure rating to
-              leaders and high-volume grinders.
+              {t("leaderboard.subtitle")}
             </p>
           </div>
 
@@ -207,17 +215,17 @@ export default function ArenaLeaderboardPageClient() {
               value={tab}
               onChange={setTab}
               options={[
-                { value: "season", label: "Season" },
-                { value: "global", label: "Global" },
+                { value: "season", label: t("leaderboard.season") },
+                { value: "global", label: t("leaderboard.global") },
               ]}
             />
             <LeaderboardDropdown
               value={category}
               onChange={setCategory}
               options={[
-                { value: "rating", label: "Rating" },
-                { value: "win_rate", label: "Win Rate" },
-                { value: "matches", label: "Matches" },
+                { value: "rating", label: t("leaderboard.rating") },
+                { value: "win_rate", label: t("leaderboard.winRate") },
+                { value: "matches", label: t("leaderboard.matches") },
               ]}
             />
           </div>
@@ -229,7 +237,7 @@ export default function ArenaLeaderboardPageClient() {
 
         <div className="grid gap-4 xl:grid-cols-[minmax(0,4fr)_minmax(0,6fr)]">
           <DeepGlassCard className="min-w-0 px-4 py-4 md:px-5 md:py-5">
-            <h2 className="font-heading text-[1.6rem] font-bold text-brand-gray-700">Your Ladder Snapshot</h2>
+            <h2 className="font-heading text-[1.6rem] font-bold text-brand-gray-700">{t("leaderboard.yourSnapshot")}</h2>
 
               <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,7fr)_minmax(0,3fr)]">
                 <div className="min-w-0 rounded-[22px] border border-white/70 bg-white/68 p-3">
@@ -268,19 +276,19 @@ export default function ArenaLeaderboardPageClient() {
               </div>
 
               <div className="mt-3 grid grid-cols-2 gap-2">
-                <SnapshotStatTile label="Rank Tier" value={profile?.rankTier ?? "-"} icon="🏅" />
+                <SnapshotStatTile label={t("leaderboard.rankTier")} value={translateRankTier(profile?.rankTier)} icon="🏅" />
                 <SnapshotStatTile
-                  label="Matches"
+                  label={t("leaderboard.matches")}
                   value={String(profile?.rankedMatches ?? currentUserStanding?.entry.totalMatches ?? 0)}
                   icon="🎮"
                 />
                 <SnapshotStatTile
-                  label="Wins | Losses"
+                  label={t("leaderboard.winsLosses")}
                   value={`${profile?.wins ?? 0}W | ${profile?.losses ?? 0}L`}
                   icon="⚔️"
                 />
                 <SnapshotStatTile
-                  label="Placement"
+                  label={t("leaderboard.placement")}
                   value={currentUserStanding ? `#${currentUserStanding.placement}` : "#-"}
                   icon="📍"
                 />
@@ -288,9 +296,9 @@ export default function ArenaLeaderboardPageClient() {
 
               <div className="mt-3 flex items-center justify-between rounded-[22px] border border-white/70 bg-white/68 px-4 py-3">
                 <div>
-                  <p className="text-xs text-brand-gray-500">Season Status</p>
+                  <p className="text-xs text-brand-gray-500">{t("leaderboard.seasonStatus")}</p>
                   <p className="mt-1 font-heading text-[1.4rem] font-bold leading-tight text-brand-gray-700 break-words">
-                    {season?.name ?? "No active season."}
+                    {season?.name ?? t("leaderboard.noActiveSeason")}
                   </p>
                 </div>
                 <div className="rounded-lg border border-white/70 bg-white/75 p-2 text-brand-gray-500">
@@ -301,32 +309,32 @@ export default function ArenaLeaderboardPageClient() {
 
           <DeepGlassCard className="min-w-0 px-4 py-4 md:px-5 md:py-5">
             <h2 className="font-heading text-[1.75rem] font-bold text-brand-gray-700">
-                {tab === "season" ? "Current Season" : "Global Ladder"}
+                {tab === "season" ? t("leaderboard.currentSeason") : t("leaderboard.globalLadder")}
               </h2>
 
               <div className="mt-3 flex flex-wrap gap-2">
                 <CategoryChip
                   active={category === "rating"}
-                  label="Rating"
+                  label={t("leaderboard.rating")}
                   onClick={() => setCategory("rating")}
                 />
                 <CategoryChip
                   active={category === "win_rate"}
-                  label="Win Rate"
+                  label={t("leaderboard.winRate")}
                   onClick={() => setCategory("win_rate")}
                 />
                 <CategoryChip
                   active={category === "matches"}
-                  label="Matches"
+                  label={t("leaderboard.matches")}
                   onClick={() => setCategory("matches")}
                 />
               </div>
 
               <div className="mt-4 grid grid-cols-[82px_minmax(0,1.6fr)_minmax(0,1fr)_minmax(100px,0.85fr)] items-center gap-2 px-2 text-xs font-semibold uppercase tracking-[0.08em] text-brand-gray-500">
-                <span className="text-center">Rank</span>
-                <span className="pl-3">Player</span>
-                <span>Tier</span>
-                <span className="text-center">Stats</span>
+                <span className="text-center">{t("leaderboard.rankCol")}</span>
+                <span className="pl-3">{t("leaderboard.playerCol")}</span>
+                <span>{t("leaderboard.tierCol")}</span>
+                <span className="text-center">{t("leaderboard.statsCol")}</span>
               </div>
 
               <div className="scrollbar-hide mt-2 max-h-[292px] space-y-2 overflow-y-auto pr-1">
@@ -360,14 +368,14 @@ export default function ArenaLeaderboardPageClient() {
                         </p>
                         {isCurrentUser ? (
                           <span className="rounded-full bg-[#0e758b] px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-[0.08em] text-white">
-                            You
+                            {t("leaderboard.you")}
                           </span>
                         ) : null}
                       </div>
 
                       <div className="flex min-w-0 items-center gap-2 text-sm font-semibold text-brand-gray-700 lg:text-base">
                         <TierShield small />
-                        <span className="break-words">{entry.rankTier}</span>
+                        <span className="break-words">{translateRankTier(entry.rankTier)}</span>
                       </div>
 
                       <div className="text-center">
@@ -386,8 +394,8 @@ export default function ArenaLeaderboardPageClient() {
                 {sortedBoard.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-brand-gray-300 bg-white/60 px-4 py-4 text-base text-brand-gray-500">
                     {loading
-                      ? "Loading leaderboard..."
-                      : "No leaderboard entries yet. Match results will appear here."}
+                      ? t("leaderboard.loading")
+                      : t("leaderboard.empty")}
                   </div>
                 ) : null}
               </div>

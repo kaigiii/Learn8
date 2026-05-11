@@ -8,6 +8,7 @@ import { useAuthStore } from "@/stores/app/useAuthStore";
 import TopStatsBar from "@/components/layout/TopStatsBar";
 import DeepGlassCard from "@/components/ui/DeepGlassCard";
 import ChatroomPanel from "./components/ChatroomPanel";
+import { useI18n } from "@/lib/i18n/useI18n";
 
 interface Friend {
   friend_record_id: number;
@@ -50,6 +51,7 @@ interface Group {
 
 export default function SocialPageClient() {
   const router = useRouter();
+  const { t } = useI18n();
   const token = useAuthStore((s) => s.token);
   const authUser = useAuthStore((s) => s.user);
   const [activeTab, setActiveTab] = useState<"friends" | "groups">("friends");
@@ -163,13 +165,13 @@ export default function SocialPageClient() {
         method: "POST",
         body: JSON.stringify({ friend_id: friendId }),
       });
-      setMessage({ text: "Friend request sent successfully!", type: "success" });
+      setMessage({ text: t("social.friendRequestSent"), type: "success" });
       setInviteEmail("");
       setSearchQuery("");
       setSearchResults([]);
       loadFriendsData();
     } catch (err: any) {
-      setMessage({ text: err.detail || "Failed to send invitation", type: "error" });
+      setMessage({ text: err.detail || t("social.failedSendInvite"), type: "error" });
     }
   };
 
@@ -180,24 +182,24 @@ export default function SocialPageClient() {
         method: "POST",
         body: JSON.stringify({ friend_id: friendId, action }),
       });
-      setMessage({ text: `Invitation ${action}ed successfully!`, type: "success" });
+      setMessage({ text: t("social.invitationActioned", { action }), type: "success" });
       loadFriendsData();
     } catch (err: any) {
-      setMessage({ text: err.detail || "Action failed", type: "error" });
+      setMessage({ text: err.detail || t("social.actionFailed"), type: "error" });
     }
   };
 
   const handleDeleteFriend = async (friendId: number) => {
-    if (!confirm("Are you sure you want to remove this friend?")) return;
+    if (!confirm(t("social.confirmRemoveFriend"))) return;
     try {
       setMessage(null);
       await apiFetch<any>(`/social/friends/${friendId}`, {
         method: "DELETE",
       });
-      setMessage({ text: "Friend removed successfully", type: "success" });
+      setMessage({ text: t("social.friendRemoved"), type: "success" });
       loadFriendsData();
     } catch (err: any) {
-      setMessage({ text: err.detail || "Failed to remove friend", type: "error" });
+      setMessage({ text: err.detail || t("social.failedRemoveFriend"), type: "error" });
     }
   };
 
@@ -211,12 +213,12 @@ export default function SocialPageClient() {
         method: "POST",
         body: JSON.stringify({ name: groupName, description: groupDesc }),
       });
-      setMessage({ text: "Group created successfully!", type: "success" });
+      setMessage({ text: t("social.groupCreated"), type: "success" });
       setGroupName("");
       setGroupDesc("");
       loadGroupsData();
     } catch (err: any) {
-      setMessage({ text: err.detail || "Failed to create group", type: "error" });
+      setMessage({ text: err.detail || t("social.failedCreateGroup"), type: "error" });
     }
   };
 
@@ -229,46 +231,46 @@ export default function SocialPageClient() {
         method: "POST",
         body: JSON.stringify({ invite_code: inviteCode }),
       });
-      setMessage({ text: "Joined group successfully!", type: "success" });
+      setMessage({ text: t("social.groupJoined"), type: "success" });
       setInviteCode("");
       loadGroupsData();
     } catch (err: any) {
-      setMessage({ text: err.detail || "Failed to join group", type: "error" });
+      setMessage({ text: err.detail || t("social.failedJoinGroup"), type: "error" });
     }
   };
 
   const handleLeaveGroup = async (groupId: number) => {
-    if (!confirm("Are you sure you want to leave this group?")) return;
+    if (!confirm(t("social.confirmLeaveGroup"))) return;
     try {
       setMessage(null);
       await apiFetch<any>(`/social/groups/${groupId}/leave`, {
         method: "DELETE",
       });
-      setMessage({ text: "Group left successfully", type: "success" });
+      setMessage({ text: t("social.groupLeft"), type: "success" });
       loadGroupsData();
     } catch (err: any) {
-      setMessage({ text: err.detail || "Failed to leave group", type: "error" });
+      setMessage({ text: err.detail || t("social.failedLeaveGroup"), type: "error" });
     }
   };
 
   const handleDeleteGroup = async (groupId: number) => {
-    if (!confirm("Are you sure you want to disband this group? This cannot be undone.")) return;
+    if (!confirm(t("social.confirmDisbandGroup"))) return;
     try {
       setMessage(null);
       await apiFetch<any>(`/social/groups/${groupId}`, {
         method: "DELETE",
       });
-      setMessage({ text: "Group disbanded successfully", type: "success" });
+      setMessage({ text: t("social.groupDisbanded"), type: "success" });
       loadGroupsData();
     } catch (err: any) {
-      setMessage({ text: err.detail || "Failed to disband group", type: "error" });
+      setMessage({ text: err.detail || t("social.failedDisbandGroup"), type: "error" });
     }
   };
 
   return (
     <div className="min-h-screen app-shared-bg overflow-auto pb-20 relative">
       <TopStatsBar
-        pageTitle="Social Hub"
+        pageTitle={t("social.pageTitle")}
         backHref="/home"
         mascotSrc="/icons/icon.ico"
         mascotAlt="Social mascot"
@@ -276,15 +278,15 @@ export default function SocialPageClient() {
         quickLinks={[
           {
             href: "/multiplayer",
-            label: "Multiplayer",
+            label: t("common.multiplayer"),
             iconSrc: "/svg/multiplayer-controller.svg",
-            iconAlt: "Multiplayer",
+            iconAlt: t("common.multiplayer"),
           },
           {
             href: "/arena/leaderboard",
-            label: "Leaderboard",
+            label: t("common.leaderboard"),
             iconSrc: "/svg/leaderboard-logo.svg",
-            iconAlt: "Leaderboard",
+            iconAlt: t("common.leaderboard"),
           },
         ]}
       />
@@ -295,7 +297,7 @@ export default function SocialPageClient() {
           <div className="w-full md:w-[410px] flex flex-col border-r border-white/20 bg-white/40 backdrop-blur-md">
           {/* Header & Tabs */}
           <div className="p-4 border-b border-white/20">
-            <h1 className="font-heading text-2xl font-extrabold text-brand-gray-700 mb-4 tracking-tight">Contacts</h1>
+            <h1 className="font-heading text-2xl font-extrabold text-brand-gray-700 mb-4 tracking-tight">{t("social.contacts")}</h1>
             <div className="flex rounded-xl border border-white/80 bg-white/60 p-1 shadow-sm">
               <button
                 onClick={() => { setActiveTab("friends"); setActiveChat(null); }}
@@ -305,7 +307,7 @@ export default function SocialPageClient() {
                     : "text-brand-gray-600 hover:text-brand-teal"
                 }`}
               >
-                👥 Friends
+                👥 {t("social.friends")}
               </button>
               <button
                 onClick={() => { setActiveTab("groups"); setActiveChat(null); }}
@@ -315,7 +317,7 @@ export default function SocialPageClient() {
                     : "text-brand-gray-600 hover:text-brand-teal"
                 }`}
               >
-                🏢 Groups
+                🏢 {t("social.groups")}
               </button>
             </div>
           </div>
@@ -345,7 +347,7 @@ export default function SocialPageClient() {
                   <form onSubmit={handleSearch} className="flex gap-2">
                     <input
                       type="text"
-                      placeholder="Add friend by email..."
+                      placeholder={t("social.addFriendPlaceholder")}
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="w-full rounded-xl border border-white/80 bg-white/75 px-4 py-2.5 text-sm focus:outline-none focus:border-brand-teal focus:ring-1 focus:ring-brand-teal transition shadow-sm"
@@ -355,7 +357,7 @@ export default function SocialPageClient() {
                       disabled={searchLoading}
                       className="rounded-xl bg-brand-teal px-4 py-2.5 text-sm font-bold text-white transition hover:bg-brand-teal/90 disabled:opacity-55 shadow-sm whitespace-nowrap"
                     >
-                      {searchLoading ? "..." : "Search"}
+                      {searchLoading ? "..." : t("social.search")}
                     </button>
                   </form>
                   {searchResults.length > 0 && (
@@ -381,14 +383,14 @@ export default function SocialPageClient() {
                 {/* Pending Invites */}
                 {receivedInvites.length > 0 && (
                   <div className="animate-fade-in">
-                    <h3 className="text-xs font-extrabold uppercase tracking-widest text-brand-gray-400 mb-2">Pending Invites</h3>
+                    <h3 className="text-xs font-extrabold uppercase tracking-widest text-brand-gray-400 mb-2">{t("social.pendingInvites")}</h3>
                     <div className="space-y-2">
                       {receivedInvites.map((invite) => (
                         <div key={invite.id} className="rounded-xl border border-amber-200/50 bg-amber-50/50 p-2 shadow-sm">
                           <p className="text-sm font-bold text-brand-gray-700 truncate">{invite.full_name || invite.email.split("@")[0]}</p>
                           <div className="flex gap-2 mt-2">
-                            <button onClick={() => handleRespondInvite(invite.id, "accept")} className="flex-1 py-1.5 text-xs font-bold bg-emerald-500 text-white rounded-lg">Accept</button>
-                            <button onClick={() => handleRespondInvite(invite.id, "reject")} className="flex-1 py-1.5 text-xs font-bold bg-white text-brand-gray-600 rounded-lg border">Reject</button>
+                            <button onClick={() => handleRespondInvite(invite.id, "accept")} className="flex-1 py-1.5 text-xs font-bold bg-emerald-500 text-white rounded-lg">{t("social.accept")}</button>
+                            <button onClick={() => handleRespondInvite(invite.id, "reject")} className="flex-1 py-1.5 text-xs font-bold bg-white text-brand-gray-600 rounded-lg border">{t("social.reject")}</button>
                           </div>
                         </div>
                       ))}
@@ -398,9 +400,9 @@ export default function SocialPageClient() {
 
                 {/* Friends List */}
                 <div>
-                  <h3 className="text-xs font-extrabold uppercase tracking-widest text-brand-gray-400 mb-2">My Friends</h3>
+                  <h3 className="text-xs font-extrabold uppercase tracking-widest text-brand-gray-400 mb-2">{t("social.myFriends")}</h3>
                   {friends.length === 0 ? (
-                    <div className="text-center py-6 text-brand-gray-400 text-sm">No friends yet.</div>
+                    <div className="text-center py-6 text-brand-gray-400 text-sm">{t("social.noFriendsYet")}</div>
                   ) : (
                     <div className="space-y-2">
                       {friends.map((friend) => (
@@ -447,33 +449,33 @@ export default function SocialPageClient() {
                   <form onSubmit={handleJoinGroup} className="flex gap-2">
                     <input
                       type="text"
-                      placeholder="Join via Invite Code..."
+                      placeholder={t("social.joinViaCode")}
                       value={inviteCode}
                       onChange={(e) => setInviteCode(e.target.value)}
                       className="w-full rounded-xl border border-white/80 bg-white/75 px-4 py-2.5 text-sm uppercase focus:outline-none focus:border-brand-teal shadow-sm"
                     />
-                    <button type="submit" disabled={!inviteCode.trim()} className="rounded-xl bg-brand-teal px-4 py-2.5 text-sm font-bold text-white shadow-sm disabled:opacity-50 hover:bg-brand-teal/90 transition">Join</button>
+                    <button type="submit" disabled={!inviteCode.trim()} className="rounded-xl bg-brand-teal px-4 py-2.5 text-sm font-bold text-white shadow-sm disabled:opacity-50 hover:bg-brand-teal/90 transition">{t("social.join")}</button>
                   </form>
-                  
+
                   <form onSubmit={handleCreateGroup} className="space-y-2">
                     <input
                       type="text"
-                      placeholder="New Group Name..."
+                      placeholder={t("social.newGroupName")}
                       value={groupName}
                       onChange={(e) => setGroupName(e.target.value)}
                       className="w-full rounded-xl border border-white/80 bg-white/75 px-4 py-2.5 text-sm focus:outline-none focus:border-brand-teal shadow-sm"
                     />
                     <button type="submit" disabled={!groupName.trim()} className="w-full rounded-xl border-2 border-dashed border-brand-teal/40 bg-brand-teal/5 text-brand-teal py-2 text-sm font-bold shadow-sm disabled:opacity-50 hover:bg-brand-teal/10 hover:border-brand-teal/60 transition">
-                      + Create Group
+                      {t("social.createGroup")}
                     </button>
                   </form>
                 </div>
 
                 {/* Groups List */}
                 <div className="mt-6">
-                  <h3 className="text-xs font-extrabold uppercase tracking-widest text-brand-gray-400 mb-2">My Groups</h3>
+                  <h3 className="text-xs font-extrabold uppercase tracking-widest text-brand-gray-400 mb-2">{t("social.myGroups")}</h3>
                   {groups.length === 0 ? (
-                    <div className="text-center py-6 text-brand-gray-400 text-sm">No groups yet.</div>
+                    <div className="text-center py-6 text-brand-gray-400 text-sm">{t("social.noGroupsYet")}</div>
                   ) : (
                     <div className="space-y-3">
                       {groups.map((group) => (
@@ -493,7 +495,7 @@ export default function SocialPageClient() {
                               <span className="text-2xl">🏢</span>
                               <div>
                                 <p className="font-heading font-bold text-brand-gray-700 text-sm">{group.name}</p>
-                                <p className="text-xs text-brand-gray-500">{group.members.length} members</p>
+                                <p className="text-xs text-brand-gray-500">{t("social.members", { count: String(group.members.length) })}</p>
                               </div>
                             </div>
                           </div>
@@ -507,13 +509,13 @@ export default function SocialPageClient() {
                                   onClick={(e) => { e.stopPropagation(); group.is_owner ? handleDeleteGroup(group.id) : handleLeaveGroup(group.id); }}
                                   className="text-[10px] text-rose-500 hover:underline font-bold"
                                 >
-                                  {group.is_owner ? "Disband Group" : "Leave Group"}
+                                  {group.is_owner ? t("social.disbandGroup") : t("social.leaveGroup")}
                                 </button>
                               </div>
 
                               {groupActiveMatches[group.id] && groupActiveMatches[group.id].length > 0 && (
                                 <div className="border-t border-brand-gray-100/50 mt-1 pt-2 space-y-1.5 animate-fade-in">
-                                  <p className="text-[10px] font-extrabold text-brand-gray-500 uppercase tracking-wider">🔥 Active Matches</p>
+                                  <p className="text-[10px] font-extrabold text-brand-gray-500 uppercase tracking-wider">🔥 {t("social.activeMatches")}</p>
                                   {groupActiveMatches[group.id].map((m: any) => (
                                     <div key={m.match_id} className="flex items-center justify-between bg-white/60 p-2 rounded-xl border border-brand-teal/20 shadow-sm animate-fade-in">
                                       <div className="min-w-0">
@@ -556,8 +558,8 @@ export default function SocialPageClient() {
             <div className="flex-1 flex items-center justify-center animate-fade-in">
               <div className="text-center">
                 <div className="text-6xl mb-4 opacity-50 drop-shadow-md select-none">💬</div>
-                <h2 className="text-xl font-heading font-extrabold text-brand-gray-400">Select a chat to start messaging</h2>
-                <p className="text-sm text-brand-gray-400 mt-2 max-w-sm mx-auto">Choose a friend or group from the left sidebar to open the chatroom.</p>
+                <h2 className="text-xl font-heading font-extrabold text-brand-gray-400">{t("social.selectChat")}</h2>
+                <p className="text-sm text-brand-gray-400 mt-2 max-w-sm mx-auto">{t("social.selectChatHint")}</p>
               </div>
             </div>
           )}

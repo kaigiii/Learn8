@@ -22,6 +22,7 @@ import {
 import TopStatsBar from "@/components/layout/TopStatsBar";
 import DeepGlassCard from "@/components/ui/DeepGlassCard";
 import GameButton from "@/components/ui/GameButton";
+import { useI18n } from "@/lib/i18n/useI18n";
 import {
   fetchArenaAdminMatchReviews,
   fetchArenaAdminPlayerMatches,
@@ -125,6 +126,7 @@ const EMPTY_SEASON_FORM: SeasonFormState = {
 export default function ArenaAdminPageClient() {
   const router = useRouter();
   const { isReady } = useRequireAuthRedirect();
+  const { t } = useI18n();
   const [courses, setCourses] = useState<ArenaAdminPublicCourse[]>([]);
   const [pools, setPools] = useState<ArenaAdminQuestionPool[]>([]);
   const [seasons, setSeasons] = useState<ArenaAdminSeason[]>([]);
@@ -445,19 +447,19 @@ export default function ArenaAdminPageClient() {
     <div className="min-h-screen app-shared-bg">
       <TopStatsBar
         backHref="/home"
-        pageTitle="Admin"
+        pageTitle={t("admin.pageTitle")}
         quickLinks={[
           {
             href: "/multiplayer",
-            label: "Multiplayer",
+            label: t("common.multiplayer"),
             iconSrc: "/svg/multiplayer-controller.svg",
-            iconAlt: "Multiplayer",
+            iconAlt: t("common.multiplayer"),
           },
           {
             href: "/arena/leaderboard",
-            label: "Leaderboard",
+            label: t("common.leaderboard"),
             iconSrc: "/svg/leaderboard-logo.svg",
-            iconAlt: "Leaderboard",
+            iconAlt: t("common.leaderboard"),
           },
         ]}
       />
@@ -469,23 +471,23 @@ export default function ArenaAdminPageClient() {
             <div className="z-10">
               <div className="flex items-center gap-2">
                 <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-brand-teal">
-                  Content Management
+                  {t("admin.contentManagement")}
                 </p>
                 {loading && (
                   <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 2, ease: "linear" }} className="h-3 w-3 border-2 border-brand-teal border-t-transparent rounded-full" />
                 )}
               </div>
               <h1 className="mt-2 font-heading text-4xl font-extrabold text-brand-gray-700">
-                Admin <span className="text-brand-teal">Console</span>
+                {t("admin.pageTitle")} <span className="text-brand-teal">{t("admin.console")}</span>
               </h1>
             </div>
 
             <div className="z-10 flex flex-wrap gap-2">
-              <NavButton active={activeTab === "builder"} onClick={() => setActiveTab("builder")} icon={<FiLayout />} label="Arena Builder" />
-              <NavButton active={activeTab === "seasons"} onClick={() => setActiveTab("seasons")} icon={<FiCalendar />} label="Seasons" />
-              <NavButton active={activeTab === "operations"} onClick={() => setActiveTab("operations")} icon={<FiActivity />} label="Operations" />
-              <NavButton active={activeTab === "voice"} onClick={() => setActiveTab("voice")} icon={<FiVolume2 />} label="Voice Assistant" />
-              <NavButton active={activeTab === "catalog"} onClick={() => setActiveTab("catalog")} icon={<FiGlobe />} label="Course Catalog" />
+              <NavButton active={activeTab === "builder"} onClick={() => setActiveTab("builder")} icon={<FiLayout />} label={t("admin.tabBuilder")} />
+              <NavButton active={activeTab === "seasons"} onClick={() => setActiveTab("seasons")} icon={<FiCalendar />} label={t("admin.tabSeasons")} />
+              <NavButton active={activeTab === "operations"} onClick={() => setActiveTab("operations")} icon={<FiActivity />} label={t("admin.tabOperations")} />
+              <NavButton active={activeTab === "voice"} onClick={() => setActiveTab("voice")} icon={<FiVolume2 />} label={t("admin.tabVoice")} />
+              <NavButton active={activeTab === "catalog"} onClick={() => setActiveTab("catalog")} icon={<FiGlobe />} label={t("admin.tabCatalog")} />
             </div>
           </div>
 
@@ -510,7 +512,7 @@ export default function ArenaAdminPageClient() {
         {accessDenied && (
           <DeepGlassCard className="p-6 text-sm text-brand-gray-600 flex items-center gap-3">
             <FiTerminal className="text-rose-500 shrink-0" />
-            Backend access denied. Grant Arena admin permissions on the API side, then reload this page.
+            {t("admin.accessDenied")}
           </DeepGlassCard>
         )}
 

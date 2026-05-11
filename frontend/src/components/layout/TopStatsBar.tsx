@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import ProfileSettingsDialog from "@/features/profile/ProfileSettingsDialog";
 import { useAuthStore } from "@/stores/app/useAuthStore";
 import useUserStore, { selectAvailableCredits } from "@/stores/app/useUserStore";
+import { useI18n } from "@/lib/i18n/useI18n";
 
 interface TopStatsBarProps {
   backHref?: string;
@@ -52,6 +53,7 @@ export default function TopStatsBar({
   const authUser = useAuthStore((s) => s.user);
   const authToken = useAuthStore((s) => s.token);
   const availableCredits = useUserStore(selectAvailableCredits);
+  const { t } = useI18n();
   const creditBalance = authUser?.credits ?? availableCredits;
   const userHandle = (authUser?.full_name || authUser?.email || "").trim().toLowerCase();
 
@@ -130,7 +132,7 @@ export default function TopStatsBar({
     authUser?.full_name?.trim() ||
     authUser?.job_title?.trim() ||
     authUser?.education_level?.trim() ||
-    "Learner";
+    t("common.learnerDefault");
   const avatarUrl = authUser?.avatar_url?.trim() || "/avatar/chicken.png";
   const pillClassName =
     "inline-flex h-10 items-center rounded-full border border-white/85 bg-white/92 px-3 text-sm font-heading font-bold text-brand-gray-700 shadow-sm transition";
@@ -143,14 +145,14 @@ export default function TopStatsBar({
 
   const socialLink: QuickLinkType = {
     href: "/social",
-    label: "Social",
+    label: t("common.social"),
     iconText: "👥",
     active: pathname === "/social" || pathname.startsWith("/social/"),
   };
-  
+
   const adminLink: QuickLinkType = {
     href: "/admin",
-    label: "Admin",
+    label: t("common.admin"),
     iconText: "⚙️",
     active: pathname === "/admin" || pathname.startsWith("/admin/"),
   };
@@ -161,7 +163,7 @@ export default function TopStatsBar({
     baseLinks.unshift(socialLink);
   }
 
-  const resolvedQuickLinks: QuickLinkType[] = isDevAccount ? [adminLink, ...baseLinks] : [adminLink, ...baseLinks];
+  const resolvedQuickLinks: QuickLinkType[] = isDevAccount ? [adminLink, ...baseLinks] : [...baseLinks];
   const isStoreActive = pathname === "/store" || pathname.startsWith("/store/");
   const isProfileActive = pathname === "/profile" || pathname.startsWith("/profile");
 
@@ -355,22 +357,22 @@ export default function TopStatsBar({
           <div className="flex items-center gap-2">
             <span className="text-xl">⚔️</span>
             <p className="text-sm font-bold text-brand-gray-700">
-              <span className="text-brand-teal font-extrabold">{invite.inviter_name}</span> has invited you to a private Arena Room!
+              {t("arena.invitedToRoom", { name: invite.inviter_name })}
             </p>
           </div>
-          <p className="text-xs text-brand-gray-500 font-mono mt-1">Room Code: {invite.room_code}</p>
+          <p className="text-xs text-brand-gray-500 font-mono mt-1">{t("arena.roomCode", { code: invite.room_code })}</p>
           <div className="mt-3 flex items-center justify-end gap-2">
             <button
               onClick={() => handleIgnoreInvite(invite.id)}
               className="px-3 py-1.5 bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 hover:border-rose-300 rounded-xl text-xs font-bold transition shadow-sm"
             >
-              Ignore
+              {t("common.ignore")}
             </button>
             <button
               onClick={() => handleAcceptInvite(invite.id, invite.room_code)}
               className="px-3 py-1.5 bg-brand-teal hover:bg-brand-teal/90 text-white rounded-xl text-xs font-bold transition shadow-sm"
             >
-              Join (加入房間)
+              {t("common.join")}
             </button>
           </div>
         </div>

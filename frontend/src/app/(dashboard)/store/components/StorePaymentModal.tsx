@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { ApiError } from "@/lib/apiClient";
 import { topUpAuthenticatedCredits } from "@/lib/auth/profileSync";
 import type { CreditStoreTier } from "../types";
+import { useI18n } from "@/lib/i18n/useI18n";
 
 export function StorePaymentModal({
   tier,
@@ -13,6 +14,7 @@ export function StorePaymentModal({
   tier: CreditStoreTier;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   const [processing, setProcessing] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
@@ -26,7 +28,7 @@ export function StorePaymentModal({
       }
       setDone(true);
     } catch (err) {
-      setError(err instanceof ApiError ? err.detail : "Payment failed.");
+      setError(err instanceof ApiError ? err.detail : t("store.paymentFailed"));
     } finally {
       setProcessing(false);
     }
@@ -67,7 +69,7 @@ export function StorePaymentModal({
             </button>
 
             <h2 className="text-center font-heading text-xl font-extrabold text-brand-gray-700">
-              Confirm Credit Top-Up
+              {t("store.confirmTopUp")}
             </h2>
             <p className="mt-1 text-center text-sm text-brand-gray-500">
               {tier.label} ({tier.credits.toLocaleString()} credits)
@@ -89,26 +91,26 @@ export function StorePaymentModal({
                 </svg>
               </motion.div>
               <p className="font-heading text-lg font-bold text-brand-gray-700">
-                Credits Added
+                {t("store.creditsAdded")}
               </p>
               <p className="text-sm text-brand-gray-500">
-                {tier.credits.toLocaleString()} credits have been added to your account.
+                {t("store.creditsAddedDesc", { amount: tier.credits.toLocaleString() })}
               </p>
               <button
                 onClick={onClose}
                 className="mt-4 w-full rounded-xl bg-brand-green py-3.5 font-heading font-bold text-white shadow-md transition hover:shadow-lg active:translate-y-0.5"
               >
-                Done
+                {t("store.done")}
               </button>
             </div>
           ) : (
             <div className="space-y-4 px-6 py-5">
               <div className="rounded-2xl border border-brand-gray-100 bg-brand-gray-50 px-4 py-4">
                 <p className="text-sm font-semibold text-brand-gray-700">
-                  Sandbox Action
+                  {t("store.sandboxAction")}
                 </p>
                 <p className="mt-1 text-sm leading-relaxed text-brand-gray-500">
-                  This button calls the existing backend top-up endpoint directly and adds credits to your account immediately. No payment processor is involved in this UI.
+                  {t("store.sandboxActionDesc")}
                 </p>
               </div>
 
@@ -117,11 +119,11 @@ export function StorePaymentModal({
                 disabled={processing}
                 className="w-full rounded-xl border-b-4 border-[#4a9e9a] bg-gradient-to-b from-brand-teal to-[#5fb3af] py-3.5 font-heading font-bold text-white shadow-md transition-all hover:shadow-lg active:translate-y-0.5 active:shadow-sm disabled:opacity-70"
               >
-                {processing ? "Applying..." : `Add ${tier.credits.toLocaleString()} Credits`}
+                {processing ? t("store.applying") : t("store.addCreditsButton", { amount: tier.credits.toLocaleString() })}
               </button>
               {error && <p className="text-center text-sm text-rose-500">{error}</p>}
               <p className="text-center text-xs text-brand-gray-400">
-                Safe to use for local testing and UI validation.
+                {t("store.sandboxDisclaimer")}
               </p>
             </div>
           )}

@@ -10,6 +10,7 @@ import { JOB_STATUS } from "@/lib/domain/statuses";
 import { getJobCancelLabel, getJobCtaLabel, getJobRetryLabel } from "@/lib/jobs/policy";
 import { clampJobProgress, formatJobProgressLabel } from "@/lib/jobs/presentation";
 import type { ActiveJobResumeState } from "@/lib/jobs/recovery";
+import { useI18n } from "@/lib/i18n/useI18n";
 
 interface HomeForgePanelProps {
   fileInputRef: React.RefObject<HTMLInputElement>;
@@ -50,6 +51,7 @@ export function HomeForgePanel({
   onCancelActiveJob,
   onRetryActiveJob,
 }: HomeForgePanelProps) {
+  const { t } = useI18n();
   const progress = clampJobProgress(activeJob?.progress);
   const showResumeCta = activeJob?.status !== JOB_STATUS.STALE;
   const [allowGenerationCard, setAllowGenerationCard] = useState(false);
@@ -96,7 +98,7 @@ export function HomeForgePanel({
           <div className="flex min-h-[340px] flex-1 flex-col rounded-2xl border border-[#9ecbd4]/18 bg-white/46 p-5 shadow-[0_12px_30px_rgba(97,163,184,0.10)] backdrop-blur-sm">
             <div className="min-w-0">
               <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.24em] text-brand-teal">
-                Resume Generation
+                {t("dashboard.resumeGeneration")}
               </p>
               <h3 className="font-heading text-[40px] font-extrabold leading-tight text-brand-gray-700 md:text-[44px]">
                 {activeJob.title}
@@ -140,7 +142,7 @@ export function HomeForgePanel({
               </div>
               <div className="mt-2 flex items-center justify-between gap-4 text-xs">
                 <span className="truncate text-brand-gray-500">
-                  {activeJob.message || "Waiting for server updates..."}
+                  {activeJob.message || t("dashboard.waitingForServer")}
                 </span>
                 <span className="shrink-0 font-semibold uppercase tracking-[0.18em] text-brand-teal/80">
                   {formatJobProgressLabel(progress)}
@@ -191,7 +193,7 @@ export function HomeForgePanel({
                           <circle cx="20" cy="20" r="18" stroke="#7AC7C4" strokeWidth="3" strokeDasharray="80 30" />
                         </svg>
                       </motion.div>
-                      <p className="text-sm font-semibold text-brand-teal">Uploading your PDF…</p>
+                      <p className="text-sm font-semibold text-brand-teal">{t("dashboard.uploadingPdf")}</p>
                     </>
                   ) : (
                     <>
@@ -206,7 +208,7 @@ export function HomeForgePanel({
                               className="flex max-w-xs items-center justify-center gap-2"
                             >
                               <p className="text-center text-sm text-brand-gray-500 md:text-base">
-                                {removingFile === file ? "Removing..." : file}
+                                {removingFile === file ? t("dashboard.removingFile") : file}
                               </p>
                               <button
                                 type="button"
@@ -226,8 +228,8 @@ export function HomeForgePanel({
                       ) : (
                         <p className="max-w-sm px-4 text-center text-base text-brand-gray-500">
                           {isDragging
-                            ? "Release to upload your PDF"
-                            : "Drop a PDF here or click this card to start a new course, then define your topic below."}
+                            ? t("dashboard.releaseToUpload")
+                            : t("dashboard.pdfDropHint")}
                         </p>
                       )}
                     </>
@@ -248,7 +250,7 @@ export function HomeForgePanel({
                         handleTopicSubmit();
                       }
                     }}
-                    placeholder="Enter the topic you want to learn"
+                    placeholder={t("dashboard.topicPlaceholder")}
                     className="w-full rounded-xl border border-brand-gray-200 bg-white px-4 py-3.5 text-base text-brand-gray-700 outline-none focus:border-brand-teal"
                   />
                 </div>
@@ -259,7 +261,7 @@ export function HomeForgePanel({
                     disabled={!topic.trim() || isSubmittingTopic || isForging}
                     className="w-full min-w-[170px] text-lg md:min-w-[200px]"
                   >
-                    {isSubmittingTopic ? "Generating..." : "Generate"}
+                    {isSubmittingTopic ? t("dashboard.generating") : t("dashboard.generate")}
                   </GameButton>
                 </div>
               </div>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError, apiFetch } from "@/lib/apiClient";
+import { resolveLanguageLabel } from "@/lib/i18n/languages";
 import {
   fetchAuthenticatedLedger,
   syncPersistedProfile,
@@ -32,7 +33,7 @@ export function useProfileSettings(onClose: () => void) {
     full_name: "",
     job_title: "",
     education_level: "",
-    preferred_language: "",
+    preferred_language: resolveLanguageLabel(null),
     daily_learning_goal_minutes: "",
   });
   const [saving, setSaving] = useState(false);
@@ -46,7 +47,7 @@ export function useProfileSettings(onClose: () => void) {
       full_name: authUser?.full_name || name,
       job_title: authUser?.job_title || "",
       education_level: authUser?.education_level || "",
-      preferred_language: authUser?.preferred_language || "",
+      preferred_language: resolveLanguageLabel(authUser?.preferred_language),
       daily_learning_goal_minutes: authUser?.daily_learning_goal_minutes
         ? String(authUser.daily_learning_goal_minutes)
         : "",

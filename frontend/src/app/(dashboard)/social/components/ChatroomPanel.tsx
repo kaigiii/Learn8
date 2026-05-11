@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { FiSend, FiBookOpen, FiLoader, FiShare2, FiPlus } from "react-icons/fi";
 import { useAuthStore } from "@/stores/app/useAuthStore";
 import { useRouter } from "next/navigation";
+import { useI18n } from "@/lib/i18n/useI18n";
 
 interface ChatMessage {
   id: number;
@@ -28,6 +29,7 @@ interface ChatroomPanelProps {
 
 export default function ChatroomPanel({ chatId, type, title, groupMembers, friendInfo }: ChatroomPanelProps) {
   const router = useRouter();
+  const { t } = useI18n();
   const token = useAuthStore(s => s.token);
   const authUser = useAuthStore(s => s.user);
   
@@ -196,13 +198,13 @@ export default function ChatroomPanel({ chatId, type, title, groupMembers, frien
         onClick={() => setShowInfo(!showInfo)}
       >
         <h3 className="font-heading font-extrabold text-brand-gray-700 tracking-tight flex items-center gap-2">
-          <span className="text-xl">💬</span> Chat with {title}
+          <span className="text-xl">💬</span> {t("chat.chatWith", { title })}
           <span className="text-xs bg-brand-teal/10 text-brand-teal font-extrabold px-2 py-0.5 rounded-full border border-brand-teal/20 ml-1">
-            {type === "group" ? "👥 Group" : "👤 Friend"}
+            {type === "group" ? `👥 ${t("chat.group")}` : `👤 ${t("chat.friend")}`}
           </span>
         </h3>
         <button className="text-xs font-bold text-brand-gray-400 bg-brand-gray-50 hover:bg-brand-gray-100 px-2.5 py-1.5 rounded-xl border border-brand-gray-200 transition">
-          {showInfo ? "Back to Chat" : "View Details"}
+          {showInfo ? t("chat.backToChat") : t("chat.viewDetails")}
         </button>
       </div>
       
@@ -210,13 +212,13 @@ export default function ChatroomPanel({ chatId, type, title, groupMembers, frien
         <div className="flex-1 p-5 overflow-y-auto space-y-4 animate-fade-in bg-white/40">
           <div className="flex items-center justify-between pb-3 border-b border-brand-gray-100">
             <h4 className="font-heading font-extrabold text-brand-gray-700 tracking-tight text-base">
-              {type === "group" ? "Group Members" : "Friend Information"}
+              {type === "group" ? t("chat.groupMembers") : t("chat.friendInfo")}
             </h4>
-            <button 
+            <button
               onClick={(e) => { e.stopPropagation(); setShowInfo(false); }}
               className="text-xs font-bold text-brand-teal hover:underline"
             >
-              Back to Chat
+              {t("chat.backToChat")}
             </button>
           </div>
           
@@ -242,7 +244,7 @@ export default function ChatroomPanel({ chatId, type, title, groupMembers, frien
                   </div>
                 ))
               ) : (
-                <p className="text-center text-brand-gray-400 text-sm mt-12">No member info found.</p>
+                <p className="text-center text-brand-gray-400 text-sm mt-12">{t("chat.noMemberInfo")}</p>
               )}
             </div>
           ) : (
@@ -260,11 +262,11 @@ export default function ChatroomPanel({ chatId, type, title, groupMembers, frien
               </div>
               <div className="grid grid-cols-2 gap-3 pt-3 border-t border-brand-gray-100">
                 <div className="p-2.5 bg-white/60 rounded-xl text-center">
-                  <p className="text-[10px] uppercase font-extrabold tracking-widest text-brand-gray-400">Rating</p>
+                  <p className="text-[10px] uppercase font-extrabold tracking-widest text-brand-gray-400">{t("chat.rating")}</p>
                   <p className="font-heading font-extrabold text-brand-gray-700 text-lg leading-tight mt-0.5">{friendInfo?.rating || 1000}</p>
                 </div>
                 <div className="p-2.5 bg-white/60 rounded-xl text-center">
-                  <p className="text-[10px] uppercase font-extrabold tracking-widest text-brand-gray-400">Tier</p>
+                  <p className="text-[10px] uppercase font-extrabold tracking-widest text-brand-gray-400">{t("chat.tier")}</p>
                   <p className="font-heading font-extrabold text-brand-gray-700 text-lg leading-tight mt-0.5">{friendInfo?.tier || "Bronze"}</p>
                 </div>
               </div>
@@ -281,7 +283,7 @@ export default function ChatroomPanel({ chatId, type, title, groupMembers, frien
               </div>
             ) : messages.length === 0 ? (
               <div className="text-center text-brand-gray-400 text-sm mt-16 font-medium bg-white/30 rounded-xl p-6 border border-brand-gray-100 border-dashed mx-6">
-                No messages yet. Say hi or share a course to start!
+                {t("chat.noMessages")}
               </div>
             ) : (
               messages.map(msg => {
@@ -292,7 +294,7 @@ export default function ChatroomPanel({ chatId, type, title, groupMembers, frien
                       {msg.message_type === "course_share" ? (
                         <div className="flex flex-col gap-2 min-w-[200px]">
                           <div className={`flex items-center gap-2 font-extrabold text-xs uppercase tracking-widest ${isMe ? "text-teal-100" : "text-brand-teal"}`}>
-                            <FiBookOpen className="w-4 h-4"/> Course Shared
+                            <FiBookOpen className="w-4 h-4"/> {t("chat.courseShared")}
                           </div>
                           {(() => {
                             try {
@@ -303,11 +305,11 @@ export default function ChatroomPanel({ chatId, type, title, groupMembers, frien
                                     {data.title}
                                   </p>
                                   {!isMe && (
-                                    <button 
+                                    <button
                                       onClick={() => handleImportSharedCourse(data.id)}
                                       className="w-full mt-2.5 flex items-center justify-center gap-1.5 rounded-lg border border-brand-teal bg-white hover:bg-brand-teal hover:text-white px-3 py-1.5 text-xs font-bold text-brand-teal transition shadow-sm"
                                     >
-                                      Import Course
+                                      {t("chat.importCourse")}
                                     </button>
                                   )}
                                 </div>
@@ -335,11 +337,11 @@ export default function ChatroomPanel({ chatId, type, title, groupMembers, frien
           {showShareDropdown && (
             <div className="absolute bottom-16 left-3 right-3 bg-white border border-brand-gray-200 rounded-2xl p-3 shadow-2xl z-20 max-h-56 overflow-y-auto animate-fade-in flex flex-col gap-2">
               <div className="flex items-center justify-between border-b border-brand-gray-100 pb-2 mb-1">
-                <span className="text-xs font-extrabold uppercase tracking-wider text-brand-gray-400">Your Custom Courses</span>
-                <button onClick={() => setShowShareDropdown(false)} className="text-xs text-brand-gray-400 hover:text-brand-gray-600 font-bold">Close</button>
+                <span className="text-xs font-extrabold uppercase tracking-wider text-brand-gray-400">{t("chat.yourCustomCourses")}</span>
+                <button onClick={() => setShowShareDropdown(false)} className="text-xs text-brand-gray-400 hover:text-brand-gray-600 font-bold">{t("chat.close")}</button>
               </div>
               {myCourses.length === 0 ? (
-                <p className="text-xs text-brand-gray-400 text-center py-4">No custom courses available to share yet.</p>
+                <p className="text-xs text-brand-gray-400 text-center py-4">{t("chat.noCoursesToShare")}</p>
               ) : (
                 myCourses.map(c => (
                   <button 
@@ -370,7 +372,7 @@ export default function ChatroomPanel({ chatId, type, title, groupMembers, frien
               type="text" 
               value={input}
               onChange={e => setInput(e.target.value)}
-              placeholder="Type a message..."
+              placeholder={t("chat.typeMessage")}
               className="flex-1 rounded-xl border border-brand-gray-200 bg-white/80 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/40 focus:border-brand-teal/50 shadow-inner"
             />
 

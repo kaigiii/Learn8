@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import LanguageHtmlUpdater from "@/components/i18n/LanguageHtmlUpdater";
 
 export const metadata: Metadata = {
   title: "Learn8",
@@ -17,6 +18,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen app-shared-bg antialiased">
+        <LanguageHtmlUpdater />
         {children}
       </body>
     </html>

@@ -10,6 +10,7 @@ import {
   resolveCourseCardBackground,
 } from "@/lib/courseCardBackground";
 import { HomeCourseIcon } from "../../home/components/HomeCourseIcon";
+import { useI18n } from "@/lib/i18n/useI18n";
 
 const LIB_BG_IMAGES = DEFAULT_LIBRARY_BACKGROUNDS;
 
@@ -22,6 +23,7 @@ export function MultiplayerTopicsSection({
   courses,
   courseProgressById,
 }: MultiplayerTopicsSectionProps) {
+  const { t } = useI18n();
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const scrollLibrary = (dir: "left" | "right") => {
@@ -36,10 +38,10 @@ export function MultiplayerTopicsSection({
       <div className="mb-4 flex items-center justify-between">
         <div>
           <h2 className="font-heading text-2xl font-extrabold text-brand-gray-700 md:text-3xl">
-            Arena Topics
+            {t("multiplayer.arenaTopics")}
           </h2>
           <p className="mt-1 text-sm text-brand-gray-500">
-            Pick a subject to enter the competitive matchmaking lobby.
+            {t("multiplayer.arenaTopicsSubtitle")}
           </p>
         </div>
         <div className="flex items-center gap-4">
@@ -101,7 +103,7 @@ export function MultiplayerTopicsSection({
 
         {courses.length === 0 && (
           <div className="rounded-2xl border border-white/60 bg-white/60 px-5 py-8 text-sm text-brand-gray-500 w-full">
-            No arena topics available at the moment.
+            {t("multiplayer.noTopics")}
           </div>
         )}
       </div>

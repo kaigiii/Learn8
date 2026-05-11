@@ -17,6 +17,9 @@ import { ApiError, resolveErrorMessage, API_BASE_URL, getAuthToken } from "@/lib
 import { fetchArenaProfile, fetchArenaRankHistory } from "@/lib/arena/api";
 import { uploadAuthenticatedAvatar } from "@/lib/auth/profileSync";
 import type { ArenaProfile, ArenaRankHistoryEntry, UserLedgerEvent } from "@/lib/apiTypes";
+import { LANGUAGE_OPTIONS } from "@/lib/i18n/languages";
+import { useI18n } from "@/lib/i18n/useI18n";
+import type { TranslationKey } from "@/lib/i18n/translations";
 import useUserStore, { selectUserProgression } from "@/stores/app/useUserStore";
 
 type OverlayPanel = "personal" | "wallet" | "voice" | null;
@@ -35,29 +38,22 @@ type PreferenceState = {
   difficulty: number;
 };
 
-const PREFERRED_LANGUAGES = [
-  "English",
-  "繁體中文",
-  "简体中文",
-  "日本語",
-  "한국어",
-  "Español",
+const PREFERRED_LANGUAGES = LANGUAGE_OPTIONS.map((option) => option.label);
+
+const EDUCATION_LEVELS: Array<{ value: string; labelKey: TranslationKey }> = [
+  { value: "Middle School", labelKey: "onboarding.education.middleSchool" },
+  { value: "High School", labelKey: "onboarding.education.highSchool" },
+  { value: "Undergraduate", labelKey: "onboarding.education.undergraduate" },
+  { value: "Graduate", labelKey: "onboarding.education.graduate" },
+  { value: "Professional", labelKey: "onboarding.education.professional" },
+  { value: "Self-Taught", labelKey: "onboarding.education.selfTaught" },
 ];
 
-const EDUCATION_LEVELS = [
-  "Middle School",
-  "High School",
-  "Undergraduate",
-  "Graduate",
-  "Professional",
-  "Self-Taught",
-];
-
-const DAILY_GOAL_OPTIONS = [
-  { value: "5", label: "5 min" },
-  { value: "10", label: "10 min" },
-  { value: "20", label: "20 min" },
-  { value: "30", label: "30 min" },
+const DAILY_GOAL_OPTIONS: Array<{ value: string; labelKey: TranslationKey }> = [
+  { value: "5", labelKey: "onboarding.goal.casual.label" },
+  { value: "10", labelKey: "onboarding.goal.regular.label" },
+  { value: "20", labelKey: "onboarding.goal.serious.label" },
+  { value: "30", labelKey: "onboarding.goal.intense.label" },
 ];
 
 const PRESET_AVATARS = [
@@ -121,6 +117,7 @@ export default function ProfilePageClient() {
   const searchParams = useSearchParams();
   const panelParam = searchParams.get("panel");
   const [activeOverlay, setActiveOverlay] = useState<OverlayPanel>(null);
+  const { t } = useI18n();
 
   const {
     authUser,
@@ -143,8 +140,8 @@ export default function ProfilePageClient() {
   const [arenaLoading, setArenaLoading] = useState(true);
   const [arenaError, setArenaError] = useState<string | null>(null);
 
-  const displayName = authUser?.full_name?.trim() || form.full_name || "Learner";
-  const profileLabel = authUser?.job_title?.trim() || authUser?.education_level?.trim() || title || "Learner";
+  const displayName = authUser?.full_name?.trim() || form.full_name || t("common.learner");
+  const profileLabel = authUser?.job_title?.trim() || authUser?.education_level?.trim() || title || t("common.learner");
   const initial = displayName.slice(0, 1).toUpperCase() || "P";
   const avatarUrl = authUser?.avatar_url?.trim() || null;
   const [profileAvatarSrc, setProfileAvatarSrc] = useState(avatarUrl || "/avatar/chicken.png");
@@ -191,7 +188,7 @@ export default function ProfilePageClient() {
       return;
     }
     if (!nextFile.type.startsWith("image/")) {
-      setAvatarUploadError("Please choose an image file.");
+      setAvatarUploadError(t("onboarding.error.chooseImage"));
       return;
     }
     if (cropSourceUrl) {
@@ -210,7 +207,7 @@ export default function ProfilePageClient() {
 
   const handleConfirmAvatarCrop = async () => {
     if (!cropSourceUrl || !cropPixels) {
-      setAvatarUploadError("Please adjust the crop area first.");
+      setAvatarUploadError(t("onboarding.error.adjustCrop"));
       return;
     }
     setIsCropping(true);
@@ -225,7 +222,7 @@ export default function ProfilePageClient() {
       setAvatarUploadError(
         caughtError instanceof ApiError
           ? caughtError.detail
-          : "Failed to upload avatar. Please try another file."
+          : t("profile.failedUploadAvatar")
       );
     } finally {
       setIsCropping(false);
@@ -256,7 +253,7 @@ export default function ProfilePageClient() {
       setAvatarUploadError(
         caughtError instanceof ApiError
           ? caughtError.detail
-          : "Failed to save preset avatar. Please try again."
+          : t("profile.failedPresetAvatar")
       );
     } finally {
       setIsApplyingPresetAvatar(false);
@@ -322,29 +319,29 @@ export default function ProfilePageClient() {
   const rankPosition = arenaProfile?.seasonPlacement != null ? `#${arenaProfile.seasonPlacement}` : (arenaProfile?.rankTier ?? "Bronze");
   const seasonBadgeValue = arenaLoading ? "..." : arenaProfile?.seasonBadge ?? "None";
   const seasonBadgeVisual = arenaLoading ? null : resolveSeasonBadgeVisual(seasonBadgeValue);
-  const seasonTitleTagline = arenaLoading ? "..." : resolveRankTierTagline(arenaProfile?.rankTier);
+  const seasonTitleTagline = arenaLoading ? "..." : resolveRankTierTagline(arenaProfile?.rankTier, t);
   const normalizedSeasonPercentile = Math.min(100, Math.max(0, arenaProfile?.seasonPercentile ?? 0));
   const seasonPercentileTagline = arenaLoading
     ? "..."
-    : `Ahead of ${Number.isInteger(normalizedSeasonPercentile) ? normalizedSeasonPercentile.toFixed(0) : normalizedSeasonPercentile.toFixed(1)}% players`;
+    : t("profile.aheadOfPlayers", { percent: Number.isInteger(normalizedSeasonPercentile) ? normalizedSeasonPercentile.toFixed(0) : normalizedSeasonPercentile.toFixed(1) });
 
   return (
     <div className="relative min-h-screen overflow-hidden app-shared-bg">
       <TopStatsBar
         backHref="/home"
-        pageTitle="Profile"
+        pageTitle={t("profile.overlay.personal")}
         quickLinks={[
           {
             href: "/multiplayer",
-            label: "Multiplayer",
+            label: t("common.multiplayer"),
             iconSrc: "/svg/multiplayer-controller.svg",
-            iconAlt: "Multiplayer",
+            iconAlt: t("common.multiplayer"),
           },
           {
             href: "/arena/leaderboard",
-            label: "Leaderboard",
+            label: t("common.leaderboard"),
             iconSrc: "/svg/leaderboard-logo.svg",
-            iconAlt: "Leaderboard",
+            iconAlt: t("common.leaderboard"),
           },
         ]}
       />
@@ -371,12 +368,12 @@ export default function ProfilePageClient() {
 
             <div className="w-full lg:max-w-[760px]">
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-7">
-                <ProfileStatBox label="Credits" value={String(authUser?.credits ?? 0)} />
+                <ProfileStatBox label={t("common.credits")} value={String(authUser?.credits ?? 0)} />
                 <ProfileStatBox label="Level" value={String(progression.level)} />
                 <ProfileStatBox label="XP" value={String(progression.xp)} />
                 <ProfileStatBox
-                  label="Daily Goal"
-                  value={authUser?.daily_learning_goal_minutes ? `${authUser.daily_learning_goal_minutes} min` : "Not set"}
+                  label={t("common.dailyGoal")}
+                  value={authUser?.daily_learning_goal_minutes ? `${authUser.daily_learning_goal_minutes} ${t("common.minutesShort")}` : t("common.notSet")}
                 />
 
                 <button
@@ -388,7 +385,7 @@ export default function ProfilePageClient() {
                       : "border-[#d1d5db] bg-[#f3f4f6] text-brand-gray-700 hover:border-[#bfdbfe] hover:bg-[#e5e7eb]"
                   }`}
                 >
-                  Personal Profile
+                  {t("profile.overlay.personal")}
                 </button>
 
                 <button
@@ -400,7 +397,7 @@ export default function ProfilePageClient() {
                       : "border-[#d1d5db] bg-[#f3f4f6] text-brand-gray-700 hover:border-[#bfdbfe] hover:bg-[#e5e7eb]"
                   }`}
                 >
-                  Voice Settings
+                  {t("profile.overlay.voice")}
                 </button>
 
                 <button
@@ -412,7 +409,7 @@ export default function ProfilePageClient() {
                       : "border-[#d1d5db] bg-[#f3f4f6] text-brand-gray-700 hover:border-[#bfdbfe] hover:bg-[#e5e7eb]"
                   }`}
                 >
-                  Wallet
+                  {t("profile.overlay.wallet")}
                 </button>
               </div>
             </div>
@@ -428,8 +425,8 @@ export default function ProfilePageClient() {
 
           <div className="grid gap-6 xl:grid-cols-[1.08fr_1.32fr_0.82fr]">
             <section className="rounded-[28px] border border-white/70 bg-white/68 p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-gray-500">Arena</p>
-              <h2 className="mt-1 font-heading text-[29px] font-extrabold leading-tight text-brand-gray-700">Competitive Identity</h2>
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-gray-500">{t("profile.arenaSection")}</p>
+              <h2 className="mt-1 font-heading text-[29px] font-extrabold leading-tight text-brand-gray-700">{t("profile.competitiveIdentity")}</h2>
 
               <div className="relative mt-4 overflow-hidden rounded-3xl border border-white/70 bg-gradient-to-br from-[#7f8fa3] via-[#9aa8b7] to-[#d6dce5] px-5 py-6 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]">
                 <div className="absolute inset-x-0 top-0 h-10 bg-white/20 blur-xl" />
@@ -437,19 +434,19 @@ export default function ProfilePageClient() {
                   <Image src="/svg/leaderboard-logo.svg" alt="Season emblem" width={100} height={100} className="mx-auto h-24 w-24" />
                   <p className="mt-3 font-heading text-3xl font-extrabold text-white">{seasonLabel}</p>
                   <p className="mt-1 text-xs uppercase tracking-[0.14em] text-white/85">
-                    {arenaLoading ? "Syncing season info" : `${arenaProfile?.rankTier ?? "Bronze"} rank currently active`}
+                    {arenaLoading ? t("profile.syncingSeasonInfo") : t("profile.rankCurrentlyActive", { tier: arenaProfile?.rankTier ?? "Bronze" })}
                   </p>
                 </div>
               </div>
 
               <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-                <ProfileStatBox label="Arena Rating" value={arenaLoading ? "..." : String(arenaProfile?.rating ?? 0)} />
-                <ProfileStatBox label="Rank Tier" value={arenaLoading ? "..." : arenaProfile?.rankTier ?? "Unranked"} />
-                <ProfileStatBox label="Rank Position" value={arenaLoading ? "..." : rankPosition} />
-                <ProfileStatBox label="Win Rate" value={arenaLoading ? "..." : `${(arenaProfile?.winRate ?? 0).toFixed(1)}%`} />
-                <ProfileStatBox label="Ranked Matches" value={arenaLoading ? "..." : String(arenaProfile?.rankedMatches ?? 0)} />
+                <ProfileStatBox label={t("profile.arenaRating")} value={arenaLoading ? "..." : String(arenaProfile?.rating ?? 0)} />
+                <ProfileStatBox label={t("profile.rankTier")} value={arenaLoading ? "..." : arenaProfile?.rankTier ?? "Unranked"} />
+                <ProfileStatBox label={t("profile.rankPosition")} value={arenaLoading ? "..." : rankPosition} />
+                <ProfileStatBox label={t("profile.winRate")} value={arenaLoading ? "..." : `${(arenaProfile?.winRate ?? 0).toFixed(1)}%`} />
+                <ProfileStatBox label={t("profile.rankedMatches")} value={arenaLoading ? "..." : String(arenaProfile?.rankedMatches ?? 0)} />
                 <ProfileStatBox
-                  label="Recent Momentum"
+                  label={t("profile.recentMomentum")}
                   value={arenaLoading ? "..." : `${arenaRecentMomentum > 0 ? "+" : ""}${arenaRecentMomentum}`}
                 />
               </div>
@@ -457,19 +454,19 @@ export default function ProfilePageClient() {
 
             <div className="grid gap-6 xl:grid-rows-[minmax(0,1fr)_minmax(0,1fr)]">
               <section className="flex h-full flex-col rounded-[28px] border border-white/70 bg-white/68 p-4">
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-gray-500">Season Honors</p>
-                <h3 className="mt-1 font-heading text-[26px] font-extrabold leading-tight text-brand-gray-700">Current season identity</h3>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-gray-500">{t("profile.seasonHonors")}</p>
+                <h3 className="mt-1 font-heading text-[26px] font-extrabold leading-tight text-brand-gray-700">{t("profile.currentSeasonIdentity")}</h3>
 
                 <div className="mt-3 grid flex-1 grid-cols-1 items-stretch gap-2 sm:grid-cols-[repeat(3,minmax(0,1fr))]">
                   <ArenaMetricPill
-                    label="Season Badge"
+                    label={t("profile.seasonBadge")}
                     value={seasonBadgeValue}
                     iconSrc={seasonBadgeVisual?.src}
                     iconAlt={seasonBadgeVisual?.alt}
                   />
-                  <ArenaMetricPill label="Season Title" value={seasonTitleTagline} compactText />
+                  <ArenaMetricPill label={t("profile.seasonTitle")} value={seasonTitleTagline} compactText />
                   <ArenaMetricPill
-                    label="Percentile"
+                    label={t("profile.percentile")}
                     value={seasonPercentileTagline}
                     compactText
                   />
@@ -477,24 +474,24 @@ export default function ProfilePageClient() {
               </section>
 
               <section className="flex h-full flex-col rounded-[28px] border border-white/70 bg-white/68 p-4">
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-gray-500">Match Summary</p>
-                <h3 className="mt-1 font-heading text-[26px] font-extrabold leading-tight text-brand-gray-700">Competitive record</h3>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-gray-500">{t("profile.matchSummary")}</p>
+                <h3 className="mt-1 font-heading text-[26px] font-extrabold leading-tight text-brand-gray-700">{t("profile.competitiveRecord")}</h3>
 
                 <div className="mt-4 grid flex-1 grid-cols-1 items-stretch gap-2 sm:grid-cols-[repeat(3,minmax(0,1fr))]">
                   <ArenaSummaryMetric
-                    label="Wins"
+                    label={t("profile.wins")}
                     value={arenaLoading ? "..." : String(recentOutcomeTrends.win[recentOutcomeTrends.win.length - 1] ?? 0)}
                     tone="win"
                     trendValues={recentOutcomeTrends.win}
                   />
                   <ArenaSummaryMetric
-                    label="Losses"
+                    label={t("profile.losses")}
                     value={arenaLoading ? "..." : String(recentOutcomeTrends.loss[recentOutcomeTrends.loss.length - 1] ?? 0)}
                     tone="loss"
                     trendValues={recentOutcomeTrends.loss}
                   />
                   <ArenaSummaryMetric
-                    label="Draws"
+                    label={t("profile.draws")}
                     value={arenaLoading ? "..." : String(recentOutcomeTrends.draw[recentOutcomeTrends.draw.length - 1] ?? 0)}
                     tone="draw"
                     trendValues={recentOutcomeTrends.draw}
@@ -505,15 +502,15 @@ export default function ProfilePageClient() {
 
             <div className="grid gap-6 xl:grid-rows-[minmax(0,0.86fr)_minmax(0,1.14fr)]">
               <section className="flex h-full flex-col rounded-[28px] border border-white/70 bg-white/68 p-4">
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-gray-500">Strong Topics</p>
-                <h3 className="mt-1 font-heading text-[26px] font-extrabold leading-tight text-brand-gray-700">Topic strengths</h3>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-gray-500">{t("profile.strongTopics")}</p>
+                <h3 className="mt-1 font-heading text-[26px] font-extrabold leading-tight text-brand-gray-700">{t("profile.topicStrengths")}</h3>
 
                 {(arenaLoading || arenaTopTopics.length === 0) && (
                   <div className="mt-3 flex items-end justify-between gap-4">
                     <p className="max-w-[170px] text-sm text-brand-gray-500">
                       {arenaLoading
-                        ? "Loading topic strengths..."
-                        : "Topic strengths will appear after a few Arena matches. Play to unlock."}
+                        ? t("profile.loadingTopicStrengths")
+                        : t("profile.topicStrengthsUnlock")}
                     </p>
                     <Image src="/svg/topic-strengths.svg" alt="Topic strength visual" width={88} height={88} className="h-20 w-20 opacity-95" />
                   </div>
@@ -534,15 +531,15 @@ export default function ProfilePageClient() {
               </section>
 
                 <section className="flex h-full flex-col rounded-[28px] border border-white/70 bg-white/68 p-4">
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-gray-500">Rank History</p>
-                <h3 className="mt-1 font-heading text-[26px] font-extrabold leading-tight text-brand-gray-700">Recent ladder movement</h3>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-gray-500">{t("profile.rankHistory")}</p>
+                <h3 className="mt-1 font-heading text-[26px] font-extrabold leading-tight text-brand-gray-700">{t("profile.recentLadderMovement")}</h3>
 
                 {(arenaLoading || arenaHistory.length === 0) && (
                   <div className="mt-3 flex flex-1 items-end justify-between gap-4">
                     <p className="max-w-[170px] text-sm text-brand-gray-500">
                       {arenaLoading
-                        ? "Loading ladder timeline..."
-                        : "Your detailed ladder and rank history will appear here after ranked matches are recorded. Rank up to fill this history."}
+                        ? t("profile.loadingLadderTimeline")
+                        : t("profile.ladderHistoryEmpty")}
                     </p>
                     <Image src="/svg/rank-history-scroll.svg" alt="Rank history visual" width={90} height={90} className="h-20 w-20 opacity-95" />
                   </div>
@@ -571,7 +568,13 @@ export default function ProfilePageClient() {
       <AnimatePresence>
         {activeOverlay ? (
           <ProfileOverlayShell
-            title={activeOverlay === "personal" ? "Personal Profile" : activeOverlay === "voice" ? "Voice Settings" : "Wallet"}
+            title={
+              activeOverlay === "personal"
+                ? t("profile.overlay.personal")
+                : activeOverlay === "voice"
+                  ? t("profile.overlay.voice")
+                  : t("profile.overlay.wallet")
+            }
             onClose={() => setActiveOverlay(null)}
           >
             {activeOverlay === "personal" ? (
@@ -618,7 +621,7 @@ export default function ProfilePageClient() {
           <div className="relative z-10 w-full max-w-2xl rounded-[28px] border border-brand-gray-200 bg-white p-5 shadow-[0_26px_60px_rgba(15,23,42,0.25)] sm:p-6">
             <div className="flex items-center justify-between gap-4">
               <h2 className="font-heading text-2xl font-extrabold text-brand-gray-700 sm:text-3xl">
-                Choose your avatar
+                {t("onboarding.avatar.title")}
               </h2>
               <button
                 type="button"
@@ -637,12 +640,12 @@ export default function ProfilePageClient() {
             </div>
 
             <p className="mt-3 text-sm text-brand-gray-500">
-              Upload a photo or keep the default avatar for now.
+              {t("onboarding.step.avatar.mascot")}
             </p>
 
             <div className="mt-6">
-              <p className="text-sm font-semibold text-brand-gray-700">Choose an avatar</p>
-              <p className="mt-1 text-xs text-brand-gray-500">Tap the first circle to upload your own image.</p>
+              <p className="text-sm font-semibold text-brand-gray-700">{t("onboarding.avatar.title")}</p>
+              <p className="mt-1 text-xs text-brand-gray-500">{t("onboarding.avatar.hint")}</p>
 
               <div className="mt-4 grid grid-cols-6 gap-4">
                 {/* Upload button */}
@@ -653,7 +656,7 @@ export default function ProfilePageClient() {
                     uploadAvatarInputRef.current?.click();
                   }}
                   className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-dashed border-brand-gray-300 bg-brand-gray-50 transition hover:border-brand-teal hover:bg-brand-teal/10"
-                  title="Upload custom avatar"
+                  title={t("onboarding.avatar.uploadCustom")}
                 >
                   <Image
                     src="/avatar/Upload.png"
@@ -700,7 +703,7 @@ export default function ProfilePageClient() {
                 }}
                 className="rounded-xl border border-brand-gray-300 px-6 py-2.5 text-sm font-semibold text-brand-gray-600 transition hover:bg-brand-gray-100"
               >
-                Back
+                {t("common.back")}
               </button>
               <button
                 type="button"
@@ -710,7 +713,7 @@ export default function ProfilePageClient() {
                 disabled={isApplyingPresetAvatar}
                 className="rounded-xl bg-brand-teal px-6 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
               >
-                {isApplyingPresetAvatar ? "Saving..." : "Done"}
+                {isApplyingPresetAvatar ? t("common.saving") : t("profile.done")}
               </button>
             </div>
           </div>
@@ -727,7 +730,7 @@ export default function ProfilePageClient() {
           <div className="relative z-10 w-full max-w-2xl rounded-[28px] border border-brand-gray-200 bg-white p-5 shadow-[0_26px_60px_rgba(15,23,42,0.25)] sm:p-6">
             <div className="flex items-center justify-between gap-4">
               <h2 className="font-heading text-2xl font-extrabold text-brand-gray-700 sm:text-3xl">
-                Crop your new avatar
+                {t("profile.cropAvatar")}
               </h2>
               <button
                 type="button"
@@ -742,9 +745,7 @@ export default function ProfilePageClient() {
               </button>
             </div>
 
-            <p className="mt-2 text-sm text-brand-gray-500">
-              Drag the image and adjust zoom to set your visible avatar area.
-            </p>
+            <p className="mt-2 text-sm text-brand-gray-500">{t("profile.cropHint")}</p>
 
             <div className="relative mt-5 h-[320px] overflow-hidden rounded-2xl border border-brand-gray-200 bg-white">
               <Cropper
@@ -763,7 +764,7 @@ export default function ProfilePageClient() {
             </div>
 
             <div className="mt-4 flex items-center gap-3">
-              <span className="text-sm font-semibold text-brand-gray-600">Zoom</span>
+              <span className="text-sm font-semibold text-brand-gray-600">{t("common.zoom")}</span>
               <input
                 type="range"
                 min={1}
@@ -781,7 +782,7 @@ export default function ProfilePageClient() {
                 onClick={closeCropModal}
                 className="rounded-xl border border-brand-gray-300 px-4 py-2 text-sm font-semibold text-brand-gray-600 transition hover:bg-brand-gray-100"
               >
-                Cancel
+                {t("common.cancel")}
               </button>
               <button
                 type="button"
@@ -789,7 +790,7 @@ export default function ProfilePageClient() {
                 disabled={isCropping || !cropPixels}
                 className="rounded-xl bg-brand-teal px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-55"
               >
-                {isCropping ? "Uploading..." : "Set new avatar"}
+                {isCropping ? t("profile.uploading") : t("profile.setNewAvatar")}
               </button>
             </div>
           </div>
@@ -867,11 +868,11 @@ function PersonalProfileContent({
   onAvatarButtonClick: () => void;
   avatarUploadError: string;
 }) {
+  const { t, setLanguageLabel } = useI18n();
+
   return (
     <div className="space-y-5">
-      <p className="text-sm text-brand-gray-500">
-        Update your public profile details and learning preferences. Changes are applied immediately after saving.
-      </p>
+      <p className="text-sm text-brand-gray-500">{t("profile.updateProfileHint")}</p>
 
       <div className="grid gap-4 md:grid-cols-2">
         <input
@@ -882,7 +883,7 @@ function PersonalProfileContent({
           className="hidden"
         />
         <label className="block">
-          <span className="text-sm text-brand-gray-600">Display Name</span>
+          <span className="text-sm text-brand-gray-600">{t("common.displayName")}</span>
           <input
             type="text"
             value={form.full_name}
@@ -892,7 +893,7 @@ function PersonalProfileContent({
         </label>
 
         <label className="block">
-          <span className="text-sm text-brand-gray-600">Job Title</span>
+          <span className="text-sm text-brand-gray-600">{t("common.jobTitle")}</span>
           <input
             type="text"
             value={form.job_title}
@@ -902,50 +903,59 @@ function PersonalProfileContent({
         </label>
 
         <label className="block">
-          <span className="text-sm text-brand-gray-600">Education Level</span>
+          <span className="text-sm text-brand-gray-600">{t("common.education")}</span>
           <div className="mt-1.5">
             <ProfileDropdown
               value={form.education_level}
-              placeholder="Select level"
-              options={EDUCATION_LEVELS}
+              placeholder={t("profile.selectLevel")}
+              options={EDUCATION_LEVELS.map((level) => ({
+                value: level.value,
+                label: t(level.labelKey),
+              }))}
               onChange={(next) => setForm((prev) => ({ ...prev, education_level: next }))}
             />
           </div>
         </label>
 
         <label className="block">
-          <span className="text-sm text-brand-gray-600">Preferred Language</span>
+          <span className="text-sm text-brand-gray-600">{t("profile.preferredLanguage")}</span>
           <div className="mt-1.5">
             <ProfileDropdown
               value={form.preferred_language}
-              placeholder="Select language"
+              placeholder={t("profile.selectLanguage")}
               options={PREFERRED_LANGUAGES}
-              onChange={(next) => setForm((prev) => ({ ...prev, preferred_language: next }))}
+              onChange={(next) => {
+                setForm((prev) => ({ ...prev, preferred_language: next }));
+                setLanguageLabel(next);
+              }}
             />
           </div>
         </label>
 
         <label className="block">
-          <span className="text-sm text-brand-gray-600">Daily Goal (min)</span>
+          <span className="text-sm text-brand-gray-600">{t("profile.dailyGoalMin")}</span>
           <div className="mt-1.5">
             <ProfileDropdown
               value={form.daily_learning_goal_minutes}
-              placeholder="Select goal"
-              options={DAILY_GOAL_OPTIONS}
+              placeholder={t("profile.selectGoal")}
+              options={DAILY_GOAL_OPTIONS.map((goal) => ({
+                value: goal.value,
+                label: t(goal.labelKey),
+              }))}
               onChange={(next) => setForm((prev) => ({ ...prev, daily_learning_goal_minutes: next }))}
             />
           </div>
         </label>
 
         <label className="block">
-          <span className="text-sm text-brand-gray-600">Avatar</span>
+          <span className="text-sm text-brand-gray-600">{t("profile.avatar")}</span>
           <div className="mt-1.5">
             <button
               type="button"
               onClick={onAvatarButtonClick}
               className="flex w-full items-center justify-between gap-2 rounded-2xl border border-brand-gray-200 bg-white/85 px-4 py-3 text-sm text-brand-gray-700 outline-none transition hover:bg-white focus:border-brand-teal"
             >
-              <span>Select Avatar</span>
+              <span>{t("profile.selectAvatar")}</span>
             </button>
           </div>
         </label>
@@ -953,22 +963,22 @@ function PersonalProfileContent({
       {avatarUploadError ? <p className="text-sm text-rose-500">{avatarUploadError}</p> : null}
 
       <div className="rounded-2xl border border-brand-gray-100 bg-brand-gray-50/75 p-4">
-        <p className="text-sm font-semibold text-brand-gray-700">Learning preferences</p>
+        <p className="text-sm font-semibold text-brand-gray-700">{t("profile.learningPreferences")}</p>
 
         <div className="mt-3 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-brand-gray-600">Sound Effects</span>
+            <span className="text-sm text-brand-gray-600">{t("common.soundEffects")}</span>
             <ProfileToggle on={preferences.soundOn} onChange={() => setPreferences({ soundOn: !preferences.soundOn })} />
           </div>
 
           <div className="flex items-center justify-between">
-            <span className="text-sm text-brand-gray-600">Dark / Glass Theme</span>
+            <span className="text-sm text-brand-gray-600">{t("common.darkGlassTheme")}</span>
             <ProfileToggle on={preferences.darkGlass} onChange={() => setPreferences({ darkGlass: !preferences.darkGlass })} />
           </div>
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-brand-gray-600">Difficulty Scaling</span>
+              <span className="text-sm text-brand-gray-600">{t("common.difficulty")}</span>
               <span className="text-xs font-semibold text-brand-gray-400">{preferences.difficulty}</span>
             </div>
             <input
@@ -989,12 +999,12 @@ function PersonalProfileContent({
           onClick={handleLogout}
           className="rounded-xl border border-brand-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-brand-gray-600 transition hover:border-brand-teal hover:text-brand-teal"
         >
-          Log Out
+          {t("common.logOut")}
         </button>
         <div className="flex flex-col items-start gap-2 sm:items-end">
           {error ? <p className="text-sm text-rose-500">{error}</p> : null}
           <GameButton onClick={() => void handleSaveProfile()} disabled={saving} className="min-w-[170px]">
-            {saving ? "Saving..." : "Save Profile"}
+            {saving ? t("common.saving") : t("profile.saveProfile")}
           </GameButton>
         </div>
       </div>
@@ -1011,20 +1021,22 @@ function WalletContent({
   ledgerItems: UserLedgerEvent[];
   error: string;
 }) {
+  const { t } = useI18n();
+
   return (
     <div className="space-y-5">
       {error ? <p className="text-sm text-rose-500">{error}</p> : null}
 
       <div className="rounded-2xl border border-brand-gray-100 bg-brand-gray-50/75 p-4">
-        <p className="text-sm font-semibold text-brand-gray-700">Recent account activity</p>
+        <p className="text-sm font-semibold text-brand-gray-700">{t("profile.recentActivity")}</p>
         <div className="mt-3 space-y-3">
           {ledgerLoading ? (
             <div className="rounded-2xl border border-brand-gray-100 bg-white px-4 py-4 text-sm text-brand-gray-500">
-              Loading recent activity...
+              {t("profile.loadingRecentActivity")}
             </div>
           ) : ledgerItems.length === 0 ? (
             <div className="rounded-2xl border border-brand-gray-100 bg-white px-4 py-4 text-sm text-brand-gray-500">
-              No credits or XP events yet.
+              {t("profile.noLedgerEvents")}
             </div>
           ) : (
             ledgerItems.map((item) => <LedgerActivityRow key={item.id} item={item} />)
@@ -1042,6 +1054,7 @@ function VoiceSettingsContent({
   preferences: any;
   setPreferences: (patch: any) => void;
 }) {
+  const { t } = useI18n();
   const currentVoice = preferences.voiceAssistant || "preset_01";
   const isAutoPlay = !!preferences.autoPlaySpeech;
   const [uploading, setUploading] = useState(false);
@@ -1049,11 +1062,11 @@ function VoiceSettingsContent({
   const [playingPreset, setPlayingPreset] = useState<string | null>(null);
 
   const presets = [
-    { id: "preset_01", label: "Gentle Sister", desc: "Warm and friendly narration tone." },
-    { id: "preset_02", label: "Wise Tutor", desc: "Calm, professional male voice." },
-    { id: "preset_03", label: "Energetic Partner", desc: "Bright, energetic female voice." },
-    { id: "preset_04", label: "Calm AI", desc: "Smooth, balanced pace and tone." },
-    { id: "preset_05", label: "Warm Uncle", desc: "Deep, magnetic male voice." },
+    { id: "preset_01", label: t("voice.preset01.label"), desc: t("voice.preset01.desc") },
+    { id: "preset_02", label: t("voice.preset02.label"), desc: t("voice.preset02.desc") },
+    { id: "preset_03", label: t("voice.preset03.label"), desc: t("voice.preset03.desc") },
+    { id: "preset_04", label: t("voice.preset04.label"), desc: t("voice.preset04.desc") },
+    { id: "preset_05", label: t("voice.preset05.label"), desc: t("voice.preset05.desc") },
   ];
 
   const handleTestPreset = async (presetId: string) => {
@@ -1130,7 +1143,7 @@ function VoiceSettingsContent({
   return (
     <div className="space-y-6">
       <p className="text-sm text-brand-gray-500">
-        Preview and choose your preferred lesson narration voice, or upload your own audio to create a custom clone.
+        {t("voice.intro")}
       </p>
 
       {errorMsg && (
@@ -1142,8 +1155,8 @@ function VoiceSettingsContent({
       {/* Auto Play Speech Toggle */}
       <div className="rounded-2xl border border-brand-gray-100 bg-brand-gray-50/75 p-4 flex items-center justify-between">
         <div>
-          <p className="text-sm font-semibold text-brand-gray-700">Auto Play Narration</p>
-          <p className="text-xs text-brand-gray-400 mt-0.5">Automatically start narration when entering a lesson step.</p>
+          <p className="text-sm font-semibold text-brand-gray-700">{t("voice.autoPlayNarration")}</p>
+          <p className="text-xs text-brand-gray-400 mt-0.5">{t("voice.autoPlayNarrationDesc")}</p>
         </div>
         <ProfileToggle
           on={isAutoPlay}
@@ -1153,7 +1166,7 @@ function VoiceSettingsContent({
 
       {/* Presets Grid */}
       <div className="rounded-2xl border border-brand-gray-100 bg-brand-gray-50/75 p-4 space-y-3">
-        <p className="text-sm font-semibold text-brand-gray-700">Preset Voices</p>
+        <p className="text-sm font-semibold text-brand-gray-700">{t("voice.presetVoices")}</p>
         <div className="grid gap-3 sm:grid-cols-2">
           {presets.map((p) => {
             const isSelected = currentVoice === p.id;
@@ -1182,10 +1195,10 @@ function VoiceSettingsContent({
                       {playingPreset === p.id ? (
                         <>
                           <span className="h-2 w-2 animate-spin rounded-full border border-brand-teal border-t-transparent" />
-                          <span>Playing</span>
+                          <span>{t("voice.playing")}</span>
                         </>
                       ) : (
-                        <span>Preview</span>
+                        <span>{t("voice.preview")}</span>
                       )}
                     </button>
                   </div>
@@ -1200,9 +1213,9 @@ function VoiceSettingsContent({
       {/* Custom Audio Upload (Cloning) */}
       <div className="rounded-2xl border border-brand-gray-100 bg-brand-gray-50/75 p-4 space-y-3">
         <div>
-          <p className="text-sm font-semibold text-brand-gray-700">Custom Voice Cloning</p>
+          <p className="text-sm font-semibold text-brand-gray-700">{t("voice.customVoiceCloning")}</p>
           <p className="text-xs text-brand-gray-400 mt-0.5">
-            Upload a 15-30 second voice sample and the service will create a custom narration voice.
+            {t("voice.customVoiceCloningDesc")}
           </p>
         </div>
 
@@ -1212,7 +1225,7 @@ function VoiceSettingsContent({
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-              <span className="text-sm font-semibold">Custom voice enabled: {currentVoice.split("/").pop()}</span>
+              <span className="text-sm font-semibold">{t("voice.customVoiceEnabled", { name: currentVoice.split("/").pop() ?? "" })}</span>
             </div>
             <button
               type="button"
@@ -1223,7 +1236,7 @@ function VoiceSettingsContent({
               disabled={playingPreset === currentVoice}
               className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 bg-teal-50 hover:bg-teal-100 border border-teal-200 text-brand-teal rounded-lg transition"
             >
-              {playingPreset === currentVoice ? "Playing" : "Preview custom voice"}
+              {playingPreset === currentVoice ? t("voice.playing") : t("voice.previewCustomVoice")}
             </button>
           </div>
         ) : null}
@@ -1231,7 +1244,7 @@ function VoiceSettingsContent({
         <div className="mt-3">
           <label className="flex flex-col items-center justify-center border-2 border-dashed border-brand-gray-200 bg-white hover:border-brand-teal hover:bg-brand-teal/5 transition rounded-2xl p-4 cursor-pointer">
             <span className="text-xs text-brand-gray-500 font-medium">
-              {uploading ? "Uploading audio..." : "Click to upload a .wav or .mp3 file"}
+              {uploading ? t("voice.uploadingAudio") : t("voice.clickToUpload")}
             </span>
             <input
               type="file"
@@ -1248,8 +1261,9 @@ function VoiceSettingsContent({
 }
 
 function LedgerActivityRow({ item }: { item: UserLedgerEvent }) {
-  const eventLabel = getLedgerEventLabel(item.event_type);
-  const creditsText = item.credits_delta === 0 ? null : `${item.credits_delta > 0 ? "+" : ""}${item.credits_delta.toLocaleString()} credits`;
+  const { t } = useI18n();
+  const eventLabel = getLedgerEventLabel(item.event_type, t);
+  const creditsText = item.credits_delta === 0 ? null : `${item.credits_delta > 0 ? "+" : ""}${item.credits_delta.toLocaleString()} ${t("common.credits").toLowerCase()}`;
   const xpText = item.xp_delta === 0 ? null : `+${item.xp_delta.toLocaleString()} XP`;
   const timestamp = new Date(item.created_at).toLocaleString();
 
@@ -1270,7 +1284,11 @@ function LedgerActivityRow({ item }: { item: UserLedgerEvent }) {
         </div>
       </div>
       <p className="mt-2 text-xs text-brand-gray-500">
-        Balance: {item.credits_balance_after.toLocaleString()} credits, level {item.level_after}, {item.xp_balance_after.toLocaleString()} XP
+        {t("profile.ledgerBalance", {
+          credits: item.credits_balance_after.toLocaleString(),
+          level: String(item.level_after),
+          xp: item.xp_balance_after.toLocaleString(),
+        })}
       </p>
     </div>
   );
@@ -1295,24 +1313,24 @@ function resolveSeasonBadgeVisual(badge: string): { src: string; alt: string } {
   }
 }
 
-function resolveRankTierTagline(rankTier?: string | null): string {
+function resolveRankTierTagline(rankTier: string | null | undefined, t: (key: string) => string): string {
   switch ((rankTier ?? "").trim().toLowerCase()) {
     case "bronze":
-      return "Foundation";
+      return t("profile.tagline.foundation");
     case "silver":
-      return "Steady";
+      return t("profile.tagline.steady");
     case "gold":
-      return "Focused";
+      return t("profile.tagline.focused");
     case "platinum":
-      return "Tempo";
+      return t("profile.tagline.tempo");
     case "diamond":
-      return "Precision";
+      return t("profile.tagline.precision");
     case "master":
-      return "Command";
+      return t("profile.tagline.command");
     case "grandmaster":
-      return "Apex";
+      return t("profile.tagline.apex");
     default:
-      return "Climb";
+      return t("profile.tagline.climb");
   }
 }
 
@@ -1472,14 +1490,14 @@ function ArenaSummaryMetric({
   );
 }
 
-function getLedgerEventLabel(eventType: string) {
+function getLedgerEventLabel(eventType: string, t: (key: string) => string) {
   switch (eventType) {
     case "credits_top_up":
-      return "Credits Added";
+      return t("profile.ledgerCreditsAdded");
     case "credits_spend":
-      return "Credits Spent";
+      return t("profile.ledgerCreditsSpent");
     case "lesson_completion_reward":
-      return "Lesson Reward";
+      return t("profile.ledgerLessonReward");
     default:
       return eventType;
   }

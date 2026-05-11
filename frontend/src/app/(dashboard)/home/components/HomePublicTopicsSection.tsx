@@ -9,6 +9,7 @@ import {
   DEFAULT_LIBRARY_BACKGROUNDS,
   resolveCourseCardBackground,
 } from "@/lib/courseCardBackground";
+import { useI18n } from "@/lib/i18n/useI18n";
 import { HomeCourseIcon } from "./HomeCourseIcon";
 
 const LIB_BG_IMAGES = DEFAULT_LIBRARY_BACKGROUNDS;
@@ -26,6 +27,7 @@ export function HomePublicTopicsSection({
   activeTab,
   onTabChange,
 }: HomePublicTopicsSectionProps) {
+  const { t } = useI18n();
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const scrollLibrary = (dir: "left" | "right") => {
@@ -40,7 +42,7 @@ export function HomePublicTopicsSection({
       <div className="mb-4 flex items-center justify-between">
         <div>
           <h2 className="font-heading text-2xl font-extrabold text-brand-gray-700 md:text-3xl">
-            Official Public Topics
+            {t("dashboard.officialPublicTopics")}
           </h2>
         </div>
         <div className="flex items-center gap-4">
@@ -54,7 +56,7 @@ export function HomePublicTopicsSection({
                   : "text-brand-gray-500 hover:text-brand-gray-700"
               }`}
             >
-              Library
+              {t("dashboard.library")}
             </button>
             <button
               type="button"
@@ -65,7 +67,7 @@ export function HomePublicTopicsSection({
                   : "text-brand-gray-500 hover:text-brand-gray-700"
               }`}
             >
-              Public
+              {t("dashboard.public")}
             </button>
           </div>
           <div className="flex gap-2">
@@ -87,7 +89,7 @@ export function HomePublicTopicsSection({
 
       {courses.length === 0 ? (
         <div className="rounded-2xl border border-white/60 bg-white/60 px-5 py-8 text-sm text-brand-gray-500 shadow-sm backdrop-blur-sm md:px-6 md:py-10 min-h-[220px] flex items-center justify-center">
-          No official topics available yet.
+          {t("dashboard.noOfficialTopics")}
         </div>
       ) : (
         <div

@@ -12,6 +12,7 @@ import {
 } from "@/lib/navigation/intents";
 import { useAuthStore } from "@/stores/app/useAuthStore";
 import useUserStore, { selectUserName } from "@/stores/app/useUserStore";
+import { useI18n } from "@/lib/i18n/useI18n";
 import { HomeBackground } from "./components/HomeBackground";
 import { HomeCourseModal } from "./components/HomeCourseModal";
 import { HomeCoursePanel } from "./components/HomeCoursePanel";
@@ -31,6 +32,7 @@ import type { CourseListItem, CoursePath } from "@/lib/apiTypes";
 export default function HomePage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const { t } = useI18n();
   const token = useAuthStore((s) => s.token);
   const authHydrated = useAuthStore((s) => s.hasHydrated);
   const name = useUserStore(selectUserName);
@@ -225,14 +227,14 @@ export default function HomePage() {
         key: `${isReady ? "course" : "draft"}-${course.id}`,
         course,
         href: isReady ? `/courses/${course.id}` : `/questionnaire?courseId=${course.id}`,
-        title: (isReady ? course.title || draft.topic : draft.topic || course.title) || "Untitled Topic",
+        title: (isReady ? course.title || draft.topic : draft.topic || course.title) || t("dashboard.untitledTopic"),
         stateLabel: isReady
-          ? "Course"
+          ? t("dashboard.stateLabel.course")
           : hasQuestions
             ? hasAnswers
-              ? "Draft In Progress"
-              : "Questionnaire Ready"
-            : "Topic Draft",
+              ? t("dashboard.stateLabel.draftInProgress")
+              : t("dashboard.stateLabel.questionnaireReady")
+            : t("dashboard.stateLabel.topicDraft"),
         indexSeed: index,
         progress: isReady
           ? courseProgressById[course.id] ??
@@ -325,15 +327,15 @@ export default function HomePage() {
         quickLinks={[
           {
             href: "/multiplayer",
-            label: "Multiplayer",
+            label: t("common.multiplayer"),
             iconSrc: "/svg/multiplayer-controller.svg",
-            iconAlt: "Multiplayer",
+            iconAlt: t("common.multiplayer"),
           },
           {
             href: "/arena/leaderboard",
-            label: "Leaderboard",
+            label: t("common.leaderboard"),
             iconSrc: "/svg/leaderboard-logo.svg",
-            iconAlt: "Leaderboard",
+            iconAlt: t("common.leaderboard"),
           },
         ]}
       />
@@ -343,13 +345,13 @@ export default function HomePage() {
       <div className="relative z-10 mx-auto max-w-[86rem] space-y-10 px-3 py-10 md:px-6">
         {isLoading && (
           <div className="rounded-2xl border border-white/60 bg-white/65 px-4 py-3 text-sm text-brand-gray-600 shadow-sm backdrop-blur">
-            Refreshing your learning library...
+            {t("dashboard.refreshingLibrary")}
           </div>
         )}
 
         {activeCourseLoading && (
           <div className="rounded-2xl border border-white/60 bg-white/65 px-4 py-3 text-sm text-brand-gray-600 shadow-sm backdrop-blur">
-            Refreshing your active course...
+            {t("dashboard.refreshingActiveCourse")}
           </div>
         )}
 
