@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import TopStatsBar from "@/components/layout/TopStatsBar";
 import GameButton from "@/components/ui/GameButton";
-import { fetchArenaPublicCourses, joinArenaRoom, leaveArenaRoom, setArenaRoomReady, startArenaRoom, updateArenaRoomSettings } from "@/lib/arena/api";
+import { fetchArenaPublicCourses, joinArenaRoom, leaveArenaRoom, setArenaRoomReady, startArenaRoom, updateArenaRoomSettings, transferArenaRoomHost } from "@/lib/arena/api";
 import { resolveErrorMessage } from "@/lib/apiClient";
 import { useRequireAuthRedirect } from "@/lib/auth/useRequireAuthRedirect";
 import type { ArenaPublicCourse } from "@/lib/apiTypes";
@@ -31,6 +31,7 @@ export default function ArenaLobbyPageClient({ roomCode }: { roomCode: string })
   const [coursesLoading, setCoursesLoading] = useState(true);
   const [selectedTopicValue, setSelectedTopicValue] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [joining, setJoining] = useState(true);
 
   const [friends, setFriends] = useState<any[]>([]);
   const [loadingFriends, setLoadingFriends] = useState(false);
@@ -61,8 +62,20 @@ export default function ArenaLobbyPageClient({ roomCode }: { roomCode: string })
 
   useEffect(() => {
     if (!isReady || !roomCode) return;
-    void joinArenaRoom(roomCode).catch((err) => console.error("Auto room join failed:", err));
-  }, [isReady, roomCode]);
+    let cancelled = false;
+    setJoining(true);
+    void (async () => {
+      try {
+        await joinArenaRoom(roomCode);
+        if (!cancelled) await refetchRoom();
+      } catch (err) {
+        console.error("Auto room join failed:", err);
+      } finally {
+        if (!cancelled) setJoining(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isReady, roomCode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!room) {
@@ -164,6 +177,20 @@ export default function ArenaLobbyPageClient({ roomCode }: { roomCode: string })
     }
   };
 
+  const handleTransferHost = async (newHostUserId: number) => {
+    if (!room) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await transferArenaRoomHost(room.roomCode, newHostUserId);
+      await refetchRoom();
+    } catch (err) {
+      setError(resolveErrorMessage(err, "Unable to transfer host right now."));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleTopicChange = async (nextPoolId: number) => {
     if (!room || currentPlayer?.isHost !== true) return;
     setSelectedTopicValue(nextPoolId);
@@ -217,16 +244,28 @@ export default function ArenaLobbyPageClient({ roomCode }: { roomCode: string })
   };
 
 
+  if (joining) {
+    return (
+      <div className="min-h-screen bg-[url('/backgrounds/MainBg.png')] bg-cover bg-center bg-no-repeat">
+        <TopStatsBar backHref="/home" pageTitle="Arena Lobby" />
+        <main className="flex min-h-[calc(100vh-72px)] flex-col items-center justify-center gap-4">
+          <div className="h-12 w-12 animate-spin rounded-full border-[5px] border-brand-teal/20 border-t-brand-teal" />
+          <p className="text-sm font-semibold text-brand-gray-500">Joining room...</p>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[url('/backgrounds/MainBg.png')] bg-cover bg-center bg-no-repeat">
       <TopStatsBar backHref="/home" pageTitle="Arena Lobby" />
-      <main className="mx-auto flex min-h-[calc(100vh-72px)] max-w-6xl flex-col items-center justify-center px-4 py-8 md:px-8">
+      <main className="mx-auto flex min-h-[calc(100vh-72px)] max-w-5xl flex-col items-center justify-center px-4 py-4 md:px-8">
         <div className="w-full text-center">
-          <p className="text-xs font-bold uppercase tracking-[0.28em] text-brand-teal">Room Code</p>
-          <h1 className="mt-3 font-heading text-[2.7rem] font-black leading-none tracking-tight text-brand-gray-700 md:text-6xl">
+          <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-brand-gray-400">Room Code</p>
+          <h1 className="mt-1.5 font-heading text-3xl font-black leading-none tracking-tight text-brand-gray-700 md:text-5xl">
             {roomLabel}
           </h1>
-          <div className="mx-auto mt-4 max-w-sm">
+          <div className="mx-auto mt-3 max-w-sm">
             <QuestionTypeDropdown
               value={selectedTopicValue ?? room?.poolId ?? null}
               options={topicOptions}
@@ -245,50 +284,49 @@ export default function ArenaLobbyPageClient({ roomCode }: { roomCode: string })
           </div>
         ) : null}
 
-        <div className="mt-10 flex w-full max-w-5xl flex-wrap items-center justify-center gap-5 lg:gap-8 xl:gap-10">
-          {room?.players.map((player) => {
-            const isSelf = player.userId === authUser?.id;
-            return (
-              <LobbyPlayerCard
-                key={player.userId}
-                title={player.displayName || (isSelf ? (authUser?.full_name || authUser?.email?.split("@")[0] || "You") : "Player")}
-                avatarSrc={player.avatarUrl || "/avatar/chicken.png"}
-                role={player.isHost ? (isSelf ? "Host (You)" : "Host") : isSelf ? "You" : "Player"}
-                isReady={player.isReady}
-                readyLabel={player.isReady ? "READY" : "WAITING"}
-                onReadyToggle={isSelf ? () => void handleReadyToggle() : undefined}
-                readyDisabled={!isSelf || busy}
-                connectionState={player.connectionState}
-                actionLabel={isSelf ? (player.isReady ? "UNREADY" : "READY UP") : (player.isReady ? "READY" : "WAITING")}
-                compact={room?.players && room.players.length > 2}
-              />
-            );
-          })}
-
-          {room?.players.length === 1 && (
-            <>
-              <div className="flex flex-col items-center justify-center px-1 md:px-2 lg:px-3">
-                <span className="font-heading text-6xl font-black tracking-tight text-brand-gray-600 md:text-7xl lg:text-[6.25rem]">
-                  VS
-                </span>
-              </div>
-              <LobbyPlayerCard
-                title="Waiting for opponent"
-                avatarSrc={undefined}
-                role="Player"
-                isReady={false}
-                readyLabel="WAITING"
-                onReadyToggle={undefined}
-                readyDisabled
-                loading
-                actionLabel="WAITING"
-                compact={false}
-              />
-            </>
-          )}
+        <div className="mt-5 w-full max-w-5xl">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+            {Array.from({ length: 8 }).map((_, index) => {
+              const player = room?.players[index];
+              const iAmHost = currentPlayer?.isHost === true;
+              if (player) {
+                const isSelf = player.userId === authUser?.id;
+                return (
+                  <LobbyPlayerCard
+                    key={player.userId}
+                    title={player.displayName || (isSelf ? (authUser?.full_name || authUser?.email?.split("@")[0] || "You") : "Player")}
+                    avatarSrc={player.avatarUrl || "/avatar/chicken.png"}
+                    role={player.isHost ? (isSelf ? "Host (You)" : "Host") : isSelf ? "You" : "Player"}
+                    isReady={player.isReady}
+                    isHost={player.isHost}
+                    onReadyToggle={isSelf ? () => void handleReadyToggle() : undefined}
+                    readyDisabled={!isSelf || busy}
+                    connectionState={player.connectionState}
+                    actionLabel={isSelf ? (player.isReady ? "UNREADY" : "READY UP") : (player.isReady ? "READY" : "WAITING")}
+                    onTransferHost={iAmHost && !isSelf ? () => void handleTransferHost(player.userId) : undefined}
+                    transferHostDisabled={busy}
+                  />
+                );
+              }
+              return (
+                <LobbyPlayerCard
+                  key={`empty-${index}`}
+                  title="Waiting for opponent"
+                  avatarSrc={undefined}
+                  role="Player"
+                  isReady={false}
+                  isHost={false}
+                  onReadyToggle={undefined}
+                  readyDisabled
+                  loading
+                  actionLabel="WAITING"
+                />
+              );
+            })}
+          </div>
         </div>
 
-        <div className="mt-8 flex w-full max-w-3xl flex-col items-center gap-3">
+        <div className="mt-4 flex w-full max-w-3xl flex-col items-center gap-2">
           <div className="flex flex-col gap-3 sm:flex-row">
             <GameButton
               variant="secondary"
@@ -463,49 +501,43 @@ function LobbyPlayerCard({
   avatarSrc,
   role,
   isReady,
-  readyLabel,
+  isHost = false,
   actionLabel,
   onReadyToggle,
   readyDisabled,
   connectionState,
   loading = false,
-  compact = false,
+  onTransferHost,
+  transferHostDisabled = false,
 }: {
   title: string;
   avatarSrc?: string;
   role: string;
   isReady: boolean;
-  readyLabel: string;
+  isHost?: boolean;
   actionLabel: string;
   onReadyToggle?: () => void;
   readyDisabled: boolean;
   connectionState?: string | null;
   loading?: boolean;
-  compact?: boolean;
+  onTransferHost?: () => void;
+  transferHostDisabled?: boolean;
 }) {
   return (
-    <div className={`relative w-full overflow-hidden rounded-[30px] border border-white/70 bg-white/62 backdrop-blur-xl shadow-[0_28px_50px_rgba(95,146,165,0.14)] transition-all duration-300 ${
-      compact ? "max-w-[280px] p-3" : "max-w-[360px] p-4 lg:w-[min(44vw,360px)]"
-    }`}>
-      <div className={`relative flex items-center justify-center rounded-[24px] bg-[linear-gradient(180deg,rgba(222,241,247,0.9),rgba(210,233,242,0.94))] transition-all duration-300 ${
-        compact ? "min-h-[220px] p-3" : "min-h-[290px] p-4"
-      }`}>
+    <div className="relative w-full overflow-hidden rounded-[18px] border border-white/70 bg-white/62 p-2 backdrop-blur-xl shadow-[0_8px_20px_rgba(95,146,165,0.13)] transition-all duration-300">
+      <div className="relative flex min-h-[110px] items-center justify-center rounded-[12px] bg-[linear-gradient(180deg,rgba(222,241,247,0.9),rgba(210,233,242,0.94))] p-2">
         {loading ? (
-          <div className="h-16 w-16 animate-spin rounded-full border-[6px] border-brand-teal/15 border-t-brand-teal/60" />
+          <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-brand-teal/15 border-t-brand-teal/60" />
         ) : (
-          <AvatarBubble src={avatarSrc} alt={title} isReady={isReady} compact={compact} />
+          <AvatarBubble src={avatarSrc} alt={title} isReady={isReady} isHost={isHost} />
         )}
       </div>
 
-      <div className={`mt-3 overflow-hidden rounded-[18px] bg-white/80 text-center shadow-[0_10px_24px_rgba(95,146,165,0.08)] ${
-        compact ? "px-4 py-3" : "px-5 py-4"
-      }`}>
-        <p className={`truncate font-heading font-extrabold leading-none text-brand-gray-700 ${
-          compact ? "text-xl" : "text-[1.55rem]"
-        }`}>
+      <div className="mt-1.5 overflow-hidden rounded-[10px] bg-white/80 px-2.5 py-2 text-center shadow-[0_4px_10px_rgba(95,146,165,0.07)]">
+        <p className="truncate font-heading text-xs font-extrabold leading-none text-brand-gray-700">
           {title}
         </p>
-        <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.22em] text-brand-teal">
+        <p className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.18em] text-brand-teal">
           {role}
         </p>
 
@@ -513,18 +545,29 @@ function LobbyPlayerCard({
           <GameButton
             onClick={onReadyToggle}
             disabled={readyDisabled}
-            className={`mt-3 w-full ${compact ? "h-10 text-xs" : "h-11"}`}
+            className="mt-1.5 h-7 w-full text-[11px]"
           >
             {actionLabel}
           </GameButton>
         ) : (
-          <GameButton variant="secondary" disabled className={`mt-3 w-full ${compact ? "h-10 text-xs" : "h-11"}`}>
+          <GameButton variant="secondary" disabled className="mt-1.5 h-7 w-full text-[11px]">
             {actionLabel}
           </GameButton>
         )}
 
+        {onTransferHost ? (
+          <button
+            type="button"
+            onClick={onTransferHost}
+            disabled={transferHostDisabled}
+            className="mt-1 w-full rounded-lg border border-amber-200 bg-amber-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.14em] text-amber-600 transition hover:bg-amber-100 disabled:opacity-50"
+          >
+            Make Host
+          </button>
+        ) : null}
+
         {connectionState === "disconnected" ? (
-          <p className="mt-3 text-xs font-semibold uppercase tracking-[0.16em] text-rose-500">
+          <p className="mt-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-rose-500">
             Disconnected
           </p>
         ) : null}
@@ -533,29 +576,58 @@ function LobbyPlayerCard({
   );
 }
 
-function AvatarBubble({ src, alt, isReady = false, compact = false }: { src?: string; alt: string; isReady?: boolean; compact?: boolean }) {
+function AvatarBubble({ src, alt, isReady = false, isHost = false }: { src?: string; alt: string; isReady?: boolean; isHost?: boolean }) {
   const imageSrc = src || "/avatar/chicken.png";
-  const sizeClass = compact ? "h-[120px] w-[120px]" : "h-[170px] w-[170px]";
-  const innerSizeClass = compact ? "h-[96px] w-[96px]" : "h-[138px] w-[138px]";
-
   return (
-    <div className={`relative flex items-center justify-center rounded-full bg-white/35 shadow-[inset_0_0_0_12px_rgba(255,255,255,0.26)] transition-all duration-300 ${sizeClass}`}>
+    <div className="relative flex h-[68px] w-[68px] items-center justify-center rounded-full bg-white/35 shadow-[inset_0_0_0_6px_rgba(255,255,255,0.26)]">
       <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.22),rgba(255,255,255,0)_58%)]" />
-      <div className={`relative overflow-hidden rounded-full bg-white shadow-[0_18px_30px_rgba(95,146,165,0.15)] transition-all duration-300 ${innerSizeClass}`}>
-        <Image src={imageSrc} alt={alt} fill sizes="138px" className="object-cover" />
+      <div className="relative h-[54px] w-[54px] overflow-hidden rounded-full bg-white shadow-[0_5px_12px_rgba(95,146,165,0.15)]">
+        <Image src={imageSrc} alt={alt} fill sizes="54px" className="object-cover" />
       </div>
-      
+      {isHost && (
+        <div className="absolute -top-2 -right-2 z-10 rotate-[20deg]">
+          <svg viewBox="0 0 32 26" className="h-7 w-7" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="cg1" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#FFF176" />
+                <stop offset="55%" stopColor="#FFCA28" />
+                <stop offset="100%" stopColor="#FF8F00" />
+              </linearGradient>
+              <linearGradient id="cg2" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#FFD54F" />
+                <stop offset="100%" stopColor="#E65100" />
+              </linearGradient>
+              <filter id="cs" x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="1.5" stdDeviation="1.2" floodColor="#B45309" floodOpacity="0.55" />
+              </filter>
+            </defs>
+            {/* main crown shape — smooth curves */}
+            <path
+              d="M2.5 19.5 C2.5 19.5 5 10 6.5 9 C8 8 10.5 13 12 14.5 C13 15.5 14.5 10 16 5.5 C17.5 10 19 15.5 20 14.5 C21.5 13 24 8 25.5 9 C27 10 29.5 19.5 29.5 19.5 Z"
+              fill="url(#cg1)"
+              filter="url(#cs)"
+              strokeLinejoin="round"
+            />
+            {/* base band */}
+            <rect x="2.5" y="19.5" width="27" height="4.5" rx="2.25" fill="url(#cg2)" />
+            {/* highlight sheen on body */}
+            <path
+              d="M9 13 C10.5 10.5 13.5 8 16 5.5 C18.5 8 21.5 10.5 23 13 C21 11 18.5 9.5 16 8 C13.5 9.5 11 11 9 13 Z"
+              fill="white"
+              opacity="0.3"
+            />
+            {/* top gem */}
+            <circle cx="16" cy="5" r="2.2" fill="#FF4D4D" />
+            <circle cx="16" cy="4.2" r="0.7" fill="white" opacity="0.6" />
+            {/* side dots */}
+            <circle cx="6.5" cy="9" r="1.5" fill="#FFD700" stroke="#B8860B" strokeWidth="0.4" />
+            <circle cx="25.5" cy="9" r="1.5" fill="#FFD700" stroke="#B8860B" strokeWidth="0.4" />
+          </svg>
+        </div>
+      )}
       {isReady && (
-        <div className={`absolute flex items-center justify-center rounded-full bg-emerald-500 shadow-lg transition-all duration-300 ${compact ? "bottom-0 right-0 h-8 w-8" : "bottom-2 right-2 h-10 w-10"}`}>
-          <svg
-            className={`${compact ? "h-5 w-5" : "h-6 w-6"} text-white`}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
+        <div className="absolute bottom-0 right-0 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 shadow-md ring-2 ring-white">
+          <svg className="h-3 w-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M20 6L9 17l-5-5" />
           </svg>
         </div>

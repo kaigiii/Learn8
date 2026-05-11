@@ -220,6 +220,13 @@ export function updateArenaAdminSeason(
   });
 }
 
+export function transferArenaRoomHost(roomCode: string, newHostUserId: number) {
+  return apiFetch<ArenaRoom>(`/arena/rooms/${roomCode}/transfer-host`, {
+    method: "POST",
+    body: JSON.stringify({ newHostUserId }),
+  });
+}
+
 export function joinArenaCompetitiveQueue(payload: {
   publicCourseId: number;
   poolId?: number;

@@ -97,24 +97,11 @@ export function HomeArenaPanel() {
   }, [courses, selectedCourseId]);
   const rankBadge = resolveRankTierBadgeVisual(profile?.rankTier);
 
-  const handleJoinCompetition = async () => {
-    if (courses.length === 0) {
-      return;
-    }
+  const handleJoinCompetition = () => {
+    if (courses.length === 0) return;
     const targetCourse = resolveTargetCourse;
     if (!targetCourse) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await joinArenaCompetitiveQueue({
-        publicCourseId: targetCourse.id,
-      });
-      router.push("/arena/queue");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("arena.failedJoinCompetition"));
-    } finally {
-      setBusy(false);
-    }
+    router.push(`/arena/queue?courseId=${targetCourse.id}`);
   };
 
   const handleCreateRoom = async () => {
@@ -215,7 +202,7 @@ export function HomeArenaPanel() {
               <GameButton
                 variant="secondary"
                 className="w-full py-3 text-base sm:text-[1.05rem]"
-                onClick={() => void handleJoinCompetition()}
+                onClick={handleJoinCompetition}
                 disabled={courses.length === 0 || busy}
               >
                 {t("arena.quickMatch")}

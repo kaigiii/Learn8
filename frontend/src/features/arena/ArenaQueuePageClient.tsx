@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import TopStatsBar from "@/components/layout/TopStatsBar";
 import GameButton from "@/components/ui/GameButton";
@@ -11,6 +11,7 @@ import {
   fetchCurrentArenaCompetitiveQueue,
   fetchArenaMatch,
   confirmArenaMatch,
+  joinArenaCompetitiveQueue,
 } from "@/lib/arena/api";
 import { arenaWsClient } from "@/lib/arena/realtimeClient";
 import { resolveErrorMessage } from "@/lib/apiClient";
@@ -20,6 +21,8 @@ import type { ArenaCompetitiveQueueState, ArenaMatchState } from "@/lib/apiTypes
 
 export default function ArenaQueuePageClient() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const pendingCourseId = searchParams.get("courseId");
   const { isReady } = useRequireAuthRedirect();
   const [queueState, setQueueState] = useState<ArenaCompetitiveQueueState | null>(null);
   const [matchState, setMatchState] = useState<ArenaMatchState | null>(null);
@@ -43,6 +46,27 @@ export default function ArenaQueuePageClient() {
   const opponentName = opponentPlayer?.displayName || "Finding Opponent";
   const opponentAvatar = opponentPlayer?.avatarUrl || "/avatar/chicken.png";
   const hasOpponent = Boolean(opponentPlayer);
+
+  // Auto-join if navigated here with a courseId param (fast-join flow)
+  useEffect(() => {
+    if (!isReady || !pendingCourseId) return;
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        await joinArenaCompetitiveQueue({ publicCourseId: Number(pendingCourseId) });
+      } catch {
+        // If already in queue or join fails, continue — poll will handle it
+      } finally {
+        if (!cancelled) {
+          // Strip the courseId param so a refresh doesn't re-join
+          router.replace("/arena/queue");
+        }
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [isReady, pendingCourseId, router]);
 
   // Poll for queue state (fallback and initial state)
   useEffect(() => {

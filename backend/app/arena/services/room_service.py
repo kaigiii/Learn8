@@ -11,6 +11,7 @@ from app.core.time import utc_now, to_iso_utc, ensure_aware
 from app.arena.domain.arena_modes import RANKED_ARENA_MODES
 from app.arena.domain.arena_statuses import ArenaMatchStatus, ArenaRoomStatus
 from app.arena.models.arena_match import ArenaMatchModel, ArenaMatchPlayerModel
+from app.arena.models.arena_question_pool import ArenaQuestionPoolModel
 from app.arena.models.arena_room import ArenaRoomModel, ArenaRoomPlayerModel
 from app.models.user import UserModel
 from app.arena.services.presence_service import PresenceService
@@ -48,6 +49,7 @@ class RoomService:
         return db.query(ArenaRoomModel).options(
             selectinload(ArenaRoomModel.players).selectinload(ArenaRoomPlayerModel.user),
             selectinload(ArenaRoomModel.public_course),
+            selectinload(ArenaRoomModel.question_pool),
         )
 
     def _latest_room_activity_at(self, room: ArenaRoomModel):
