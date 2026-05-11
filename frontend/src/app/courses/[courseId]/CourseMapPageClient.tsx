@@ -13,6 +13,7 @@ import { CourseMapBackground } from "./components/CourseMapBackground";
 import { CourseMapNodePanel } from "./components/CourseMapNodePanel";
 import { useCourseMapData, type CourseMapNode } from "./hooks/useCourseMapData";
 import { useResolvedCourseRoute } from "./hooks/useResolvedCourseRoute";
+import { useI18n } from "@/lib/i18n/useI18n";
 
 const COMPACT_VIEWPORT_MEDIA_QUERY = "(max-width: 1023px)";
 
@@ -24,6 +25,7 @@ export default function CourseMapPageClient({
   const { courseId, routeCourseId } = useResolvedCourseRoute({
     courseId: explicitCourseId,
   });
+  const { t } = useI18n();
   const currentCourseId = useCourseStore((state) => state.currentCourseId);
   const setLastActiveCourse = useUserStore((state) => state.setLastActiveCourse);
   const lastActiveNodeId = useUserStore(selectLastActiveNodeId);
@@ -118,13 +120,13 @@ export default function CourseMapPageClient({
         quickLinks={[
           {
             href: "/multiplayer",
-            label: "Multiplayer",
+            label: t("common.multiplayer"),
             iconSrc: "/svg/multiplayer-controller.svg",
             iconAlt: "Multiplayer",
           },
           {
             href: "/arena/leaderboard",
-            label: "Leaderboard",
+            label: t("common.leaderboard"),
             iconSrc: "/svg/leaderboard-logo.svg",
             iconAlt: "Leaderboard",
           },
@@ -329,6 +331,7 @@ function MapNodeCircle({
   onSelect: (nodeId: string) => void;
 }) {
   const router = useRouter();
+  const { t } = useI18n();
   const isClickable =
     node.status === NODE_STATUS.AVAILABLE ||
     node.status === NODE_STATUS.COMPLETED;
@@ -349,15 +352,21 @@ function MapNodeCircle({
         }}
       >
         <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
+          initial={{ opacity: 0, scale: 0.85 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay, type: "spring", damping: 12 }}
-          className="rounded-2xl border border-teal-200/50 bg-gradient-to-r from-teal-50/90 via-emerald-50/80 to-teal-50/90 px-6 py-2.5 shadow-md backdrop-blur-md flex flex-col items-center justify-center min-w-[200px]"
+          transition={{ delay, type: "spring", damping: 14 }}
+          className="relative flex flex-col items-center justify-center rounded-[1.5rem] border border-white/40 px-8 py-4 shadow-[0_4px_20px_rgba(180,210,230,0.2),inset_0_1px_0_rgba(255,255,255,0.5)] backdrop-blur-md min-w-[220px]"
+          style={{
+            background: "linear-gradient(135deg, rgba(255,255,255,0.28) 0%, rgba(220,235,245,0.18) 100%)",
+          }}
         >
-          <span className="text-[10px] font-heading font-extrabold uppercase tracking-widest text-teal-600 bg-teal-50/60 px-2.5 py-0.5 rounded-full border border-teal-100/50">
-            Unit {node.unitNumber}
+          {/* top-left glow accent */}
+          <div className="pointer-events-none absolute -top-px -left-px h-1/3 w-1/2 rounded-tl-[1.5rem] bg-gradient-to-br from-white/40 to-transparent" />
+
+          <span className="font-heading text-[10px] font-light uppercase tracking-[0.22em] text-black/50">
+            {t("courseMap.unit")} {node.unitNumber}
           </span>
-          <span className="mt-1.5 font-heading text-sm font-bold text-brand-gray-700 max-w-[260px] text-center leading-tight drop-shadow-sm">
+          <span className="mt-1 font-heading text-2xl font-bold text-black/80 leading-tight text-center">
             {node.title}
           </span>
         </motion.div>

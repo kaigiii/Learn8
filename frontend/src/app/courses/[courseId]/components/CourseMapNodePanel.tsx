@@ -15,6 +15,7 @@ import type {
 } from "@/lib/apiTypes";
 import { NODE_STATUS } from "@/lib/domain/statuses";
 import type { CourseMapNode } from "../hooks/useCourseMapData";
+import { useI18n } from "@/lib/i18n/useI18n";
 
 export function CourseMapNodePanel({
   courseId,
@@ -26,6 +27,7 @@ export function CourseMapNodePanel({
   selectedNode: CourseMapNode | null;
 }) {
   const router = useRouter();
+  const { t } = useI18n();
   const [manifestItems, setManifestItems] = useState<LessonComponentManifestItem[]>([]);
   const [manifestError, setManifestError] = useState("");
   const [courseLevelDisabled, setCourseLevelDisabled] = useState<string[]>([]);
@@ -40,7 +42,7 @@ export function CourseMapNodePanel({
         setManifestItems(response.items);
       } catch (error) {
         setManifestError(
-          error instanceof ApiError ? error.detail : "Failed to load question types."
+          error instanceof ApiError ? error.detail : t("courseMap.failedLoadQuestionTypes")
         );
       }
     };
@@ -73,7 +75,7 @@ export function CourseMapNodePanel({
         setPreferenceError(
           error instanceof ApiError
             ? error.detail
-            : "Failed to load saved lesson preferences."
+            : t("courseMap.failedLoadPreferences")
         );
       }
     };
@@ -121,7 +123,7 @@ export function CourseMapNodePanel({
       setPreferenceError(
         error instanceof ApiError
           ? error.detail
-          : "Failed to save lesson preferences."
+          : t("courseMap.failedSavePreferences")
       );
     }
   };
@@ -190,7 +192,7 @@ export function CourseMapNodePanel({
           <p className={`text-xs font-semibold uppercase tracking-[0.2em] ${
             coursePath?.isPublic ? "text-brand-teal/70" : "text-sky-700/70"
           }`}>
-            {coursePath?.isPublic ? "Official Topic" : "Course Context"}
+            {coursePath?.isPublic ? t("courseMap.officialTopic") : t("courseMap.courseContext")}
           </p>
           <p className="mt-2 text-sm font-semibold text-brand-gray-700">
             {contextTitle}
@@ -200,7 +202,7 @@ export function CourseMapNodePanel({
           </p>
           {selectedNode?.unitTitle ? (
             <p className="mt-2 text-xs font-medium text-brand-gray-400">
-              Unit: {selectedNode.unitTitle}
+              {t("courseMap.unitLabel", { title: selectedNode.unitTitle })}
             </p>
           ) : null}
         </section>
@@ -223,10 +225,10 @@ export function CourseMapNodePanel({
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-sm font-semibold text-brand-gray-700">
-                      Course default
+                      {t("courseMap.courseDefault")}
                     </p>
                     <p className="mt-1 text-xs leading-5 text-brand-gray-500">
-                      Applies to every node unless that node has its own override.
+                      {t("courseMap.courseDefaultDesc")}
                     </p>
                   </div>
                   <span className="rounded-full bg-sky-100 px-2.5 py-1 text-[11px] font-semibold text-sky-700">
@@ -278,14 +280,12 @@ export function CourseMapNodePanel({
           className="w-full rounded-2xl bg-gradient-to-r from-brand-teal to-[#5fb3af] px-5 py-3 text-sm font-bold text-white shadow-lg shadow-teal-300/30 transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-45"
         >
           {!selectedNode
-            ? "Select a node first"
+            ? t("courseMap.selectNodeFirst")
             : isLocked
-              ? "This node is locked"
+              ? t("courseMap.nodeLocked")
               : enabledItems.length === 0
-                ? "Enable at least one question type"
-                : selectedNodeHasGeneratedLesson
-                  ? "Enter this lesson"
-                  : "Enter this lesson"}
+                ? t("courseMap.enableQuestionType")
+                : t("courseMap.enterLesson")}
         </button>
       </div>
     </motion.div>
