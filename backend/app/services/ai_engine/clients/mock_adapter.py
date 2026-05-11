@@ -118,11 +118,54 @@ class MockLLMProvider(BaseLLMProvider):
         if "stages" in fields or "component" in fields:
             return self._mock_lesson_content(schema, msg_text)
         
-        # Feynman Grade Logic
+        # Feynman Dialogue Logic
+        if "reply" in fields and "isSatisfied" in fields:
+            return self._mock_feynman_round(schema, messages)
+
+        # Feynman Grade Logic (Legacy/Standalone)
         if "isCorrect" in fields:
             return schema.model_validate({"isCorrect": True, "feedback": "Excellent explanation! You accurately described the dual-pump mechanism."})
             
         return schema.model_construct()
+
+    def _mock_feynman_round(self, schema: Type[BaseModel], messages: List[Any]) -> BaseModel:
+        """
+        模擬費曼教學的多輪對話。
+        可以根據對話次數回傳不同的學生反應。
+        """
+        # 計算對話次數 (User 訊息數量)
+        user_msg_count = 0
+        for m in messages:
+            if isinstance(m, tuple) and m[0] == "user":
+                user_msg_count += 1
+            elif hasattr(m, "role") and m.role == "user":
+                user_msg_count += 1
+        
+        # 排除初始系統提示後的第一次輸入，決定目前的對話階段
+        round_idx = max(0, user_msg_count - 1)
+        
+        # 自定義對話內容
+        responses = [
+            {
+                "reply": "聽起來有點複雜... 為什麼要叫「雙重幫浦」呢？不能一個幫浦就搞定嗎？",
+                "isSatisfied": False
+            },
+            {
+                "reply": "喔！所以我懂了，一邊是負責把血送到肺部拿氧氣，另一邊是把氧氣送往全身。那這兩個循環會混在一起嗎？",
+                "isSatisfied": False
+            },
+            {
+                "reply": "我完全明白了！心臟就像兩個獨立但同步運作的幫浦，確保充氧血跟減氧血不會混在一起，效率非常高。謝謝你的解釋！",
+                "isSatisfied": True
+            }
+        ]
+        
+        if round_idx < len(responses):
+            data = responses[round_idx]
+        else:
+            data = responses[-1]
+            
+        return schema.model_validate(data)
 
     def _mock_questionnaire(self, schema: Type[BaseModel]) -> BaseModel:
         data = {
@@ -140,11 +183,33 @@ class MockLLMProvider(BaseLLMProvider):
             "courseTitle": "Cardiovascular System",
             "description": "A comprehensive deep dive into the human heart.",
             "units": [
-                {"unit_title": "Foundations", "unit_goal": "Understand basics of heart and circulation."},
-                {"unit_title": "Walls", "unit_goal": "Learn about pericardium and heart wall layers."},
-                {"unit_title": "Right Heart", "unit_goal": "Explore right atrium and ventricle mechanics."},
-                {"unit_title": "Left Heart", "unit_goal": "Analyze left heart chambers and valves."},
-                {"unit_title": "Conduction", "unit_goal": "Understand electrical and nerve supply."}
+                {
+                    "unitId": "u1",
+                    "unitTitle": "Foundations",
+                    "unitDescription": "Understand basics of heart and circulation.",
+                    "nodes": [
+                        {"id": n["id"], "title": n["title"], "description": n["description"], "status": "locked"}
+                        for n in HEART_NODES_DATA[0:3]
+                    ]
+                },
+                {
+                    "unitId": "u2",
+                    "unitTitle": "Walls",
+                    "unitDescription": "Learn about pericardium and heart wall layers.",
+                    "nodes": [
+                        {"id": n["id"], "title": n["title"], "description": n["description"], "status": "locked"}
+                        for n in HEART_NODES_DATA[3:6]
+                    ]
+                },
+                {
+                    "unitId": "u3",
+                    "unitTitle": "Right Heart",
+                    "unitDescription": "Explore right atrium and ventricle mechanics.",
+                    "nodes": [
+                        {"id": n["id"], "title": n["title"], "description": n["description"], "status": "locked"}
+                        for n in HEART_NODES_DATA[6:9]
+                    ]
+                }
             ]
         }
         return schema.model_validate(data)

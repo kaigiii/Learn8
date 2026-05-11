@@ -423,7 +423,9 @@ async def retry_job(
         for fname in files:
             if fname.startswith("."):
                 continue
-            fpath = file_service.get_upload_dir(current_user.id, course_folder_name) + "/" + fname
+            fpath = str(
+                file_service.get_upload_dir(current_user.id, course_folder_name) / fname
+            )
             content = file_service.read_file_content(
                 fpath, max_chars=settings.MAX_COURSE_CONTEXT_BYTES
             )

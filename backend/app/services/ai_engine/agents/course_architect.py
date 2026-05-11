@@ -96,7 +96,7 @@ class AIArchitectService:
             files = self.file_service.list_files(user_id, course_folder)
             if files:
                 full_paths = [
-                    self.file_service.get_upload_dir(user_id, course_folder) + "/" + f
+                    str(self.file_service.get_upload_dir(user_id, course_folder) / f)
                     for f in files
                 ]
                 self.provider.bind_files(full_paths)
