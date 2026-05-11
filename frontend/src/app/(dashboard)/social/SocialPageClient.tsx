@@ -401,7 +401,7 @@ export default function SocialPageClient() {
           )}
 
           {/* Lists Content (Scrollable) */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-6">
+          <div className="flex-1 overflow-y-auto p-4 space-y-6 flex flex-col">
             {activeTab === "friends" ? (
               <>
                 {/* Search / Add Friend Section */}
@@ -467,7 +467,7 @@ export default function SocialPageClient() {
                 )}
 
                 {/* Friends List */}
-                <div>
+                <div className="flex-1 flex flex-col min-h-0">
                   <div className="mb-3 flex items-center justify-between">
                     <h3 className="text-xs font-extrabold uppercase tracking-widest text-brand-gray-400">{t("social.myFriends")}</h3>
                     {friends.length > 0 && (
@@ -477,7 +477,7 @@ export default function SocialPageClient() {
                     )}
                   </div>
                   {friends.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[#9ecbd4]/40 bg-white/40 py-8 px-4">
+                    <div className="flex-1 flex flex-col items-center justify-center rounded-2xl border border-dashed border-[#9ecbd4]/40 bg-white/40 py-8 px-4">
                       <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-brand-teal/10">
                         <svg viewBox="0 0 24 24" className="h-8 w-8 text-brand-teal/70" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -589,7 +589,7 @@ export default function SocialPageClient() {
                 </div>
 
                 {/* Groups List */}
-                <div className="mt-6">
+                <div className="mt-6 flex-1 flex flex-col min-h-0">
                   <div className="mb-3 flex items-center justify-between">
                     <h3 className="text-xs font-extrabold uppercase tracking-widest text-brand-gray-400">{t("social.myGroups")}</h3>
                     {groups.length > 0 && (
@@ -599,7 +599,7 @@ export default function SocialPageClient() {
                     )}
                   </div>
                   {groups.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[#9ecbd4]/40 bg-white/40 py-8 px-4">
+                    <div className="flex-1 flex flex-col items-center justify-center rounded-2xl border border-dashed border-[#9ecbd4]/40 bg-white/40 py-8 px-4">
                       <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-brand-teal/10">
                         <svg viewBox="0 0 24 24" className="h-8 w-8 text-brand-teal/70" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M3 21v-2a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v2" />

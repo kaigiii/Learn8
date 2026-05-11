@@ -5,6 +5,7 @@ import Image from "next/image";
 import { motion } from "framer-motion";
 import GameButton from "@/components/ui/GameButton";
 import type { MatchPair } from "@/features/lesson-session/hooks/useMatchingPairsStage";
+import { HintButton } from "./HintButton";
 import { QuestionActionBar } from "./QuestionActionBar";
 import { QuestionVoiceReader } from "@/features/lesson-session/components/QuestionVoiceReader";
 import { QuestionStageHeader } from "./QuestionStageHeader";
@@ -101,21 +102,10 @@ export default function MatchingPairsQuestion({
       {!hideChrome && (
         <QuestionActionBar
           leftSlot={
-            <>
-              <OwlMascot />
-              <button
-                onClick={onHint}
-                disabled={hintUsed || allMatched}
-                className={`mb-1 flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
-                  hintUsed
-                    ? "cursor-not-allowed border-brand-gray-200 bg-brand-gray-100 text-brand-gray-400"
-                    : "border-amber-200 bg-amber-50 text-amber-600 hover:bg-amber-100"
-                }`}
-              >
-                💡 Hint
-                <span className="text-[10px] opacity-60">(10 💎)</span>
-              </button>
-            </>
+            <HintButton
+              onClick={onHint}
+              disabled={hintUsed || allMatched}
+            />
           }
           rightSlot={
             <>

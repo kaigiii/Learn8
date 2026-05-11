@@ -1,8 +1,50 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { clampJobProgress, formatJobProgressLabel } from "@/lib/jobs/presentation";
+
+/**
+ * Smoothly animates a "simulated" progress value toward a real target using
+ * an asymptotic crawl with a buffer past the real target — so when the backend
+ * gets stuck at e.g. 30%, the bar still creeps forward visibly (up to ~30+BUFFER)
+ * but never overshoots wildly. When the backend reports 100, the bar can finish.
+ */
+function useSimulatedProgress(realProgress: number | null): number {
+  const TICK_MS = 60;
+  const DECAY = 0.018;       // fraction of remaining gap per tick — smooth slowdown
+  const FLOOR_SPEED = 0.04;  // % per tick — guarantees visible motion even near ceiling
+  const MAX_STEP = 0.7;      // % per tick cap — keeps motion smooth on big jumps
+  const BUFFER = 18;         // how many % past the real target the bar may creep
+  const HARD_CAP = 99;       // never finish unless backend explicitly says 100
+
+  const simRef = useRef<number>(0);
+  const targetRef = useRef<number>(0);
+  const [sim, setSim] = useState<number>(0);
+
+  useEffect(() => {
+    targetRef.current = realProgress ?? 0;
+  }, [realProgress]);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      const target = targetRef.current;
+      // If backend says 100, finish naturally — no buffer cap
+      const ceiling = target >= 100
+        ? 100
+        : Math.min(HARD_CAP, target + BUFFER);
+      if (simRef.current >= ceiling) return;
+      const gap = ceiling - simRef.current;
+      const speed = Math.min(MAX_STEP, Math.max(FLOOR_SPEED, gap * DECAY));
+      simRef.current = Math.min(simRef.current + speed, ceiling);
+      setSim(simRef.current);
+    }, TICK_MS);
+
+    return () => clearInterval(id);
+  }, []);
+
+  return sim;
+}
 
 const STEPS = [
   "Scanning document...",
@@ -56,6 +98,7 @@ export default function ForgeStatus({
   const [charIdx, setCharIdx] = useState(0);
   const hasLiveStatus = typeof progress === "number" || !!statusMessage;
   const safeProgress = typeof progress === "number" ? clampJobProgress(progress) : null;
+  const simulatedProgress = useSimulatedProgress(safeProgress);
   const displayedTitle = error
     ? "Generation interrupted"
     : title || "Forging your learning universe...";
@@ -84,19 +127,19 @@ export default function ForgeStatus({
   }, [error, hasLiveStatus, stepIdx]);
 
   const fallbackProgress = ((stepIdx + 1) / STEPS.length) * 100;
-  const displayedProgress = safeProgress ?? fallbackProgress;
+  const displayedProgress = safeProgress !== null ? simulatedProgress : fallbackProgress;
   const activeStepCount = Math.max(
     1,
     Math.min(
       STEPS.length,
       safeProgress !== null
-        ? Math.ceil((safeProgress / 100) * STEPS.length)
+        ? Math.ceil((simulatedProgress / 100) * STEPS.length)
         : stepIdx + 1
       )
   );
   const progressLabel =
     safeProgress !== null
-      ? formatJobProgressLabel(safeProgress)
+      ? formatJobProgressLabel(Math.round(simulatedProgress))
       : `${Math.round(displayedProgress)}%`;
 
   return (
@@ -158,7 +201,7 @@ export default function ForgeStatus({
             <motion.div
               className="h-full rounded-full bg-gradient-to-r from-brand-teal to-[#5fb3af]"
               animate={{ width: `${displayedProgress}%` }}
-              transition={{ duration: 0.4 }}
+              transition={{ duration: 0.12 }}
             />
           </div>
         </div>
@@ -232,14 +275,22 @@ function ForgeAtmosphere() {
 }
 
 function ForgeCore({ progress }: { progress: number }) {
-  const glowStrength = 0.12 + progress * 0.002;
+  const glowStrength = 0.18 + progress * 0.0025;
+  const orbitNodes = [
+    { angle: 0, color: "#7AC7C4", radius: 110, dur: "2.2s" },
+    { angle: 60, color: "#D4A96A", radius: 110, dur: "2.6s" },
+    { angle: 120, color: "#7AC7C4", radius: 110, dur: "2.4s" },
+    { angle: 180, color: "#D4A96A", radius: 110, dur: "2.8s" },
+    { angle: 240, color: "#7AC7C4", radius: 110, dur: "2.3s" },
+    { angle: 300, color: "#D4A96A", radius: 110, dur: "2.5s" },
+  ];
 
   return (
     <div className="relative h-full w-full">
       <div
         className="absolute inset-0 rounded-full blur-3xl"
         style={{
-          background: `radial-gradient(circle, rgba(122,199,196,${glowStrength}) 0%, rgba(212,169,106,${0.08 + progress * 0.0018}) 50%, transparent 72%)`,
+          background: `radial-gradient(circle, rgba(122,199,196,${glowStrength}) 0%, rgba(212,169,106,${0.1 + progress * 0.002}) 45%, transparent 72%)`,
         }}
       />
 
@@ -247,20 +298,21 @@ function ForgeCore({ progress }: { progress: number }) {
         <defs>
           <path
             id="forge-rune-ring"
-            d="M 200,200 m -155,0 a 155,155 0 1,1 310,0 a 155,155 0 1,1 -310,0"
+            d="M 200,200 m -160,0 a 160,160 0 1,1 320,0 a 160,160 0 1,1 -320,0"
           />
-          <radialGradient id="forge-anvil-glow" cx="50%" cy="40%" r="50%">
-            <stop offset="0%" stopColor="#FFD5B0" stopOpacity="0.5" />
-            <stop offset="60%" stopColor="#F5C8A0" stopOpacity="0.2" />
-            <stop offset="100%" stopColor="transparent" />
+          <radialGradient id="core-glow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.9" />
+            <stop offset="35%" stopColor="#A8DDDB" stopOpacity="0.7" />
+            <stop offset="100%" stopColor="#5fb3af" stopOpacity="0" />
           </radialGradient>
-          <linearGradient id="forge-anvil-body" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#E8D5B7" />
-            <stop offset="100%" stopColor="#C4A882" />
+          <linearGradient id="crystal-grad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.95" />
+            <stop offset="55%" stopColor="#9BD6D3" />
+            <stop offset="100%" stopColor="#4a9e9b" />
           </linearGradient>
-          <linearGradient id="forge-anvil-top" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#F0E0CC" />
-            <stop offset="100%" stopColor="#D4B896" />
+          <linearGradient id="crystal-shine" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.85" />
+            <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0" />
           </linearGradient>
           <linearGradient id="forge-ring-grad" x1="0" y1="0" x2="1" y2="1">
             <stop offset="0%" stopColor="#7AC7C4" />
@@ -268,126 +320,96 @@ function ForgeCore({ progress }: { progress: number }) {
           </linearGradient>
         </defs>
 
-        <circle cx="200" cy="200" r="170" fill="none" stroke="#FFFFFF" strokeWidth="1.1" opacity="0.5" />
-        <circle cx="200" cy="200" r="152" fill="none" stroke="#7AC7C4" strokeWidth="1.2" strokeDasharray="5 5" opacity="0.5" />
+        {/* outer subtle ring */}
+        <circle cx="200" cy="200" r="175" fill="none" stroke="#FFFFFF" strokeWidth="1" opacity="0.45" />
+        <circle cx="200" cy="200" r="158" fill="none" stroke="#7AC7C4" strokeWidth="1" strokeDasharray="3 6" opacity="0.5" />
 
-        <g opacity="0.28">
-          <animateTransform
-            attributeName="transform"
-            type="rotate"
-            from="0 200 200"
-            to="360 200 200"
-            dur="40s"
-            repeatCount="indefinite"
-          />
-          <text fill="#C4A87A" fontSize="13" fontWeight="500" letterSpacing="5">
+        {/* slow rotating runic ring */}
+        <g opacity="0.32">
+          <animateTransform attributeName="transform" type="rotate" from="0 200 200" to="360 200 200" dur="50s" repeatCount="indefinite" />
+          <text fill="#7AC7C4" fontSize="11" fontWeight="500" letterSpacing="6">
             <textPath href="#forge-rune-ring">
-              ᚠᚢᚦᚨᚱᚲᚷᚹᚺᚾᛁᛃᛇᛈᛉᛊᛏᛒᛖᛗᛚᛜᛝᛞᛟᚠᚢᚦᚨᚱᚲᚷᚹᚺᚾᛁᛃᛇᛈᛉᛊᛏᛒᛖᛗᛚᛜᛝᛞᛟ
+              ✦ KNOWLEDGE ✦ WISDOM ✦ INSIGHT ✦ DISCOVERY ✦ MASTERY ✦ INSIGHT ✦
             </textPath>
           </text>
         </g>
 
-        <circle cx="200" cy="200" r="120" fill="url(#forge-anvil-glow)" />
-
-        <rect x="155" y="280" width="90" height="35" rx="4" fill="url(#forge-anvil-body)" />
-        <rect x="170" y="260" width="60" height="24" rx="3" fill="#D4B896" />
-        <path
-          d="M120 260 Q125 230 140 225 L155 220 L155 240 Q165 250 200 250 Q235 250 245 240 L245 220 L260 225 Q275 230 280 260 Z"
-          fill="url(#forge-anvil-top)"
-        />
-        <path
-          d="M120 260 Q105 255 90 248 Q85 246 88 244 Q95 240 120 245 Z"
-          fill="#D4B896"
-        />
-        <path
-          d="M140 225 L155 220 L155 240 Q165 250 200 250 Q235 250 245 240 L245 220 L260 225 Q255 228 245 230 Q220 238 200 238 Q180 238 155 230 Q145 228 140 225 Z"
-          fill="white"
-          opacity="0.16"
-        />
-
-        {[
-          [170, 185], [200, 170], [230, 185],
-          [155, 210], [200, 200], [245, 210],
-          [175, 230], [225, 230],
-        ].map(([cx, cy], i) => (
-          <g key={i}>
-            <circle cx={cx} cy={cy} r="4" fill="#7AC7C4" opacity="0.5">
-              <animate
-                attributeName="opacity"
-                values="0.3;0.7;0.3"
-                dur={`${1.5 + i * 0.3}s`}
-                repeatCount="indefinite"
-              />
-            </circle>
-            <circle cx={cx} cy={cy} r="2" fill="white" opacity="0.6" />
-          </g>
-        ))}
-
-        {[
-          [170, 185, 200, 170], [200, 170, 230, 185],
-          [155, 210, 200, 200], [200, 200, 245, 210],
-          [170, 185, 155, 210], [230, 185, 245, 210],
-          [170, 185, 200, 200], [200, 200, 230, 185],
-          [155, 210, 175, 230], [245, 210, 225, 230],
-          [175, 230, 200, 200], [225, 230, 200, 200],
-        ].map(([x1, y1, x2, y2], i) => (
-          <line
-            key={i}
-            x1={x1}
-            y1={y1}
-            x2={x2}
-            y2={y2}
-            stroke="#7AC7C4"
-            strokeWidth="1"
-            opacity="0.24"
-          />
-        ))}
-
+        {/* orbital paths */}
         <g>
-          <animateTransform
-            attributeName="transform"
-            type="rotate"
-            from="0 200 210"
-            to="360 200 210"
-            dur="6s"
-            repeatCount="indefinite"
-          />
-          <ellipse cx="200" cy="210" rx="90" ry="30" fill="none" stroke="url(#forge-ring-grad)" strokeWidth="1.5" opacity="0.32" />
-          <circle cx="290" cy="210" r="3" fill="#7AC7C4" opacity="0.7">
-            <animate attributeName="opacity" values="0.4;1;0.4" dur="2s" repeatCount="indefinite" />
-          </circle>
+          <animateTransform attributeName="transform" type="rotate" from="0 200 200" to="360 200 200" dur="22s" repeatCount="indefinite" />
+          <ellipse cx="200" cy="200" rx="110" ry="42" fill="none" stroke="url(#forge-ring-grad)" strokeWidth="1.2" opacity="0.45" />
+        </g>
+        <g>
+          <animateTransform attributeName="transform" type="rotate" from="60 200 200" to="-300 200 200" dur="26s" repeatCount="indefinite" />
+          <ellipse cx="200" cy="200" rx="110" ry="42" fill="none" stroke="#D4A96A" strokeWidth="1" opacity="0.35" />
+        </g>
+        <g>
+          <animateTransform attributeName="transform" type="rotate" from="-30 200 200" to="330 200 200" dur="30s" repeatCount="indefinite" />
+          <ellipse cx="200" cy="200" rx="110" ry="42" fill="none" stroke="#7AC7C4" strokeWidth="1" opacity="0.3" />
         </g>
 
+        {/* orbiting concept nodes - spinning around center */}
         <g>
-          <animateTransform
-            attributeName="transform"
-            type="rotate"
-            from="0 200 210"
-            to="-360 200 210"
-            dur="8s"
-            repeatCount="indefinite"
-          />
-          <ellipse cx="200" cy="210" rx="105" ry="22" fill="none" stroke="#D4A96A" strokeWidth="1" opacity="0.22" />
-          <circle cx="305" cy="210" r="2.5" fill="#D4A96A" opacity="0.6">
-            <animate attributeName="opacity" values="0.3;0.8;0.3" dur="2.5s" repeatCount="indefinite" />
-          </circle>
+          <animateTransform attributeName="transform" type="rotate" from="0 200 200" to="360 200 200" dur="14s" repeatCount="indefinite" />
+          {orbitNodes.map((n, i) => {
+            const rad = (n.angle * Math.PI) / 180;
+            const x = 200 + n.radius * Math.cos(rad);
+            const y = 200 + n.radius * Math.sin(rad);
+            return (
+              <g key={i}>
+                <circle cx={x} cy={y} r="6" fill={n.color} opacity="0.25" />
+                <circle cx={x} cy={y} r="3.5" fill={n.color}>
+                  <animate attributeName="opacity" values="0.7;1;0.7" dur={n.dur} repeatCount="indefinite" />
+                </circle>
+                <circle cx={x} cy={y} r="1.6" fill="white" opacity="0.95" />
+              </g>
+            );
+          })}
         </g>
 
-        <circle cx="200" cy="210" r="8" fill="#FFD5B0" opacity="0.3">
-          <animate attributeName="r" values="6;10;6" dur="2s" repeatCount="indefinite" />
-          <animate attributeName="opacity" values="0.2;0.5;0.2" dur="2s" repeatCount="indefinite" />
+        {/* central glow */}
+        <circle cx="200" cy="200" r="70" fill="url(#core-glow)">
+          <animate attributeName="r" values="64;72;64" dur="3.2s" repeatCount="indefinite" />
         </circle>
 
+        {/* central crystal (diamond) */}
+        <g>
+          <animateTransform attributeName="transform" type="rotate" from="0 200 200" to="360 200 200" dur="18s" repeatCount="indefinite" />
+          <polygon
+            points="200,158 226,200 200,250 174,200"
+            fill="url(#crystal-grad)"
+            stroke="#4a9e9b"
+            strokeWidth="1.2"
+            opacity="0.92"
+          />
+          <polygon points="200,158 226,200 200,200" fill="#FFFFFF" opacity="0.35" />
+          <polygon points="200,158 174,200 200,200" fill="url(#crystal-shine)" opacity="0.6" />
+          <polygon points="174,200 200,200 200,250" fill="#FFFFFF" opacity="0.12" />
+        </g>
+
+        {/* central pulse highlight */}
+        <circle cx="200" cy="200" r="6" fill="#FFFFFF" opacity="0.85">
+          <animate attributeName="opacity" values="0.5;1;0.5" dur="1.8s" repeatCount="indefinite" />
+          <animate attributeName="r" values="5;8;5" dur="1.8s" repeatCount="indefinite" />
+        </circle>
+
+        {/* floating sparkles */}
         {[
-          [145, 175, "#D4A96A", "3s", "0s"],
-          [260, 185, "#7AC7C4", "2.5s", "0.5s"],
-          [200, 155, "#D4A96A", "3.5s", "1s"],
-          [165, 245, "#7AC7C4", "2.8s", "0.3s"],
-          [240, 250, "#D4A96A", "3.2s", "0.8s"],
-        ].map(([cx, cy, color, duration, delay], index) => (
-          <circle key={index} cx={Number(cx)} cy={Number(cy)} r="2" fill={String(color)}>
-            <animate attributeName="opacity" values="0;0.8;0" dur={String(duration)} begin={String(delay)} repeatCount="indefinite" />
-          </circle>
+          [128, 130, "#D4A96A", "3s", "0s"],
+          [275, 142, "#7AC7C4", "2.5s", "0.6s"],
+          [120, 270, "#7AC7C4", "3.2s", "1.1s"],
+          [290, 270, "#D4A96A", "2.8s", "0.4s"],
+          [200, 100, "#7AC7C4", "3.5s", "1.4s"],
+          [200, 308, "#D4A96A", "3s", "0.9s"],
+        ].map(([cx, cy, color, duration, delay], i) => (
+          <g key={i}>
+            <circle cx={Number(cx)} cy={Number(cy)} r="2.4" fill={String(color)} opacity="0">
+              <animate attributeName="opacity" values="0;0.9;0" dur={String(duration)} begin={String(delay)} repeatCount="indefinite" />
+            </circle>
+            <circle cx={Number(cx)} cy={Number(cy)} r="5" fill={String(color)} opacity="0">
+              <animate attributeName="opacity" values="0;0.3;0" dur={String(duration)} begin={String(delay)} repeatCount="indefinite" />
+            </circle>
+          </g>
         ))}
       </svg>
     </div>

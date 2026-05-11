@@ -70,7 +70,7 @@ async def run_lesson_generation_job(
         file_service = FileService()
         architect_service = AIArchitectService(provider, rag_engine, file_service)
 
-        _notify_job_update(db, job, 30, "🧠 AI 正在為您撰寫個人化講義...")
+        _notify_job_update(db, job, 30, "AI 正在為您撰寫個人化講義...")
 
         from app.schemas.course_schema import LessonNode
         from app.models.course_media_asset import CourseMediaAssetModel
@@ -186,7 +186,7 @@ async def run_lesson_generation_job(
                     data["mediaUrl"] = selected.asset_url or data.get("mediaUrl")
                     stage.config.data = data
 
-        _notify_job_update(db, job, 80, "✅ 內容準備完成，正在儲存到資料庫...")
+        _notify_job_update(db, job, 80, "內容準備完成，正在儲存到資料庫...")
 
         # 寫入資料庫
         from app.models.lesson import LessonModel

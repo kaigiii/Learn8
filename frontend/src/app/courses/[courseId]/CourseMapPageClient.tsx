@@ -363,10 +363,10 @@ function MapNodeCircle({
           {/* top-left glow accent */}
           <div className="pointer-events-none absolute -top-px -left-px h-1/3 w-1/2 rounded-tl-[1.5rem] bg-gradient-to-br from-white/40 to-transparent" />
 
-          <span className="font-heading text-[10px] font-light uppercase tracking-[0.22em] text-black/50">
+          <span className="font-heading text-[12px] font-medium uppercase tracking-[0.22em] text-black/55">
             {t("courseMap.unit")} {node.unitNumber}
           </span>
-          <span className="mt-1 font-heading text-2xl font-bold text-black/80 leading-tight text-center">
+          <span className="mt-1 font-heading text-xl font-bold text-black/75 leading-tight text-center">
             {node.title}
           </span>
         </motion.div>
@@ -386,7 +386,13 @@ function MapNodeCircle({
           void router.prefetch(`/courses/${courseId}/nodes/${node.id}`);
         }
       }}
-      onClick={() => onSelect(node.id)}
+      onClick={() => {
+        if (isSelected && isClickable) {
+          router.push(`/courses/${courseId}/nodes/${node.id}`);
+          return;
+        }
+        onSelect(node.id);
+      }}
       whileHover={isClickable ? { scale: 1.1 } : {}}
       whileTap={isClickable ? { scale: 0.92 } : {}}
     >
