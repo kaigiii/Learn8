@@ -137,7 +137,7 @@ export default function CourseMapPageClient({
         className="relative z-10 mx-auto max-w-[1580px] px-3 sm:px-4 md:px-6 lg:grid lg:gap-8"
         style={{
           height: "calc(100dvh - 72px)",
-          gridTemplateColumns: showAssistantPanel ? "minmax(0, 1fr) 340px 340px" : "minmax(0, 1fr) 340px",
+          gridTemplateColumns: isCompactViewport ? "minmax(0, 1fr)" : "minmax(0, 1fr) 380px",
         }}
       >
         {isCompactViewport ? (
@@ -155,31 +155,15 @@ export default function CourseMapPageClient({
                 }}
                 className="pointer-events-auto inline-flex h-10 items-center gap-2 rounded-full border border-white/85 bg-white/92 px-4 text-sm font-heading font-bold text-brand-gray-700 shadow-sm backdrop-blur transition hover:bg-white"
               >
-                <span>{isNodePanelOpen ? "隱藏課程小組" : "展示課程小組"}</span>
+                <span>{isNodePanelOpen ? "隱藏面板" : "展示面板"}</span>
               </button>
-              {showAssistantPanel && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!isAssistantPanelOpen) {
-                      setIsAssistantPanelOpen(true);
-                      setIsNodePanelOpen(false);
-                    } else {
-                      setIsAssistantPanelOpen(false);
-                    }
-                  }}
-                  className="pointer-events-auto inline-flex h-10 items-center gap-2 rounded-full border border-white/85 bg-white/92 px-4 text-sm font-heading font-bold text-brand-gray-700 shadow-sm backdrop-blur transition hover:bg-white"
-                >
-                  <span>{isAssistantPanelOpen ? "隱藏課程架構師" : "展示課程架構師"}</span>
-                </button>
-              )}
             </div>
           </>
         ) : null}
 
         <div
           ref={mapContainerRef}
-          className="scrollbar-hide h-full min-h-0 min-w-0 overflow-y-auto rounded-2xl pt-4 pb-6 lg:pt-8 lg:pb-8 transition-opacity duration-300"
+          className="scrollbar-hide h-full min-h-0 min-w-0 overflow-y-auto rounded-2xl pb-6 pt-4 transition-opacity duration-300 lg:pb-8 lg:pt-8"
           style={{ cursor: "grab", opacity: isMapReady ? 1 : 0 }}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
@@ -249,47 +233,75 @@ export default function CourseMapPageClient({
           </div>
         </div>
 
-        {isCompactViewport ? (
-          <>
-            {isNodePanelOpen && (
-              <div className="absolute inset-x-3 bottom-3 top-16 z-20 sm:inset-x-4 md:inset-x-6">
-                <CourseMapNodePanel
-                  courseId={courseId}
-                  coursePath={coursePath}
-                  selectedNode={selectedNode}
-                />
-              </div>
-            )}
-            {showAssistantPanel && isAssistantPanelOpen && (
-              <div className="absolute inset-x-3 bottom-3 top-16 z-20 sm:inset-x-4 md:inset-x-6">
-                <CourseMapAssistantPanel
-                  coursePath={coursePath}
-                  courseId={Number(courseId) || currentCourseId}
-                  onCoursePathUpdated={setCoursePath}
-                  compact
-                  mobileOverlay
-                />
-              </div>
-            )}
-          </>
-        ) : (
-          <div className="h-full min-h-0 pt-8 pb-8" style={{ order: 2 }}>
-            <CourseMapNodePanel
-              courseId={courseId}
-              coursePath={coursePath}
-              selectedNode={selectedNode}
-            />
-          </div>
-        )}
+        {/* ── Unified Sidebar (Node Panel + Architect) ── */}
+        {(isCompactViewport ? isNodePanelOpen || (showAssistantPanel && isAssistantPanelOpen) : true) && (
+          <div
+            className={`h-full min-h-0 pt-8 pb-8 ${isCompactViewport ? "absolute inset-x-3 bottom-3 top-16 z-20 sm:inset-x-4 md:inset-x-6" : ""}`}
+            style={isCompactViewport ? {} : { order: 2 }}
+          >
+            <div className="flex h-full flex-col overflow-hidden rounded-3xl border border-white/50 bg-white/70 shadow-lg shadow-teal-200/20 backdrop-blur-xl">
+              {/* Tab Switcher */}
+              {showAssistantPanel && (
+                <div className="flex border-b border-brand-teal/10 bg-brand-teal/5 p-1.5">
+                  <button
+                    onClick={() => {
+                      setIsNodePanelOpen(true);
+                      setIsAssistantPanelOpen(false);
+                    }}
+                    className={`flex-1 rounded-2xl py-2 text-xs font-bold transition-all ${
+                      !isAssistantPanelOpen
+                        ? "bg-white text-brand-teal shadow-sm"
+                        : "text-brand-gray-400 hover:text-brand-gray-600"
+                    }`}
+                  >
+                    Node Control
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsAssistantPanelOpen(true);
+                      setIsNodePanelOpen(false);
+                    }}
+                    className={`flex-1 rounded-2xl py-2 text-xs font-bold transition-all ${
+                      isAssistantPanelOpen
+                        ? "bg-white text-brand-teal shadow-sm"
+                        : "text-brand-gray-400 hover:text-brand-gray-600"
+                    }`}
+                  >
+                    Syllabus Architect
+                  </button>
+                </div>
+              )}
 
-        {showAssistantPanel && !isCompactViewport && (
-          <div className="h-full min-h-0 translate-x-10 pt-8 pb-8" style={{ order: 3 }}>
-            <CourseMapAssistantPanel
-              coursePath={coursePath}
-              courseId={Number(courseId) || currentCourseId}
-              onCoursePathUpdated={setCoursePath}
-              compact
-            />
+              {/* Panel Content */}
+              <div className="relative flex-1 overflow-hidden">
+                <div
+                  className={`absolute inset-0 transition-all duration-300 ${
+                    !isAssistantPanelOpen ? "translate-x-0 opacity-100" : "-translate-x-full opacity-0 pointer-events-none"
+                  }`}
+                >
+                  <CourseMapNodePanel
+                    courseId={courseId}
+                    coursePath={coursePath}
+                    selectedNode={selectedNode}
+                  />
+                </div>
+                {showAssistantPanel && (
+                  <div
+                    className={`absolute inset-0 transition-all duration-300 ${
+                      isAssistantPanelOpen ? "translate-x-0 opacity-100" : "translate-x-full opacity-0 pointer-events-none"
+                    }`}
+                  >
+                    <CourseMapAssistantPanel
+                      coursePath={coursePath}
+                      courseId={Number(courseId) || currentCourseId}
+                      onCoursePathUpdated={setCoursePath}
+                      compact
+                      mobileOverlay={false}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
       </div>
