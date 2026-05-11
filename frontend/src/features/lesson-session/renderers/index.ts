@@ -6,6 +6,7 @@ import { explainerMediaPlugin } from "../question-types/explainer-media/plugin";
 import { matchingPairsPlugin } from "../question-types/matching-pairs/plugin";
 import { multipleChoicePlugin } from "../question-types/multiple-choice/plugin";
 import { orderingPlugin } from "../question-types/ordering/plugin";
+import { bloodFlowSimulatorPlugin } from "../question-types/blood-flow-simulator/plugin";
 import type { LessonStagePlugin, LessonStagePluginRegistry, StageRenderer } from "./types";
 import { renderUnsupportedStage } from "./unsupportedStageRenderer";
 
@@ -15,6 +16,7 @@ const stagePlugins = [
   feynmanPlugin,
   matchingPairsPlugin,
   explainerMediaPlugin,
+  bloodFlowSimulatorPlugin,
 ] as const satisfies readonly LessonStagePlugin[];
 
 export const lessonStagePluginRegistry: LessonStagePluginRegistry = Object.fromEntries(

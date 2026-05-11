@@ -84,7 +84,7 @@ export interface CourseListItem {
 export interface LessonStage {
   stageId: string;
   topic: string;
-  component: "MultipleChoice" | "Ordering" | "MatchingPairs" | "FeynmanMirror" | "ExplainerMedia";
+  component: "MultipleChoice" | "Ordering" | "MatchingPairs" | "FeynmanMirror" | "ExplainerMedia" | "BloodFlowSimulator";
   skin: "Scientific" | "Classic" | "Code";
   difficulty?: "low" | "medium" | "high" | null;
   recommendedDurationMinutes?: number | null;
