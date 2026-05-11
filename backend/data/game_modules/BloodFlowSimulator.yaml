@@ -1,0 +1,18 @@
+name: BloodFlowSimulator
+frontend_registry_key: BloodFlowSimulator
+description: If the goal is to trace the path of blood flow through the heart chambers, valves, and vessels.
+allowed_in_remedial: false
+required_config_data_fields:
+  - question
+  - steps
+optional_config_data_fields:
+  - title
+submission_keys:
+  - path
+schema_requirements: |
+  Component `BloodFlowSimulator`:
+  - `question`: A string prompt (e.g., "Trace the path of blood flow...").
+  - `steps`: A list of 4 objects, each containing:
+    - `id`: A unique string identifier for the step.
+    - `label`: The anatomical name (e.g., "Right Atrium").
+    - `type`: One of ["chamber", "valve", "vessel"].

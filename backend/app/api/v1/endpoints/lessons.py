@@ -748,52 +748,9 @@ async def generate_lesson_from_node_endpoint(
                 if target_node:
                     break
             
-            if target_node:
+            # Only use custom-editor path if components are explicitly defined in the syllabus
+            if target_node and target_node.get("components"):
                 components = target_node.get("components")
-                if not components:
-                    # Default 5/5 components
-                    components = [
-                        {
-                            "type": "ExplainerMedia",
-                            "topic": target_node.get("title", "Topic"),
-                            "title": target_node.get("title", "Topic"),
-                            "explanation": target_node.get("description", "Welcome to this lesson section."),
-                            "mediaType": "none",
-                        },
-                        {
-                            "type": "FeynmanMirror",
-                            "topic": target_node.get("title", "Topic"),
-                            "question": f"Explain in your own words: what is {target_node.get('title', 'this topic')}?",
-                        },
-                        {
-                            "type": "MatchingPairs",
-                            "topic": target_node.get("title", "Topic"),
-                            "question": "Match the core concepts with their definitions",
-                            "pairs": [
-                                {"id": "p1", "left": target_node.get("title", "Topic"), "right": "The main subject of this lesson node"}
-                            ],
-                        },
-                        {
-                            "type": "MultipleChoice",
-                            "topic": target_node.get("title", "Topic"),
-                            "question": f"Which of the following describes {target_node.get('title', 'this topic')} correctly?",
-                            "options": [
-                                {"id": "opt1", "text": "It's the core focus of the unit"},
-                                {"id": "opt2", "text": "An unrelated or opposite concept"},
-                            ],
-                            "correctOptionId": "opt1",
-                        },
-                        {
-                            "type": "Ordering",
-                            "topic": target_node.get("title", "Topic"),
-                            "question": "Sort the concepts into the logical sequence",
-                            "steps": [
-                                {"id": "s1", "text": f"Understand the basics of {target_node.get('title', 'Topic')}"},
-                                {"id": "s2", "text": f"Apply {target_node.get('title', 'Topic')} to solve problems"},
-                            ],
-                        },
-                    ]
-
                 stages_data = []
                 for comp in components:
                     comp_type = comp.get("type", "MultipleChoice")
