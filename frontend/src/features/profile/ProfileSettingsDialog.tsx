@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -25,6 +25,32 @@ export default function ProfileSettingsDialog({ onClose }: ProfileSettingsDialog
   } = useProfileSettings(onClose);
 
   const { soundOn, darkGlass, difficulty, voiceAssistant, autoPlaySpeech } = preferences;
+
+  const voicePresets = [
+    { id: "preset_01", label: t("voice.preset01.label") },
+    { id: "preset_02", label: t("voice.preset02.label") },
+    { id: "preset_03", label: t("voice.preset03.label") },
+    { id: "preset_04", label: t("voice.preset04.label") },
+    { id: "preset_05", label: t("voice.preset05.label") },
+  ];
+  const currentVoiceId = voiceAssistant || "preset_01";
+  const currentVoiceLabel = voicePresets.find((p) => p.id === currentVoiceId)?.label ?? currentVoiceId;
+  const [voiceOpen, setVoiceOpen] = useState(false);
+  const voiceRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!voiceOpen) return;
+    const handlePointer = (e: MouseEvent) => {
+      if (!voiceRef.current?.contains(e.target as Node)) setVoiceOpen(false);
+    };
+    const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape") setVoiceOpen(false); };
+    window.addEventListener("mousedown", handlePointer);
+    window.addEventListener("keydown", handleKey);
+    return () => {
+      window.removeEventListener("mousedown", handlePointer);
+      window.removeEventListener("keydown", handleKey);
+    };
+  }, [voiceOpen]);
 
   const openProfilePanel = (panel: "personal" | "wallet") => {
     onClose();
@@ -151,17 +177,37 @@ export default function ProfileSettingsDialog({ onClose }: ProfileSettingsDialog
 
                     <div className="flex items-center justify-between gap-4">
                       <span className="shrink-0 text-sm text-brand-gray-600">{t("common.aiVoiceAssistant")}</span>
-                      <select
-                        value={voiceAssistant || "preset_01"}
-                        onChange={(e) => setPreferences({ voiceAssistant: e.target.value })}
-                        className="rounded-lg border border-brand-gray-200 bg-white px-2 py-1 text-xs text-brand-gray-700 shadow-sm outline-none transition focus:border-brand-teal focus:ring-1 focus:ring-brand-teal"
-                      >
-                        <option value="preset_01">{t("voice.preset01.label")}</option>
-                        <option value="preset_02">{t("voice.preset02.label")}</option>
-                        <option value="preset_03">{t("voice.preset03.label")}</option>
-                        <option value="preset_04">{t("voice.preset04.label")}</option>
-                        <option value="preset_05">{t("voice.preset05.label")}</option>
-                      </select>
+                      <div ref={voiceRef} className="relative">
+                        <button
+                          type="button"
+                          onClick={() => setVoiceOpen((prev) => !prev)}
+                          className={`flex items-center gap-2 rounded-xl border border-brand-gray-200 bg-white px-3 py-1.5 text-sm font-semibold text-brand-gray-700 shadow-sm outline-none transition hover:border-brand-teal ${voiceOpen ? "ring-2 ring-brand-teal/30" : ""}`}
+                        >
+                          <span>{currentVoiceLabel}</span>
+                          <svg viewBox="0 0 20 20" className={`h-3.5 w-3.5 text-brand-gray-400 transition ${voiceOpen ? "rotate-180" : ""}`} fill="currentColor">
+                            <path d="M5.25 7.5 10 12.25 14.75 7.5" />
+                          </svg>
+                        </button>
+                        {voiceOpen && (
+                          <div className="absolute right-0 z-20 mt-1 min-w-[140px] overflow-hidden rounded-xl border border-white/80 bg-white/95 p-1.5 shadow-[0_12px_32px_rgba(15,23,42,0.14)]">
+                            {voicePresets.map((preset) => (
+                              <button
+                                key={preset.id}
+                                type="button"
+                                onClick={() => { setPreferences({ voiceAssistant: preset.id }); setVoiceOpen(false); }}
+                                className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-semibold transition ${
+                                  preset.id === currentVoiceId
+                                    ? "bg-brand-teal/10 text-brand-gray-800"
+                                    : "text-brand-gray-600 hover:bg-brand-gray-100/70"
+                                }`}
+                              >
+                                <span>{preset.label}</span>
+                                {preset.id === currentVoiceId && <span className="text-xs text-brand-teal">●</span>}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     <div className="flex items-center justify-between">

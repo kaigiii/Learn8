@@ -56,6 +56,10 @@ class ArenaRoomReadyRequest(BaseModel):
     isReady: bool
 
 
+class ArenaRoomTransferHostRequest(BaseModel):
+    newHostUserId: int
+
+
 class ArenaRoomJoinRequest(BaseModel):
     roomCode: str = Field(min_length=4, max_length=12)
 

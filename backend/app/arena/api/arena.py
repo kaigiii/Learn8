@@ -22,6 +22,7 @@ from app.arena.schemas.arena_room_schema import (
     ArenaRoomResponse,
     ArenaRoomStartResponse,
     ArenaRoomSettingsUpdateRequest,
+    ArenaRoomTransferHostRequest,
 )
 from app.arena.schemas.arena_match_schema import (
     ArenaMatchStateResponse,
@@ -315,6 +316,28 @@ def leave_room(
     room_service = RoomService()
     room_service.leave_room(db, current_user, room_code)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/rooms/{room_code}/transfer-host", response_model=ArenaRoomResponse)
+def transfer_host(
+    room_code: str,
+    payload: ArenaRoomTransferHostRequest,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
+    room_service = RoomService()
+    room = room_service.get_room_by_code(db, room_code)
+    if not room:
+        raise HTTPException(status_code=404, detail="Arena room not found")
+    if room.host_user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the current host can transfer host role")
+    new_host_player = next((p for p in room.players if p.user_id == payload.newHostUserId), None)
+    if not new_host_player:
+        raise HTTPException(status_code=400, detail="Target player is not in this room")
+    room.host_user_id = payload.newHostUserId
+    db.commit()
+    room = room_service.get_room_by_code(db, room_code)
+    return ArenaRoomResponse(**room_service.serialize_room(room))
 
 
 @router.get("/matches/{match_id}", response_model=ArenaMatchStateResponse)

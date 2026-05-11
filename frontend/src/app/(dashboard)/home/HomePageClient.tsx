@@ -343,18 +343,6 @@ export default function HomePage() {
       <HomeBackground />
 
       <div className="relative z-10 mx-auto max-w-[86rem] space-y-10 px-3 py-10 md:px-6">
-        {isLoading && (
-          <div className="rounded-2xl border border-white/60 bg-white/65 px-4 py-3 text-sm text-brand-gray-600 shadow-sm backdrop-blur">
-            {t("dashboard.refreshingLibrary")}
-          </div>
-        )}
-
-        {activeCourseLoading && (
-          <div className="rounded-2xl border border-white/60 bg-white/65 px-4 py-3 text-sm text-brand-gray-600 shadow-sm backdrop-blur">
-            {t("dashboard.refreshingActiveCourse")}
-          </div>
-        )}
-
         {activeCourseError && (
           <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 shadow-sm">
             {activeCourseError}
