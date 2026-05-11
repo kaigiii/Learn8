@@ -29,7 +29,13 @@ export function useProfileSettings(onClose: () => void) {
   const setPreferences = useUserStore((s) => s.setPreferences);
   const logout = useUserStore((s) => s.logout);
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{
+    full_name: string;
+    job_title: string;
+    education_level: string;
+    preferred_language: string;
+    daily_learning_goal_minutes: string;
+  }>({
     full_name: "",
     job_title: "",
     education_level: "",

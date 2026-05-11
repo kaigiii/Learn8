@@ -153,7 +153,7 @@ export default function WelcomeOnboardingPageClient() {
   const [name, setName] = useState("");
   const [jobTitle, setJobTitle] = useState("");
   const [educationLevel, setEducationLevel] = useState("");
-  const [preferredLanguage, setPreferredLanguage] = useState(DEFAULT_LANGUAGE_LABEL);
+  const [preferredLanguage, setPreferredLanguage] = useState<string>(DEFAULT_LANGUAGE_LABEL);
   const [selectedGoal, setSelectedGoal] = useState("");
   const [avatarChoice, setAvatarChoice] = useState<"" | "default" | "upload">("default");
   const [selectedDefaultAvatar, setSelectedDefaultAvatar] = useState<string>(DEFAULT_AVATARS[0].src);
