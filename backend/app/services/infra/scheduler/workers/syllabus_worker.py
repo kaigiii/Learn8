@@ -107,7 +107,7 @@ async def run_syllabus_generation_job(
         if not syllabus:
             raise Exception("LLM 未能成功產出大綱。")
 
-        _notify_job_update(db, job, 85, "✅ 內容準備完成，正在儲存到資料庫...")
+        _notify_job_update(db, job, 85, "內容準備完成，正在儲存到資料庫...")
 
         c_model = db.query(CourseModel).filter(CourseModel.id == course_id).first()
         if not c_model:

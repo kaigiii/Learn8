@@ -49,7 +49,7 @@ export function HomeCoursePanel({
         <p className="mt-3 mb-7 text-lg text-brand-gray-700 md:text-xl">{t("dashboard.continueYourCourse")}</p>
 
         {hasResumeCourse ? (
-          <div className="mt-auto translate-y-4 flex items-start gap-5 rounded-2xl border border-[#9ecbd4]/18 bg-white/46 p-5 shadow-[0_12px_30px_rgba(97,163,184,0.10)] backdrop-blur-sm md:translate-y-6">
+          <div className="flex items-start gap-5 rounded-2xl border border-[#9ecbd4]/18 bg-white/46 p-5 shadow-[0_12px_30px_rgba(97,163,184,0.10)] backdrop-blur-sm">
             <div
               className="shrink-0 flex h-36 w-32 items-center justify-center rounded-xl bg-cover bg-center bg-no-repeat shadow-md"
               style={{ backgroundImage: `url(${resumeBackgroundImage})` }}
@@ -76,7 +76,7 @@ export function HomeCoursePanel({
             </div>
           </div>
         ) : (
-          <div className="mt-auto translate-y-4 flex flex-col rounded-2xl border border-[#9ecbd4]/18 bg-white/46 p-4 shadow-[0_12px_30px_rgba(97,163,184,0.10)] backdrop-blur-sm md:translate-y-6">
+          <div className="flex flex-col rounded-2xl border border-[#9ecbd4]/18 bg-white/46 p-4 shadow-[0_12px_30px_rgba(97,163,184,0.10)] backdrop-blur-sm">
             <p className="text-sm text-brand-gray-400">
               {t("dashboard.noActiveCourse")}
             </p>

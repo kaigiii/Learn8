@@ -49,13 +49,12 @@ export function LessonResultView({
   const isRewardEligible = safeSummary.rewardEligible;
 
   return (
-    <div className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-b from-[#1a1a2e] via-[#16213e] to-[#0f0f23]" />
+    <div className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden app-shared-bg">
       <div
-        className="absolute inset-0"
+        className="absolute inset-0 pointer-events-none"
         style={{
           background:
-            "radial-gradient(ellipse 60% 50% at 50% 40%, rgba(255,215,0,0.15) 0%, rgba(255,180,50,0.06) 40%, transparent 70%)",
+            "radial-gradient(ellipse 60% 50% at 50% 35%, rgba(122,199,196,0.18) 0%, rgba(212,169,106,0.08) 45%, transparent 75%)",
         }}
       />
 
@@ -67,10 +66,9 @@ export function LessonResultView({
           initial={{ opacity: 0, scale: 0.5, y: -30 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ type: "spring", damping: 10, stiffness: 120, delay: 0.1 }}
-          className="mb-4 bg-gradient-to-b from-yellow-200 via-yellow-400 to-amber-500 bg-clip-text text-center font-heading text-4xl font-extrabold tracking-tight text-transparent sm:text-5xl"
+          className="mb-4 bg-gradient-to-b from-[#7AC7C4] via-[#5fb3af] to-[#D4A96A] bg-clip-text text-center font-heading text-4xl font-extrabold tracking-tight text-transparent sm:text-5xl"
           style={{
-            textShadow: "0 0 40px rgba(255,215,0,0.4), 0 2px 8px rgba(0,0,0,0.6)",
-            WebkitTextStroke: "0.5px rgba(255,215,0,0.3)",
+            textShadow: "0 4px 18px rgba(122,199,196,0.25)",
           }}
         >
           {isRewardEligible ? "LESSON CLEARED!" : "PRACTICE CLEARED!"}
@@ -81,7 +79,7 @@ export function LessonResultView({
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.18 }}
-            className="mb-5 rounded-full border border-amber-200/20 bg-white/10 px-4 py-2 text-center text-sm font-semibold text-amber-200 backdrop-blur"
+            className="mb-5 rounded-full border border-[#9ecbd4]/30 bg-white/70 px-4 py-2 text-center text-sm font-semibold text-brand-gray-600 shadow-sm backdrop-blur"
           >
             Replay run: this node was already completed, so no XP reward is granted.
           </motion.p>
@@ -97,17 +95,14 @@ export function LessonResultView({
             className="absolute left-1/2 top-1/2 h-52 w-52 -translate-x-1/2 -translate-y-1/2 rounded-full"
             style={{
               background:
-                "radial-gradient(circle, rgba(255,215,0,0.25) 0%, rgba(255,180,50,0.08) 50%, transparent 70%)",
+                "radial-gradient(circle, rgba(122,199,196,0.35) 0%, rgba(212,169,106,0.18) 50%, transparent 72%)",
             }}
             animate={{ scale: [1, 1.15, 1], opacity: [0.7, 1, 0.7] }}
             transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
           />
 
           <div className="relative z-10 flex flex-col items-center">
-            <GraduationOwl />
-            <div className="-mt-4">
-              <TreasureChest />
-            </div>
+            <VictoryTrophy />
           </div>
         </motion.div>
 
@@ -115,30 +110,30 @@ export function LessonResultView({
           initial={{ opacity: 0, y: 60 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ type: "spring", damping: 20, stiffness: 180, delay: 0.7 }}
-          className="mb-5 w-full rounded-2xl border border-white/15 bg-white/10 p-5 shadow-lg shadow-black/20 backdrop-blur-xl"
+          className="mb-5 w-full rounded-2xl border border-[#5fb3af]/60 bg-white/75 p-5 shadow-[0_10px_30px_-10px_rgba(74,158,155,0.45)] backdrop-blur-xl"
         >
           <div className="mb-4 flex items-start justify-between">
             <div className="flex-1 text-center">
-              <div className="mb-1 text-xs font-medium text-white/50">Accuracy:</div>
-              <div className="font-heading text-2xl font-extrabold tabular-nums text-white sm:text-3xl">
+              <div className="mb-1 text-xs font-medium text-brand-gray-500">Accuracy:</div>
+              <div className="font-heading text-2xl font-extrabold tabular-nums text-brand-gray-700 sm:text-3xl">
                 {accuracy}%
               </div>
             </div>
-            <div className="mx-2 h-12 w-px self-center bg-white/10" />
+            <div className="mx-2 h-12 w-px self-center bg-[#9ecbd4]/30" />
             <div className="flex-1 text-center">
-              <div className="mb-1 text-xs font-medium text-white/50">Time:</div>
-              <div className="font-heading text-2xl font-extrabold tabular-nums text-white sm:text-3xl">
+              <div className="mb-1 text-xs font-medium text-brand-gray-500">Time:</div>
+              <div className="font-heading text-2xl font-extrabold tabular-nums text-brand-gray-700 sm:text-3xl">
                 {safeSummary.elapsedLabel ?? "0m 00s"}
               </div>
             </div>
-            <div className="mx-2 h-12 w-px self-center bg-white/10" />
+            <div className="mx-2 h-12 w-px self-center bg-[#9ecbd4]/30" />
             <div className="flex-1 text-center">
-              <div className="mb-1 text-xs font-medium text-white/50">
+              <div className="mb-1 text-xs font-medium text-brand-gray-500">
                 {isRewardEligible ? "XP Gained:" : "Reward:"}
               </div>
               <div
                 className={`font-heading text-2xl font-extrabold tabular-nums sm:text-3xl ${
-                  isRewardEligible ? "text-amber-300" : "text-white/75"
+                  isRewardEligible ? "text-[#D4A96A]" : "text-brand-gray-400"
                 }`}
               >
                 {isRewardEligible ? `+${xpGained} XP` : "No XP"}
@@ -155,8 +150,8 @@ export function LessonResultView({
                 className="mb-2 text-right"
               >
                 <span
-                  className="bg-gradient-to-r from-amber-300 via-yellow-400 to-orange-400 bg-clip-text font-heading text-lg font-extrabold italic text-transparent"
-                  style={{ textShadow: "0 0 20px rgba(255,215,0,0.5)" }}
+                  className="bg-gradient-to-r from-[#7AC7C4] via-[#5fb3af] to-[#D4A96A] bg-clip-text font-heading text-lg font-extrabold italic text-transparent"
+                  style={{ textShadow: "0 0 16px rgba(122,199,196,0.35)" }}
                 >
                   Level Up!
                 </span>
@@ -164,25 +159,25 @@ export function LessonResultView({
               )}
           </AnimatePresence>
 
-          <div className="mb-1 flex items-center justify-between px-0.5 text-[10px] font-bold text-white/40">
+          <div className="mb-1 flex items-center justify-between px-0.5 text-[10px] font-bold text-brand-gray-500">
             <span>Lv.{displayLevel}</span>
             <span className="tabular-nums">
               {Math.round(currentXp)} / {currentXpToNext} XP
             </span>
             <span>Lv.{displayLevel + 1}</span>
           </div>
-          <div className="relative h-5 w-full overflow-hidden rounded-full border border-white/10 bg-black/30">
+          <div className="relative h-5 w-full overflow-hidden rounded-full border border-[#9ecbd4]/30 bg-white/60">
             <motion.div
               className={`relative h-full rounded-full ${
                 isRewardEligible
-                  ? "bg-gradient-to-r from-brand-green via-emerald-400 to-brand-green"
-                  : "bg-gradient-to-r from-white/20 via-white/25 to-white/20"
+                  ? "bg-gradient-to-r from-[#7AC7C4] via-[#5fb3af] to-[#D4A96A]"
+                  : "bg-gradient-to-r from-brand-gray-300/40 via-brand-gray-300/50 to-brand-gray-300/40"
               }`}
               animate={{ width: `${Math.max(xpBarWidth, 0)}%` }}
               transition={{ duration: barDuration, ease: "easeOut" }}
             >
               {isRewardEligible && (
-                <div className="absolute inset-0 animate-shimmer-bar bg-gradient-to-r from-transparent via-white/25 to-transparent" />
+                <div className="absolute inset-0 animate-shimmer-bar bg-gradient-to-r from-transparent via-white/40 to-transparent" />
               )}
             </motion.div>
             {isRewardEligible && (
@@ -190,9 +185,9 @@ export function LessonResultView({
                 className="absolute inset-0 rounded-full"
                 animate={{
                   boxShadow: [
-                    "inset 0 0 6px rgba(88,204,2,0.3)",
-                    "inset 0 0 12px rgba(88,204,2,0.5)",
-                    "inset 0 0 6px rgba(88,204,2,0.3)",
+                    "inset 0 0 6px rgba(122,199,196,0.3)",
+                    "inset 0 0 12px rgba(122,199,196,0.5)",
+                    "inset 0 0 6px rgba(122,199,196,0.3)",
                   ],
                 }}
                 transition={{ repeat: Infinity, duration: 2 }}
@@ -209,10 +204,10 @@ export function LessonResultView({
         >
           <button
             onClick={onBackToMap}
-            className="relative w-full rounded-2xl border-b-4 border-green-700 bg-gradient-to-r from-brand-green to-emerald-500 py-4 font-heading text-lg font-extrabold text-white shadow-[0_0_30px_rgba(88,204,2,0.35)] transition-all duration-200 hover:shadow-[0_0_40px_rgba(88,204,2,0.5)] active:scale-[0.97] active:border-b-2"
+            className="relative w-full rounded-2xl border border-[#9ecbd4]/40 bg-gradient-to-r from-[#7AC7C4] to-[#5fb3af] py-4 font-heading text-lg font-extrabold text-white shadow-[0_8px_24px_-8px_rgba(122,199,196,0.55)] transition-all duration-200 hover:shadow-[0_10px_28px_-6px_rgba(122,199,196,0.7)] active:scale-[0.97]"
           >
             <motion.div
-              className="absolute inset-0 rounded-2xl bg-gradient-to-r from-brand-green/0 via-white/10 to-brand-green/0"
+              className="absolute inset-0 rounded-2xl bg-gradient-to-r from-white/0 via-white/20 to-white/0"
               animate={{ opacity: [0, 0.5, 0] }}
               transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
             />
@@ -224,64 +219,69 @@ export function LessonResultView({
   );
 }
 
-function GraduationOwl() {
+function VictoryTrophy() {
   return (
     <motion.svg
-      viewBox="0 0 100 90"
-      className="h-24 w-24"
+      viewBox="0 0 160 170"
+      className="h-44 w-44"
       fill="none"
-      animate={{ y: [0, -3, 0] }}
-      transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
+      animate={{ y: [0, -4, 0] }}
+      transition={{ repeat: Infinity, duration: 2.6, ease: "easeInOut" }}
     >
-      <ellipse cx="14" cy="52" rx="11" ry="16" fill="#D4943D" transform="rotate(-20 14 52)" />
-      <ellipse cx="86" cy="52" rx="11" ry="16" fill="#D4943D" transform="rotate(20 86 52)" />
-      <ellipse cx="50" cy="58" rx="22" ry="20" fill="#E8E1D5" />
-      <ellipse cx="50" cy="60" rx="16" ry="15" fill="#F5F0E8" />
-      <circle cx="38" cy="48" r="10" fill="white" stroke="#888" strokeWidth="1.5" />
-      <circle cx="62" cy="48" r="10" fill="white" stroke="#888" strokeWidth="1.5" />
-      <line x1="48" y1="48" x2="52" y2="48" stroke="#888" strokeWidth="1.5" />
-      <circle cx="39" cy="48" r="5" fill="#2D2D2D" />
-      <circle cx="61" cy="48" r="5" fill="#2D2D2D" />
-      <circle cx="40.5" cy="46.5" r="1.8" fill="white" />
-      <circle cx="62.5" cy="46.5" r="1.8" fill="white" />
-      <polygon points="50,52 47,57 53,57" fill="#E8734A" />
-      <polygon points="28,32 33,44 22,38" fill="#C9B89E" />
-      <polygon points="72,32 67,44 78,38" fill="#C9B89E" />
-      <polygon points="50,18 30,28 50,34 70,28" fill="#2D2D2D" />
-      <rect x="48" y="14" width="4" height="6" fill="#2D2D2D" />
-      <line x1="70" y1="28" x2="72" y2="38" stroke="#FFD700" strokeWidth="1.5" />
-      <circle cx="72" cy="39" r="2.5" fill="#FFD700" />
-    </motion.svg>
-  );
-}
-
-function TreasureChest() {
-  return (
-    <svg viewBox="0 0 160 110" className="h-28 w-40" fill="none">
-      <ellipse cx="80" cy="105" rx="60" ry="6" fill="rgba(0,0,0,0.25)" />
-      <rect x="20" y="50" width="120" height="50" rx="6" fill="url(#chestBody)" stroke="#8B6914" strokeWidth="2" />
-      <path d="M18 52 Q80 10 142 52" fill="url(#chestLid)" stroke="#8B6914" strokeWidth="2" />
-      <rect x="18" y="48" width="124" height="6" rx="2" fill="#DAA520" stroke="#8B6914" strokeWidth="1" />
-      <rect x="20" y="72" width="120" height="4" rx="1" fill="#DAA520" opacity="0.6" />
-      <rect x="72" y="46" width="16" height="14" rx="3" fill="#DAA520" stroke="#8B6914" strokeWidth="1.5" />
-      <circle cx="80" cy="56" r="3" fill="#8B6914" />
-      <StarShape cx={42} cy={68} r={5} fill="#58CC02" />
-      <StarShape cx={80} cy={82} r={6} fill="#58CC02" />
-      <StarShape cx={118} cy={68} r={5} fill="#58CC02" />
-      <StarShape cx={55} cy={86} r={4} fill="#58CC02" opacity={0.7} />
-      <StarShape cx={105} cy={86} r={4} fill="#58CC02" opacity={0.7} />
       <defs>
-        <linearGradient id="chestBody" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#4A9B3F" />
-          <stop offset="50%" stopColor="#3D8535" />
-          <stop offset="100%" stopColor="#2D6B28" />
+        <linearGradient id="trophyCup" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#F4D88B" />
+          <stop offset="45%" stopColor="#D4A96A" />
+          <stop offset="100%" stopColor="#A57C42" />
         </linearGradient>
-        <linearGradient id="chestLid" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#5BBF4E" />
-          <stop offset="100%" stopColor="#3D8535" />
+        <linearGradient id="trophyHandle" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#E6BE7A" />
+          <stop offset="100%" stopColor="#9D7438" />
         </linearGradient>
+        <linearGradient id="trophyBase" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#8AD0CC" />
+          <stop offset="100%" stopColor="#5fb3af" />
+        </linearGradient>
+        <radialGradient id="trophyShine" cx="35%" cy="30%" r="60%">
+          <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.7" />
+          <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0" />
+        </radialGradient>
       </defs>
-    </svg>
+
+      <ellipse cx="80" cy="160" rx="50" ry="5" fill="rgba(15,40,55,0.15)" />
+
+      <path d="M40 24 Q22 32 22 58 Q22 84 48 92" stroke="url(#trophyHandle)" strokeWidth="9" strokeLinecap="round" fill="none" />
+      <path d="M120 24 Q138 32 138 58 Q138 84 112 92" stroke="url(#trophyHandle)" strokeWidth="9" strokeLinecap="round" fill="none" />
+
+      <path
+        d="M38 18 L122 18 L116 78 Q113 102 80 102 Q47 102 44 78 Z"
+        fill="url(#trophyCup)"
+        stroke="#9D7438"
+        strokeWidth="2"
+      />
+      <path
+        d="M44 24 L116 24 L112 36 Q80 44 48 36 Z"
+        fill="url(#trophyShine)"
+      />
+
+      <StarShape cx={80} cy={56} r={11} fill="#FFFFFF" opacity={0.95} />
+      <StarShape cx={80} cy={56} r={7} fill="#D4A96A" opacity={0.9} />
+
+      <rect x="68" y="100" width="24" height="18" rx="3" fill="url(#trophyHandle)" />
+      <rect x="56" y="118" width="48" height="10" rx="3" fill="url(#trophyBase)" stroke="#4a9e9b" strokeWidth="1.5" />
+      <rect x="44" y="128" width="72" height="18" rx="5" fill="url(#trophyBase)" stroke="#4a9e9b" strokeWidth="1.5" />
+      <rect x="50" y="134" width="60" height="3" rx="1.5" fill="#FFFFFF" opacity="0.3" />
+
+      <motion.g
+        animate={{ opacity: [0.3, 1, 0.3] }}
+        transition={{ repeat: Infinity, duration: 2.2, ease: "easeInOut" }}
+      >
+        <circle cx="28" cy="40" r="2.5" fill="#FFD89A" />
+        <circle cx="132" cy="46" r="2" fill="#FFD89A" />
+        <circle cx="20" cy="78" r="1.8" fill="#7AC7C4" />
+        <circle cx="142" cy="76" r="2.2" fill="#7AC7C4" />
+      </motion.g>
+    </motion.svg>
   );
 }
 
@@ -343,7 +343,7 @@ function DecorativeStars() {
           <motion.svg
             viewBox="0 0 24 24"
             style={{ width: s.size, height: s.size }}
-            fill="#FFD700"
+            fill={i % 2 === 0 ? "#D4A96A" : "#7AC7C4"}
             animate={{ rotate: [0, 360] }}
             transition={{ repeat: Infinity, duration: 8 + i * 2, ease: "linear" }}
           >
@@ -368,15 +368,15 @@ function VictoryConfetti() {
           delay: isStreak ? Math.random() * 0.3 : 0.2 + Math.random() * 1.5,
           duration: isStreak ? 0.6 + Math.random() * 0.5 : 2 + Math.random() * 2.5,
           color: [
-            "#FFD700",
-            "#FFA500",
-            "#FF6B6B",
-            "#58CC02",
             "#7AC7C4",
-            "#FF6BA8",
-            "#4FC3F7",
-            "#A855F7",
-            "#F59E0B",
+            "#D4A96A",
+            "#F4D88B",
+            "#5fb3af",
+            "#9ecbd4",
+            "#E8B978",
+            "#8AD0CC",
+            "#F0C893",
+            "#4a9e9b",
           ][i % 9],
           size: isStreak ? 3 + Math.random() * 3 : 4 + Math.random() * 8,
           rotation: Math.random() * 360,

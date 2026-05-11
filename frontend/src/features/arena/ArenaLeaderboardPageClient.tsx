@@ -276,21 +276,18 @@ export default function ArenaLeaderboardPageClient() {
               </div>
 
               <div className="mt-3 grid grid-cols-2 gap-2">
-                <SnapshotStatTile label={t("leaderboard.rankTier")} value={translateRankTier(profile?.rankTier)} icon="🏅" />
+                <SnapshotStatTile label={t("leaderboard.rankTier")} value={translateRankTier(profile?.rankTier)} />
                 <SnapshotStatTile
                   label={t("leaderboard.matches")}
                   value={String(profile?.rankedMatches ?? currentUserStanding?.entry.totalMatches ?? 0)}
-                  icon="🎮"
                 />
                 <SnapshotStatTile
                   label={t("leaderboard.winsLosses")}
                   value={`${profile?.wins ?? 0}W | ${profile?.losses ?? 0}L`}
-                  icon="⚔️"
                 />
                 <SnapshotStatTile
                   label={t("leaderboard.placement")}
                   value={currentUserStanding ? `#${currentUserStanding.placement}` : "#-"}
-                  icon="📍"
                 />
               </div>
 
@@ -500,16 +497,14 @@ function LeaderboardDropdown<T extends string>({
 function SnapshotStatTile({
   label,
   value,
-  icon,
 }: {
   label: string;
   value: string;
-  icon: string;
 }) {
   return (
     <div className="rounded-2xl border border-white/70 bg-white/68 px-3 py-2.5">
       <p className="text-xs font-semibold uppercase tracking-[0.08em] text-brand-gray-500">
-        {icon} {label}
+        {label}
       </p>
       <p className="mt-1 font-heading text-[1.25rem] font-bold leading-tight text-brand-gray-700 xl:text-[1.4rem] break-words">
         {value}
