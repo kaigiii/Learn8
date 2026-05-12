@@ -30,6 +30,7 @@ const config: Config = {
       fontFamily: {
         heading: ["'Nunito'", "sans-serif"],
         body: ["'Open Sans'", "sans-serif"],
+        display: ["'Righteous'", "sans-serif"],
       },
     },
   },

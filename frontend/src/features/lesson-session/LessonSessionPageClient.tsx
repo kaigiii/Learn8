@@ -16,8 +16,25 @@ import { useLessonSessionFlow } from "./hooks/useLessonSessionFlow";
 import { useResolvedLessonRoute } from "./hooks/useResolvedLessonRoute";
 import { useDelayedVisibility } from "@/lib/ui/useDelayedVisibility";
 import { LESSON_SESSION_PHASE, LESSON_SESSION_STATUS } from "@/lib/domain/statuses";
+import { useI18n } from "@/lib/i18n/useI18n";
+import type { TranslationKey } from "@/lib/i18n/translations";
 
 const COMPACT_VIEWPORT_MEDIA_QUERY = "(max-width: 1023px)";
+
+function courseSlugFromTitle(title: string): string {
+  return title.toLowerCase().replace(/ /g, "-").replace(/&/g, "and");
+}
+
+function translatePublicNode(
+  t: (key: TranslationKey) => string,
+  courseSlug: string,
+  nodeId: string,
+  fallback: string
+): string {
+  const key = `course.${courseSlug}.node.${nodeId}` as TranslationKey;
+  const result = t(key);
+  return result === key ? fallback : result;
+}
 
 /* ═══════════════════ Page ═══════════════════ */
 
@@ -28,6 +45,7 @@ export default function LessonSessionPageClient({
   courseId?: string;
   nodeId?: string;
 } = {}) {
+  const { t } = useI18n();
   const { nodeId, routeCourseId } = useResolvedLessonRoute({
     courseId: explicitCourseId,
     nodeId: explicitNodeId,
@@ -130,6 +148,14 @@ export default function LessonSessionPageClient({
     },
     onRemedialStagesReady: resetInteractiveStageState,
   });
+  const topicOverride = React.useMemo(() => {
+    if (!backendCourse?.isPublic || !nodeId || !backendCourse.courseTitle) return undefined;
+    const courseSlug = courseSlugFromTitle(backendCourse.courseTitle);
+    const fallback = backendNode?.title || "";
+    const translated = translatePublicNode(t, courseSlug, nodeId, fallback);
+    return translated !== fallback ? translated : undefined;
+  }, [backendCourse?.isPublic, backendCourse?.courseTitle, nodeId, backendNode?.title, t]);
+
   const activeStages = lessonSession?.activeStages ?? backendStages;
   const backendStage = activeStages[stageIdx] ?? null;
   const activeStageCount = Math.max(activeStages.length, 1);
@@ -320,6 +346,7 @@ export default function LessonSessionPageClient({
                   stageLabel: headerStageLabel,
                   nodeDescription,
                   courseId: backendCourseId ?? currentCourseId,
+                  topicOverride,
                 }}
                 actions={{
                   submitStage,
@@ -340,7 +367,7 @@ export default function LessonSessionPageClient({
                 courseTopic={backendCourse?.topic || backendCourse?.courseTitle || ""}
                 courseTitle={backendCourse?.courseTitle || ""}
                 nodeId={nodeId}
-                nodeTitle={backendNode?.title || ""}
+                nodeTitle={topicOverride || backendNode?.title || ""}
                 nodeDescription={nodeDescription}
                 lessonSession={lessonSession}
                 currentStage={backendStage}

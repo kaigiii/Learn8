@@ -198,7 +198,10 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
 
   const isRevealTime = isInIntermission || displayRound?.status === "closed" || match?.status === "finished";
 
-  const isSelfRevealVisible = isRevealTime && !!localRevealQuestion && !!displayRound && !isQuestionLoading;
+  // The player who already submitted gets to see the reveal immediately —
+  // their submissionReview already carries the correct answer + explanation
+  // from the backend, so no need to gate on intermission/round-closed.
+  const isSelfRevealVisible = !!localRevealQuestion && !!displayRound && !isQuestionLoading;
 
   const isServerRevealVisible = Boolean(
     isRevealTime &&
@@ -265,7 +268,18 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
     const labels = rawSteps.map((s: any) =>
       typeof s === "string" ? s : (s.text || s.content || s.id || "Step")
     );
-    const shuffled = seededShuffle(labels, roundId);
+    // Try multiple seeds; if the shuffle coincidentally matches the original
+    // (correct) order, the player would see the answer already arranged.
+    let shuffled = seededShuffle(labels, roundId);
+    const matchesOriginal = (arr: string[]) =>
+      arr.length === labels.length && arr.every((item, i) => item === labels[i]);
+    for (let attempt = 1; attempt <= 5 && matchesOriginal(shuffled); attempt++) {
+      shuffled = seededShuffle(labels, roundId + attempt * 9973);
+    }
+    if (labels.length > 1 && matchesOriginal(shuffled)) {
+      // Final fallback: rotate so the player never sees the correct order.
+      shuffled = [...shuffled.slice(1), shuffled[0]];
+    }
     orderingShuffleRef.current.set(roundId, shuffled);
     return shuffled;
   }, [question?.questionType, activeRound?.roundId, question?.options]);
@@ -452,14 +466,23 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
 
   useEffect(() => {
     if (!activeRound || !isReady) return;
-    // Send ready when entering a pending round (not yet active)
-    if (activeRound.status === "pending" && readyRoundRef.current !== activeRound.roundId) {
-      readyRoundRef.current = activeRound.roundId;
-      arenaWsClient.sendAction("question_ready", {
-        matchId,
-        roundId: activeRound.roundId,
-      });
-    }
+    if (activeRound.status !== "pending") return;
+
+    const roundId = activeRound.roundId;
+    const trySendReady = () => {
+      if (readyRoundRef.current === roundId) return;
+      if (arenaWsClient.getStatus() !== "connected") return;
+      arenaWsClient.sendAction("question_ready", { matchId, roundId });
+      readyRoundRef.current = roundId;
+    };
+
+    // Fire immediately if the socket is already open; otherwise wait for
+    // the connection to come up. Without this, the ready signal can be
+    // silently dropped while the WebSocket is still CONNECTING and both
+    // players get stuck on "Waiting for both players to load the question".
+    trySendReady();
+    const unsubscribe = arenaWsClient.onStatusChange(() => trySendReady());
+    return unsubscribe;
   }, [activeRound?.roundId, activeRound?.status, isReady, matchId]);
 
   useEffect(() => {
@@ -682,6 +705,16 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
                 className="h-9 w-9 object-contain"
               />
               <p className="font-heading text-2xl font-bold text-brand-gray-700">{rankTierText}</p>
+              {typeof currentResult?.ratingDelta === "number" && currentResult.ratingDelta !== 0 ? (
+                <span
+                  className={`ml-auto font-heading text-lg font-extrabold tabular-nums ${
+                    currentResult.ratingDelta > 0 ? "text-emerald-600" : "text-rose-500"
+                  }`}
+                >
+                  {currentResult.ratingDelta > 0 ? "+" : ""}
+                  {currentResult.ratingDelta} pts
+                </span>
+              ) : null}
             </div>
           </div>
           <GameButton className="mt-2 w-full py-4 text-lg" onClick={() => router.push("/home")}>

@@ -7,5 +7,10 @@ export function LessonStageRenderer(props: LessonStageRenderContext) {
   const Renderer =
     getLessonStagePlugin(props.stage.component)?.Renderer || renderUnsupportedStage;
 
-  return <Renderer key={`${props.stage.component}-${props.stage.stageId}`} {...props} />;
+  const stage =
+    props.lesson.topicOverride
+      ? { ...props.stage, topic: props.lesson.topicOverride }
+      : props.stage;
+
+  return <Renderer key={`${props.stage.component}-${props.stage.stageId}`} {...props} stage={stage} />;
 }

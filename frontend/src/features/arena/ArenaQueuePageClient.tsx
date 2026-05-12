@@ -2,10 +2,12 @@
 
 import React, { useEffect, useState } from "react";
 import Image from "next/image";
+import { motion } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import TopStatsBar from "@/components/layout/TopStatsBar";
 import GameButton from "@/components/ui/GameButton";
+import { useI18n } from "@/lib/i18n/useI18n";
 import {
   cancelCurrentArenaCompetitiveQueue,
   fetchCurrentArenaCompetitiveQueue,
@@ -21,6 +23,7 @@ import type { ArenaCompetitiveQueueState, ArenaMatchState } from "@/lib/apiTypes
 
 export default function ArenaQueuePageClient() {
   const router = useRouter();
+  const { t } = useI18n();
   const searchParams = useSearchParams();
   const pendingCourseId = searchParams.get("courseId");
   const { isReady } = useRequireAuthRedirect();
@@ -191,64 +194,93 @@ export default function ArenaQueuePageClient() {
     <div className="min-h-screen bg-[url('/backgrounds/MainBg.png')] bg-cover bg-center bg-no-repeat">
       <TopStatsBar
         backHref="/home"
-        pageTitle="Arena Queue"
+        pageTitle={t("arena.queue.pageTitle")}
         quickLinks={[
           {
             href: "/multiplayer",
-            label: "Multiplayer",
+            label: t("common.multiplayer"),
             iconSrc: "/svg/multiplayer-controller.svg",
-            iconAlt: "Multiplayer",
+            iconAlt: t("common.multiplayer"),
           },
           {
             href: "/arena/leaderboard",
-            label: "Leaderboard",
+            label: t("common.leaderboard"),
             iconSrc: "/svg/leaderboard-logo.svg",
-            iconAlt: "Leaderboard",
+            iconAlt: t("common.leaderboard"),
           },
         ]}
       />
-      <main className="mx-auto flex min-h-[calc(100vh-72px)] max-w-6xl flex-col items-center justify-center px-4 py-8 md:px-8">
-        <div className="w-full text-center">
-          <h1 className="font-heading text-[2.7rem] font-black leading-none tracking-tight text-brand-gray-700 md:text-6xl">
-            Find Your Match: Duel
+      <main className="relative mx-auto flex min-h-[calc(100vh-72px)] max-w-6xl flex-col items-center justify-center px-4 py-8 md:px-8">
+        {/* Background sparkle accents */}
+        <BackgroundOrbs />
+
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="relative z-10 w-full text-center"
+        >
+          <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[#7AC7C4]/40 bg-white/60 px-4 py-1.5 text-xs font-bold uppercase tracking-[0.22em] text-[#4a9e9b] backdrop-blur-md">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#7AC7C4] opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-[#5fb3af]" />
+            </span>
+            {t("arena.queue.rankedDuel")}
+          </div>
+          <h1
+            className="bg-gradient-to-b from-[#5fb3af] via-[#4a9e9b] to-[#7AC7C4] bg-clip-text font-heading text-[2.4rem] font-black leading-none tracking-tight text-transparent md:text-6xl"
+            style={{ textShadow: "0 4px 18px rgba(122,199,196,0.25)" }}
+          >
+            {t("arena.queue.findYourMatch")}
           </h1>
-          <p className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-brand-gray-600 md:text-base">
+          <p className="mx-auto mt-4 min-h-[24px] max-w-2xl text-sm leading-relaxed text-brand-gray-600 md:text-base">
             {matchState?.status === "pending"
               ? bothPlayersConnected
-                ? "Both players are connected. Accept countdown is now running."
-                : "Match found. Waiting for both players to connect before acceptance starts."
-              : ""}
+                ? t("arena.queue.bothConnected")
+                : t("arena.queue.waitingSync")
+              : hasOpponent
+                ? t("arena.queue.matchReady")
+                : t("arena.queue.searching")}
           </p>
+        </motion.div>
+
+        <div className="relative z-10 mt-10 flex w-full flex-col items-center justify-center gap-5 lg:flex-row lg:gap-8 xl:gap-10">
+          <motion.div
+            initial={{ opacity: 0, x: -60 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ type: "spring", damping: 14, stiffness: 120, delay: 0.15 }}
+          >
+            <PlayerDuelCard
+              title={currentName}
+              avatarSrc={currentAvatar}
+              accent="left"
+              isAccepted={Boolean(currentPlayer?.isAccepted)}
+            />
+          </motion.div>
+
+          <VsBadge />
+
+          <motion.div
+            initial={{ opacity: 0, x: 60 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ type: "spring", damping: 14, stiffness: 120, delay: 0.15 }}
+          >
+            <PlayerDuelCard
+              title={hasOpponent ? opponentName : t("arena.queue.findingOpponent")}
+              avatarSrc={hasOpponent ? opponentAvatar : undefined}
+              accent="right"
+              loading={!hasOpponent}
+              isAccepted={Boolean(opponentPlayer?.isAccepted)}
+            />
+          </motion.div>
         </div>
 
-        <div className="mt-10 flex w-full flex-col items-center justify-center gap-5 lg:flex-row lg:gap-8 xl:gap-10">
-          <PlayerDuelCard
-            title={currentName}
-            avatarSrc={currentAvatar}
-            accent="left"
-            status={currentPlayer?.isAccepted ? "READY" : "WAITING"}
-            statusTone={currentPlayer?.isAccepted ? "ready" : "waiting"}
-            isAccepted={Boolean(currentPlayer?.isAccepted)}
-          />
-
-          <div className="flex flex-col items-center justify-center px-1 md:px-2 lg:px-3">
-            <span className="font-heading text-6xl font-black tracking-tight text-brand-gray-600 md:text-7xl lg:text-[6.25rem]">
-              VS
-            </span>
-          </div>
-
-          <PlayerDuelCard
-            title={hasOpponent ? opponentName : "FINDING OPPONENT"}
-            avatarSrc={hasOpponent ? opponentAvatar : undefined}
-            accent="right"
-            status={hasOpponent ? (opponentPlayer?.isAccepted ? "READY" : "WAITING") : "SEARCHING"}
-            statusTone={hasOpponent ? (opponentPlayer?.isAccepted ? "ready" : "waiting") : "searching"}
-            loading={!hasOpponent}
-            isAccepted={Boolean(opponentPlayer?.isAccepted)}
-          />
-        </div>
-
-        <div className="mt-8 flex w-full max-w-3xl flex-col items-center gap-3">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          className="relative z-10 mt-10 flex w-full max-w-3xl flex-col items-center gap-3"
+        >
           <div className="flex flex-col gap-3 sm:flex-row">
             <GameButton
               variant="secondary"
@@ -256,7 +288,7 @@ export default function ArenaQueuePageClient() {
               disabled={busy}
               className="min-w-[180px]"
             >
-              Cancel & Exit
+              {t("arena.queue.cancelExit")}
             </GameButton>
             {matchState?.status === "pending" ? (
               <GameButton
@@ -265,18 +297,70 @@ export default function ArenaQueuePageClient() {
                 className="min-w-[180px]"
               >
                 {accepting
-                  ? "WAITING FOR OTHERS..."
+                  ? t("arena.queue.waitingOthers")
                   : canStartAcceptCountdown
-                    ? `ACCEPT (${acceptTimer ?? 0}s)`
-                    : "ACCEPT (WAITING SYNC)"}
+                    ? t("arena.queue.accept", { seconds: String(acceptTimer ?? 0) })
+                    : t("arena.queue.acceptWaitingSync")}
               </GameButton>
             ) : null}
           </div>
 
           {error ? <p className="text-sm text-rose-600">{error}</p> : null}
-        </div>
+        </motion.div>
       </main>
     </div>
+  );
+}
+
+function BackgroundOrbs() {
+  return (
+    <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
+      <motion.div
+        className="absolute -left-32 top-1/4 h-72 w-72 rounded-full"
+        style={{ background: "radial-gradient(circle, rgba(122,199,196,0.28), transparent 70%)" }}
+        animate={{ scale: [1, 1.15, 1], opacity: [0.5, 0.8, 0.5] }}
+        transition={{ repeat: Infinity, duration: 5, ease: "easeInOut" }}
+      />
+      <motion.div
+        className="absolute -right-32 bottom-1/4 h-72 w-72 rounded-full"
+        style={{ background: "radial-gradient(circle, rgba(158,203,212,0.28), transparent 70%)" }}
+        animate={{ scale: [1, 1.2, 1], opacity: [0.4, 0.75, 0.4] }}
+        transition={{ repeat: Infinity, duration: 6, ease: "easeInOut", delay: 1 }}
+      />
+    </div>
+  );
+}
+
+function VsBadge() {
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.5 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ type: "spring", damping: 10, stiffness: 140, delay: 0.35 }}
+      className="relative flex flex-col items-center justify-center px-1 md:px-2 lg:px-3"
+    >
+      {/* Pulsing energy ring */}
+      <motion.div
+        className="absolute h-32 w-32 rounded-full"
+        style={{
+          background:
+            "radial-gradient(circle, rgba(212,169,106,0.35) 0%, rgba(122,199,196,0.2) 45%, transparent 70%)",
+        }}
+        animate={{ scale: [1, 1.25, 1], opacity: [0.6, 1, 0.6] }}
+        transition={{ repeat: Infinity, duration: 2.4, ease: "easeInOut" }}
+      />
+      <div className="relative">
+        <span
+          className="bg-gradient-to-br from-[#D4A96A] via-[#5fb3af] to-[#4a9e9b] bg-clip-text font-heading text-6xl font-black tracking-tight text-transparent md:text-7xl lg:text-[6.25rem]"
+          style={{
+            filter: "drop-shadow(0 4px 14px rgba(122,199,196,0.45))",
+            WebkitTextStroke: "1px rgba(255,255,255,0.6)",
+          }}
+        >
+          VS
+        </span>
+      </div>
+    </motion.div>
   );
 }
 
@@ -284,42 +368,46 @@ function PlayerDuelCard({
   title,
   avatarSrc,
   accent,
-  status,
-  statusTone,
   loading = false,
   isAccepted = false,
 }: {
   title: string;
   avatarSrc?: string;
   accent: "left" | "right";
-  status: string;
-  statusTone: "ready" | "waiting" | "searching";
   loading?: boolean;
   isAccepted?: boolean;
 }) {
-  const statusClassName =
-    statusTone === "ready"
-      ? "bg-emerald-100 text-emerald-700"
-      : statusTone === "waiting"
-        ? "bg-amber-100 text-amber-700"
-        : "bg-brand-teal/15 text-brand-teal";
-
-  const shadowClassName = "shadow-[0_28px_50px_rgba(95,146,165,0.14)]";
+  const accentGlow =
+    accent === "left"
+      ? "shadow-[0_28px_50px_rgba(122,199,196,0.25)]"
+      : "shadow-[0_28px_50px_rgba(158,203,212,0.25)]";
 
   return (
-    <div className={`relative w-full max-w-[360px] overflow-hidden rounded-[30px] border border-white/70 bg-white/62 p-4 backdrop-blur-xl lg:w-[min(44vw,360px)] ${shadowClassName}`}>
-      <div className="relative flex min-h-[290px] items-center justify-center rounded-[24px] bg-[linear-gradient(180deg,rgba(222,241,247,0.9),rgba(210,233,242,0.94))] p-4">
-        {loading ? (
-          <div className="flex flex-col items-center justify-center gap-4">
-            <div className="h-16 w-16 animate-spin rounded-full border-[6px] border-brand-teal/15 border-t-brand-teal/60" />
-          </div>
-        ) : (
-          <AvatarBubble src={avatarSrc} alt={title} isAccepted={isAccepted} />
-        )}
+    <div
+      className={`relative w-full max-w-[360px] overflow-hidden rounded-[30px] bg-white/70 p-4 backdrop-blur-xl lg:w-[min(44vw,360px)] ${accentGlow}`}
+    >
+      {/* Accent corner glow */}
+      <div
+        className={`pointer-events-none absolute ${
+          accent === "left" ? "-top-px -left-px rounded-tl-[28px]" : "-top-px -right-px rounded-tr-[28px]"
+        } h-1/3 w-1/2 bg-gradient-to-br from-white/60 to-transparent`}
+      />
+
+      <div className="relative flex min-h-[290px] items-center justify-center overflow-hidden rounded-[24px] bg-[linear-gradient(155deg,rgba(232,245,247,0.85),rgba(200,228,233,0.92))] p-4">
+        {/* Subtle inner grid pattern */}
+        <div
+          className="pointer-events-none absolute inset-0 opacity-30"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle at 20% 30%, rgba(122,199,196,0.18) 0%, transparent 35%), radial-gradient(circle at 80% 70%, rgba(212,169,106,0.12) 0%, transparent 40%)",
+          }}
+        />
+
+        {loading ? <SearchingIndicator /> : <AvatarBubble src={avatarSrc} alt={title} isAccepted={isAccepted} accent={accent} />}
       </div>
 
-      <div className="mt-3 overflow-hidden rounded-[18px] bg-white/80 px-5 py-4 text-center shadow-[0_10px_24px_rgba(95,146,165,0.08)]">
-        <p className="truncate font-heading text-[1.55rem] font-extrabold leading-none text-brand-gray-700">
+      <div className="mt-3 rounded-[18px] border border-white/60 bg-white/85 px-5 py-3 shadow-[0_10px_24px_rgba(95,146,165,0.08)]">
+        <p className="truncate text-center font-heading text-[1.2rem] font-extrabold leading-tight text-brand-gray-700">
           {title}
         </p>
       </div>
@@ -327,20 +415,83 @@ function PlayerDuelCard({
   );
 }
 
-function AvatarBubble({ src, alt, isAccepted = false }: { src?: string; alt: string; isAccepted?: boolean }) {
-  const imageSrc = src || "/avatar/chicken.png";
+function SearchingIndicator() {
+  const { t } = useI18n();
   return (
-    <div className="relative flex h-[170px] w-[170px] items-center justify-center rounded-full bg-white/35 shadow-[inset_0_0_0_12px_rgba(255,255,255,0.26)]">
-      <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.22),rgba(255,255,255,0)_58%)]" />
-      <div className="relative h-[138px] w-[138px] overflow-hidden rounded-full bg-white shadow-[0_18px_30px_rgba(95,146,165,0.15)]">
-        <Image src={imageSrc} alt={alt} fill sizes="138px" className="object-cover" />
+    <div className="flex flex-col items-center justify-center gap-4">
+      <div className="relative h-24 w-24">
+        <motion.div
+          className="absolute inset-0 rounded-full border-2 border-[#7AC7C4]/30"
+          animate={{ scale: [1, 1.4, 1], opacity: [0.6, 0, 0.6] }}
+          transition={{ repeat: Infinity, duration: 2, ease: "easeOut" }}
+        />
+        <motion.div
+          className="absolute inset-2 rounded-full border-2 border-[#7AC7C4]/40"
+          animate={{ scale: [1, 1.3, 1], opacity: [0.7, 0, 0.7] }}
+          transition={{ repeat: Infinity, duration: 2, ease: "easeOut", delay: 0.4 }}
+        />
+        <div className="absolute inset-4 flex items-center justify-center rounded-full bg-gradient-to-br from-[#7AC7C4] to-[#5fb3af] shadow-[0_10px_24px_rgba(122,199,196,0.45)]">
+          <svg viewBox="0 0 24 24" className="h-8 w-8 text-white" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="7" />
+            <path d="M21 21l-4.3-4.3" />
+          </svg>
+        </div>
+      </div>
+      <div className="flex items-center gap-1 font-heading text-xs font-bold uppercase tracking-[0.18em] text-[#4a9e9b]">
+        <span>{t("arena.queue.searchingLabel")}</span>
+        <SearchingDots />
+      </div>
+    </div>
+  );
+}
+
+function SearchingDots() {
+  return (
+    <span className="inline-flex gap-1">
+      {[0, 1, 2].map((i) => (
+        <motion.span
+          key={i}
+          className="h-1.5 w-1.5 rounded-full bg-[#5fb3af]"
+          animate={{ opacity: [0.3, 1, 0.3], y: [0, -3, 0] }}
+          transition={{ repeat: Infinity, duration: 1.2, ease: "easeInOut", delay: i * 0.18 }}
+        />
+      ))}
+    </span>
+  );
+}
+
+function AvatarBubble({
+  src,
+  alt,
+  isAccepted = false,
+  accent = "left",
+}: {
+  src?: string;
+  alt: string;
+  isAccepted?: boolean;
+  accent?: "left" | "right";
+}) {
+  const imageSrc = src || "/avatar/chicken.png";
+
+  return (
+    <div className="relative flex h-[220px] w-[220px] items-center justify-center">
+      {/* Soft glow halo */}
+      <div className="absolute inset-2 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.5),rgba(255,255,255,0)_60%)]" />
+      {/* Avatar */}
+      <div className="relative h-[200px] w-[200px] overflow-hidden rounded-full bg-white shadow-[0_18px_30px_rgba(95,146,165,0.2)]">
+        <Image src={imageSrc} alt={alt} fill sizes="200px" className="object-cover" />
       </div>
       {isAccepted ? (
-        <div className="absolute bottom-1 right-1 z-10 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500 shadow-[0_10px_24px_rgba(16,185,129,0.35)] ring-4 ring-[#d8ecf4]">
+        <motion.div
+          initial={{ scale: 0, rotate: -45 }}
+          animate={{ scale: 1, rotate: 0 }}
+          transition={{ type: "spring", damping: 10, stiffness: 200 }}
+          className="absolute bottom-1 right-1 z-10 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-[0_10px_24px_rgba(16,185,129,0.5)] ring-4 ring-white"
+        >
           <svg viewBox="0 0 24 24" className="h-7 w-7 text-white" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M20 6L9 17l-5-5" />
           </svg>
-        </div>
+        </motion.div>
       ) : null}
     </div>
   );

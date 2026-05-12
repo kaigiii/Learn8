@@ -59,7 +59,15 @@ export function ExplainerMediaStageRenderer({
       mediaDescription={parsedStage.mediaDescription}
       mediaUrl={parsedStage.mediaUrl}
       onContinue={async () => {
-        await actions.submitStage(stage, { acknowledged: true });
+        const isFinalStage = lesson.stageIdx >= lesson.totalStages - 1;
+        if (isFinalStage) {
+          // Final stage triggers phase completion — make sure the submission
+          // is recorded before complete-primary fires.
+          await actions.submitStage(stage, { acknowledged: true });
+        } else {
+          // Non-final stage: fire-and-forget so the next stage renders instantly.
+          void actions.submitStage(stage, { acknowledged: true });
+        }
         actions.continueStage();
       }}
     />

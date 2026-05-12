@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { spendAuthenticatedCredits } from "@/lib/auth/profileSync";
 import { ApiError, apiFetch } from "@/lib/apiClient";
 import type {
@@ -100,7 +100,19 @@ export function useLessonStageFlow({
     }
   }, [onHintUsed]);
 
+  // Guards against rapid double-clicks: once an advance/skip is in flight,
+  // further calls are ignored until the current one resolves.
+  const advanceLockRef = useRef(false);
+
   const continueStage = useCallback(() => {
+    if (advanceLockRef.current) return;
+    advanceLockRef.current = true;
+    // Release on next tick — by then React has applied the stageIdx update
+    // and the new stage is rendered, so the user can act again.
+    setTimeout(() => {
+      advanceLockRef.current = false;
+    }, 0);
+
     if (stageIdx < totalStages - 1) {
       onAdvanceStage();
       return;
@@ -111,13 +123,33 @@ export function useLessonStageFlow({
 
   const skipStage = useCallback(
     async (stageToSkip: LessonStage) => {
-      const response = await submitStage(stageToSkip, { skipped: true });
-      if (!response) {
-        return;
+      if (advanceLockRef.current) return;
+      advanceLockRef.current = true;
+
+      let advanced = false;
+      try {
+        const response = await submitStage(stageToSkip, { skipped: true });
+        if (!response) return;
+        // Inline the advance — we already hold the lock, so don't go through
+        // continueStage() which would re-check the lock and bail.
+        if (stageIdx < totalStages - 1) {
+          onAdvanceStage();
+        } else {
+          void onCompletePhase();
+        }
+        advanced = true;
+      } finally {
+        if (advanced) {
+          // Defer release so React commits the new stageIdx and the old
+          // SKIP button unmounts before another click can re-enter.
+          setTimeout(() => { advanceLockRef.current = false; }, 0);
+        } else {
+          // No advance happened — let the user retry immediately.
+          advanceLockRef.current = false;
+        }
       }
-      continueStage();
     },
-    [continueStage, submitStage]
+    [onAdvanceStage, onCompletePhase, stageIdx, submitStage, totalStages]
   );
 
   const useHint = useCallback(() => consumeHintCredits(), [consumeHintCredits]);

@@ -13,6 +13,7 @@ export interface LessonStageRendererViewModel {
   stageLabel?: string;
   nodeDescription: string;
   courseId: number | null;
+  topicOverride?: string;
 }
 
 export interface LessonStageActionHandlers {

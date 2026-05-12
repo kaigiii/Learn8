@@ -1044,11 +1044,107 @@ async def generate_lesson_from_node_endpoint(
     return {"job_id": job_id, "status": JobStatus.PENDING}
 
 
+def _get_node_info_from_syllabus(db: Session, course_id: int, node_id: str) -> dict | None:
+    course = db.get(CourseModel, course_id)
+    if not course or not course.syllabus_json:
+        return None
+    for unit in course.syllabus_json.get("units", []):
+        for node in unit.get("nodes", []):
+            if node.get("id") == node_id:
+                return node
+    return None
+
+
+async def _generate_localized_public_lesson(
+    db: Session,
+    user_id: int,
+    course_id: int,
+    node_id: str,
+    topic: str,
+    preferred_language: str,
+    architect_service,
+) -> LessonModel | None:
+    from app.schemas.course_schema import LessonNode as LessonNodeSchema
+    from app.core.component_loader import registry as comp_registry
+
+    node_info = _get_node_info_from_syllabus(db, course_id, node_id)
+    if not node_info:
+        return None
+
+    profile = build_generation_profile_context(None, preferred_language, "General Learner")
+    lesson_node = LessonNodeSchema(
+        id=node_id,
+        title=node_info.get("title", node_id),
+        description=node_info.get("description", ""),
+    )
+    allowed = list(comp_registry.get_component_names())
+
+    try:
+        stages = await architect_service.generate_lesson_from_node(
+            node=lesson_node,
+            topic=topic,
+            user_id=user_id,
+            profile=profile,
+            allowed_components=allowed,
+        )
+    except Exception:
+        return None
+
+    if not stages:
+        return None
+
+    lesson = LessonModel(
+        user_id=user_id,
+        course_id=course_id,
+        node_id=node_id,
+        course_topic=topic,
+        status="generated",
+        stage_count=len(stages),
+        question_count=len(stages),
+        estimated_duration_minutes=len(stages) * 3,
+        schema_version=2,
+        generator_provider="public-i18n",
+        generator_model="ai-localized",
+        created_at=utc_now(),
+        updated_at=utc_now(),
+    )
+    db.add(lesson)
+    db.flush()
+
+    for idx, stage in enumerate(stages):
+        snap = stage.model_dump()
+        stage_model = LessonStageModel(
+            lesson_id=lesson.id,
+            stage_uid=snap["stageId"],
+            stage_order=idx,
+            stage_type="interactive",
+            topic=snap.get("topic", topic),
+            skin=snap.get("skin", "Scientific"),
+            component=snap["component"],
+            difficulty=snap.get("difficulty"),
+            recommended_duration_minutes=snap.get("recommendedDurationMinutes"),
+            item_count=1,
+            schema_version=2,
+            content_json=snap.get("config", {}).get("data", {}),
+            validation_json=snap.get("validation", {}),
+            feedback_json=snap.get("feedback", {}),
+            stage_snapshot_json=snap,
+            created_at=utc_now(),
+            updated_at=utc_now(),
+        )
+        db.add(stage_model)
+
+    db.commit()
+    db.refresh(lesson)
+    return lesson
+
+
 @router.post("/sessions/start", response_model=LessonSessionPayload)
 async def start_lesson_session(
     request: LessonSessionStartRequest,
     current_user: UserModel = Depends(get_current_user),
     db: Session = Depends(get_db),
+    architect_service: AIArchitectService = Depends(get_architect_service),
 ):
     system_user = db.query(UserModel).filter(UserModel.email == SYSTEM_USER_EMAIL).first()
     
@@ -1108,7 +1204,24 @@ async def start_lesson_session(
     )
 
     if not cached_lesson and system_user:
-        # If public or explicitly searching official content
+        # For non-English users on public courses: generate a personal localized lesson
+        user_lang = (current_user.preferred_language or "en").strip().lower()
+        needs_localization = is_public_course and user_lang not in ("en", "english", "en-us", "en-gb", "")
+        if needs_localization:
+            localized = await _generate_localized_public_lesson(
+                db=db,
+                user_id=current_user.id,
+                course_id=effective_course_id,
+                node_id=request.nodeId,
+                topic=request.topic,
+                preferred_language=current_user.preferred_language,
+                architect_service=architect_service,
+            )
+            if localized:
+                cached_lesson = localized
+
+    if not cached_lesson and system_user:
+        # Fall back to shared English system lesson
         cached_lesson = (
             db.query(LessonModel)
             .filter(
