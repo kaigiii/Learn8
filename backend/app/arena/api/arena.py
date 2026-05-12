@@ -22,6 +22,7 @@ from app.arena.schemas.arena_room_schema import (
     ArenaRoomResponse,
     ArenaRoomStartResponse,
     ArenaRoomSettingsUpdateRequest,
+    ArenaRoomKickPlayerRequest,
     ArenaRoomTransferHostRequest,
 )
 from app.arena.schemas.arena_match_schema import (
@@ -316,6 +317,18 @@ def leave_room(
     room_service = RoomService()
     room_service.leave_room(db, current_user, room_code)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/rooms/{room_code}/kick", response_model=ArenaRoomResponse)
+def kick_player(
+    room_code: str,
+    payload: ArenaRoomKickPlayerRequest,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
+    room_service = RoomService()
+    room = room_service.kick_player(db, current_user, room_code, payload.userId)
+    return ArenaRoomResponse(**room_service.serialize_room(room))
 
 
 @router.post("/rooms/{room_code}/transfer-host", response_model=ArenaRoomResponse)
