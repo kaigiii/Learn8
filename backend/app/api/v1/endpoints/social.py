@@ -480,6 +480,7 @@ def get_groups(
                         "id": u.id,
                         "email": u.email,
                         "full_name": u.full_name,
+                        "avatar_url": u.avatar_url,
                         "is_admin": m.is_admin,
                         "rating": rating,
                         "tier": tier

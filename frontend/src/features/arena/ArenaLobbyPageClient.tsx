@@ -14,10 +14,12 @@ import type { ArenaPublicCourse } from "@/lib/apiTypes";
 import { useAuthStore } from "@/stores/app/useAuthStore";
 import { useArenaLobbyStore } from "@/stores/arena/useArenaLobbyStore";
 import { useArenaRoomEvents } from "./hooks/useArenaRoomEvents";
+import { useI18n } from "@/lib/i18n/useI18n";
 
 const RANDOM_TOPIC_ID = -1;
 
 export default function ArenaLobbyPageClient({ roomCode }: { roomCode: string }) {
+  const { t } = useI18n();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isReady } = useRequireAuthRedirect();
@@ -33,9 +35,6 @@ export default function ArenaLobbyPageClient({ roomCode }: { roomCode: string })
   const [selectedTopicValue, setSelectedTopicValue] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [joining, setJoining] = useState(true);
-
-  const [friends, setFriends] = useState<any[]>([]);
-  const [loadingFriends, setLoadingFriends] = useState(false);
 
   useEffect(() => () => reset(), [reset]);
 
@@ -232,21 +231,42 @@ export default function ArenaLobbyPageClient({ roomCode }: { roomCode: string })
     }
   };
 
-  useEffect(() => {
-    if (!isReady || !room) return;
-    setLoadingFriends(true);
-    import("@/lib/apiClient").then(({ apiFetch }) => {
-      apiFetch<any>("/social/friends")
-        .then((data) => {
-          setFriends(data.friends || []);
-        })
-        .catch((err) => console.error(err))
-        .finally(() => setLoadingFriends(false));
-    });
-  }, [isReady, room]);
-
-  const [inviteStatus, setInviteStatus] = useState<{ type: "success" | "error"; msg: string } | null>(null);
   const [copiedCode, setCopiedCode] = useState(false);
+  const [friends, setFriends] = useState<{ id: number; full_name: string | null; email: string; is_online: boolean; avatar_url?: string }[]>([]);
+  const [friendsLoaded, setFriendsLoaded] = useState(false);
+  const [inviteSlotIndex, setInviteSlotIndex] = useState<number | null>(null);
+  const [inviteSentIds, setInviteSentIds] = useState<Set<number>>(new Set());
+
+  const loadFriends = async () => {
+    if (friendsLoaded) return;
+    try {
+      const { apiFetch } = await import("@/lib/apiClient");
+      const data = await apiFetch<any>("/social/friends");
+      setFriends(data.friends || []);
+    } catch {
+      /* ignore */
+    } finally {
+      setFriendsLoaded(true);
+    }
+  };
+
+  const handleOpenInviteSlot = (index: number) => {
+    void loadFriends();
+    setInviteSlotIndex(index);
+  };
+
+  const handleInviteFriend = async (friendId: number) => {
+    try {
+      const { apiFetch } = await import("@/lib/apiClient");
+      await apiFetch<any>("/social/friends/arena-invite", {
+        method: "POST",
+        body: JSON.stringify({ friend_id: friendId, room_code: roomCode }),
+      });
+      setInviteSentIds((prev) => new Set(prev).add(friendId));
+    } catch {
+      /* ignore */
+    }
+  };
 
   const handleCopyRoomCode = async () => {
     try {
@@ -258,29 +278,13 @@ export default function ArenaLobbyPageClient({ roomCode }: { roomCode: string })
     }
   };
 
-  const handleInviteFriend = async (friendId: number, friendName: string) => {
-    try {
-      const { apiFetch } = await import("@/lib/apiClient");
-      await apiFetch<any>("/social/friends/arena-invite", {
-        method: "POST",
-        body: JSON.stringify({ friend_id: friendId, room_code: roomCode }),
-      });
-      setInviteStatus({ type: "success", msg: `Successfully sent in-app game invite to ${friendName}!` });
-      setTimeout(() => setInviteStatus(null), 4000);
-    } catch (err: any) {
-      setInviteStatus({ type: "error", msg: err.detail || "Failed to send arena invitation." });
-      setTimeout(() => setInviteStatus(null), 4000);
-    }
-  };
-
-
   if (joining) {
     return (
       <div className="min-h-screen bg-[url('/backgrounds/MainBg.png')] bg-cover bg-center bg-no-repeat">
-        <TopStatsBar backHref="/home" pageTitle="Arena Lobby" />
+        <TopStatsBar backHref="/home" pageTitle={t("arena.lobby.pageTitle")} />
         <main className="flex min-h-[calc(100vh-72px)] flex-col items-center justify-center gap-4">
           <div className="h-12 w-12 animate-spin rounded-full border-[5px] border-brand-teal/20 border-t-brand-teal" />
-          <p className="text-sm font-semibold text-brand-gray-500">Joining room...</p>
+          <p className="text-sm font-semibold text-brand-gray-500">{t("arena.lobby.joiningRoom")}</p>
         </main>
       </div>
     );
@@ -288,14 +292,14 @@ export default function ArenaLobbyPageClient({ roomCode }: { roomCode: string })
 
   return (
     <div className="min-h-screen bg-[url('/backgrounds/MainBg.png')] bg-cover bg-center bg-no-repeat">
-      <TopStatsBar backHref="/home" pageTitle="Arena Lobby" />
+      <TopStatsBar backHref="/home" pageTitle={t("arena.lobby.pageTitle")} />
       <main className="mx-auto flex min-h-[calc(100vh-72px)] max-w-5xl flex-col items-center justify-center px-4 py-4 md:px-8">
         <div className="w-full text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/55 px-3 py-1 shadow-sm backdrop-blur">
             <svg viewBox="0 0 20 20" className="h-3.5 w-3.5 text-brand-teal" fill="currentColor">
               <path d="M10 2a4 4 0 00-4 4v2H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-1V6a4 4 0 00-4-4zm-2 6V6a2 2 0 114 0v2H8z" />
             </svg>
-            <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-brand-teal">Room Code</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-brand-teal">{t("arena.lobby.roomCode")}</p>
           </div>
           <button
             type="button"
@@ -320,7 +324,7 @@ export default function ArenaLobbyPageClient({ roomCode }: { roomCode: string })
                   <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M20 6L9 17l-5-5" />
                   </svg>
-                  Copied
+                  {t("arena.lobby.copied")}
                 </>
               ) : (
                 <>
@@ -328,7 +332,7 @@ export default function ArenaLobbyPageClient({ roomCode }: { roomCode: string })
                     <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
                     <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
                   </svg>
-                  Copy
+                  {t("arena.lobby.copy")}
                 </>
               )}
             </span>
@@ -337,7 +341,7 @@ export default function ArenaLobbyPageClient({ roomCode }: { roomCode: string })
             <QuestionTypeDropdown
               value={selectedTopicValue ?? room?.poolId ?? null}
               options={topicOptions}
-              placeholder={coursesLoading ? "Loading topics..." : "No competitions available"}
+              placeholder={coursesLoading ? t("arena.loadingCompetitions") : t("arena.noCompetitions")}
               disabled={!currentPlayer?.isHost || room?.status !== "lobby" || settingsBusy || coursesLoading || courses.length === 0}
               onChange={(nextValue) => void handleTopicChange(nextValue)}
             />
@@ -347,8 +351,8 @@ export default function ArenaLobbyPageClient({ roomCode }: { roomCode: string })
         {connectionStatus !== "connected" || isRecovering ? (
           <div className="mt-6 rounded-full border border-sky-200 bg-sky-50/90 px-5 py-3 text-sm text-sky-900 shadow-sm">
             {connectionStatus === "reconnecting" || isRecovering
-              ? "Lobby connection interrupted. Re-syncing the latest room state..."
-              : "Connecting to the live room event stream..."}
+              ? t("arena.lobby.reconnecting")
+              : t("arena.lobby.connecting")}
           </div>
         ) : null}
 
@@ -362,7 +366,7 @@ export default function ArenaLobbyPageClient({ roomCode }: { roomCode: string })
                 <path d="M16 3.13a4 4 0 010 7.75" />
               </svg>
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-brand-teal">
-                Players {room?.players.length ?? 0}/8
+                {t("arena.lobby.players", { current: String(room?.players.length ?? 0), max: "8" })}
               </p>
             </div>
           </div>
@@ -375,9 +379,9 @@ export default function ArenaLobbyPageClient({ roomCode }: { roomCode: string })
                 return (
                   <LobbyPlayerCard
                     key={player.userId}
-                    title={player.displayName || (isSelf ? (authUser?.full_name || authUser?.email?.split("@")[0] || "You") : "Player")}
+                    title={player.displayName || (isSelf ? (authUser?.full_name || authUser?.email?.split("@")[0] || t("arena.lobby.you")) : "Player")}
                     avatarSrc={player.avatarUrl || "/avatar/chicken.png"}
-                    role={player.isHost ? (isSelf ? "Host (You)" : "Host") : isSelf ? "You" : "Player"}
+                    role={player.isHost ? (isSelf ? t("arena.lobby.hostYou") : t("arena.lobby.host")) : isSelf ? t("arena.lobby.you") : "Player"}
                     isReady={player.isReady}
                     isHost={player.isHost}
                     isSelf={isSelf}
@@ -394,7 +398,7 @@ export default function ArenaLobbyPageClient({ roomCode }: { roomCode: string })
               return (
                 <LobbyPlayerCard
                   key={`empty-${index}`}
-                  title="Waiting for opponent"
+                  title={t("arena.lobby.waitingOpponent")}
                   avatarSrc={undefined}
                   role="Player"
                   isReady={false}
@@ -403,6 +407,7 @@ export default function ArenaLobbyPageClient({ roomCode }: { roomCode: string })
                   readyDisabled
                   loading
                   actionLabel="WAITING"
+                  onInviteClick={() => handleOpenInviteSlot(index)}
                 />
               );
             })}
@@ -423,7 +428,7 @@ export default function ArenaLobbyPageClient({ roomCode }: { roomCode: string })
                   <polyline points="16 17 21 12 16 7" />
                   <line x1="21" y1="12" x2="9" y2="12" />
                 </svg>
-                Leave Room
+                {t("arena.lobby.leaveRoom")}
               </span>
             </GameButton>
             {currentPlayer ? (
@@ -445,7 +450,7 @@ export default function ArenaLobbyPageClient({ roomCode }: { roomCode: string })
                       <path d="M20 6L9 17l-5-5" />
                     </svg>
                   )}
-                  {currentPlayer.isReady ? "Unready" : "Ready Up"}
+                  {currentPlayer.isReady ? t("arena.lobby.unready") : t("arena.lobby.readyUp")}
                 </span>
               </GameButton>
             ) : null}
@@ -458,65 +463,91 @@ export default function ArenaLobbyPageClient({ roomCode }: { roomCode: string })
                 <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <polygon points="5 3 19 12 5 21 5 3" fill="currentColor" />
                 </svg>
-                Start Match
+                {t("arena.lobby.startMatch")}
               </span>
             </GameButton>
           </div>
 
           {error ? <p className="text-sm text-rose-600">{error}</p> : null}
-
-          {inviteStatus && (
-            <div className={`mt-3 p-3 rounded-xl border text-center text-xs font-bold ${
-              inviteStatus.type === "success"
-                ? "bg-emerald-50 border-emerald-200 text-emerald-600"
-                : "bg-rose-50 border-rose-200 text-rose-600"
-            }`}>
-              {inviteStatus.msg}
-            </div>
-          )}
-
-          {/* Friends invitation widget for host */}
-          {friends.length > 0 && (
-            <div className="mt-6 w-full max-w-xl rounded-2xl border border-white/70 bg-white/72 p-4 backdrop-blur-xl shadow-lg">
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-teal text-center mb-3">
-                Invite Friends to Room
-              </p>
-              <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
-                {friends.map((friend) => (
-                  <div
-                    key={friend.id}
-                    className="flex items-center justify-between gap-3 p-3 rounded-xl border border-white/60 bg-white/65 hover:bg-white/80 transition"
-                  >
-                    <div>
-                      <p className="text-sm font-bold text-brand-gray-700 flex items-center gap-1.5 flex-wrap">
-                        {friend.full_name || friend.email.split("@")[0]}
-                        {friend.is_online ? (
-                          <span className="flex items-center gap-1 bg-emerald-50 text-emerald-600 border border-emerald-200/50 px-1.5 py-0.5 rounded-lg text-[10px] font-bold animate-pulse leading-none flex-none select-none">
-                            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
-                            Online
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1 bg-gray-50 text-gray-400 border border-gray-200/50 px-1.5 py-0.5 rounded-lg text-[10px] font-bold leading-none flex-none select-none">
-                            <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
-                            Offline
-                          </span>
-                        )}
-                      </p>
-                      <p className="text-xs text-brand-gray-400 font-mono">UID: #{friend.id}</p>
-                    </div>
-                    <button
-                      onClick={() => handleInviteFriend(friend.id, friend.full_name || friend.email.split("@")[0])}
-                      className="px-3 py-1 bg-brand-teal/10 hover:bg-brand-teal text-brand-teal hover:text-white rounded-xl text-xs font-bold transition border border-brand-teal/20 shadow-sm whitespace-nowrap"
-                    >
-                      Invite (邀請)
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       </main>
+
+      {/* Invite friends modal */}
+      {inviteSlotIndex !== null && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm"
+          onClick={() => setInviteSlotIndex(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-3xl border border-white/70 bg-white/90 p-5 shadow-[0_20px_50px_rgba(95,146,165,0.28)] backdrop-blur-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-teal">{t("arena.lobby.inviteFriends")}</p>
+              <button
+                type="button"
+                onClick={() => setInviteSlotIndex(null)}
+                className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-gray-100 text-brand-gray-400 transition hover:bg-brand-gray-200"
+              >
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {!friendsLoaded ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-brand-teal/20 border-t-brand-teal" />
+              </div>
+            ) : friends.length === 0 ? (
+              <p className="py-6 text-center text-sm text-brand-gray-400">{t("arena.lobby.noFriends")}</p>
+            ) : (
+              <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+                {friends.map((friend) => {
+                  const alreadyInRoom = room?.players.some((p) => p.userId === friend.id);
+                  const sent = inviteSentIds.has(friend.id);
+                  const name = friend.full_name || friend.email.split("@")[0];
+                  return (
+                    <div
+                      key={friend.id}
+                      className="flex items-center gap-3 rounded-2xl border border-white/60 bg-white/70 p-3"
+                    >
+                      <div className="relative h-10 w-10 flex-none overflow-hidden rounded-full bg-brand-gray-100 shadow">
+                        {friend.avatar_url ? (
+                          <Image src={friend.avatar_url} alt={name} fill sizes="40px" className="object-cover" />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-sm font-bold text-brand-teal">
+                            {name[0]?.toUpperCase()}
+                          </div>
+                        )}
+                        <span className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-white ${friend.is_online ? "bg-emerald-400" : "bg-brand-gray-300"}`} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-bold text-brand-gray-700">{name}</p>
+                        <p className="text-[11px] text-brand-gray-400">{friend.is_online ? t("arena.lobby.online") : t("arena.lobby.offline")}</p>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={alreadyInRoom || sent}
+                        onClick={() => void handleInviteFriend(friend.id)}
+                        className={`flex-none rounded-xl px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.1em] transition ${
+                          alreadyInRoom
+                            ? "bg-brand-gray-100 text-brand-gray-400 cursor-default"
+                            : sent
+                              ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
+                              : "bg-brand-teal/10 text-brand-teal hover:bg-brand-teal hover:text-white border border-brand-teal/20"
+                        }`}
+                      >
+                        {alreadyInRoom ? t("arena.lobby.alreadyInRoom") : sent ? t("arena.lobby.inviteSent") : t("arena.lobby.invite")}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -626,6 +657,7 @@ function LobbyPlayerCard({
   onTransferHost,
   onKick,
   hostActionsDisabled = false,
+  onInviteClick,
 }: {
   title: string;
   avatarSrc?: string;
@@ -641,7 +673,9 @@ function LobbyPlayerCard({
   onTransferHost?: () => void;
   onKick?: () => void;
   hostActionsDisabled?: boolean;
+  onInviteClick?: () => void;
 }) {
+  const { t } = useI18n();
   const isEmpty = loading;
   const hasHostActions = Boolean(onTransferHost || onKick);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -672,7 +706,8 @@ function LobbyPlayerCard({
 
   return (
     <div
-      className={`relative w-full rounded-[24px] bg-white/70 p-2.5 backdrop-blur-xl transition-all duration-300 ${outerGlow} ${menuOpen ? "z-20" : ""}`}
+      className={`relative w-full rounded-[24px] bg-white/70 p-2.5 backdrop-blur-xl transition-all duration-300 ${outerGlow} ${menuOpen ? "z-20" : ""} ${isEmpty && onInviteClick ? "cursor-pointer hover:scale-[1.02]" : ""}`}
+      onClick={isEmpty && onInviteClick ? onInviteClick : undefined}
     >
       {/* Corner glow accent (matches queue card) */}
       <div className="pointer-events-none absolute -top-px -left-px h-1/3 w-1/2 overflow-hidden rounded-tl-[22px] bg-gradient-to-br from-white/60 to-transparent" />
@@ -697,7 +732,18 @@ function LobbyPlayerCard({
         />
 
         {loading ? (
-          <OpenSlotIndicator />
+          onInviteClick ? (
+            <button
+              type="button"
+              onClick={onInviteClick}
+              className="flex items-center justify-center transition hover:scale-105"
+              aria-label={t("arena.lobby.inviteFriends")}
+            >
+              <OpenSlotIndicator interactive label={t("arena.lobby.openSlot")} />
+            </button>
+          ) : (
+            <OpenSlotIndicator label={t("arena.lobby.openSlot")} />
+          )
         ) : hasHostActions ? (
           <div ref={menuRef} className="relative">
             <button
@@ -730,7 +776,7 @@ function LobbyPlayerCard({
                     <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor">
                       <path d="M3 19h18l-2.5-11-3.75 5L12 7l-2.75 6L5.5 8 3 19z" />
                     </svg>
-                    Make Host
+                    {t("arena.lobby.makeHost")}
                   </button>
                 ) : null}
                 {onKick ? (
@@ -747,7 +793,7 @@ function LobbyPlayerCard({
                     <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M18 6L6 18M6 6l12 12" />
                     </svg>
-                    Kick Player
+                    {t("arena.lobby.kickPlayer")}
                   </button>
                 ) : null}
               </div>
@@ -765,7 +811,7 @@ function LobbyPlayerCard({
 
         {connectionState === "disconnected" ? (
           <p className="mt-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-rose-500">
-            Disconnected
+            {t("arena.lobby.disconnected")}
           </p>
         ) : null}
       </div>
@@ -773,7 +819,7 @@ function LobbyPlayerCard({
   );
 }
 
-function OpenSlotIndicator() {
+function OpenSlotIndicator({ interactive = false, label = "Open Slot" }: { interactive?: boolean; label?: string }) {
   return (
     <div className="flex flex-col items-center justify-center gap-2">
       <div className="relative h-[88px] w-[88px]">
@@ -800,7 +846,7 @@ function OpenSlotIndicator() {
         </div>
       </div>
       <div className="flex items-center gap-1 font-heading text-[10px] font-bold uppercase tracking-[0.18em] text-[#4a9e9b]/75">
-        <span>Open Slot</span>
+        <span>{label}</span>
         <SlotDots />
       </div>
     </div>

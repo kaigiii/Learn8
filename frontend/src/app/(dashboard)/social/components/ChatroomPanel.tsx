@@ -25,9 +25,12 @@ interface ChatroomPanelProps {
   title: string;
   groupMembers?: any[];
   friendInfo?: any;
+  isGroupOwner?: boolean;
+  groupInviteCode?: string;
+  onGroupAction?: (action: "delete" | "leave") => void;
 }
 
-export default function ChatroomPanel({ chatId, type, title, groupMembers, friendInfo }: ChatroomPanelProps) {
+export default function ChatroomPanel({ chatId, type, title, groupMembers, friendInfo, isGroupOwner, groupInviteCode, onGroupAction }: ChatroomPanelProps) {
   const router = useRouter();
   const { t } = useI18n();
   const token = useAuthStore(s => s.token);
@@ -42,75 +45,104 @@ export default function ChatroomPanel({ chatId, type, title, groupMembers, frien
   const [showShareDropdown, setShowShareDropdown] = useState(false);
   const [sharing, setSharing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const latestMsgIdRef = useRef<number>(0);
+  const wsRef = useRef<WebSocket | null>(null);
+  const cancelledRef = useRef(false);
 
   // Derive Base URL dynamically
   const isLocalhost = typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
   const baseUrl = isLocalhost ? "http://127.0.0.1:8000/api/v1" : (process.env.NEXT_PUBLIC_API_URL || "/api/v1");
 
-  useEffect(() => {
-    if (!token || !authUser || !chatId) return;
-
-    // Load History
-    const fetchHistory = async () => {
-      setLoading(true);
-      try {
-        const url = type === "friend" 
-          ? `${baseUrl}/social/chat/friends/${chatId}?limit=50`
-          : `${baseUrl}/social/chat/groups/${chatId}?limit=50`;
-          
-        const res = await fetch(url, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        
-        if (res.ok) {
-          const data = await res.json();
+  const fetchMessages = async (initial = false) => {
+    if (!token) return;
+    try {
+      const url = type === "friend"
+        ? `${baseUrl}/social/chat/friends/${chatId}?limit=50`
+        : `${baseUrl}/social/chat/groups/${chatId}?limit=50`;
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) {
+        const data: ChatMessage[] = await res.json();
+        if (initial) {
           setMessages(data);
+          if (data.length > 0) latestMsgIdRef.current = data[data.length - 1].id;
           scrollToBottom();
+        } else {
+          // Append only new messages
+          const newMsgs = data.filter(m => m.id > latestMsgIdRef.current);
+          if (newMsgs.length > 0) {
+            latestMsgIdRef.current = newMsgs[newMsgs.length - 1].id;
+            setMessages(prev => [...prev, ...newMsgs]);
+            scrollToBottom();
+          }
         }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
       }
-    };
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
-    fetchHistory();
-    fetchMyCourses();
-
-    // Connect WebSocket
-    const wsBaseUrl = isLocalhost ? "ws://127.0.0.1:8000/api/v1" : (process.env.NEXT_PUBLIC_API_URL?.replace("http", "ws") || "ws://127.0.0.1:8000/api/v1");
-    const wsUrl = `${wsBaseUrl}/social/chat/ws?access_token=${token}`;
-    const ws = new WebSocket(wsUrl);
-
-    ws.onopen = () => {
-      console.log("Chat WS Connected");
-    };
+  const connectWs = () => {
+    if (!token || cancelledRef.current) return;
+    const wsBaseUrl = isLocalhost
+      ? "ws://127.0.0.1:8000/api/v1"
+      : (process.env.NEXT_PUBLIC_API_URL?.replace(/^http/, "ws") || "ws://127.0.0.1:8000/api/v1");
+    const ws = new WebSocket(`${wsBaseUrl}/social/chat/ws?access_token=${token}`);
 
     ws.onmessage = (event) => {
       try {
-        const newMsg = JSON.parse(event.data);
-        if (type === "friend" && (newMsg.sender_id === chatId || newMsg.recipient_id === chatId)) {
-          setMessages(prev => [...prev, newMsg]);
-          scrollToBottom();
-        } else if (type === "group" && newMsg.group_id === chatId) {
+        const newMsg = JSON.parse(event.data) as ChatMessage & { recipient_id?: number; group_id?: number };
+        const isRelevant =
+          type === "friend"
+            ? newMsg.sender_id === chatId || newMsg.recipient_id === chatId
+            : newMsg.group_id === chatId;
+        if (isRelevant && newMsg.id > latestMsgIdRef.current) {
+          latestMsgIdRef.current = newMsg.id;
           setMessages(prev => [...prev, newMsg]);
           scrollToBottom();
         }
-      } catch (err) {
-        console.error("WS Message Error", err);
-      }
+      } catch { /* ignore */ }
     };
 
     ws.onclose = () => {
-      console.log("Chat WS Disconnected");
+      wsRef.current = null;
+      setSocket(null);
+      // Auto-reconnect after 2s if not intentionally cancelled
+      if (!cancelledRef.current) {
+        setTimeout(() => connectWs(), 2000);
+      }
     };
 
+    ws.onerror = () => ws.close();
+
+    wsRef.current = ws;
     setSocket(ws);
+  };
+
+  useEffect(() => {
+    if (!token || !authUser || !chatId) return;
+    cancelledRef.current = false;
+
+    const init = async () => {
+      setLoading(true);
+      await fetchMessages(true);
+      setLoading(false);
+      fetchMyCourses();
+      connectWs();
+    };
+    void init();
+
+    // Polling fallback every 3s — handles cases where WS message is missed
+    const pollId = window.setInterval(() => {
+      if (!cancelledRef.current) void fetchMessages(false);
+    }, 3000);
 
     return () => {
-      ws.close();
+      cancelledRef.current = true;
+      window.clearInterval(pollId);
+      wsRef.current?.close();
+      wsRef.current = null;
     };
-  }, [chatId, type, token, authUser]);
+  }, [chatId, type, token, authUser]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchMyCourses = async () => {
     try {
@@ -126,6 +158,23 @@ export default function ChatroomPanel({ chatId, type, title, groupMembers, frien
     }
   };
 
+  const resolveSenderName = (senderId: number): string => {
+    if (senderId === authUser?.id) return authUser?.full_name || authUser?.email?.split("@")[0] || "Me";
+    if (type === "friend") return friendInfo?.full_name || friendInfo?.email?.split("@")[0] || "Friend";
+    const member = groupMembers?.find(m => m.id === senderId);
+    return member?.full_name || member?.email?.split("@")[0] || `User ${senderId}`;
+  };
+
+  const resolveSenderAvatar = (senderId: number): string | null => {
+    if (senderId === authUser?.id) return authUser?.avatar_url || null;
+    if (type === "friend") return friendInfo?.avatar_url || null;
+    const member = groupMembers?.find((m: any) => m.id === senderId);
+    return member?.avatar_url || null;
+  };
+
+  const resolverSenderInitial = (name: string): string =>
+    name.charAt(0).toUpperCase();
+
   const scrollToBottom = () => {
     setTimeout(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -134,13 +183,16 @@ export default function ChatroomPanel({ chatId, type, title, groupMembers, frien
 
   const sendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || !socket || socket.readyState !== WebSocket.OPEN) return;
+    if (!input.trim()) return;
 
-    const payload = type === "friend" 
+    const payload = type === "friend"
       ? { action: "send_friend_message", friend_id: chatId, content: input }
       : { action: "send_group_message", group_id: chatId, content: input };
 
-    socket.send(JSON.stringify(payload));
+    const ws = wsRef.current;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(payload));
+    }
     setInput("");
   };
 
@@ -198,9 +250,9 @@ export default function ChatroomPanel({ chatId, type, title, groupMembers, frien
         onClick={() => setShowInfo(!showInfo)}
       >
         <h3 className="font-heading font-extrabold text-brand-gray-700 tracking-tight flex items-center gap-2">
-          <span className="text-xl">💬</span> {t("chat.chatWith", { title })}
+          <span className="text-xl">💬</span> {title}
           <span className="text-xs bg-brand-teal/10 text-brand-teal font-extrabold px-2 py-0.5 rounded-full border border-brand-teal/20 ml-1">
-            {type === "group" ? `👥 ${t("chat.group")}` : `👤 ${t("chat.friend")}`}
+            {type === "group" ? `👥 ${groupInviteCode ?? t("chat.group")}` : `👤 ${t("chat.friend")}`}
           </span>
         </h3>
         <button className="text-xs font-bold text-brand-gray-400 bg-brand-gray-50 hover:bg-brand-gray-100 px-2.5 py-1.5 rounded-xl border border-brand-gray-200 transition">
@@ -214,12 +266,17 @@ export default function ChatroomPanel({ chatId, type, title, groupMembers, frien
             <h4 className="font-heading font-extrabold text-brand-gray-700 tracking-tight text-base">
               {type === "group" ? t("chat.groupMembers") : t("chat.friendInfo")}
             </h4>
-            <button
-              onClick={(e) => { e.stopPropagation(); setShowInfo(false); }}
-              className="text-xs font-bold text-brand-teal hover:underline"
-            >
-              {t("chat.backToChat")}
-            </button>
+            {type === "group" && onGroupAction ? (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onGroupAction(isGroupOwner ? "delete" : "leave");
+                }}
+                className="text-xs font-bold text-rose-500 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2.5 py-1 rounded-lg transition"
+              >
+                {isGroupOwner ? "解散群組" : "離開群組"}
+              </button>
+            ) : null}
           </div>
           
           {type === "group" ? (
@@ -286,47 +343,78 @@ export default function ChatroomPanel({ chatId, type, title, groupMembers, frien
                 {t("chat.noMessages")}
               </div>
             ) : (
-              messages.map(msg => {
+              messages.map((msg, idx) => {
                 const isMe = msg.sender_id === authUser?.id;
+                const senderName = resolveSenderName(msg.sender_id);
+                const avatarSrc = resolveSenderAvatar(msg.sender_id);
+                const prevMsg = messages[idx - 1];
+                const showSenderInfo = !isMe && (!prevMsg || prevMsg.sender_id !== msg.sender_id);
+                const msgTime = new Date(msg.created_at);
+                const prevTime = prevMsg ? new Date(prevMsg.created_at) : null;
+                const showTimestamp = !prevTime || (msgTime.getTime() - prevTime.getTime()) > 5 * 60 * 1000;
                 return (
-                  <div key={msg.id} className={`flex flex-col ${isMe ? "items-end" : "items-start"} max-w-full animate-fade-in`}>
-                    <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm shadow-sm border ${isMe ? "bg-brand-teal text-white border-brand-teal rounded-br-none" : "bg-white text-brand-gray-700 border-brand-gray-100 rounded-bl-none"}`}>
-                      {msg.message_type === "course_share" ? (
-                        <div className="flex flex-col gap-2 min-w-[200px]">
-                          <div className={`flex items-center gap-2 font-extrabold text-xs uppercase tracking-widest ${isMe ? "text-teal-100" : "text-brand-teal"}`}>
-                            <FiBookOpen className="w-4 h-4"/> {t("chat.courseShared")}
-                          </div>
-                          {(() => {
-                            try {
-                              const data = JSON.parse(msg.content);
-                              return (
-                                <div className={`p-3 rounded-xl border ${isMe ? "bg-white/10 border-white/20" : "bg-brand-gray-50 border-brand-gray-200"}`}>
-                                  <p className={`font-bold leading-tight ${isMe ? "text-white" : "text-brand-gray-800"}`}>
-                                    {data.title}
-                                  </p>
-                                  {!isMe && (
-                                    <button
-                                      onClick={() => handleImportSharedCourse(data.id)}
-                                      className="w-full mt-2.5 flex items-center justify-center gap-1.5 rounded-lg border border-brand-teal bg-white hover:bg-brand-teal hover:text-white px-3 py-1.5 text-xs font-bold text-brand-teal transition shadow-sm"
-                                    >
-                                      {t("chat.importCourse")}
-                                    </button>
-                                  )}
-                                </div>
-                              );
-                            } catch (err) {
-                              return <p>{msg.content}</p>;
-                            }
-                          })()}
+                  <React.Fragment key={msg.id}>
+                    {showTimestamp && (
+                      <div className="flex items-center justify-center my-2">
+                        <span className="text-[10px] font-medium text-brand-gray-400 bg-brand-gray-50/80 rounded-full px-3 py-0.5 select-none">
+                          {msgTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                    )}
+                  <div className={`flex gap-2 ${isMe ? "flex-row-reverse" : "flex-row"} items-end max-w-full animate-fade-in`}>
+                    {!isMe && (
+                      <div className="flex-shrink-0">
+                        <div className="h-8 w-8 rounded-full overflow-hidden bg-brand-teal/20 border border-brand-gray-100 shadow-sm flex items-center justify-center">
+                          {avatarSrc ? (
+                            <img src={avatarSrc} alt={senderName} className="h-full w-full object-cover" />
+                          ) : (
+                            <span className="text-xs font-extrabold text-brand-teal">{resolverSenderInitial(senderName)}</span>
+                          )}
                         </div>
-                      ) : (
-                        <p className="whitespace-pre-wrap break-words leading-relaxed">{msg.content}</p>
+                      </div>
+                    )}
+                    <div className="flex flex-col max-w-[75%]">
+                      {showSenderInfo && (
+                        <span className="text-[11px] font-bold mb-1 px-1 text-brand-gray-500">
+                          {senderName}
+                        </span>
                       )}
+                      <div className={`rounded-2xl px-4 py-2.5 text-sm shadow-sm border ${isMe ? "bg-brand-teal text-white border-brand-teal rounded-br-none" : "bg-white text-brand-gray-700 border-brand-gray-200 rounded-bl-none"}`}>
+                        {msg.message_type === "course_share" ? (
+                          <div className="flex flex-col gap-2 min-w-[200px]">
+                            <div className={`flex items-center gap-2 font-extrabold text-xs uppercase tracking-widest ${isMe ? "text-teal-100" : "text-brand-teal"}`}>
+                              <FiBookOpen className="w-4 h-4"/> {t("chat.courseShared")}
+                            </div>
+                            {(() => {
+                              try {
+                                const data = JSON.parse(msg.content);
+                                return (
+                                  <div className={`p-3 rounded-xl border ${isMe ? "bg-white/10 border-white/20" : "bg-brand-gray-50 border-brand-gray-200"}`}>
+                                    <p className={`font-bold leading-tight ${isMe ? "text-white" : "text-brand-gray-800"}`}>
+                                      {data.title}
+                                    </p>
+                                    {!isMe && (
+                                      <button
+                                        onClick={() => handleImportSharedCourse(data.id)}
+                                        className="w-full mt-2.5 flex items-center justify-center gap-1.5 rounded-lg border border-brand-teal bg-white hover:bg-brand-teal hover:text-white px-3 py-1.5 text-xs font-bold text-brand-teal transition shadow-sm"
+                                      >
+                                        {t("chat.importCourse")}
+                                      </button>
+                                    )}
+                                  </div>
+                                );
+                              } catch (err) {
+                                return <p>{msg.content}</p>;
+                              }
+                            })()}
+                          </div>
+                        ) : (
+                          <p className="whitespace-pre-wrap break-words leading-relaxed">{msg.content}</p>
+                        )}
+                      </div>
                     </div>
-                    <span className="text-[10px] text-brand-gray-400 mt-1 select-none px-1">
-                      {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
                   </div>
+                  </React.Fragment>
                 );
               })
             )}

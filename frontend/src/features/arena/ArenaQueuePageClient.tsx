@@ -228,8 +228,7 @@ export default function ArenaQueuePageClient() {
             {t("arena.queue.rankedDuel")}
           </div>
           <h1
-            className="font-heading text-[2.4rem] font-black leading-none tracking-tight text-brand-teal md:text-6xl"
-            style={{ WebkitTextStroke: "1px rgba(255,255,255,0.6)" }}
+            className="bg-gradient-to-b from-[#7AC7C4] via-[#5fb3af] to-[#8dd4d1] bg-clip-text font-heading text-[2.4rem] font-black leading-none tracking-tight text-transparent md:text-6xl"
           >
             {t("arena.queue.findYourMatch")}
           </h1>
