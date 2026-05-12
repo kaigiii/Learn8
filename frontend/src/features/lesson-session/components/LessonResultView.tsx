@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { LessonSessionSummary } from "@/lib/apiTypes";
+import { useI18n } from "@/lib/i18n/useI18n";
 
 interface LessonResultViewProps {
   resultSummary: LessonSessionSummary | null;
@@ -29,6 +30,7 @@ export function LessonResultView({
   barDuration,
   onBackToMap,
 }: LessonResultViewProps) {
+  const { t } = useI18n();
   const safeSummary: LessonSessionSummary = resultSummary ?? {
     sessionId: 0,
     courseId: null,
@@ -49,15 +51,16 @@ export function LessonResultView({
   const isRewardEligible = safeSummary.rewardEligible;
 
   return (
-    <div className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden app-shared-bg">
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background:
-            "radial-gradient(ellipse 60% 50% at 50% 35%, rgba(122,199,196,0.18) 0%, rgba(212,169,106,0.08) 45%, transparent 75%)",
-        }}
-      />
-
+    <div
+      className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden"
+      style={{
+        backgroundColor: "#d9ecf6",
+        backgroundImage: 'url("/backgrounds/ForgingBg.png")',
+        backgroundPosition: "center",
+        backgroundSize: "cover",
+        backgroundRepeat: "no-repeat",
+      }}
+    >
       <VictoryConfetti />
       <DecorativeStars />
 
@@ -71,7 +74,7 @@ export function LessonResultView({
             textShadow: "0 4px 18px rgba(122,199,196,0.25)",
           }}
         >
-          {isRewardEligible ? "LESSON CLEARED!" : "PRACTICE CLEARED!"}
+          {isRewardEligible ? t("lesson.cleared") : t("lesson.practiceCleared")}
         </motion.h1>
 
         {!isRewardEligible && (
@@ -81,7 +84,7 @@ export function LessonResultView({
             transition={{ delay: 0.18 }}
             className="mb-5 rounded-full border border-[#9ecbd4]/30 bg-white/70 px-4 py-2 text-center text-sm font-semibold text-brand-gray-600 shadow-sm backdrop-blur"
           >
-            Replay run: this node was already completed, so no XP reward is granted.
+            {t("lesson.replayNote")}
           </motion.p>
         )}
 
@@ -91,16 +94,6 @@ export function LessonResultView({
           transition={{ type: "spring", damping: 11, stiffness: 140, delay: 0.3 }}
           className="relative mb-6"
         >
-          <motion.div
-            className="absolute left-1/2 top-1/2 h-52 w-52 -translate-x-1/2 -translate-y-1/2 rounded-full"
-            style={{
-              background:
-                "radial-gradient(circle, rgba(122,199,196,0.35) 0%, rgba(212,169,106,0.18) 50%, transparent 72%)",
-            }}
-            animate={{ scale: [1, 1.15, 1], opacity: [0.7, 1, 0.7] }}
-            transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
-          />
-
           <div className="relative z-10 flex flex-col items-center">
             <VictoryTrophy />
           </div>
@@ -114,14 +107,14 @@ export function LessonResultView({
         >
           <div className="mb-4 flex items-start justify-between">
             <div className="flex-1 text-center">
-              <div className="mb-1 text-xs font-medium text-brand-gray-500">Accuracy:</div>
+              <div className="mb-1 text-xs font-medium text-brand-gray-500">{t("lesson.accuracy")}</div>
               <div className="font-heading text-2xl font-extrabold tabular-nums text-brand-gray-700 sm:text-3xl">
                 {accuracy}%
               </div>
             </div>
             <div className="mx-2 h-12 w-px self-center bg-[#9ecbd4]/30" />
             <div className="flex-1 text-center">
-              <div className="mb-1 text-xs font-medium text-brand-gray-500">Time:</div>
+              <div className="mb-1 text-xs font-medium text-brand-gray-500">{t("lesson.time")}</div>
               <div className="font-heading text-2xl font-extrabold tabular-nums text-brand-gray-700 sm:text-3xl">
                 {safeSummary.elapsedLabel ?? "0m 00s"}
               </div>
@@ -129,14 +122,14 @@ export function LessonResultView({
             <div className="mx-2 h-12 w-px self-center bg-[#9ecbd4]/30" />
             <div className="flex-1 text-center">
               <div className="mb-1 text-xs font-medium text-brand-gray-500">
-                {isRewardEligible ? "XP Gained:" : "Reward:"}
+                {isRewardEligible ? t("lesson.xpGained") : t("lesson.reward")}
               </div>
               <div
                 className={`font-heading text-2xl font-extrabold tabular-nums sm:text-3xl ${
                   isRewardEligible ? "text-[#D4A96A]" : "text-brand-gray-400"
                 }`}
               >
-                {isRewardEligible ? `+${xpGained} XP` : "No XP"}
+                {isRewardEligible ? `+${xpGained} XP` : t("lesson.noXp")}
               </div>
             </div>
           </div>
@@ -153,31 +146,31 @@ export function LessonResultView({
                   className="bg-gradient-to-r from-[#7AC7C4] via-[#5fb3af] to-[#D4A96A] bg-clip-text font-heading text-lg font-extrabold italic text-transparent"
                   style={{ textShadow: "0 0 16px rgba(122,199,196,0.35)" }}
                 >
-                  Level Up!
+                  {t("lesson.levelUp")}
                 </span>
               </motion.div>
               )}
           </AnimatePresence>
 
           <div className="mb-1 flex items-center justify-between px-0.5 text-[10px] font-bold text-brand-gray-500">
-            <span>Lv.{displayLevel}</span>
+            <span>{t("lesson.lv")}{displayLevel}</span>
             <span className="tabular-nums">
               {Math.round(currentXp)} / {currentXpToNext} XP
             </span>
-            <span>Lv.{displayLevel + 1}</span>
+            <span>{t("lesson.lv")}{displayLevel + 1}</span>
           </div>
-          <div className="relative h-5 w-full overflow-hidden rounded-full border border-[#9ecbd4]/30 bg-white/60">
+          <div className="relative h-5 w-full overflow-hidden rounded-full border border-[#4a9e9b]/60 bg-white/60">
             <motion.div
               className={`relative h-full rounded-full ${
                 isRewardEligible
-                  ? "bg-gradient-to-r from-[#7AC7C4] via-[#5fb3af] to-[#D4A96A]"
-                  : "bg-gradient-to-r from-brand-gray-300/40 via-brand-gray-300/50 to-brand-gray-300/40"
+                  ? "bg-gradient-to-r from-[#86c46b] via-[#5fb3af] to-[#F4B860] shadow-[0_0_12px_rgba(134,196,107,0.45)]"
+                  : "bg-gradient-to-r from-[#bfe1e0]/70 via-[#a8d5d3]/70 to-[#bfe1e0]/70"
               }`}
               animate={{ width: `${Math.max(xpBarWidth, 0)}%` }}
               transition={{ duration: barDuration, ease: "easeOut" }}
             >
               {isRewardEligible && (
-                <div className="absolute inset-0 animate-shimmer-bar bg-gradient-to-r from-transparent via-white/40 to-transparent" />
+                <div className="absolute inset-0 animate-shimmer-bar bg-gradient-to-r from-transparent via-white/50 to-transparent" />
               )}
             </motion.div>
             {isRewardEligible && (
@@ -185,9 +178,9 @@ export function LessonResultView({
                 className="absolute inset-0 rounded-full"
                 animate={{
                   boxShadow: [
-                    "inset 0 0 6px rgba(122,199,196,0.3)",
-                    "inset 0 0 12px rgba(122,199,196,0.5)",
-                    "inset 0 0 6px rgba(122,199,196,0.3)",
+                    "inset 0 0 6px rgba(134,196,107,0.35)",
+                    "inset 0 0 14px rgba(244,184,96,0.55)",
+                    "inset 0 0 6px rgba(134,196,107,0.35)",
                   ],
                 }}
                 transition={{ repeat: Infinity, duration: 2 }}
@@ -211,7 +204,7 @@ export function LessonResultView({
               animate={{ opacity: [0, 0.5, 0] }}
               transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
             />
-            <span className="relative z-10">Back to Map</span>
+            <span className="relative z-10">{t("lesson.backToMap")}</span>
           </button>
         </motion.div>
       </div>
@@ -247,8 +240,6 @@ function VictoryTrophy() {
           <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0" />
         </radialGradient>
       </defs>
-
-      <ellipse cx="80" cy="160" rx="50" ry="5" fill="rgba(15,40,55,0.15)" />
 
       <path d="M40 24 Q22 32 22 58 Q22 84 48 92" stroke="url(#trophyHandle)" strokeWidth="9" strokeLinecap="round" fill="none" />
       <path d="M120 24 Q138 32 138 58 Q138 84 112 92" stroke="url(#trophyHandle)" strokeWidth="9" strokeLinecap="round" fill="none" />

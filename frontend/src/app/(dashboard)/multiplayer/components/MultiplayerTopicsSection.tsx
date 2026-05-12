@@ -11,12 +11,27 @@ import {
 } from "@/lib/courseCardBackground";
 import { HomeCourseIcon } from "../../home/components/HomeCourseIcon";
 import { useI18n } from "@/lib/i18n/useI18n";
+import type { TranslationKey } from "@/lib/i18n/translations";
 
 const LIB_BG_IMAGES = DEFAULT_LIBRARY_BACKGROUNDS;
 
 interface MultiplayerTopicsSectionProps {
   courses: CourseListItem[];
   courseProgressById: Record<number, number>;
+}
+
+function courseSlugFromTitle(title: string): string {
+  return title.toLowerCase().replace(/ /g, "-").replace(/&/g, "and");
+}
+
+function translateCourseTitle(
+  t: (key: TranslationKey) => string,
+  title: string
+): string {
+  const slug = courseSlugFromTitle(title);
+  const key = `arena.course.${slug}` as TranslationKey;
+  const result = t(key);
+  return result === key ? title : result;
 }
 
 export function MultiplayerTopicsSection({
@@ -91,9 +106,9 @@ export function MultiplayerTopicsSection({
                 <div className="mt-2 space-y-1 text-center">
                   <p
                     className="truncate text-sm font-semibold text-brand-gray-600"
-                    title={course.title}
+                    title={translateCourseTitle(t, course.title)}
                   >
-                    {course.title}
+                    {translateCourseTitle(t, course.title)}
                   </p>
                 </div>
               </motion.div>

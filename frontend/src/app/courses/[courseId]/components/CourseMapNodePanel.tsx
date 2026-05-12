@@ -16,6 +16,22 @@ import type {
 import { NODE_STATUS } from "@/lib/domain/statuses";
 import type { CourseMapNode } from "../hooks/useCourseMapData";
 import { useI18n } from "@/lib/i18n/useI18n";
+import type { TranslationKey } from "@/lib/i18n/translations";
+
+function courseSlugFromTitle(title: string): string {
+  return title.toLowerCase().replace(/ /g, "-").replace(/&/g, "and");
+}
+
+function translatePublicNode(
+  t: (key: TranslationKey) => string,
+  courseSlug: string,
+  nodeId: string,
+  fallback: string
+): string {
+  const key = `course.${courseSlug}.node.${nodeId}` as TranslationKey;
+  const result = t(key);
+  return result === key ? fallback : result;
+}
 
 export function CourseMapNodePanel({
   courseId,
@@ -166,11 +182,22 @@ export function CourseMapNodePanel({
   };
 
   const isLocked = selectedNode?.status === NODE_STATUS.LOCKED;
-  const contextTitle =
-    selectedNode?.title ||
-    coursePath?.topic ||
-    coursePath?.courseTitle ||
-    "Current course";
+  const contextTitle = (() => {
+    if (coursePath?.isPublic && selectedNode && coursePath.courseTitle) {
+      return translatePublicNode(
+        t,
+        courseSlugFromTitle(coursePath.courseTitle),
+        selectedNode.id,
+        selectedNode.title
+      );
+    }
+    return (
+      selectedNode?.title ||
+      coursePath?.topic ||
+      coursePath?.courseTitle ||
+      "Current course"
+    );
+  })();
   const contextDescription =
     selectedNode?.description ||
     coursePath?.description ||

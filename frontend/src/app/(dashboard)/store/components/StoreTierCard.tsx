@@ -59,7 +59,7 @@ export function StoreTierCard({
           {TIER_LABEL_KEYS[tier.id] ? t(TIER_LABEL_KEYS[tier.id]!) : tier.label}
         </h3>
 
-        <div className="my-6 flex h-28 items-center justify-center">
+        <div className="my-6 flex h-44 items-center justify-center">
           {tier.variant === "starter" ? <GemsIllustration /> : <ChestIllustration />}
         </div>
 
@@ -105,7 +105,7 @@ function StoreProTierCard({
             {TIER_LABEL_KEYS[tier.id] ? t(TIER_LABEL_KEYS[tier.id]!) : tier.label}
           </h3>
 
-          <div className="my-6 flex h-28 items-center justify-center">
+          <div className="my-6 flex h-44 items-center justify-center">
             <InfiniteEnergyIcon />
           </div>
 
@@ -129,116 +129,21 @@ function StoreProTierCard({
 
 function GemsIllustration() {
   return (
-    <svg viewBox="0 0 120 110" className="h-full w-auto" fill="none">
-      <defs>
-        <linearGradient id="sdTop" x1="0.5" y1="0" x2="0.5" y2="0.45">
-          <stop offset="0%" stopColor="#E0F7FF" />
-          <stop offset="100%" stopColor="#67E8F9" />
-        </linearGradient>
-        <linearGradient id="sdLeft" x1="1" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#38BDF8" />
-          <stop offset="100%" stopColor="#0369A1" />
-        </linearGradient>
-        <linearGradient id="sdRight" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#7DD3FC" />
-          <stop offset="100%" stopColor="#0284C7" />
-        </linearGradient>
-        <linearGradient id="sdBottom" x1="0.5" y1="0" x2="0.5" y2="1">
-          <stop offset="0%" stopColor="#0EA5E9" />
-          <stop offset="100%" stopColor="#075985" />
-        </linearGradient>
-        <radialGradient id="sdGlow" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#BAE6FD" stopOpacity="0.55" />
-          <stop offset="100%" stopColor="#38BDF8" stopOpacity="0" />
-        </radialGradient>
-      </defs>
-      {/* Glow */}
-      <ellipse cx="60" cy="58" rx="40" ry="38" fill="url(#sdGlow)" />
-      {/* Top facet */}
-      <polygon points="60,12 82,40 60,48 38,40" fill="url(#sdTop)" />
-      {/* Left facet */}
-      <polygon points="38,40 60,48 60,96 24,58" fill="url(#sdLeft)" />
-      {/* Right facet */}
-      <polygon points="82,40 60,48 60,96 96,58" fill="url(#sdRight)" />
-      {/* Bottom-left inner */}
-      <polygon points="60,48 60,96 24,58 38,40" fill="#0EA5E9" opacity="0.18" />
-      {/* Highlight on top facet */}
-      <polygon points="60,14 75,38 60,44 45,38" fill="white" opacity="0.32" />
-      <polygon points="48,42 60,47 54,60" fill="white" opacity="0.16" />
-      {/* Shadow */}
-      <ellipse cx="60" cy="100" rx="22" ry="5" fill="#0EA5E9" opacity="0.13" />
-      {/* Sparkles */}
-      <path d="M101 18 L103 24 L109 26 L103 28 L101 34 L99 28 L93 26 L99 24 Z" fill="#FDE68A" opacity="0.9" />
-      <circle cx="18" cy="46" r="2" fill="#BAE6FD" opacity="0.8" />
-      <circle cx="104" cy="60" r="1.5" fill="#FDE68A" opacity="0.65" />
-      <path d="M16 60 L17.5 64 L22 65.5 L17.5 67 L16 71 L14.5 67 L10 65.5 L14.5 64 Z" fill="#BAE6FD" opacity="0.75" />
-    </svg>
+    <img
+      src="/pattern/diamond.png"
+      alt="diamond"
+      className="h-full w-auto object-contain drop-shadow-md"
+    />
   );
 }
 
 function ChestIllustration() {
   return (
-    <svg viewBox="0 0 140 115" className="h-full w-auto" fill="none">
-      <defs>
-        <linearGradient id="pdTop" x1="0.5" y1="0" x2="0.5" y2="0.45">
-          <stop offset="0%" stopColor="#E0F7FF" />
-          <stop offset="100%" stopColor="#67E8F9" />
-        </linearGradient>
-        <linearGradient id="pdLeft" x1="1" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#38BDF8" />
-          <stop offset="100%" stopColor="#0369A1" />
-        </linearGradient>
-        <linearGradient id="pdRight" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#7DD3FC" />
-          <stop offset="100%" stopColor="#0284C7" />
-        </linearGradient>
-        <linearGradient id="pdTop2" x1="0.5" y1="0" x2="0.5" y2="0.45">
-          <stop offset="0%" stopColor="#C7F2FF" />
-          <stop offset="100%" stopColor="#38BDF8" />
-        </linearGradient>
-        <linearGradient id="pdLeft2" x1="1" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#0EA5E9" />
-          <stop offset="100%" stopColor="#075985" />
-        </linearGradient>
-        <linearGradient id="pdRight2" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#38BDF8" />
-          <stop offset="100%" stopColor="#0369A1" />
-        </linearGradient>
-        <radialGradient id="pdGlow" cx="50%" cy="55%" r="55%">
-          <stop offset="0%" stopColor="#BAE6FD" stopOpacity="0.5" />
-          <stop offset="100%" stopColor="#38BDF8" stopOpacity="0" />
-        </radialGradient>
-      </defs>
-      {/* Glow */}
-      <ellipse cx="70" cy="68" rx="52" ry="36" fill="url(#pdGlow)" />
-
-      {/* Back-left small diamond */}
-      <polygon points="30,36 42,52 30,60 18,52" fill="url(#pdTop2)" opacity="0.85" />
-      <polygon points="18,52 30,60 30,80 14,68" fill="url(#pdLeft2)" opacity="0.8" />
-      <polygon points="42,52 30,60 30,80 46,68" fill="url(#pdRight2)" opacity="0.7" />
-      <polygon points="30,38 39,50 30,55 21,50" fill="white" opacity="0.22" />
-
-      {/* Back-right small diamond */}
-      <polygon points="110,30 122,46 110,54 98,46" fill="url(#pdTop2)" opacity="0.85" />
-      <polygon points="98,46 110,54 110,74 94,62" fill="url(#pdLeft2)" opacity="0.8" />
-      <polygon points="122,46 110,54 110,74 126,62" fill="url(#pdRight2)" opacity="0.7" />
-      <polygon points="110,32 119,44 110,49 101,44" fill="white" opacity="0.22" />
-
-      {/* Main center diamond */}
-      <polygon points="70,10 94,42 70,52 46,42" fill="url(#pdTop)" />
-      <polygon points="46,42 70,52 70,98 26,68" fill="url(#pdLeft)" />
-      <polygon points="94,42 70,52 70,98 114,68" fill="url(#pdRight)" />
-      <polygon points="70,13 88,40 70,47 52,40" fill="white" opacity="0.3" />
-      <polygon points="56,45 70,50 62,64" fill="white" opacity="0.16" />
-
-      {/* Shadow */}
-      <ellipse cx="70" cy="104" rx="30" ry="6" fill="#0EA5E9" opacity="0.12" />
-      {/* Sparkles */}
-      <path d="M120 12 L122 17 L127 19 L122 21 L120 26 L118 21 L113 19 L118 17 Z" fill="#FDE68A" opacity="0.9" />
-      <path d="M14 36 L15.5 40 L20 41.5 L15.5 43 L14 47 L12.5 43 L8 41.5 L12.5 40 Z" fill="#BAE6FD" opacity="0.8" />
-      <circle cx="124" cy="72" r="2" fill="#FDE68A" opacity="0.65" />
-      <circle cx="16" cy="70" r="1.5" fill="#BAE6FD" opacity="0.7" />
-    </svg>
+    <img
+      src="/pattern/pile_of_diamonds.png"
+      alt="pile of diamonds"
+      className="h-full w-auto object-contain drop-shadow-md"
+    />
   );
 }
 

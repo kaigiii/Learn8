@@ -74,6 +74,8 @@ class RatingService:
                 expected_performance=expected_performance,
                 abandonment_penalty=abandonment_penalty,
             )
+            if placement == 1:
+                rating_delta *= 2
             if ranked_mode:
                 arena_rating.rating = max(0, arena_rating.rating + rating_delta)
                 arena_rating.ranked_matches += 1
@@ -112,8 +114,6 @@ class RatingService:
             xp_reward = self._compute_xp_reward(placement, len(standings))
             credits_reward = self._compute_credit_reward(placement, len(standings))
             display_score = int(row["score"])
-            if placement == 1:
-                display_score *= 2
             accuracy = (
                 round((int(row["correctCount"]) / max(int(row["answeredCount"]), 1)) * 100)
                 if int(row["answeredCount"]) > 0

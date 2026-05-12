@@ -10,7 +10,21 @@ import {
   resolveCourseCardBackground,
 } from "@/lib/courseCardBackground";
 import { useI18n } from "@/lib/i18n/useI18n";
+import type { TranslationKey } from "@/lib/i18n/translations";
 import { HomeCourseIcon } from "./HomeCourseIcon";
+
+function courseSlugFromTitle(title: string): string {
+  return title.toLowerCase().replace(/ /g, "-").replace(/&/g, "and");
+}
+
+function translateCourseTitle(
+  t: (key: TranslationKey) => string,
+  title: string
+): string {
+  const key = `arena.course.${courseSlugFromTitle(title)}` as TranslationKey;
+  const result = t(key);
+  return result === key ? title : result;
+}
 
 const LIB_BG_IMAGES = DEFAULT_LIBRARY_BACKGROUNDS;
 
@@ -121,9 +135,9 @@ export function HomePublicTopicsSection({
                   <div className="mt-2 space-y-1 text-center">
                     <p
                       className="truncate text-sm font-semibold text-brand-gray-600"
-                      title={course.title}
+                      title={translateCourseTitle(t, course.title)}
                     >
-                      {course.title}
+                      {translateCourseTitle(t, course.title)}
                     </p>
                   </div>
                 </motion.div>

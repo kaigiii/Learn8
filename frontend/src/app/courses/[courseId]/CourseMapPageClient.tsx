@@ -14,8 +14,35 @@ import { CourseMapNodePanel } from "./components/CourseMapNodePanel";
 import { useCourseMapData, type CourseMapNode } from "./hooks/useCourseMapData";
 import { useResolvedCourseRoute } from "./hooks/useResolvedCourseRoute";
 import { useI18n } from "@/lib/i18n/useI18n";
+import type { TranslationKey } from "@/lib/i18n/translations";
 
 const COMPACT_VIEWPORT_MEDIA_QUERY = "(max-width: 1023px)";
+
+function courseSlugFromTitle(title: string): string {
+  return title.toLowerCase().replace(/ /g, "-").replace(/&/g, "and");
+}
+
+function translatePublicNode(
+  t: (key: TranslationKey) => string,
+  courseSlug: string,
+  nodeId: string,
+  fallback: string
+): string {
+  const key = `course.${courseSlug}.node.${nodeId}` as TranslationKey;
+  const result = t(key);
+  return result === key ? fallback : result;
+}
+
+function translatePublicUnit(
+  t: (key: TranslationKey) => string,
+  courseSlug: string,
+  unitNumber: number,
+  fallback: string
+): string {
+  const key = `course.${courseSlug}.unit-${unitNumber}` as TranslationKey;
+  const result = t(key);
+  return result === key ? fallback : result;
+}
 
 export default function CourseMapPageClient({
   courseId: explicitCourseId,
@@ -228,6 +255,7 @@ export default function CourseMapPageClient({
                 scrollDuration={3000}
                 isFreshNav={isFreshNav}
                 courseId={courseId}
+                courseSlug={coursePath?.isPublic ? courseSlugFromTitle(coursePath.courseTitle || pageTitle) : undefined}
                 isSelected={node.id === selectedNodeId}
                 onSelect={setSelectedNodeId}
               />
@@ -318,6 +346,7 @@ function MapNodeCircle({
   scrollDuration = 3000,
   isFreshNav = true,
   courseId,
+  courseSlug,
   isSelected,
   onSelect,
 }: {
@@ -327,6 +356,7 @@ function MapNodeCircle({
   scrollDuration?: number;
   isFreshNav?: boolean;
   courseId: string;
+  courseSlug?: string;
   isSelected: boolean;
   onSelect: (nodeId: string) => void;
 }) {
@@ -366,8 +396,8 @@ function MapNodeCircle({
           <span className="font-heading text-[12px] font-medium uppercase tracking-[0.22em] text-black/55">
             {t("courseMap.unit")} {node.unitNumber}
           </span>
-          <span className="mt-1 font-heading text-xl font-bold text-black/75 leading-tight text-center">
-            {node.title}
+          <span className="mt-1 font-heading text-lg font-bold text-black/75 leading-tight text-center">
+            {courseSlug && node.unitNumber ? translatePublicUnit(t, courseSlug, node.unitNumber, node.title) : node.title}
           </span>
         </motion.div>
       </div>
@@ -549,7 +579,7 @@ function MapNodeCircle({
             : "text-brand-gray-400"
         }`}
       >
-        {node.title}
+        {courseSlug ? translatePublicNode(t, courseSlug, node.id, node.title) : node.title}
       </span>
     </motion.button>
   );
