@@ -34,6 +34,7 @@ interface GroupMember {
   id: number;
   email: string;
   full_name: string;
+  avatar_url?: string;
   is_admin: boolean;
   rating: number;
   tier: string;
@@ -165,7 +166,6 @@ export default function SocialPageClient() {
         method: "POST",
         body: JSON.stringify({ friend_id: friendId }),
       });
-      setMessage({ text: t("social.friendRequestSent"), type: "success" });
       setInviteEmail("");
       setSearchQuery("");
       setSearchResults([]);
@@ -182,7 +182,6 @@ export default function SocialPageClient() {
         method: "POST",
         body: JSON.stringify({ friend_id: friendId, action }),
       });
-      setMessage({ text: t("social.invitationActioned", { action }), type: "success" });
       loadFriendsData();
     } catch (err: any) {
       setMessage({ text: err.detail || t("social.actionFailed"), type: "error" });
@@ -645,41 +644,6 @@ export default function SocialPageClient() {
                               </span>
                             )}
                           </div>
-                          {activeChat?.id === group.id && activeChat?.type === "group" && (
-                            <div className="px-3 pb-3 border-t border-brand-teal/10 pt-2 flex flex-col gap-2 bg-white/40">
-                              <div className="flex items-center justify-between">
-                                <div className="text-[10px] text-brand-teal font-mono tracking-wider font-bold">
-                                  Code: {group.invite_code}
-                                </div>
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); group.is_owner ? handleDeleteGroup(group.id) : handleLeaveGroup(group.id); }}
-                                  className="text-[10px] text-rose-500 hover:underline font-bold"
-                                >
-                                  {group.is_owner ? t("social.disbandGroup") : t("social.leaveGroup")}
-                                </button>
-                              </div>
-
-                              {groupActiveMatches[group.id] && groupActiveMatches[group.id].length > 0 && (
-                                <div className="border-t border-brand-gray-100/50 mt-1 pt-2 space-y-1.5 animate-fade-in">
-                                  <p className="text-[10px] font-extrabold text-brand-gray-500 uppercase tracking-wider">🔥 {t("social.activeMatches")}</p>
-                                  {groupActiveMatches[group.id].map((m: any) => (
-                                    <div key={m.match_id} className="flex items-center justify-between bg-white/60 p-2 rounded-xl border border-brand-teal/20 shadow-sm animate-fade-in">
-                                      <div className="min-w-0">
-                                        <p className="text-xs font-bold text-brand-gray-700 truncate">Match #{m.match_id} • {m.mode}</p>
-                                        <p className="text-[10px] text-brand-gray-400">Players: {m.players.join(", ")}</p>
-                                      </div>
-                                      <button 
-                                        onClick={() => router.push(`/arena/matches/${m.match_id}`)}
-                                        className="text-[10px] font-bold bg-brand-teal text-white px-2 py-1 rounded-lg hover:bg-brand-teal/90 transition shadow shrink-0"
-                                      >
-                                        ⚔️ Join
-                                      </button>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          )}
                         </div>
                       ))}
                     </div>
@@ -699,6 +663,17 @@ export default function SocialPageClient() {
               title={activeChat.title}
               groupMembers={activeChat.type === "group" ? groups.find(g => g.id === activeChat.id)?.members : undefined}
               friendInfo={activeChat.type === "friend" ? friends.find(f => f.id === activeChat.id) : undefined}
+              isGroupOwner={activeChat.type === "group" ? groups.find(g => g.id === activeChat.id)?.is_owner : false}
+              groupInviteCode={activeChat.type === "group" ? groups.find(g => g.id === activeChat.id)?.invite_code : undefined}
+              onGroupAction={activeChat.type === "group" ? (action) => {
+                if (action === "delete") {
+                  void handleDeleteGroup(activeChat.id);
+                  setActiveChat(null);
+                } else {
+                  void handleLeaveGroup(activeChat.id);
+                  setActiveChat(null);
+                }
+              } : undefined}
             />
           ) : (
             <div className="flex-1 flex items-center justify-center animate-fade-in relative overflow-hidden">

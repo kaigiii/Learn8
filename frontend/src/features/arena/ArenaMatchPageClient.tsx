@@ -482,7 +482,7 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
     // players get stuck on "Waiting for both players to load the question".
     trySendReady();
     const unsubscribe = arenaWsClient.onStatusChange(() => trySendReady());
-    return unsubscribe;
+    return () => { unsubscribe(); };
   }, [activeRound?.roundId, activeRound?.status, isReady, matchId]);
 
   useEffect(() => {

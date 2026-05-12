@@ -352,7 +352,7 @@ export default function TopStatsBar({
       {invites && invites.map((invite) => (
         <div
           key={invite.id}
-          className="fixed bottom-4 right-4 z-[9999] w-full max-w-sm rounded-2xl border border-amber-200 bg-amber-50/95 p-4 backdrop-blur shadow-2xl transition duration-300"
+          className="fixed bottom-4 right-4 z-[9999] w-full max-w-sm rounded-2xl border border-white/70 bg-white/95 p-4 backdrop-blur shadow-2xl transition duration-300"
         >
           <div className="flex items-center gap-2">
             <span className="text-xl">⚔️</span>
