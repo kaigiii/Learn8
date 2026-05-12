@@ -228,8 +228,8 @@ export default function ArenaQueuePageClient() {
             {t("arena.queue.rankedDuel")}
           </div>
           <h1
-            className="bg-gradient-to-b from-[#5fb3af] via-[#4a9e9b] to-[#7AC7C4] bg-clip-text font-heading text-[2.4rem] font-black leading-none tracking-tight text-transparent md:text-6xl"
-            style={{ textShadow: "0 4px 18px rgba(122,199,196,0.25)" }}
+            className="font-heading text-[2.4rem] font-black leading-none tracking-tight text-brand-teal md:text-6xl"
+            style={{ WebkitTextStroke: "1px rgba(255,255,255,0.6)" }}
           >
             {t("arena.queue.findYourMatch")}
           </h1>
@@ -351,7 +351,7 @@ function VsBadge() {
       />
       <div className="relative">
         <span
-          className="bg-gradient-to-br from-[#D4A96A] via-[#5fb3af] to-[#4a9e9b] bg-clip-text font-heading text-6xl font-black tracking-tight text-transparent md:text-7xl lg:text-[6.25rem]"
+          className="bg-gradient-to-br from-[#DEBA82] via-[#6dbfbc] to-[#55aaa6] bg-clip-text font-heading text-6xl font-black tracking-tight text-transparent md:text-7xl lg:text-[6.25rem]"
           style={{
             filter: "drop-shadow(0 4px 14px rgba(122,199,196,0.45))",
             WebkitTextStroke: "1px rgba(255,255,255,0.6)",

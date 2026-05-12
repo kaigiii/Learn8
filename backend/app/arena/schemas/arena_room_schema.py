@@ -60,6 +60,10 @@ class ArenaRoomTransferHostRequest(BaseModel):
     newHostUserId: int
 
 
+class ArenaRoomKickPlayerRequest(BaseModel):
+    userId: int
+
+
 class ArenaRoomJoinRequest(BaseModel):
     roomCode: str = Field(min_length=4, max_length=12)
 

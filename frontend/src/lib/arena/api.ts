@@ -227,6 +227,13 @@ export function transferArenaRoomHost(roomCode: string, newHostUserId: number) {
   });
 }
 
+export function kickArenaRoomPlayer(roomCode: string, userId: number) {
+  return apiFetch<ArenaRoom>(`/arena/rooms/${roomCode}/kick`, {
+    method: "POST",
+    body: JSON.stringify({ userId }),
+  });
+}
+
 export function joinArenaCompetitiveQueue(payload: {
   publicCourseId: number;
   poolId?: number;

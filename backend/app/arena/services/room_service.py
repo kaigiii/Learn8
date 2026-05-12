@@ -374,6 +374,50 @@ class RoomService:
         )
         db.commit()
 
+    def kick_player(
+        self, db: Session, current_user: UserModel, room_code: str, target_user_id: int
+    ) -> ArenaRoomModel:
+        room = self.get_room_by_code(db, room_code)
+        if not room:
+            raise HTTPException(status_code=404, detail="Arena room not found")
+        if room.host_user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Only the host can kick players")
+        if target_user_id == current_user.id:
+            raise HTTPException(status_code=400, detail="Host cannot kick themselves")
+        if room.status != ArenaRoomStatus.LOBBY:
+            raise HTTPException(status_code=409, detail="Arena room is no longer in lobby state")
+
+        original_room_code = room.room_code
+        target_player = next((item for item in room.players if item.user_id == target_user_id), None)
+        if not target_player:
+            raise HTTPException(status_code=404, detail="Target player is not in this room")
+
+        if target_player in room.players:
+            room.players.remove(target_player)
+        db.delete(target_player)
+        db.flush()
+        db.expire_all()
+
+        db.commit()
+        db.expire_all()
+
+        room = self.get_room_by_code(db, original_room_code, cleanup_idle=False)
+        self.realtime_gateway.publish_event(
+            db,
+            stream_type="room",
+            room_code=original_room_code,
+            event_type="room.player_kicked",
+            payload={
+                "roomCode": original_room_code,
+                "userId": target_user_id,
+                "kickedBy": current_user.id,
+                "hostUserId": room.host_user_id if room else None,
+                "status": room.status if room else ArenaRoomStatus.CLOSED,
+            },
+        )
+        db.commit()
+        return room
+
     def set_ready(
         self, db: Session, current_user: UserModel, room_code: str, *, is_ready: bool
     ) -> ArenaRoomModel:
