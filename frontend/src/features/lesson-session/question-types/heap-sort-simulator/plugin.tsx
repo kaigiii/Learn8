@@ -31,6 +31,7 @@ export function HeapSortStageRenderer({
       initialArray={config.initialArray || [12, 11, 13, 5, 6, 7]}
       title={config.title || "Heap Sort: Interactive Walkthrough"}
       explanation={config.explanation || "學習 Heap Sort 的核心邏輯與二元堆積結構。"}
+      messages={(config as any).messages}
       onContinue={async () => {
         const isFinalStage = lesson.stageIdx >= lesson.totalStages - 1;
         if (isFinalStage) {

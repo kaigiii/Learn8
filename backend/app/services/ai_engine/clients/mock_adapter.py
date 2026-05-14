@@ -138,12 +138,39 @@ def generate_algo_nodes():
                 "data": {
                     "vibe": vibe,
                     "title": f"{title} 互動模擬器" if title == "Heap Sort" else f"{title} 核心概念說明",
-                    "initialArray": [13, 11, 12, 5, 6, 7] if title == "Heap Sort" else None,
-                    "explanation": "堆積排序 (Heap Sort) 的核心在於利用『二元堆積』。請點擊下方的『開始模擬』，觀察最大值是如何從樹根被提取並放到數組末尾，且樹結構如何通過交換動畫自動恢復堆積屬性。" if title == "Heap Sort" else f"在 {title} 的學習過程中，理解其運作邏輯是關鍵。接下來我們將透過一系列的互動挑戰來掌握它的核心。",
+                    "initialArray": [12, 15, 10, 5, 8, 7] if title == "Heap Sort" else None,
+                    "explanation": "堆積排序 (Heap Sort) 的核心在於利用『二元堆積』。觀察最大值是如何從樹根被提取，且樹結構如何自動恢復屬性。" if title == "Heap Sort" else f"理解 {title} 的運作邏輯。",
+                    "messages": {
+                        "ready": "準備就緒。點擊「運行模擬」開始觀察 Heapify 過程。",
+                        "building": "第一步：從最後一個非葉子節點開始，自底向上建立最大堆積...",
+                        "sorting": "第二步：不斷將根節點與末尾交換，並縮小堆積範圍重新調整...",
+                        "done": "完成！數組現在已完全由小到大排列。"
+                    } if title == "Heap Sort" else None,
                     "mediaType": "none",
                 }
             },
-            # Stage 2: Basic MCQ
+            # Stage 2: Interactive Practical Workshop
+            {
+                "component": "HeapSortExercise",
+                "data": {
+                    "title": "實戰練習：動手排序！",
+                    "initialArray": [9, 14, 11, 6, 12, 7],
+                    "explanation": "請先修復違規節點建立『最大堆積』，然後點擊根節點進行提取排序。",
+                    "messages": {
+                        "initial": "請找出違反『父節點 ≥ 子節點』屬性的位置進行交換。",
+                        "successSwap": "調整正確！繼續檢查其他節點。",
+                        "successExtract": "提取成功！最大值已歸位。",
+                        "errorSwap": "警告：交換後的父節點必須是大於子節點的。",
+                        "errorInvalid": "非法操作：請先建立堆積或點擊正確的交換目標。"
+                    },
+                    "hints": [
+                        "提示 1：從 index 2 的節點開始檢查它的子節點。",
+                        "提示 2：14 目前比它的父節點大，應該進行交換。",
+                        "提示 3：建立完堆積後，記得點擊根節點 (index 0) 與最後一個葉子交換。"
+                    ]
+                }
+            },
+            # Stage 3: Basic MCQ
             {
                 "component": "MultipleChoice",
                 "data": {
