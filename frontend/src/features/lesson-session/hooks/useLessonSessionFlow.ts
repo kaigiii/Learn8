@@ -262,7 +262,7 @@ export function useLessonSessionFlow({
       setPhaseTransitionMessage(
         "Finalising this lesson and checking whether targeted review is needed..."
       );
-      const delayedTransitionId: number | null = null;
+      const delayedTransitionId: number | undefined = undefined;
 
       try {
         debugLessonFlow("Calling complete-primary", {
