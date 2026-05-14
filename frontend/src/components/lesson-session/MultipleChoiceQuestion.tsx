@@ -197,50 +197,28 @@ export default function MultipleChoiceQuestion({
 
       {!hideChrome && (
         <QuestionActionBar
+          onSkip={onSkip}
           leftSlot={
             <HintButton
               onClick={() => void handleHint()}
               disabled={hintUsed || !!result || isLocked}
             />
           }
-          rightSlot={
-            result === "correct" ? (
-              <GameButton
-                variant="primary"
-                onClick={() => onCorrectAdvance?.()}
-                className="min-w-[140px]"
-              >
-                CONTINUE
-              </GameButton>
-            ) : result === "wrong" ? (
-              <GameButton
-                variant="primary"
-                onClick={() => onWrongAdvance?.()}
-                className="min-w-[140px]"
-              >
-                GOT IT
-              </GameButton>
-            ) : (
-              <>
-                <GameButton
-                  variant="secondary"
-                  onClick={() => onSkip?.()}
-                  disabled={isLocked}
-                  className="min-w-[120px]"
-                >
-                  SKIP
-                </GameButton>
-                <GameButton
-                  variant="primary"
-                  onClick={handleCheck}
-                  disabled={!selected || result === "correct" || isLocked}
-                  className="min-w-[140px]"
-                >
-                  CHECK
-                </GameButton>
-              </>
-            )
+          onContinue={
+            result === "correct" 
+              ? onCorrectAdvance 
+              : result === "wrong" 
+              ? onWrongAdvance 
+              : handleCheck
           }
+          continueLabel={
+            result === "correct" 
+              ? "CONTINUE" 
+              : result === "wrong" 
+              ? "GOT IT" 
+              : "CHECK"
+          }
+          isContinueDisabled={!selected || result === "correct" || isLocked}
         />
       )}
     </div>

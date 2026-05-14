@@ -1,0 +1,16 @@
+name: HeapSortSimulator
+frontend_registry_key: HeapSortSimulator
+description: "High-fidelity interactive simulator for Heap Sort, showing tree-array synchronization and swap animations."
+allowed_in_remedial: true
+required_config_data_fields:
+  - initialArray
+  - title
+optional_config_data_fields:
+  - speed
+submission_keys:
+  - completed
+schema_requirements: |
+  Component `HeapSortSimulator`:
+  - `initialArray`: List of numbers to sort (e.g., [12, 11, 13, 5, 6, 7]).
+  - `title`: String title.
+  - `speed`: Animation speed multiplier (default 1.0).

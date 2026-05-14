@@ -7,263 +7,193 @@ from app.services.ai_engine.clients.base_provider import BaseLLMProvider
 
 logger = logging.getLogger(__name__)
 
-# --- 全量心血管系統教學數據 (15 節點，全部標準化為 4 個選項/步驟/配對) ---
-HEART_NODES_DATA = [
-    {
-        "id": "heart-1-1", 
-        "title": "CVS Overview", 
-        "description": "Foundations of circulation and heart mechanics.",
-        "stages": [
+def generate_algo_nodes():
+    """動態生成 53 個節點，第一關升級為參數化的 AlgoHierarchy 組件。"""
+    raw_nodes = [
+        # Chapter 1
+        ("algo-1-1", "Heap Sort", "Binary heap based sorting.", "tree"),
+        ("algo-1-2", "Iterative Algorithms", "Selection Sort example.", "sorting"),
+        ("algo-1-3", "Recursive Algorithms", "Factorial & Fibonacci.", "tree"),
+        ("algo-1-4", "Pseudo-code Standards", "Assignment & Loops.", "logic"),
+        ("algo-1-5", "ADT Concepts", "Stacks & Queues.", "logic"),
+        ("algo-1-6", "Performance Analysis", "Intro to efficiency.", "logic"),
+        # Chapter 2
+        ("algo-2-1", "Big-O Notation", "Upper bounds.", "search"),
+        ("algo-2-2", "Omega Notation", "Lower bounds.", "search"),
+        ("algo-2-3", "Theta Notation", "Tight bounds.", "search"),
+        ("algo-2-4", "Growth Rate Comparison", "Comparing efficiency classes.", "logic"),
+        ("algo-2-5", "Amortized Analysis", "Average over time.", "logic"),
+        ("algo-2-6", "Master Theorem: Intro", "Recurrence equations.", "tree"),
+        ("algo-2-7", "Master Theorem: Cases", "Solving recurrences.", "tree"),
+        # Chapter 3
+        ("algo-3-1", "Greedy Foundation", "Optimal substructure.", "logic"),
+        ("algo-3-2", "Fractional Knapsack", "Continuous item selection.", "sorting"),
+        ("algo-3-3", "Job Sequencing", "Profit with deadlines.", "sorting"),
+        ("algo-3-4", "Huffman: Tree Building", "Frequency based merging.", "tree"),
+        ("algo-3-5", "Huffman: Encoding", "Prefix-free binary codes.", "tree"),
+        ("algo-3-6", "Prim's Algorithm", "MST growth.", "graph"),
+        ("algo-3-7", "Kruskal's Algorithm", "MST sorting edges.", "graph"),
+        # Chapter 4
+        ("algo-4-1", "D&C Paradigm", "Divide, Conquer, Combine.", "tree"),
+        ("algo-4-2", "Binary Search", "O(log n) search.", "search"),
+        ("algo-4-3", "Merge Sort", "Recursive splitting and merging.", "sorting"),
+        ("algo-4-4", "Quick Sort", "Pivot partitioning.", "sorting"),
+        ("algo-4-5", "Strassen's Matrix", "Faster multiplication.", "tree"),
+        ("algo-4-6", "Median Finding", "Linear selection.", "sorting"),
+        ("algo-4-7", "Closest Pair", "Divide and conquer geometry.", "tree"),
+        # Chapter 5
+        ("algo-5-1", "BFS Strategy", "Level-order traversal.", "graph"),
+        ("algo-5-2", "DFS Strategy", "Depth-order traversal.", "graph"),
+        ("algo-5-3", "Topological Sort", "Dependency ordering.", "graph"),
+        ("algo-5-4", "BST Operations", "Binary tree logic.", "tree"),
+        ("algo-5-5", "AVL Trees", "Self-balancing rotations.", "tree"),
+        ("algo-5-6", "Red-Black Trees", "Color properties.", "tree"),
+        ("algo-5-7", "B-Trees", "Disk-optimized search.", "tree"),
+        # Chapter 6
+        ("algo-6-1", "State Space Tree", "Backtracking basics.", "tree"),
+        ("algo-6-2", "N-Queens Problem", "Backtracking search.", "tree"),
+        ("algo-6-3", "Sum of Subsets", "Subsets that sum to K.", "tree"),
+        ("algo-6-4", "Graph Coloring", "Assigning colors.", "graph"),
+        ("algo-6-5", "Hamiltonian Cycle", "Path through all vertices.", "graph"),
+        ("algo-6-6", "Branch and Bound", "Optimal pruning.", "tree"),
+        # Chapter 7
+        ("algo-7-1", "DP Foundations", "Memoization vs Tabulation.", "logic"),
+        ("algo-7-2", "0/1 Knapsack (DP)", "Subproblem table.", "logic"),
+        ("algo-7-3", "LCS Problem", "Sequence alignment.", "logic"),
+        ("algo-7-4", "Matrix Chain Mult", "Optimal order.", "logic"),
+        ("algo-7-5", "Floyd-Warshall", "All-pairs shortest path.", "graph"),
+        ("algo-7-6", "Bellman-Ford", "Negative edge weights.", "graph"),
+        ("algo-7-7", "Edit Distance", "String transformation.", "logic"),
+        # Chapter 8
+        ("algo-8-1", "Complexity Classes", "P vs NP.", "search"),
+        ("algo-8-2", "Polynomial Reductions", "Hardness proof.", "logic"),
+        ("algo-8-3", "Cook's Theorem", "SAT completeness.", "logic"),
+        ("algo-8-4", "3-SAT Problem", "Simplified SAT.", "logic"),
+        ("algo-8-5", "Clique Problem", "Complete subgraphs.", "graph"),
+        ("algo-8-6", "Approximation Algos", "Dealing with NP-hard.", "logic"),
+    ]
+
+    nodes = []
+    for node_id, title, desc, vibe in raw_nodes:
+        # Special data for Heap Sort
+        hierarchy_nodes = [
             {
-                "component": "ExplainerMedia", 
-                "data": {
-                    "title": "The Closed Circuit", 
-                    "explanation": "The Cardiovascular System is a closed circuit composed of the heart and vessels.",
-                    "bullets": ["Pulmonary: To lungs", "Systemic: To body", "Function: Delivery", "Waste: Removal"],
-                    "mediaType": "image", "mediaUrl": "/images/heart/overview.png"
-                }
+                "id": "root", 
+                "label": "Max-Heap: 13", 
+                "type": "decision-node",
+                "data": {"content": "這是堆積的根節點，存儲當前最大值。"},
+                "children": ["l1", "r1"]
             },
             {
-                "component": "BloodFlowSimulator",
-                "data": {
-                    "question": "Trace the path of blood through the Right Heart:",
-                    "steps": [
-                        {"id": "ra", "label": "Right Atrium", "type": "chamber"},
-                        {"id": "tv", "label": "Tricuspid Valve", "type": "valve"},
-                        {"id": "rv", "label": "Right Ventricle", "type": "chamber"},
-                        {"id": "pv", "label": "Pulmonary Valve", "type": "valve"}
-                    ]
-                }
+                "id": "l1", 
+                "label": "11", 
+                "type": "decision-node",
+                "data": {"content": "左子樹節點。"},
+                "children": ["l2", "r2"]
             },
             {
-                "component": "MultipleChoice", 
-                "data": {
-                    "question": "What is the primary goal of the Pulmonary circulation?", 
-                    "options": [
-                        {"id": "a", "text": "Deliver nutrients"}, {"id": "b", "text": "Eliminate CO2"},
-                        {"id": "c", "text": "Pump to brain"}, {"id": "d", "text": "Regulate temp"}
-                    ], 
-                    "correctOptionId": "b"
-                }
+                "id": "r1", 
+                "label": "12", 
+                "type": "decision-node",
+                "data": {"content": "右子樹節點。"},
+                "children": ["l3"]
+            },
+            {
+                "id": "l2", "label": "5", "type": "base-case", "data": {"content": "葉子節點。"}, "children": []
+            },
+            {
+                "id": "r2", "label": "6", "type": "base-case", "data": {"content": "葉子節點。"}, "children": []
+            },
+            {
+                "id": "l3", "label": "7", "type": "base-case", "data": {"content": "葉子節點。"}, "children": []
+            }
+        ] if title == "Heap Sort" else [
+            {
+                "id": "root", 
+                "label": title, 
+                "type": "array-slice" if vibe == "sorting" else "decision-node",
+                "data": {"content": f"這是 {title} 的頂層問題。"},
+                "children": ["left", "right"]
+            },
+            {
+                "id": "left", 
+                "label": f"{title} Part A", 
+                "type": "array-slice" if vibe == "sorting" else "decision-node",
+                "data": {"content": "左側子問題展開中..."},
+                "children": []
+            },
+            {
+                "id": "right", 
+                "label": f"{title} Part B", 
+                "type": "array-slice" if vibe == "sorting" else "decision-node",
+                "data": {"content": "右側子問題展開中..."},
+                "children": []
             }
         ]
-    },
-    {
-        "id": "heart-1-2", "title": "Heart Overview", "description": "Size, mass, and location.", 
-        "stages": [
+
+        stages = [
+            # Stage 1: Specialized Heap Sort Simulator (The "Spirit")
+            {
+                "component": "HeapSortSimulator" if title == "Heap Sort" else "ExplainerMedia",
+                "data": {
+                    "vibe": vibe,
+                    "title": f"{title} 互動模擬器" if title == "Heap Sort" else f"{title} 核心概念說明",
+                    "initialArray": [13, 11, 12, 5, 6, 7] if title == "Heap Sort" else None,
+                    "explanation": "堆積排序 (Heap Sort) 的核心在於利用『二元堆積』。請點擊下方的『開始模擬』，觀察最大值是如何從樹根被提取並放到數組末尾，且樹結構如何通過交換動畫自動恢復堆積屬性。" if title == "Heap Sort" else f"在 {title} 的學習過程中，理解其運作邏輯是關鍵。接下來我們將透過一系列的互動挑戰來掌握它的核心。",
+                    "mediaType": "none",
+                }
+            },
+            # Stage 2: Basic MCQ
             {
                 "component": "MultipleChoice",
                 "data": {
-                    "question": "Where is the heart located?",
+                    "question": f"What is the primary goal of {title}?",
                     "options": [
-                        {"id": "1", "text": "Pleural cavity"}, {"id": "2", "text": "Mediastinum"},
-                        {"id": "3", "text": "Abdominal cavity"}, {"id": "4", "text": "Pelvic cavity"}
-                    ],
-                    "correctOptionId": "2"
-                }
-            },
-            {
-                "component": "MatchingPairs",
-                "data": {
-                    "question": "Match heart anatomy with size/location:",
-                    "pairs": [
-                        {"id": "m1", "left": "Base", "right": "Upper border"},
-                        {"id": "m2", "left": "Apex", "right": "Lower pointed end"},
-                        {"id": "m3", "left": "Size", "right": "Size of a fist"},
-                        {"id": "m4", "left": "Mass", "right": "250g to 350g"}
-                    ]
-                }
-            }
-        ]
-    },
-    {
-        "id": "heart-1-3", "title": "External Anatomy", "description": "Base, Apex, and surfaces.", 
-        "stages": [
-            {
-                "component": "Ordering",
-                "data": {
-                    "question": "Order the surfaces of the heart from top to bottom:",
-                    "steps": ["Base (Posterior)", "Anterior Surface", "Diaphragmatic Surface", "Apex"]
-                }
-            }
-        ]
-    },
-    {
-        "id": "heart-1-4", "title": "Pericardium", "description": "The protective sac.", 
-        "stages": [
-            {
-                "component": "MatchingPairs",
-                "data": {
-                    "question": "Match the pericardial layers:",
-                    "pairs": [
-                        {"id": "l1", "left": "Fibrous", "right": "Outer tough layer"},
-                        {"id": "l2", "left": "Parietal", "right": "Outer serous layer"},
-                        {"id": "l3", "left": "Visceral", "right": "Inner serous layer"},
-                        {"id": "l4", "left": "Cavity", "right": "Contains serous fluid"}
-                    ]
-                }
-            }
-        ]
-    },
-    {
-        "id": "heart-1-5", "title": "Heart Wall Layers", "description": "Epicardium, Myocardium, Endocardium.", 
-        "stages": [
-            {
-                "component": "Ordering",
-                "data": {
-                    "question": "Order the heart wall layers from Outer to Inner:",
-                    "steps": ["Epicardium", "Myocardium", "Endocardium", "Heart Chamber"]
-                }
-            },
-            {
-                "component": "MultipleChoice",
-                "data": {
-                    "question": "Which layer is responsible for the pumping action?",
-                    "options": [
-                        {"id": "a", "text": "Epicardium"}, {"id": "b", "text": "Myocardium"},
-                        {"id": "c", "text": "Endocardium"}, {"id": "d", "text": "Pericardium"}
-                    ],
-                    "correctOptionId": "b"
-                }
-            }
-        ]
-    },
-    {
-        "id": "heart-1-6", "title": "Right Atrium", "description": "Entry point for deoxygenated blood.",
-        "stages": [
-            {
-                "component": "MultipleChoice",
-                "data": {
-                    "question": "Which vein does NOT drain into the right atrium?",
-                    "options": [
-                        {"id": "1", "text": "Superior Vena Cava"}, {"id": "2", "text": "Pulmonary Vein"},
-                        {"id": "3", "text": "Inferior Vena Cava"}, {"id": "4", "text": "Coronary Sinus"}
-                    ],
-                    "correctOptionId": "2"
-                }
-            },
-            {
-                "component": "MatchingPairs",
-                "data": {
-                    "question": "Match RA features:",
-                    "pairs": [
-                        {"id": "r1", "left": "Fossa Ovalis", "right": "Fetal remnant"},
-                        {"id": "r2", "left": "Pectinate Muscles", "right": "Muscular ridges"},
-                        {"id": "r3", "left": "Tricuspid Valve", "right": "Exit to RV"},
-                        {"id": "r4", "left": "Auricle", "right": "Expandable pouch"}
-                    ]
-                }
-            }
-        ]
-    },
-    {
-        "id": "heart-1-7", "title": "Right Ventricle", "description": "Pumping to lungs.",
-        "stages": [
-            {
-                "component": "BloodFlowSimulator",
-                "data": {
-                    "question": "Trace the path out of the RV:",
-                    "steps": [
-                        {"id": "ca", "label": "Conus Arteriosus", "type": "chamber"},
-                        {"id": "psv", "label": "Pulmonary Valve", "type": "valve"},
-                        {"id": "pt", "label": "Pulmonary Trunk", "type": "vessel"},
-                        {"id": "pa", "label": "Pulmonary Arteries", "type": "vessel"}
-                    ]
-                }
-            }
-        ]
-    },
-    {
-        "id": "heart-1-8", "title": "Left Atrium & Ventricle", "description": "Systemic output.",
-        "stages": [
-            {
-                "component": "MultipleChoice",
-                "data": {
-                    "question": "Why is the LV wall thicker than the RV wall?",
-                    "options": [
-                        {"id": "a", "text": "Higher pressure demand"}, {"id": "b", "text": "Larger blood volume"},
-                        {"id": "c", "text": "Contains more valves"}, {"id": "d", "text": "Faster heart rate"}
+                        {"id": "a", "text": "Efficiency"}, {"id": "b", "text": "Simplicity"},
+                        {"id": "c", "text": "Accuracy"}, {"id": "d", "text": "None of the above"}
                     ],
                     "correctOptionId": "a"
                 }
             },
+            # Stage 3: Application (Ordering/Matching)
             {
-                "component": "Ordering",
+                "component": "Ordering" if "Sort" in title or "Building" in title else "MatchingPairs",
                 "data": {
-                    "question": "Trace systemic exit path:",
-                    "steps": ["Left Ventricle", "Aortic Valve", "Ascending Aorta", "Aortic Arch"]
-                }
-            }
-        ]
-    },
-    {
-        "id": "heart-1-9", "title": "Heart Valves", "description": "Ensuring one-way flow.",
-        "stages": [
-            {
-                "component": "MatchingPairs",
-                "data": {
-                    "question": "Match the valves:",
-                    "pairs": [
-                        {"id": "v1", "left": "Mitral", "right": "Bicuspid AV valve"},
-                        {"id": "v2", "left": "Tricuspid", "right": "Right AV valve"},
-                        {"id": "v3", "left": "Aortic", "right": "Left semilunar"},
-                        {"id": "v4", "left": "Pulmonary", "right": "Right semilunar"}
+                    "question": f"Mastering {title} logic:",
+                    "steps" if "Sort" in title or "Building" in title else "pairs": [
+                        "Start the process", "Perform core logic", "Validate results", "Finish"
+                    ] if "Sort" in title or "Building" in title else [
+                        {"id": "p1", "left": "Input", "right": "Data"},
+                        {"id": "p2", "left": "Process", "right": "Algorithm"},
+                        {"id": "p3", "left": "Output", "right": "Solution"}
                     ]
                 }
-            }
-        ]
-    },
-    {
-        "id": "heart-1-10", "title": "Coronary Circulation", "description": "Heart's own blood supply.",
-        "stages": [
+            },
+            # Stage 4: Advanced MCQ
             {
                 "component": "MultipleChoice",
                 "data": {
-                    "question": "First branches of the aorta?",
+                    "question": f"Consider a complex scenario of {title}. Which is true?",
                     "options": [
-                        {"id": "1", "text": "Carotid arteries"}, {"id": "2", "text": "Coronary arteries"},
-                        {"id": "3", "text": "Subclavian arteries"}, {"id": "4", "text": "Brachial arteries"}
+                        {"id": "1", "text": "It handles all cases"}, {"id": "2", "text": "It is optimized for time"},
+                        {"id": "3", "text": "It is memory intensive"}, {"id": "4", "text": "All of the above"}
                     ],
                     "correctOptionId": "2"
                 }
-            }
-        ]
-    },
-    {
-        "id": "heart-1-11", "title": "Sulci & Skeleton", "description": "Surface grooves.", "stages": []},
-    {
-        "id": "heart-1-12", "title": "Nerve Supply", "description": "Autonomic control.", "stages": []},
-    {
-        "id": "heart-1-13", "title": "Conduction System", "description": "Pacemaker logic.",
-        "stages": [
+            },
+            # Stage 5: Feynman Teaching
             {
-                "component": "Ordering",
+                "component": "FeynmanMirror",
                 "data": {
-                    "question": "Order the conduction sequence:",
-                    "steps": ["SA Node", "AV Node", "Bundle of His", "Purkinje Fibers"]
+                    "topic": title,
+                    "goal": f"Can you explain {title} to a beginner? Focus on the core intuition and its significance in algorithm design.",
                 }
             }
         ]
-    },
-    {
-        "id": "heart-1-14", "title": "Cardiac Cycle", "description": "Systole and Diastole.",
-        "stages": [
-            {
-                "component": "MultipleChoice",
-                "data": {
-                    "question": "What happens during Ventricular Systole?",
-                    "options": [
-                        {"id": "1", "text": "Atria contract"}, {"id": "2", "text": "Ventricles contract"},
-                        {"id": "3", "text": "Ventricles relax"}, {"id": "4", "text": "AV valves open"}
-                    ],
-                    "correctOptionId": "2"
-                }
-            }
-        ]
-    },
-    {
-        "id": "heart-1-15", "title": "Heart Sounds", "description": "Lubb-Dupp sounds.", "stages": []}
-]
+        nodes.append({"id": node_id, "title": title, "description": desc, "stages": stages})
+    return nodes
+
+ALGO_NODES_DATA = generate_algo_nodes()
 
 class MockLLMProvider(BaseLLMProvider):
     def __init__(self):
@@ -274,7 +204,7 @@ class MockLLMProvider(BaseLLMProvider):
 
     async def generate_text(self, messages: List[Any], **kwargs) -> str:
         await asyncio.sleep(0.5)
-        return "Mock response from Learn8 Specialist."
+        return "Mock response from Learn8 Algorithm Specialist."
 
     async def generate_structured(self, messages: List[Any], schema: Type[BaseModel], **kwargs) -> BaseModel:
         await asyncio.sleep(1.0)
@@ -306,8 +236,8 @@ class MockLLMProvider(BaseLLMProvider):
 
     def _mock_feynman_round(self, schema: Type[BaseModel], messages: List[Any]) -> BaseModel:
         responses = [
-            {"reply": "心臟就像兩個獨立但同步運作的幫浦，對吧？", "isSatisfied": False},
-            {"reply": "我明白了！效率非常高。謝謝你的解釋！", "isSatisfied": True}
+            {"reply": "所以動態規劃基本上就是把算過的答案記下來，避免重複工作，對吧？", "isSatisfied": False},
+            {"reply": "我懂了！透過表格化（Tabulation）我們可以更有系統地解決複雜問題。謝謝！", "isSatisfied": True}
         ]
         round_idx = (len(messages) - 1) // 2
         data = responses[min(round_idx, len(responses)-1)]
@@ -326,31 +256,50 @@ class MockLLMProvider(BaseLLMProvider):
 
     def _mock_blueprint(self, schema: Type[BaseModel]) -> BaseModel:
         data = {
-            "courseTitle": "Cardiovascular System",
-            "description": "Deep dive into the heart.",
+            "courseTitle": "Algorithm Design & Analysis",
+            "description": "Master the art of efficient problem solving.",
             "units": [
                 {
-                    "unitId": "u1", "unitTitle": "Foundations", "unitDescription": "Basics.",
-                    "nodes": [{"id": n["id"], "title": n["title"], "description": n["description"], "status": "locked"} for n in HEART_NODES_DATA[0:3]]
+                    "unitId": "u1", "unitTitle": "Foundations & Math", "unitDescription": "Basic principles and Complexity.",
+                    "nodes": [{"id": n["id"], "title": n["title"], "description": n["description"], "status": "locked"} for n in ALGO_NODES_DATA[0:13]]
                 },
                 {
-                    "unitId": "u2", "unitTitle": "Anatomy", "unitDescription": "Structure.",
-                    "nodes": [{"id": n["id"], "title": n["title"], "description": n["description"], "status": "locked"} for n in HEART_NODES_DATA[3:6]]
+                    "unitId": "u2", "unitTitle": "Sorting & D&C", "unitDescription": "Recursive paradigms.",
+                    "nodes": [{"id": n["id"], "title": n["title"], "description": n["description"], "status": "locked"} for n in ALGO_NODES_DATA[13:21]]
+                },
+                {
+                    "unitId": "u3", "unitTitle": "Greedy Strategies", "unitDescription": "Local optimization.",
+                    "nodes": [{"id": n["id"], "title": n["title"], "description": n["description"], "status": "locked"} for n in ALGO_NODES_DATA[21:28]]
+                },
+                {
+                    "unitId": "u4", "unitTitle": "Dynamic Programming", "unitDescription": "Subproblem optimization.",
+                    "nodes": [{"id": n["id"], "title": n["title"], "description": n["description"], "status": "locked"} for n in ALGO_NODES_DATA[28:42]]
+                },
+                {
+                    "unitId": "u5", "unitTitle": "Graph & Tree Search", "unitDescription": "Balanced Trees and BFS/DFS.",
+                    "nodes": [{"id": n["id"], "title": n["title"], "description": n["description"], "status": "locked"} for n in ALGO_NODES_DATA[42:47]]
+                },
+                {
+                    "unitId": "u6", "unitTitle": "Theory of NP", "unitDescription": "P, NP, and Reductions.",
+                    "nodes": [{"id": n["id"], "title": n["title"], "description": n["description"], "status": "locked"} for n in ALGO_NODES_DATA[47:]]
                 }
             ]
         }
         return schema.model_validate(data)
 
     def _mock_unit_expansion(self, schema: Type[BaseModel], msg_text: str) -> BaseModel:
-        nodes = HEART_NODES_DATA[0:3]
-        if "anatomy" in msg_text: nodes = HEART_NODES_DATA[3:6]
+        nodes = ALGO_NODES_DATA[0:6]
+        if "greedy" in msg_text: nodes = ALGO_NODES_DATA[13:21]
+        elif "dp" in msg_text or "dynamic" in msg_text: nodes = ALGO_NODES_DATA[28:42]
+        elif "np" in msg_text: nodes = ALGO_NODES_DATA[47:]
+        
         data = {"nodes": [{"id": n["id"], "title": n["title"], "description": n["description"], "status": "locked", "hasGeneratedLesson": True} for n in nodes]}
         return schema.model_validate(data)
 
     def _mock_lesson_content(self, schema: Type[BaseModel], msg_text: str) -> BaseModel:
-        target_node = HEART_NODES_DATA[0]
-        for node in HEART_NODES_DATA:
-            if node["title"].lower() in msg_text:
+        target_node = ALGO_NODES_DATA[0]
+        for node in ALGO_NODES_DATA:
+            if node["title"].lower() in msg_text or node["id"].lower() in msg_text:
                 target_node = node
                 break
         
@@ -358,7 +307,7 @@ class MockLLMProvider(BaseLLMProvider):
         for idx, s in enumerate(target_node["stages"]):
             stages.append({
                 "stageId": f"{target_node['id']}-s{idx}",
-                "topic": target_node["title"],
+                "topic": target_node["topic"] if "topic" in target_node else target_node["title"],
                 "component": s["component"],
                 "skin": "Scientific",
                 "config": {"data": s["data"], "initialState": {}},
@@ -371,4 +320,4 @@ class MockLLMProvider(BaseLLMProvider):
         return schema.model_validate(stages[0] if stages else {})
 
     def _mock_learner_profile(self, schema: Type[BaseModel]) -> BaseModel:
-        return schema.model_validate({"summary": "專業背景。", "attributes": {"background": "Technical", "pace": "Fast", "focus": "Clinical", "level": "Intermediate"}})
+        return schema.model_validate({"summary": "專業背景。", "attributes": {"background": "Technical", "pace": "Fast", "focus": "Algorithm", "level": "Intermediate"}})

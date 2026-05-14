@@ -145,36 +145,16 @@ export default function OrderingQuestion({
       </div>
       {!hideChrome && (
         <QuestionActionBar
-          justify="end"
-          rightSlot={
-            phase === "feedback" ? (
-              <GameButton
-                variant="primary"
-                onClick={onContinue}
-                className="min-w-[140px]"
-              >
-                CONTINUE
-              </GameButton>
-            ) : (
-              <>
-                <GameButton
-                  variant="secondary"
-                  onClick={onSkip}
-                  className="min-w-[120px]"
-                >
-                  SKIP
-                </GameButton>
-                <GameButton
-                  variant="primary"
-                  onClick={() => void handleSubmit()}
-                  className="min-w-[160px]"
-                  disabled={phase === "submitting"}
-                >
-                  {phase === "submitting" ? "CHECKING..." : "CHECK ORDER"}
-                </GameButton>
-              </>
-            )
+          onSkip={onSkip}
+          onContinue={phase === "feedback" ? onContinue : () => void handleSubmit()}
+          continueLabel={
+            phase === "feedback" 
+              ? "CONTINUE" 
+              : phase === "submitting" 
+              ? "CHECKING..." 
+              : "CHECK ORDER"
           }
+          isContinueDisabled={phase === "submitting"}
         />
       )}
     </div>

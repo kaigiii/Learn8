@@ -347,16 +347,8 @@ export default function FeynmanQuestion({
 
       {!hideChrome && !isFinished && (
         <QuestionActionBar
+          onSkip={onSkip}
           leftSlot={<HintButton onClick={handleHint} />}
-          rightSlot={
-            <GameButton
-              variant="secondary"
-              onClick={() => onSkip?.()}
-              className="min-w-[100px]"
-            >
-              SKIP
-            </GameButton>
-          }
         />
       )}
     </div>

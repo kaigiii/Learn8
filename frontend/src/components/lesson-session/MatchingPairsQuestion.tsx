@@ -101,27 +101,16 @@ export default function MatchingPairsQuestion({
       </div>
       {!hideChrome && (
         <QuestionActionBar
+          onSkip={onSkip}
           leftSlot={
             <HintButton
               onClick={onHint}
               disabled={hintUsed || allMatched}
             />
           }
-          rightSlot={
-            <>
-              <GameButton variant="secondary" onClick={onSkip} className="min-w-[120px]">
-                SKIP
-              </GameButton>
-              <GameButton
-                variant="primary"
-                onClick={onSubmit}
-                disabled={!allMatched}
-                className="min-w-[140px]"
-              >
-                SUBMIT
-              </GameButton>
-            </>
-          }
+          onContinue={onSubmit}
+          continueLabel="SUBMIT"
+          isContinueDisabled={!allMatched}
         />
       )}
     </>
