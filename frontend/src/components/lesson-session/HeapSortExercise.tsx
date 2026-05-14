@@ -223,7 +223,7 @@ export default function HeapSortExercise({
                 <div className="flex items-center gap-3 border-b border-brand-gray-100 pb-3"><div className="p-1.5 bg-brand-teal/10 rounded-lg text-brand-teal"><Layers className="w-4 h-4" /></div><span className="text-xs font-black text-brand-gray-700 uppercase tracking-widest font-heading">實戰控制</span></div>
                 <div className="space-y-4">
                    <div className="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100"><span className="text-[10px] font-black text-brand-gray-400 uppercase tracking-widest">Status</span><span className="text-xs font-bold text-brand-teal">{phase}</span></div>
-                   <GameButton variant="primary" onClick={reset} className="w-full h-14 rounded-2xl"><div className="flex items-center justify-center gap-2"><RefreshCw className="w-4 h-4" /><span className="text-xs font-black uppercase tracking-widest">Restart Challenge</span></div></GameButton>
+                   <GameButton variant="primary" onClick={reset} className="w-full h-14 rounded-2xl"><div className="flex items-center justify-center gap-2"><RefreshCw className="w-4 h-4" /><span className="text-sm font-bold uppercase tracking-widest">Restart Challenge</span></div></GameButton>
                 </div>
              </div>
              <div className="flex-1 rounded-[2.5rem] bg-slate-800 p-6 shadow-2xl border-4 border-slate-700 flex flex-col gap-5 overflow-hidden">

@@ -4,7 +4,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import ForgeStatus from "@/components/feedback/ForgeStatus";
 import TopStatsBar from "@/components/layout/TopStatsBar";
-import DeepGlassCard from "@/components/ui/DeepGlassCard";
 import GameButton from "@/components/ui/GameButton";
 import { useQuestionnaireFlow } from "@/features/questionnaire/hooks/useQuestionnaireFlow";
 import { JOB_TYPE } from "@/lib/domain/statuses";
@@ -55,7 +54,6 @@ export default function QuestionnairePageClient() {
     if (questions.length === 0) {
       return;
     }
-
     setCurrentQuestionIndex((prev) => Math.min(prev, questions.length));
   }, [questions]);
 
@@ -138,7 +136,7 @@ export default function QuestionnairePageClient() {
   }
 
   return (
-    <div className="relative min-h-screen app-shared-bg">
+    <div className="relative flex min-h-screen flex-col app-shared-bg">
       <TopStatsBar
         backHref="/home"
         pageTitle="Questionnaire"
@@ -161,258 +159,234 @@ export default function QuestionnairePageClient() {
         ]}
       />
 
-      <div className="relative z-10 mx-auto max-w-6xl px-4 py-8 md:px-8">
-        <DeepGlassCard className="px-6 py-6 md:px-8 md:py-8">
-          <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-            <div>
-              <p className="mb-2 text-xs font-bold uppercase tracking-[0.28em] text-brand-teal">
-                Tailoring Phase
-              </p>
-              <h1 className="mb-2 font-heading text-2xl font-extrabold text-brand-gray-700 md:text-3xl">
-                {topic || "Questionnaire"}
-              </h1>
-              <p className="max-w-2xl text-sm leading-relaxed text-brand-gray-500">
-                Answer a few quick questions so the syllabus can adapt to your
-                background, pace, and practical goals before the course is forged.
-              </p>
+      <main className="relative z-10 flex flex-1 flex-col justify-center py-12">
+        <div className="mx-auto w-full max-w-6xl px-4 md:px-8">
+        {step === "answering" && questions.length > 0 && (
+          <div className="space-y-6">
+
+            <div className="relative mx-auto max-w-4xl px-12 md:px-24">
+              <div className="absolute left-0 top-1/2 hidden -translate-y-1/2 md:block">
+                <ArrowNavButton
+                  direction="left"
+                  onClick={handlePrevious}
+                  disabled={isFirstQuestion}
+                  sideFloating
+                />
+              </div>
+
+              <AnimatePresence mode="wait">
+                {isNotesPage ? (
+                  <motion.div
+                    key="notes-page"
+                    initial={{ opacity: 0, x: 36, scale: 0.98 }}
+                    animate={{ opacity: 1, x: 0, scale: 1 }}
+                    exit={{ opacity: 0, x: -36, scale: 0.98 }}
+                    transition={{ duration: 0.24, ease: "easeOut" }}
+                    className="rounded-[30px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.92)_0%,rgba(238,250,250,0.86)_100%)] p-5 shadow-[0_20px_45px_rgba(122,199,196,0.12)] md:p-7"
+                  >
+                    <div className="mb-6 h-2.5 overflow-hidden rounded-full bg-brand-gray-200/45 shadow-inner">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-brand-teal via-[#6dc8c4] to-brand-green transition-all duration-500 ease-out"
+                        style={{ width: `${questionProgress}%` }}
+                      />
+                    </div>
+
+
+                    <div className="mb-6 flex items-start gap-4">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-teal to-[#5fb3af] text-base font-heading font-extrabold text-white shadow-md">
+                        {currentQuestionIndex + 1}
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-[0.22em] text-brand-teal/80">
+                          {`Final Notes ${currentQuestionIndex + 1} of ${totalPages}`} • Final Input
+                        </p>
+                        <p className="mt-2 font-heading text-2xl font-extrabold leading-snug text-brand-gray-700 md:text-[2rem]">
+                          Additional Notes
+                        </p>
+                        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-brand-gray-500">
+                          Optional. Tell us anything that would help shape the course, such as your preferred examples, goals, or current level.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="rounded-[24px] border border-white/60 bg-white/70 p-5">
+                      <textarea
+                        value={freeText}
+                        onChange={(e) => setFreeText(e.target.value)}
+                        rows={7}
+                        placeholder="I prefer practical examples, I already know the basics, I need this for work..."
+                        className="w-full rounded-[24px] border border-brand-gray-200 bg-white px-4 py-3 text-sm text-brand-gray-700 outline-none transition focus:border-brand-teal focus:ring-2 focus:ring-brand-teal/15"
+                      />
+                    </div>
+
+                    <div className="mt-6 flex flex-col gap-4 rounded-[24px] border border-white/70 bg-white/65 p-5 md:flex-row md:items-center md:justify-between">
+                      <div>
+                        <p className="font-heading text-lg font-bold text-brand-gray-700">
+                          Ready to forge the syllabus
+                        </p>
+                        <p className="mt-1 text-sm text-brand-gray-500">
+                          Your answers across all {questions.length} prompts will be summarized into a learner profile before course generation starts.
+                        </p>
+                      </div>
+                      <GameButton
+                        onClick={() => void submitQuestionnaire()}
+                        disabled={!canSubmit}
+                        className="min-w-[240px]"
+                      >
+                        Submit & Forge Syllabus
+                      </GameButton>
+                    </div>
+                  </motion.div>
+                ) : currentQuestion ? (
+                  <motion.div
+                    key={currentQuestion.id}
+                    initial={{ opacity: 0, x: 36, scale: 0.98 }}
+                    animate={{ opacity: 1, x: 0, scale: 1 }}
+                    exit={{ opacity: 0, x: -36, scale: 0.98 }}
+                    transition={{ duration: 0.24, ease: "easeOut" }}
+                    className="rounded-[30px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.92)_0%,rgba(238,250,250,0.86)_100%)] p-5 shadow-[0_20px_45px_rgba(122,199,196,0.12)] md:p-7"
+                  >
+                    <div className="mb-6 h-2.5 overflow-hidden rounded-full bg-brand-gray-200/45 shadow-inner">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-brand-teal via-[#6dc8c4] to-brand-green transition-all duration-500 ease-out"
+                        style={{ width: `${questionProgress}%` }}
+                      />
+                    </div>
+
+
+                    <div className="mb-6 flex items-start gap-4">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-teal to-[#5fb3af] text-base font-heading font-extrabold text-white shadow-md">
+                        {currentQuestionIndex + 1}
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-[0.22em] text-brand-teal/80">
+                          {`Question ${currentQuestionIndex + 1} of ${totalPages}`} • Learner Signal
+                        </p>
+                        <p className="mt-2 font-heading text-2xl font-extrabold leading-snug text-brand-gray-700 md:text-[2rem]">
+                          {currentQuestion.text}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      {(currentQuestion.options || []).map((option) => {
+                        const selected = answers[currentQuestion.id] === option;
+                        return (
+                          <label
+                            key={option}
+                            className={`group flex cursor-pointer items-start gap-4 rounded-[24px] border px-4 py-4 transition md:px-5 ${
+                              selected
+                                ? "border-brand-teal/60 bg-brand-teal/10 text-brand-teal shadow-[0_14px_24px_rgba(122,199,196,0.16)]"
+                                : "border-brand-gray-200/90 bg-white/92 text-brand-gray-700 hover:-translate-y-0.5 hover:border-brand-teal/40 hover:bg-white"
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name={currentQuestion.id}
+                              className="mt-1"
+                              checked={selected}
+                              onChange={() =>
+                                setAnswers((prev) => ({
+                                  ...prev,
+                                  [currentQuestion.id]: option,
+                                }))
+                              }
+                            />
+                            <div className="min-w-0">
+                              <p className="text-base font-semibold leading-relaxed">
+                                {option}
+                              </p>
+                            </div>
+                          </label>
+                        );
+                      })}
+
+                      <label
+                        className={`flex cursor-pointer items-center gap-4 rounded-[24px] border px-4 py-4 transition md:px-5 ${
+                          answers[currentQuestion.id]?.startsWith("OTHER:")
+                            ? "border-brand-teal/60 bg-brand-teal/10 text-brand-teal"
+                            : "border-brand-gray-200/90 bg-white/92 text-brand-gray-700 hover:border-brand-teal/40 hover:bg-white"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name={currentQuestion.id}
+                          checked={answers[currentQuestion.id]?.startsWith("OTHER:") || false}
+                          onChange={() =>
+                            setAnswers((prev) => ({
+                              ...prev,
+                              [currentQuestion.id]: prev[currentQuestion.id]?.startsWith("OTHER:")
+                                ? prev[currentQuestion.id]
+                                : "OTHER:",
+                            }))
+                          }
+                        />
+                        <div>
+                          <p className="text-base font-semibold">Other</p>
+                          <p className="mt-1 text-sm text-brand-gray-500">
+                            Write your own answer if none of the options fit.
+                          </p>
+                        </div>
+                      </label>
+
+                      {answers[currentQuestion.id]?.startsWith("OTHER:") && (
+                        <input
+                          value={answers[currentQuestion.id].slice(6)}
+                          onChange={(e) =>
+                            setAnswers((prev) => ({
+                              ...prev,
+                              [currentQuestion.id]: `OTHER:${e.target.value}`,
+                            }))
+                          }
+                          placeholder="Type your answer..."
+                          className="w-full rounded-[22px] border border-brand-teal/30 bg-white px-4 py-3 text-sm text-brand-gray-700 outline-none transition focus:border-brand-teal focus:ring-2 focus:ring-brand-teal/15"
+                        />
+                      )}
+
+                      <label
+                        className={`flex cursor-pointer items-center gap-4 rounded-[24px] border px-4 py-4 transition md:px-5 ${
+                          answers[currentQuestion.id] === "SKIP"
+                            ? "border-amber-300 bg-amber-50 text-amber-700"
+                            : "border-brand-gray-200/90 bg-white/92 text-brand-gray-500 hover:border-amber-200 hover:bg-white"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name={currentQuestion.id}
+                          checked={answers[currentQuestion.id] === "SKIP"}
+                          onChange={() =>
+                            setAnswers((prev) => ({
+                              ...prev,
+                              [currentQuestion.id]: "SKIP",
+                            }))
+                          }
+                        />
+                        <div>
+                          <p className="text-base font-semibold">Skip this question</p>
+                          <p className="mt-1 text-sm opacity-80">
+                            You can leave this signal out and keep moving.
+                          </p>
+                        </div>
+                      </label>
+                    </div>
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>
+
+              <div className="absolute right-0 top-1/2 hidden -translate-y-1/2 md:block">
+                <ArrowNavButton
+                  direction="right"
+                  onClick={handleNext}
+                  disabled={isLastPage || !canGoNext}
+                  sideFloating
+                />
+              </div>
             </div>
           </div>
-
-          {step === "answering" && questions.length > 0 && (
-            <div className="space-y-6">
-              <div className="rounded-[28px] border border-white/70 bg-white/72 p-4 shadow-[0_18px_40px_rgba(122,199,196,0.1)] md:p-5">
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.24em] text-brand-teal">
-                      {isNotesPage
-                        ? `Final Notes ${currentQuestionIndex + 1} of ${totalPages}`
-                        : `Question ${currentQuestionIndex + 1} of ${totalPages}`}
-                    </p>
-                    <p className="mt-2 text-sm text-brand-gray-500">
-                      {isNotesPage
-                        ? "Wrap up with any context that can help us shape the course more precisely."
-                        : "One prompt at a time keeps the tailoring flow lighter and easier to finish."}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-4 h-3 overflow-hidden rounded-full bg-brand-gray-200">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-brand-teal via-[#6dc8c4] to-brand-green transition-all duration-300"
-                    style={{ width: `${questionProgress}%` }}
-                  />
-                </div>
-              </div>
-
-              <div className="relative mx-auto max-w-4xl px-12 md:px-24">
-                <div className="absolute left-0 top-1/2 hidden -translate-y-1/2 md:block">
-                  <ArrowNavButton
-                    direction="left"
-                    onClick={handlePrevious}
-                    disabled={isFirstQuestion}
-                    sideFloating
-                  />
-                </div>
-
-                <AnimatePresence mode="wait">
-                  {isNotesPage ? (
-                    <motion.div
-                      key="notes-page"
-                      initial={{ opacity: 0, x: 36, scale: 0.98 }}
-                      animate={{ opacity: 1, x: 0, scale: 1 }}
-                      exit={{ opacity: 0, x: -36, scale: 0.98 }}
-                      transition={{ duration: 0.24, ease: "easeOut" }}
-                      className="rounded-[30px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.92)_0%,rgba(238,250,250,0.86)_100%)] p-5 shadow-[0_20px_45px_rgba(122,199,196,0.12)] md:p-7"
-                    >
-                      <div className="mb-6 flex items-start gap-4">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-teal to-[#5fb3af] text-base font-heading font-extrabold text-white shadow-md">
-                          {currentQuestionIndex + 1}
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold uppercase tracking-[0.22em] text-brand-teal/80">
-                            Final Input
-                          </p>
-                          <p className="mt-2 font-heading text-2xl font-extrabold leading-snug text-brand-gray-700 md:text-[2rem]">
-                            Additional Notes
-                          </p>
-                          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-brand-gray-500">
-                            Optional. Tell us anything that would help shape the course, such as your preferred examples, goals, or current level.
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="rounded-[24px] border border-white/60 bg-white/70 p-5">
-                        <textarea
-                          value={freeText}
-                          onChange={(e) => setFreeText(e.target.value)}
-                          rows={7}
-                          placeholder="I prefer practical examples, I already know the basics, I need this for work..."
-                          className="w-full rounded-[24px] border border-brand-gray-200 bg-white px-4 py-3 text-sm text-brand-gray-700 outline-none transition focus:border-brand-teal focus:ring-2 focus:ring-brand-teal/15"
-                        />
-                      </div>
-
-                      <div className="mt-6 flex flex-col gap-4 rounded-[24px] border border-white/70 bg-white/65 p-5 md:flex-row md:items-center md:justify-between">
-                        <div>
-                          <p className="font-heading text-lg font-bold text-brand-gray-700">
-                            Ready to forge the syllabus
-                          </p>
-                          <p className="mt-1 text-sm text-brand-gray-500">
-                            Your answers across all {questions.length} prompts will be summarized into a learner profile before course generation starts.
-                          </p>
-                        </div>
-                        <GameButton
-                          onClick={() => void submitQuestionnaire()}
-                          disabled={!canSubmit}
-                          className="min-w-[240px]"
-                        >
-                          Submit & Forge Syllabus
-                        </GameButton>
-                      </div>
-                    </motion.div>
-                  ) : currentQuestion ? (
-                    <motion.div
-                      key={currentQuestion.id}
-                      initial={{ opacity: 0, x: 36, scale: 0.98 }}
-                      animate={{ opacity: 1, x: 0, scale: 1 }}
-                      exit={{ opacity: 0, x: -36, scale: 0.98 }}
-                      transition={{ duration: 0.24, ease: "easeOut" }}
-                      className="rounded-[30px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.92)_0%,rgba(238,250,250,0.86)_100%)] p-5 shadow-[0_20px_45px_rgba(122,199,196,0.12)] md:p-7"
-                    >
-                      <div className="mb-6 flex items-start gap-4">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-teal to-[#5fb3af] text-base font-heading font-extrabold text-white shadow-md">
-                          {currentQuestionIndex + 1}
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold uppercase tracking-[0.22em] text-brand-teal/80">
-                            Learner Signal
-                          </p>
-                          <p className="mt-2 font-heading text-2xl font-extrabold leading-snug text-brand-gray-700 md:text-[2rem]">
-                            {currentQuestion.text}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="space-y-3">
-                        {(currentQuestion.options || []).map((option) => {
-                          const selected = answers[currentQuestion.id] === option;
-                          return (
-                            <label
-                              key={option}
-                              className={`group flex cursor-pointer items-start gap-4 rounded-[24px] border px-4 py-4 transition md:px-5 ${
-                                selected
-                                  ? "border-brand-teal/60 bg-brand-teal/10 text-brand-teal shadow-[0_14px_24px_rgba(122,199,196,0.16)]"
-                                  : "border-brand-gray-200/90 bg-white/92 text-brand-gray-700 hover:-translate-y-0.5 hover:border-brand-teal/40 hover:bg-white"
-                              }`}
-                            >
-                              <input
-                                type="radio"
-                                name={currentQuestion.id}
-                                className="mt-1"
-                                checked={selected}
-                                onChange={() =>
-                                  setAnswers((prev) => ({
-                                    ...prev,
-                                    [currentQuestion.id]: option,
-                                  }))
-                                }
-                              />
-                              <div className="min-w-0">
-                                <p className="text-base font-semibold leading-relaxed">
-                                  {option}
-                                </p>
-                              </div>
-                            </label>
-                          );
-                        })}
-
-                        <label
-                          className={`flex cursor-pointer items-center gap-4 rounded-[24px] border px-4 py-4 transition md:px-5 ${
-                            answers[currentQuestion.id]?.startsWith("OTHER:")
-                              ? "border-brand-teal/60 bg-brand-teal/10 text-brand-teal"
-                              : "border-brand-gray-200/90 bg-white/92 text-brand-gray-700 hover:border-brand-teal/40 hover:bg-white"
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name={currentQuestion.id}
-                            checked={answers[currentQuestion.id]?.startsWith("OTHER:") || false}
-                            onChange={() =>
-                              setAnswers((prev) => ({
-                                ...prev,
-                                [currentQuestion.id]: prev[currentQuestion.id]?.startsWith("OTHER:")
-                                  ? prev[currentQuestion.id]
-                                  : "OTHER:",
-                              }))
-                            }
-                          />
-                          <div>
-                            <p className="text-base font-semibold">Other</p>
-                            <p className="mt-1 text-sm text-brand-gray-500">
-                              Write your own answer if none of the options fit.
-                            </p>
-                          </div>
-                        </label>
-
-                        {answers[currentQuestion.id]?.startsWith("OTHER:") && (
-                          <input
-                            value={answers[currentQuestion.id].slice(6)}
-                            onChange={(e) =>
-                              setAnswers((prev) => ({
-                                ...prev,
-                                [currentQuestion.id]: `OTHER:${e.target.value}`,
-                              }))
-                            }
-                            placeholder="Type your answer..."
-                            className="w-full rounded-[22px] border border-brand-teal/30 bg-white px-4 py-3 text-sm text-brand-gray-700 outline-none transition focus:border-brand-teal focus:ring-2 focus:ring-brand-teal/15"
-                          />
-                        )}
-
-                        <label
-                          className={`flex cursor-pointer items-center gap-4 rounded-[24px] border px-4 py-4 transition md:px-5 ${
-                            answers[currentQuestion.id] === "SKIP"
-                              ? "border-amber-300 bg-amber-50 text-amber-700"
-                              : "border-brand-gray-200/90 bg-white/92 text-brand-gray-500 hover:border-amber-200 hover:bg-white"
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name={currentQuestion.id}
-                            checked={answers[currentQuestion.id] === "SKIP"}
-                            onChange={() =>
-                              setAnswers((prev) => ({
-                                ...prev,
-                                [currentQuestion.id]: "SKIP",
-                              }))
-                            }
-                          />
-                          <div>
-                            <p className="text-base font-semibold">Skip this question</p>
-                            <p className="mt-1 text-sm opacity-80">
-                              You can leave this signal out and keep moving.
-                            </p>
-                          </div>
-                        </label>
-                      </div>
-
-                    </motion.div>
-                  ) : null}
-                </AnimatePresence>
-
-                <div className="absolute right-0 top-1/2 hidden -translate-y-1/2 md:block">
-                  <ArrowNavButton
-                    direction="right"
-                    onClick={handleNext}
-                    disabled={isLastPage || !canGoNext}
-                    sideFloating
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {error && <p className="mt-6 text-sm text-rose-500">{error}</p>}
-        </DeepGlassCard>
+        )}
+        {error && <p className="mt-6 text-sm text-rose-500 text-center">{error}</p>}
       </div>
+      </main>
     </div>
   );
 }
