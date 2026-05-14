@@ -158,33 +158,19 @@ async def run_lesson_generation_job(
                 media_type = str(data.get("mediaType") or "none").lower()
                 raw_index = data.get("mediaIndex") or data.get("media_index")
 
-                if media_type == "image":
+                if media_type == "image" and raw_index:
                     try:
                         index = int(raw_index)
+                        selected = media_index_map.get(index)
+                        if selected:
+                            data["mediaType"] = "image"
+                            data["mediaIndex"] = index
+                            data["mediaDescription"] = selected.description or data.get("mediaDescription")
+                            data["mediaUrl"] = selected.asset_url or data.get("mediaUrl")
+                            stage.config.data = data
                     except (TypeError, ValueError):
-                        data["mediaType"] = "none"
-                        data.pop("mediaIndex", None)
-                        data.pop("media_index", None)
-                        data.pop("mediaDescription", None)
-                        data.pop("mediaUrl", None)
-                        stage.config.data = data
-                        continue
+                        pass
 
-                    selected = media_index_map.get(index)
-                    if not selected:
-                        data["mediaType"] = "none"
-                        data.pop("mediaIndex", None)
-                        data.pop("media_index", None)
-                        data.pop("mediaDescription", None)
-                        data.pop("mediaUrl", None)
-                        stage.config.data = data
-                        continue
-
-                    data["mediaType"] = "image"
-                    data["mediaIndex"] = index
-                    data["mediaDescription"] = selected.description or data.get("mediaDescription")
-                    data["mediaUrl"] = selected.asset_url or data.get("mediaUrl")
-                    stage.config.data = data
 
         _notify_job_update(db, job, 80, "內容準備完成，正在儲存到資料庫...")
 
@@ -321,14 +307,61 @@ async def run_remedial_generation_job(
         file_service = FileService()
         architect_service = AIArchitectService(provider, rag_engine, file_service)
 
-        _notify_job_update(db, job, 35, "Generating targeted remedial lesson...")
+        from app.models.course_media_asset import CourseMediaAssetModel
+        from app.services.infra.media.catalog import (
+            build_media_catalog,
+            build_media_index_map,
+            format_media_catalog,
+        )
+
+        media_catalog = None
+        media_index_map = {}
+        if course_id is not None:
+            assets = (
+                db.query(CourseMediaAssetModel)
+                .filter(CourseMediaAssetModel.course_id == course_id)
+                .order_by(
+                    CourseMediaAssetModel.source_filename.asc(),
+                    CourseMediaAssetModel.page_number.asc().nullslast(),
+                    CourseMediaAssetModel.asset_index.asc().nullslast(),
+                    CourseMediaAssetModel.id.asc(),
+                )
+                .all()
+            )
+            if assets:
+                catalog_items = build_media_catalog(assets)
+                media_catalog = format_media_catalog(catalog_items)
+                media_index_map = build_media_index_map(catalog_items)
 
         failed_records = [FailedStageRecord(**record) for record in failed_stages]
         remedial_stages = await architect_service.generate_remedial_stages(
             failed_records,
             topic=topic or "General Concept",
             learner_profile_summary=learner_profile_summary,
+            media_catalog=media_catalog,
         )
+
+        # Post-process media indices in remedial stages
+        if remedial_stages:
+            for stage in remedial_stages:
+                if stage.component != "ExplainerMedia":
+                    continue
+                data = stage.config.data if isinstance(stage.config.data, dict) else {}
+                media_type = str(data.get("mediaType") or "none").lower()
+                raw_index = data.get("mediaIndex") or data.get("media_index")
+
+                if media_type == "image" and raw_index:
+                    try:
+                        index = int(raw_index)
+                        selected = media_index_map.get(index)
+                        if selected:
+                            data["mediaType"] = "image"
+                            data["mediaIndex"] = index
+                            data["mediaDescription"] = selected.description or data.get("mediaDescription")
+                            data["mediaUrl"] = selected.asset_url or data.get("mediaUrl")
+                            stage.config.data = data
+                    except (TypeError, ValueError):
+                        pass
 
         if _is_cancelled(db, job_id):
             return

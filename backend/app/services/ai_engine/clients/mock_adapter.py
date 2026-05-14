@@ -75,64 +75,8 @@ def generate_algo_nodes():
 
     nodes = []
     for node_id, title, desc, vibe in raw_nodes:
-        # Special data for Heap Sort
-        hierarchy_nodes = [
-            {
-                "id": "root", 
-                "label": "Max-Heap: 13", 
-                "type": "decision-node",
-                "data": {"content": "這是堆積的根節點，存儲當前最大值。"},
-                "children": ["l1", "r1"]
-            },
-            {
-                "id": "l1", 
-                "label": "11", 
-                "type": "decision-node",
-                "data": {"content": "左子樹節點。"},
-                "children": ["l2", "r2"]
-            },
-            {
-                "id": "r1", 
-                "label": "12", 
-                "type": "decision-node",
-                "data": {"content": "右子樹節點。"},
-                "children": ["l3"]
-            },
-            {
-                "id": "l2", "label": "5", "type": "base-case", "data": {"content": "葉子節點。"}, "children": []
-            },
-            {
-                "id": "r2", "label": "6", "type": "base-case", "data": {"content": "葉子節點。"}, "children": []
-            },
-            {
-                "id": "l3", "label": "7", "type": "base-case", "data": {"content": "葉子節點。"}, "children": []
-            }
-        ] if title == "Heap Sort" else [
-            {
-                "id": "root", 
-                "label": title, 
-                "type": "array-slice" if vibe == "sorting" else "decision-node",
-                "data": {"content": f"這是 {title} 的頂層問題。"},
-                "children": ["left", "right"]
-            },
-            {
-                "id": "left", 
-                "label": f"{title} Part A", 
-                "type": "array-slice" if vibe == "sorting" else "decision-node",
-                "data": {"content": "左側子問題展開中..."},
-                "children": []
-            },
-            {
-                "id": "right", 
-                "label": f"{title} Part B", 
-                "type": "array-slice" if vibe == "sorting" else "decision-node",
-                "data": {"content": "右側子問題展開中..."},
-                "children": []
-            }
-        ]
-
         stages = [
-            # Stage 1: Specialized Heap Sort Simulator (The "Spirit")
+            # Stage 1: Simulator
             {
                 "component": "HeapSortSimulator" if title == "Heap Sort" else "ExplainerMedia",
                 "data": {
@@ -149,9 +93,9 @@ def generate_algo_nodes():
                     "mediaType": "none",
                 }
             },
-            # Stage 2: Interactive Practical Workshop
+            # Stage 2: Exercise
             {
-                "component": "HeapSortExercise",
+                "component": "HeapSortExercise" if title == "Heap Sort" else "MultipleChoice",
                 "data": {
                     "title": "實戰練習：動手排序！",
                     "initialArray": [9, 14, 11, 6, 12, 7],
@@ -168,44 +112,34 @@ def generate_algo_nodes():
                         "提示 2：14 目前比它的父節點大，應該進行交換。",
                         "提示 3：建立完堆積後，記得點擊根節點 (index 0) 與最後一個葉子交換。"
                     ]
-                }
-            },
-            # Stage 3: Basic MCQ
-            {
-                "component": "MultipleChoice",
-                "data": {
+                } if title == "Heap Sort" else {
                     "question": f"What is the primary goal of {title}?",
-                    "options": [
-                        {"id": "a", "text": "Efficiency"}, {"id": "b", "text": "Simplicity"},
-                        {"id": "c", "text": "Accuracy"}, {"id": "d", "text": "None of the above"}
-                    ],
+                    "options": [{"id": "a", "text": "Efficiency"}, {"id": "b", "text": "Accuracy"}],
                     "correctOptionId": "a"
                 }
             },
-            # Stage 3: Application (Ordering/Matching)
+            # Stage 3: Complexity Analysis (ExplainerMedia)
             {
-                "component": "Ordering" if "Sort" in title or "Building" in title else "MatchingPairs",
+                "component": "ExplainerMedia",
                 "data": {
-                    "question": f"Mastering {title} logic:",
-                    "steps" if "Sort" in title or "Building" in title else "pairs": [
-                        "Start the process", "Perform core logic", "Validate results", "Finish"
-                    ] if "Sort" in title or "Building" in title else [
-                        {"id": "p1", "left": "Input", "right": "Data"},
-                        {"id": "p2", "left": "Process", "right": "Algorithm"},
-                        {"id": "p3", "left": "Output", "right": "Solution"}
-                    ]
+                    "title": "效能分析：Heap Sort 的複雜度",
+                    "explanation": "Heap Sort 是一個非常穩定的演算法。無論在最好、最壞還是平均情況下，它的時間複雜度都是 O(n log n)。這是因為建堆積需要 O(n)，而進行 n 次提取最大值每次需要 O(log n)。此外，它是『就地排序 (In-place)』，空間複雜度僅為 O(1)。",
+                    "mediaType": "image" if title == "Heap Sort" else "none",
+                    "mediaUrl": "/api/v1/courses/files/images/1/heap-sort-assets/heap-sort-complexity.png" if title == "Heap Sort" else None,
                 }
             },
-            # Stage 4: Advanced MCQ
+            # Stage 4: Complexity Quiz (MultipleChoice)
             {
                 "component": "MultipleChoice",
                 "data": {
-                    "question": f"Consider a complex scenario of {title}. Which is true?",
+                    "question": "為什麼 Heap Sort 在最壞情況下的時間複雜度仍能維持在 O(n log n)？",
                     "options": [
-                        {"id": "1", "text": "It handles all cases"}, {"id": "2", "text": "It is optimized for time"},
-                        {"id": "3", "text": "It is memory intensive"}, {"id": "4", "text": "All of the above"}
+                        {"id": "a", "text": "因為它使用了額外的輔助數組"},
+                        {"id": "b", "text": "因為二元堆積的高度始終維持在 log n，且調整過程是確定的"},
+                        {"id": "c", "text": "因為它像 Quick Sort 一樣使用了隨機化基準點"},
+                        {"id": "d", "text": "因為它不需要進行比較"}
                     ],
-                    "correctOptionId": "2"
+                    "correctOptionId": "b"
                 }
             },
             # Stage 5: Feynman Teaching
@@ -213,7 +147,7 @@ def generate_algo_nodes():
                 "component": "FeynmanMirror",
                 "data": {
                     "topic": title,
-                    "goal": f"Can you explain {title} to a beginner? Focus on the core intuition and its significance in algorithm design.",
+                    "goal": f"試著向一個完全不懂演算法的人解釋：為什麼 Heap Sort 就像是從一堆數字中，不斷找出最大的那個放在最後面，但又能保持效率？",
                 }
             }
         ]
@@ -251,7 +185,8 @@ class MockLLMProvider(BaseLLMProvider):
             return self._mock_unit_expansion(schema, msg_text)
 
         if "stages" in fields or "component" in fields:
-            return self._mock_lesson_content(schema, msg_text)
+            user_id = kwargs.get("user_id", 1)
+            return self._mock_lesson_content(schema, msg_text, user_id=user_id)
         
         if "reply" in fields and "isSatisfied" in fields:
             return self._mock_feynman_round(schema, messages)
@@ -323,7 +258,7 @@ class MockLLMProvider(BaseLLMProvider):
         data = {"nodes": [{"id": n["id"], "title": n["title"], "description": n["description"], "status": "locked", "hasGeneratedLesson": True} for n in nodes]}
         return schema.model_validate(data)
 
-    def _mock_lesson_content(self, schema: Type[BaseModel], msg_text: str) -> BaseModel:
+    def _mock_lesson_content(self, schema: Type[BaseModel], msg_text: str, user_id: int = 1) -> BaseModel:
         target_node = ALGO_NODES_DATA[0]
         for node in ALGO_NODES_DATA:
             if node["title"].lower() in msg_text or node["id"].lower() in msg_text:
@@ -337,10 +272,15 @@ class MockLLMProvider(BaseLLMProvider):
                 "topic": target_node["topic"] if "topic" in target_node else target_node["title"],
                 "component": s["component"],
                 "skin": "Scientific",
-                "config": {"data": s["data"], "initialState": {}},
+                "config": {"data": s["data"].copy(), "initialState": {}},
                 "validation": {"type": "logic", "condition": None},
                 "feedback": {"success": "Excellent!", "error": "Please try again."}
             })
+            
+            # Patch mediaUrl if it's a course image
+            stage_data = stages[-1]["config"]["data"]
+            if stage_data.get("mediaUrl") and "/files/images/1/" in stage_data["mediaUrl"]:
+                stage_data["mediaUrl"] = stage_data["mediaUrl"].replace("/files/images/1/", f"/files/images/{user_id}/")
         
         if "stages" in getattr(schema, "model_fields", {}):
             return schema.model_validate({"stages": stages})

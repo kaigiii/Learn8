@@ -414,6 +414,32 @@ async def delete_course_file(
     return {"message": f"File {filename} deleted successfully"}
 
 
+@router.get("/files/images/{user_id}/{course_folder}/{filename}")
+async def get_course_image(
+    user_id: int,
+    course_folder: str,
+    filename: str,
+    current_user: UserModel = Depends(get_current_user),
+    file_service: FileService = Depends(get_file_service),
+):
+    """
+    Serves an image from a specific course's images sub-directory.
+    Includes security check to ensure users only access their own assets.
+    """
+    if current_user.id != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to access this asset")
+
+    from fastapi.responses import FileResponse
+
+    image_path = (
+        file_service.get_upload_dir(user_id, course_folder) / "images" / filename
+    )
+    if not image_path.exists():
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    return FileResponse(str(image_path))
+
+
 @router.post("/upload-document")
 async def upload_course_document(
     file: UploadFile = File(...),

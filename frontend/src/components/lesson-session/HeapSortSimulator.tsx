@@ -182,8 +182,8 @@ export default function HeapSortSimulator({
                    <input type="range" min="0.5" max="3" step="0.5" value={playbackSpeed} onChange={(e) => setPlaybackSpeed(parseFloat(e.target.value))} className="w-full h-1.5 bg-brand-gray-100 rounded-lg appearance-none cursor-pointer accent-brand-teal" />
                 </div>
                 <div className="grid grid-cols-1 gap-3">
-                   <GameButton variant="primary" onClick={runHeapSort} disabled={isAutoPlaying || isComplete} className="w-full h-14"><div className="flex items-center justify-center gap-3">{isAutoPlaying ? <Pause className="w-5 h-5 fill-white" /> : <Play className="w-5 h-5 fill-white" />}<span className="font-bold uppercase">運行模擬</span></div></GameButton>
-                   <GameButton variant="primary" onClick={reset} className="w-full h-14 opacity-90"><div className="flex items-center justify-center gap-2"><RefreshCw className="w-4 h-4" /><span className="text-xs font-bold uppercase">重置模擬</span></div></GameButton>
+                   <GameButton variant="primary" onClick={runHeapSort} disabled={isAutoPlaying || isComplete} className="w-full h-14"><div className="flex items-center justify-center gap-3">{isAutoPlaying ? <Pause className="w-5 h-5 fill-white" /> : <Play className="w-5 h-5 fill-white" />}<span className="text-sm font-bold uppercase tracking-widest">運行模擬</span></div></GameButton>
+                   <GameButton variant="primary" onClick={reset} className="w-full h-14 opacity-90"><div className="flex items-center justify-center gap-2"><RefreshCw className="w-4 h-4" /><span className="text-sm font-bold uppercase tracking-widest">重置模擬</span></div></GameButton>
                 </div>
              </div>
              <div className="flex-1 rounded-[2.5rem] bg-slate-800 p-6 shadow-2xl border-4 border-slate-700 flex flex-col gap-5 overflow-hidden">

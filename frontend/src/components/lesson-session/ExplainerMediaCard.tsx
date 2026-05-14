@@ -111,7 +111,7 @@ export default function ExplainerMediaCard({
               <img
                 src={mediaUrl}
                 alt={mediaDescription || title}
-                className="w-full max-h-[300px] rounded-xl object-contain"
+                className="w-full max-h-[500px] rounded-xl object-contain"
               />
             ) : (
               <div className="rounded-xl border border-dashed border-brand-gray-200 bg-brand-gray-50 px-4 py-6 text-center text-sm text-brand-gray-500">

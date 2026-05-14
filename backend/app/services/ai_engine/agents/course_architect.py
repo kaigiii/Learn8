@@ -132,7 +132,7 @@ class AIArchitectService:
 
         try:
             wrapper = await self.provider.generate_structured(
-                messages, StageListWrapper
+                messages, StageListWrapper, user_id=user_id
             )
             if wrapper and wrapper.stages:
                 # 後處理：補上 ID
@@ -151,19 +151,28 @@ class AIArchitectService:
         failed_records: List[FailedStageRecord],
         topic: str = "General",
         learner_profile_summary: str = "",
+        media_catalog: str | None = None,
     ) -> List[LessonStage]:
         if not failed_records:
             return []
 
+        user_content = (
+            "TOPIC: "
+            + (topic or "General")
+            + "\nFAILED RECORDS: "
+            + json.dumps([record.model_dump() for record in failed_records], ensure_ascii=False)
+        )
+
+        if media_catalog:
+            user_content += (
+                "\n\nUse the media catalog ONLY for `ExplainerMedia` stages. "
+                "Specify the `mediaType` as 'image' and provide the correct `mediaIndex` from the catalog below.\n\n"
+                + media_catalog
+            )
+
         messages = [
             ("system", build_remedial_system_prompt(learner_profile_summary)),
-            (
-                "user",
-                "TOPIC: "
-                + (topic or "General")
-                + "\nFAILED RECORDS: "
-                + json.dumps([record.model_dump() for record in failed_records], ensure_ascii=False),
-            ),
+            ("user", user_content),
         ]
 
         class RemedialStageListWrapper(BaseModel):
