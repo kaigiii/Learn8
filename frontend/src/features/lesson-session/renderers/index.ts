@@ -6,7 +6,8 @@ import { explainerMediaPlugin } from "../question-types/explainer-media/plugin";
 import { matchingPairsPlugin } from "../question-types/matching-pairs/plugin";
 import { multipleChoicePlugin } from "../question-types/multiple-choice/plugin";
 import { orderingPlugin } from "../question-types/ordering/plugin";
-import { heapSortPlugin } from "../question-types/heap-sort/plugin";
+import { heapSortPlugin } from "../question-types/heap-sort-simulator/plugin";
+import { heapSortExercisePlugin } from "../question-types/heap-sort-exercise/plugin";
 import type { LessonStagePlugin, LessonStagePluginRegistry, StageRenderer } from "./types";
 import { renderUnsupportedStage } from "./unsupportedStageRenderer";
 
@@ -17,6 +18,7 @@ const stagePlugins = [
   matchingPairsPlugin,
   explainerMediaPlugin,
   heapSortPlugin,
+  heapSortExercisePlugin,
 ] as const satisfies readonly LessonStagePlugin[];
 
 export const lessonStagePluginRegistry: LessonStagePluginRegistry = Object.fromEntries(
