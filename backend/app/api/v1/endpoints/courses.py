@@ -440,6 +440,24 @@ async def get_course_image(
     return FileResponse(str(image_path))
 
 
+@router.get("/files/public/{filename}")
+async def get_public_image(filename: str):
+    """
+    Serves a public learning asset that does not require authentication.
+    Used for common lesson images and mock assets.
+    """
+    from fastapi.responses import FileResponse
+    from app.core.config import settings
+
+    public_dir = settings.DATA_DIR / "public_assets"
+    image_path = public_dir / filename
+
+    if not image_path.exists():
+        raise HTTPException(status_code=404, detail="Public asset not found")
+
+    return FileResponse(str(image_path))
+
+
 @router.post("/upload-document")
 async def upload_course_document(
     file: UploadFile = File(...),

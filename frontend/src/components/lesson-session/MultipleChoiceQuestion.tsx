@@ -218,7 +218,7 @@ export default function MultipleChoiceQuestion({
               ? "GOT IT" 
               : "CHECK"
           }
-          isContinueDisabled={!selected || result === "correct" || isLocked}
+          isContinueDisabled={(!selected && !result) || isLocked}
         />
       )}
     </div>
