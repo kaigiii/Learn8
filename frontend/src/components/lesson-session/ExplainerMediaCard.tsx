@@ -127,14 +127,7 @@ export default function ExplainerMediaCard({
         ) : null}
       </div>
       {!hideChrome && (
-        <QuestionActionBar
-          justify="end"
-          rightSlot={
-            <GameButton variant="primary" onClick={onContinue} className="min-w-[160px]">
-              CONTINUE
-            </GameButton>
-          }
-        />
+        <QuestionActionBar onContinue={onContinue} />
       )}
     </div>
   );
