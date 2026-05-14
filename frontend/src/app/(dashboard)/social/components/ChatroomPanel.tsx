@@ -5,6 +5,7 @@ import { FiSend, FiBookOpen, FiLoader, FiShare2, FiPlus } from "react-icons/fi";
 import { useAuthStore } from "@/stores/app/useAuthStore";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n/useI18n";
+import type { TranslationKey } from "@/lib/i18n/translations";
 
 interface ChatMessage {
   id: number;
@@ -324,7 +325,7 @@ export default function ChatroomPanel({ chatId, type, title, groupMembers, frien
                 </div>
                 <div className="p-2.5 bg-white/60 rounded-xl text-center">
                   <p className="text-[10px] uppercase font-extrabold tracking-widest text-brand-gray-400">{t("chat.tier")}</p>
-                  <p className="font-heading font-extrabold text-brand-gray-700 text-lg leading-tight mt-0.5">{friendInfo?.tier || "Bronze"}</p>
+                  <p className="font-heading font-extrabold text-brand-gray-700 text-lg leading-tight mt-0.5">{friendInfo?.tier ? t(`leaderboard.tier.${friendInfo.tier.trim().toLowerCase()}` as TranslationKey) : t("leaderboard.tier.bronze")}</p>
                 </div>
               </div>
             </div>

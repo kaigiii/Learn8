@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { ApiError, apiFetch } from "@/lib/apiClient";
 import { LESSON_SESSION_PHASE } from "@/lib/domain/statuses";
+import { useI18n } from "@/lib/i18n/useI18n";
 import type {
   LessonAssistantResponse,
   LessonSessionPayload,
@@ -36,6 +37,7 @@ export function LessonSessionChatPanel({
   totalStages: number;
   compact?: boolean;
 }) {
+  const { t } = useI18n();
   const [chatInput, setChatInput] = useState("");
   const [chatMessages, setChatMessages] = useState<
     { id: number; role: "user" | "assistant"; text: string }[]
@@ -181,10 +183,10 @@ export function LessonSessionChatPanel({
         </div>
         <div>
           <h3 className="font-heading text-[15px] font-bold text-brand-gray-700">
-            Lesson Tutor
+            {t("chat.lessonTutor")}
           </h3>
           <p className="mt-0.5 text-xs text-brand-gray-400">
-            Ask for hints, concepts, or help on this lesson stage.
+            {t("chat.lessonTutorDesc")}
           </p>
         </div>
       </div>
@@ -206,7 +208,7 @@ export function LessonSessionChatPanel({
               </svg>
             </div>
             <p className="max-w-[200px] text-xs leading-relaxed text-brand-gray-400">
-              Ask about the current lesson, node, or stage.
+              {t("chat.lessonEmptyState")}
             </p>
           </div>
         )}
@@ -232,7 +234,7 @@ export function LessonSessionChatPanel({
         ))}
         {isThinking && (
           <p className="px-1 text-xs text-brand-gray-400">
-            Thinking through this lesson context...
+            {t("chat.lessonThinking")}
           </p>
         )}
         <div ref={chatEndRef} />
@@ -270,7 +272,7 @@ export function LessonSessionChatPanel({
               }}
               onInput={(e) => resizeInput(e.currentTarget)}
               onKeyDown={handleChatKeyDown}
-              placeholder="Type your message..."
+              placeholder={t("chat.lessonPlaceholder")}
               rows={1}
               disabled={isThinking}
               className="h-10 w-full resize-none rounded-xl border border-white/60 bg-white/70 px-4 py-[10px] text-[13px] leading-[18px] text-brand-gray-700 placeholder-brand-gray-300 focus:border-brand-teal/40 focus:outline-none focus:ring-2 focus:ring-brand-teal/30"

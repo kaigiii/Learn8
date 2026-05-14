@@ -33,6 +33,31 @@ function translatePublicNode(
   return result === key ? fallback : result;
 }
 
+function translatePublicUnitTitle(
+  t: (key: TranslationKey) => string,
+  courseSlug: string,
+  nodeId: string,
+  fallback: string
+): string {
+  // node IDs follow the pattern {prefix}-{unitNum}-{nodeNum}, e.g. "ai-1-2" → unit 1
+  const match = nodeId.match(/-(\d+)-\d+$/);
+  if (!match) return fallback;
+  const key = `course.${courseSlug}.unit-${match[1]}` as TranslationKey;
+  const result = t(key);
+  return result === key ? fallback : result;
+}
+
+function translatePublicNodeDescription(
+  t: (key: TranslationKey) => string,
+  courseSlug: string,
+  nodeId: string,
+  fallback: string
+): string {
+  const key = `course.${courseSlug}.node.${nodeId}.desc` as TranslationKey;
+  const result = t(key);
+  return result === key ? fallback : result;
+}
+
 export function CourseMapNodePanel({
   courseId,
   coursePath,
@@ -198,10 +223,17 @@ export function CourseMapNodePanel({
       "Current course"
     );
   })();
-  const contextDescription =
-    selectedNode?.description ||
-    coursePath?.description ||
-    "This node will generate a lesson based on the course map and your selected question types.";
+  const contextDescription = (() => {
+    if (coursePath?.isPublic && selectedNode && coursePath.courseTitle) {
+      return translatePublicNodeDescription(
+        t,
+        courseSlugFromTitle(coursePath.courseTitle),
+        selectedNode.id,
+        selectedNode?.description || coursePath?.description || t("courseMap.nodeDefaultDescription")
+      );
+    }
+    return selectedNode?.description || coursePath?.description || t("courseMap.nodeDefaultDescription");
+  })();
 
   return (
     <motion.div
@@ -229,7 +261,17 @@ export function CourseMapNodePanel({
           </p>
           {selectedNode?.unitTitle ? (
             <p className="mt-2 text-xs font-medium text-brand-gray-400">
-              {t("courseMap.unitLabel", { title: selectedNode.unitTitle })}
+              {t("courseMap.unitLabel", {
+                title:
+                  coursePath?.isPublic && coursePath.courseTitle
+                    ? translatePublicUnitTitle(
+                        t,
+                        courseSlugFromTitle(coursePath.courseTitle),
+                        selectedNode.id,
+                        selectedNode.unitTitle
+                      )
+                    : selectedNode.unitTitle,
+              })}
             </p>
           ) : null}
         </section>

@@ -1,11 +1,11 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import GameButton from "@/components/ui/GameButton";
 
 interface QuestionActionBarProps {
   // Centralized Navigation Props
-  onSkip?: () => void;
+  onSkip?: () => void | Promise<void>;
   onContinue?: () => void;
   isContinueDisabled?: boolean;
   continueLabel?: string;
@@ -32,6 +32,43 @@ export function QuestionActionBar({
   rightSlot,
   justify = "between",
 }: QuestionActionBarProps) {
+  const [isSkipping, setIsSkipping] = useState(false);
+  const delayTimerRef = useRef<number | null>(null);
+
+  // Clean up the delay timer if the component unmounts (stage advanced).
+  useEffect(() => {
+    return () => {
+      if (delayTimerRef.current !== null) {
+        window.clearTimeout(delayTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Safety net: clear spinner after 1.5s so the button is never permanently stuck.
+  useEffect(() => {
+    if (!isSkipping) return;
+    const id = window.setTimeout(() => setIsSkipping(false), 1500);
+    return () => window.clearTimeout(id);
+  }, [isSkipping]);
+
+  const handleSkipClick = async () => {
+    if (isSkipping || delayTimerRef.current !== null || !onSkip) return;
+    // Show the spinner only if the transition takes >180ms; fast skips show nothing.
+    delayTimerRef.current = window.setTimeout(() => {
+      delayTimerRef.current = null;
+      setIsSkipping(true);
+    }, 180);
+    try {
+      await onSkip();
+    } finally {
+      if (delayTimerRef.current !== null) {
+        window.clearTimeout(delayTimerRef.current);
+        delayTimerRef.current = null;
+      }
+      setIsSkipping(false);
+    }
+  };
+
   return (
     <div
       className={`relative flex flex-shrink-0 items-end pt-4 pb-6 ${
@@ -42,8 +79,19 @@ export function QuestionActionBar({
       {justify === "between" && (
         <div className="flex items-end gap-3">
           {onSkip && (
-            <GameButton variant="secondary" onClick={onSkip} className="min-w-[120px]">
-              <span className="font-heading font-bold uppercase tracking-wide">{skipLabel}</span>
+            <GameButton
+              variant="secondary"
+              onClick={handleSkipClick}
+              disabled={isSkipping}
+              className="min-w-[120px]"
+            >
+              {isSkipping ? (
+                <span className="inline-flex items-center justify-center">
+                  <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/70 border-t-transparent" />
+                </span>
+              ) : (
+                <span className="font-heading font-bold uppercase tracking-wide">{skipLabel}</span>
+              )}
             </GameButton>
           )}
           {leftSlot}

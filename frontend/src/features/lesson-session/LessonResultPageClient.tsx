@@ -102,7 +102,6 @@ export default function LessonResultPageClient({
   });
 
   const {
-    showLevelUp,
     xpBarWidth,
     barDuration,
     displayLevel,
@@ -185,7 +184,6 @@ export default function LessonResultPageClient({
       resultSummary={resultSummary}
       accuracy={accuracy}
       xpGained={xpGained}
-      showLevelUp={showLevelUp}
       displayLevel={displayLevel}
       currentXp={currentXp}
       currentXpToNext={currentXpToNext}

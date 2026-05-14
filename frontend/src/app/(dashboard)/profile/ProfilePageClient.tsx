@@ -144,7 +144,9 @@ export default function ProfilePageClient() {
   const profileLabel = authUser?.job_title?.trim() || authUser?.education_level?.trim() || title || t("common.learner");
   const initial = displayName.slice(0, 1).toUpperCase() || "P";
   const avatarUrl = authUser?.avatar_url?.trim() || null;
-  const [profileAvatarSrc, setProfileAvatarSrc] = useState(avatarUrl || "/avatar/chicken.png");
+  const [profileAvatarSrc, setProfileAvatarSrc] = useState(() =>
+    avatarUrl ? `${avatarUrl}?t=${Date.now()}` : "/avatar/chicken.png"
+  );
   const uploadAvatarInputRef = useRef<HTMLInputElement>(null);
   const [isCropModalOpen, setIsCropModalOpen] = useState(false);
   const [isAvatarSelectorOpen, setIsAvatarSelectorOpen] = useState(false);
@@ -159,7 +161,11 @@ export default function ProfilePageClient() {
   const [avatarUploadError, setAvatarUploadError] = useState("");
 
   useEffect(() => {
-    setProfileAvatarSrc(avatarUrl || "/avatar/chicken.png");
+    if (avatarUrl) {
+      setProfileAvatarSrc(`${avatarUrl}?t=${Date.now()}`);
+    } else {
+      setProfileAvatarSrc("/avatar/chicken.png");
+    }
   }, [avatarUrl]);
 
   useEffect(() => {
@@ -215,7 +221,10 @@ export default function ProfilePageClient() {
       const croppedBlob = await cropImageToPngBlob(cropSourceUrl, cropPixels);
       const normalizedBaseName = cropFileName.replace(/\.[^/.]+$/, "") || "avatar";
       const croppedFile = new File([croppedBlob], `${normalizedBaseName}.png`, { type: "image/png" });
-      await uploadAuthenticatedAvatar(croppedFile);
+      const newProfile = await uploadAuthenticatedAvatar(croppedFile);
+      if (newProfile.avatar_url) {
+        setProfileAvatarSrc(`${newProfile.avatar_url}?t=${Date.now()}`);
+      }
       setAvatarUploadError("");
       closeCropModal();
     } catch (caughtError) {
@@ -246,7 +255,9 @@ export default function ProfilePageClient() {
       const presetBlob = await response.blob();
       const presetName = selectedAvatarPreview.split("/").pop()?.replace(/\.png$/i, "") || "avatar";
       const presetFile = new File([presetBlob], `${presetName}.png`, { type: "image/png" });
+      const appliedPreview = selectedAvatarPreview;
       await uploadAuthenticatedAvatar(presetFile);
+      setProfileAvatarSrc(appliedPreview);
       setSelectedAvatarPreview(null);
       setIsAvatarSelectorOpen(false);
     } catch (caughtError) {
@@ -316,7 +327,11 @@ export default function ProfilePageClient() {
   }, [panelParam]);
 
   const seasonLabel = arenaProfile?.activeSeason ?? "Initial Season";
-  const rankPosition = arenaProfile?.seasonPlacement != null ? `#${arenaProfile.seasonPlacement}` : (arenaProfile?.rankTier ?? "Bronze");
+  const rankPosition = arenaProfile?.seasonPlacement != null
+    ? `#${arenaProfile.seasonPlacement}`
+    : (arenaProfile?.rankTier
+        ? t(`leaderboard.tier.${arenaProfile.rankTier.trim().toLowerCase()}` as TranslationKey)
+        : t("leaderboard.tier.bronze"));
   const seasonBadgeValue = arenaLoading ? "..." : arenaProfile?.seasonBadge ?? "None";
   const seasonBadgeVisual = arenaLoading ? null : resolveSeasonBadgeVisual(seasonBadgeValue);
   const seasonTitleTagline = arenaLoading ? "..." : resolveRankTierTagline(arenaProfile?.rankTier, t);
@@ -434,14 +449,14 @@ export default function ProfilePageClient() {
                   <Image src="/svg/leaderboard-logo.svg" alt="Season emblem" width={100} height={100} className="mx-auto h-24 w-24" />
                   <p className="mt-3 font-heading text-3xl font-extrabold text-white">{seasonLabel}</p>
                   <p className="mt-1 text-xs uppercase tracking-[0.14em] text-white/85">
-                    {arenaLoading ? t("profile.syncingSeasonInfo") : t("profile.rankCurrentlyActive", { tier: arenaProfile?.rankTier ?? "Bronze" })}
+                    {arenaLoading ? t("profile.syncingSeasonInfo") : t("profile.rankCurrentlyActive", { tier: arenaProfile?.rankTier ? t(`leaderboard.tier.${arenaProfile.rankTier.trim().toLowerCase()}` as TranslationKey) : t("leaderboard.tier.bronze") })}
                   </p>
                 </div>
               </div>
 
               <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3">
                 <ProfileStatBox label={t("profile.arenaRating")} value={arenaLoading ? "..." : String(arenaProfile?.rating ?? 0)} />
-                <ProfileStatBox label={t("profile.rankTier")} value={arenaLoading ? "..." : arenaProfile?.rankTier ?? "Unranked"} />
+                <ProfileStatBox label={t("profile.rankTier")} value={arenaLoading ? "..." : (arenaProfile?.rankTier ? t(`leaderboard.tier.${arenaProfile.rankTier.trim().toLowerCase()}` as TranslationKey) : "-")} />
                 <ProfileStatBox label={t("profile.rankPosition")} value={arenaLoading ? "..." : rankPosition} />
                 <ProfileStatBox label={t("profile.winRate")} value={arenaLoading ? "..." : `${(arenaProfile?.winRate ?? 0).toFixed(1)}%`} />
                 <ProfileStatBox label={t("profile.rankedMatches")} value={arenaLoading ? "..." : String(arenaProfile?.rankedMatches ?? 0)} />
@@ -693,6 +708,12 @@ export default function ProfilePageClient() {
                 ))}
               </div>
             </div>
+
+            {avatarUploadError ? (
+              <p className="mt-4 rounded-xl bg-rose-50 px-4 py-2.5 text-sm text-rose-600">
+                {avatarUploadError}
+              </p>
+            ) : null}
 
             <div className="mt-8 flex items-center justify-between gap-3">
               <button
