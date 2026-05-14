@@ -176,6 +176,7 @@ class MockLLMProvider(BaseLLMProvider):
         await asyncio.sleep(1.0)
         msg_text = str(messages).lower()
         fields = getattr(schema, "model_fields", getattr(schema, "__fields__", {})).keys()
+        schema_name = schema.__name__
 
         if "questions" in fields and "summary" not in fields and "stages" not in fields and "nodes" not in fields:
             return self._mock_questionnaire(schema)
@@ -190,6 +191,10 @@ class MockLLMProvider(BaseLLMProvider):
             return self._mock_unit_expansion(schema, msg_text)
 
         if "stages" in fields or "component" in fields:
+            # 偵測是否為補救教學請求
+            if "failed records" in msg_text or "remedial" in schema_name.lower():
+                return self._mock_remedial_stages(schema, msg_text)
+            
             user_id = kwargs.get("user_id", 1)
             return self._mock_lesson_content(schema, msg_text, user_id=user_id)
         
@@ -200,6 +205,63 @@ class MockLLMProvider(BaseLLMProvider):
             return schema.model_validate({"isCorrect": True, "feedback": "解釋得非常出色！"})
             
         return schema.model_construct()
+
+    def _mock_remedial_stages(self, schema: Type[BaseModel], msg_text: str) -> BaseModel:
+        # 模擬 AI 根據使用者答錯的關卡，精準生成補救教學
+        raw_remedial = []
+        
+        # 根據錯誤類型提供不同的補救
+        if "heapsortexercise" in msg_text:
+            raw_remedial.append({
+                "component": "ExplainerMedia",
+                "data": {
+                    "title": "補救強化：堆積調整的核心直覺",
+                    "explanation": (
+                        "看來在手動操作上遇到了一些挑戰。別擔心！\n\n"
+                        "請記住：『最大堆積』的靈魂在於——父節點永遠要比子節點大。\n"
+                        "當你交換後，要像玩疊疊樂一樣，確保從上到下都維持這個秩序。\n"
+                        "建議：下次嘗試時，先從最下層的小三角形開始檢查起。"
+                    ),
+                    "mediaType": "none"
+                }
+            })
+        elif "multiplechoice" in msg_text:
+            raw_remedial.append({
+                "component": "ExplainerMedia",
+                "data": {
+                    "title": "觀念釐清：複雜度的本質",
+                    "explanation": (
+                        "關於演算法效率的選擇題答錯了，這通常是因為對『樹高』的概念還不夠熟悉。\n\n"
+                        "Heap Sort 之所以穩定，是因為它強迫數據在一個高度只有 log n 的樹中移動。\n"
+                        "這就像是在一個規劃完美的百貨公司找東西，比起亂逛（O(n^2)），效率是極大的提升。"
+                    ),
+                    "mediaType": "none"
+                }
+            })
+        else:
+            raw_remedial.append({
+                "component": "ExplainerMedia",
+                "data": {
+                    "title": "小試身手：再次複習核心",
+                    "explanation": "沒關係，學習演算法本來就需要反覆推敲。讓我們重新聚焦在這個章節的核心概念，再試一次！",
+                    "mediaType": "none"
+                }
+            })
+
+        # 將 raw data 包裝成完整的 LessonStage 結構
+        stages = []
+        for idx, r in enumerate(raw_remedial):
+            stages.append({
+                "stageId": f"remedial-{idx}",
+                "topic": "補救教學",
+                "component": r["component"],
+                "skin": "Scientific",
+                "config": {"data": r["data"], "initialState": {}},
+                "validation": {"type": "logic", "condition": None},
+                "feedback": {"success": "太棒了！", "error": "請再試一次。"}
+            })
+            
+        return schema.model_validate({"stages": stages})
 
     def _mock_feynman_round(self, schema: Type[BaseModel], messages: List[Any]) -> BaseModel:
         # --- 費曼教學小抄 (可以直接複製貼上測試) ---
