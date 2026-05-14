@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 from typing import Optional
 
@@ -46,6 +46,8 @@ class PasswordResetResponse(BaseModel):
 
 
 class UserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     email: str
     credits: int
@@ -59,9 +61,12 @@ class UserResponse(BaseModel):
     education_level: Optional[str] = None
     preferred_language: Optional[str] = None
     daily_learning_goal_minutes: int = 30
+    is_admin: bool = False
 
 
 class UserLedgerEventResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     event_type: str
     event_key: Optional[str] = None

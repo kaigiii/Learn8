@@ -9,12 +9,30 @@ from sqlalchemy.orm import Session
 from urllib.parse import quote
 
 from app.core.config import settings
+from app.arena.config import arena_settings
 from app.models.user import UserModel
 
 class UserService:
     AVATAR_FILENAME_RE = re.compile(r"^[^/\\\x00]+\.png$")
     EMAIL_RE = re.compile(r"^[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}$", re.IGNORECASE)
     MAX_AVATAR_UPLOAD_BYTES = 20 * 1024 * 1024
+
+    @staticmethod
+    def is_admin(user: UserModel) -> bool:
+        allowed_emails = {
+            email.strip().lower()
+            for email in arena_settings.ARENA_ADMIN_EMAILS.split(",")
+            if email.strip()
+        }
+
+        # In local/dev mode, allow the configured dev-login identity as Arena admin
+        if settings.AUTH_ENABLE_DEV_LOGIN and settings.AUTH_DEV_LOGIN_EMAIL.strip():
+            allowed_emails.add(settings.AUTH_DEV_LOGIN_EMAIL.strip().lower())
+
+        if not allowed_emails:
+            return False
+
+        return (user.email or "").strip().lower() in allowed_emails
     
     @staticmethod
     def normalize_email(email: str) -> str:
