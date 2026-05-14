@@ -17,7 +17,7 @@ export function HeapSortStageRenderer({
   lesson,
   actions,
 }: LessonStageRenderContext) {
-  const config = stage.config.data as HeapSortSimulatorConfig;
+  const config = (stage.config.data || {}) as unknown as HeapSortSimulatorConfig;
 
   return (
     <HeapSortSimulator
@@ -47,7 +47,7 @@ export function HeapSortStageRenderer({
 }
 
 export function parseHeapSortStage(stage: any): HeapSortSimulatorConfig {
-  return stage.config.data as HeapSortSimulatorConfig;
+  return (stage.config.data || {}) as unknown as HeapSortSimulatorConfig;
 }
 
 // --- Plugin Definition ---
