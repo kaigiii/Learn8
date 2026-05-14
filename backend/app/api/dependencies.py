@@ -71,24 +71,8 @@ async def get_current_user_for_stream(
 def get_current_arena_admin(
     current_user: UserModel = Depends(get_current_user),
 ) -> UserModel:
-    allowed_emails = {
-        email.strip().lower()
-        for email in arena_settings.ARENA_ADMIN_EMAILS.split(",")
-        if email.strip()
-    }
-
-    # In local/dev mode, allow the configured dev-login identity as Arena admin
-    # even if ARENA_ADMIN_EMAILS is accidentally left blank.
-    if settings.AUTH_ENABLE_DEV_LOGIN and settings.AUTH_DEV_LOGIN_EMAIL.strip():
-        allowed_emails.add(settings.AUTH_DEV_LOGIN_EMAIL.strip().lower())
-
-    if not allowed_emails:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Arena admin is not configured on this server",
-        )
-
-    if (current_user.email or "").strip().lower() not in allowed_emails:
+    from app.services.domain.user.service import UserService
+    if not UserService.is_admin(current_user):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Arena admin access is required",

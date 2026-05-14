@@ -26,6 +26,7 @@ export interface UserProfile {
   education_level?: string | null;
   preferred_language?: string | null;
   daily_learning_goal_minutes?: number;
+  is_admin?: boolean;
 }
 
 export interface UserLedgerEvent {

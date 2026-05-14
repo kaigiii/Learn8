@@ -128,6 +128,7 @@ export default function TopStatsBar({
     userHandle.startsWith("dev ") ||
     userHandle.startsWith("dev-") ||
     userHandle.startsWith("dev_");
+  const isAdministrator = authUser?.is_admin || isDevAccount;
   const profileLabel =
     authUser?.full_name?.trim() ||
     authUser?.job_title?.trim() ||
@@ -163,7 +164,7 @@ export default function TopStatsBar({
     baseLinks.unshift(socialLink);
   }
 
-  const resolvedQuickLinks: QuickLinkType[] = isDevAccount ? [adminLink, ...baseLinks] : [...baseLinks];
+  const resolvedQuickLinks: QuickLinkType[] = isAdministrator ? [adminLink, ...baseLinks] : [...baseLinks];
   const isStoreActive = pathname === "/store" || pathname.startsWith("/store/");
   const isProfileActive = pathname === "/profile" || pathname.startsWith("/profile");
 

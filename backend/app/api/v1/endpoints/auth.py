@@ -269,7 +269,9 @@ def read_users_me(
         db.commit()
         db.refresh(current_user)
 
-    return current_user
+    user_data = UserResponse.model_validate(current_user)
+    user_data.is_admin = UserService.is_admin(current_user)
+    return user_data
 
 
 @router.get("/ledger", response_model=UserLedgerResponse)
@@ -341,7 +343,9 @@ def update_user_me(
             current_user.id, current_user.email, changed_fields
         )
 
-    return current_user
+    user_data = UserResponse.model_validate(current_user)
+    user_data.is_admin = UserService.is_admin(current_user)
+    return user_data
 
 
 @router.post("/me/avatar", response_model=UserResponse)
@@ -356,7 +360,10 @@ async def upload_user_avatar(
     db.refresh(current_user)
 
     ActivityLogger.log_profile_edit(current_user.id, current_user.email, ["avatar_url"])
-    return current_user
+    
+    user_data = UserResponse.model_validate(current_user)
+    user_data.is_admin = UserService.is_admin(current_user)
+    return user_data
 
 
 @router.get("/avatar-images/{filename}")
@@ -412,7 +419,10 @@ def top_up_user_credits(
     )
     db.commit()
     db.refresh(result.user)
-    return result.user
+
+    user_data = UserResponse.model_validate(result.user)
+    user_data.is_admin = UserService.is_admin(result.user)
+    return user_data
 
 
 @router.post("/credits/spend", response_model=UserResponse)
@@ -445,4 +455,7 @@ def spend_user_credits(
 
     db.commit()
     db.refresh(result.user)
-    return result.user
+
+    user_data = UserResponse.model_validate(result.user)
+    user_data.is_admin = UserService.is_admin(result.user)
+    return user_data
