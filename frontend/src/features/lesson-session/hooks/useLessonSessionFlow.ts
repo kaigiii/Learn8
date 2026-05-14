@@ -257,14 +257,12 @@ export function useLessonSessionFlow({
 
     if (isPrimaryPhase) {
       setPhaseTransitionError("");
-      let phaseTransitionVisible = false;
-      const delayedTransitionId = window.setTimeout(() => {
-        phaseTransitionVisible = true;
-        setPhaseTransitionLoading(true);
-        setPhaseTransitionMessage(
-          "Finalising this lesson and checking whether targeted review is needed..."
-        );
-      }, 350);
+      let phaseTransitionVisible = true;
+      setPhaseTransitionLoading(true);
+      setPhaseTransitionMessage(
+        "Finalising this lesson and checking whether targeted review is needed..."
+      );
+      const delayedTransitionId: number | null = null;
 
       try {
         debugLessonFlow("Calling complete-primary", {
@@ -298,9 +296,11 @@ export function useLessonSessionFlow({
           } catch {
             summary = null;
           }
-          if (phaseTransitionVisible) {
-            setPhaseTransitionLoading(false);
-          }
+          // Keep phaseTransitionLoading true through the router.replace so the
+          // status panel stays mounted until the result page takes over.
+          // Toggling it off here causes a one-frame flicker back to the last
+          // question while the navigation is still in flight.
+          phaseTransitionVisible = false;
           navigateToResult(session.sessionId, summary);
           return;
         }
@@ -310,10 +310,7 @@ export function useLessonSessionFlow({
           session.remedialJobId
         ) {
           isFinalizingRef.current = false;
-          if (!phaseTransitionVisible) {
-            setPhaseTransitionLoading(true);
-            setPhaseTransitionMessage("Generating your targeted remedial lesson...");
-          }
+          setPhaseTransitionMessage("Generating your targeted remedial lesson...");
           connectRemedialJob(session.remedialJobId, session.sessionId);
           return;
         }
@@ -329,6 +326,43 @@ export function useLessonSessionFlow({
         );
         isFinalizingRef.current = false;
         throw err;
+      }
+
+      // Fallback: if the API returned successfully but the status is
+      // neither COMPLETED nor REMEDIAL_GENERATING-with-job, just refresh
+      // the session and navigate to result so the user isn't stuck on the
+      // last question.
+      try {
+        const refreshed = await apiFetch<LessonSessionPayload>(
+          `/lessons/sessions/${lessonSession.sessionId}`
+        );
+        setLessonSession(refreshed);
+        if (refreshed.status === LESSON_SESSION_STATUS.COMPLETED) {
+          let summary: LessonSessionSummary | null = null;
+          try {
+            summary = await apiFetch<LessonSessionSummary>(
+              `/lessons/sessions/${refreshed.sessionId}/summary`
+            );
+          } catch {
+            summary = null;
+          }
+          // Keep phaseTransitionLoading on through the navigation to avoid
+          // a one-frame flicker back to the last question. See note above.
+          phaseTransitionVisible = false;
+          navigateToResult(refreshed.sessionId, summary);
+          return;
+        }
+        if (
+          refreshed.status === LESSON_SESSION_STATUS.REMEDIAL_GENERATING &&
+          refreshed.remedialJobId
+        ) {
+          isFinalizingRef.current = false;
+          setPhaseTransitionMessage("Generating your targeted remedial lesson...");
+          connectRemedialJob(refreshed.remedialJobId, refreshed.sessionId);
+          return;
+        }
+      } catch {
+        // ignore refresh error and fall through to retry-friendly state
       }
 
       window.clearTimeout(delayedTransitionId);
@@ -370,6 +404,9 @@ export function useLessonSessionFlow({
       } catch {
         summary = null;
       }
+      // Don't toggle phaseTransitionLoading off here — the status panel
+      // needs to stay mounted until navigateToResult swaps the route, else
+      // we get a one-frame flicker back to the last stage.
       navigateToResult(session.sessionId, summary);
     } catch (err) {
       debugLessonFlow("completeCurrentPhase failed", {
@@ -382,7 +419,6 @@ export function useLessonSessionFlow({
           : "Unable to finalise remedial lesson right now."
       );
       isFinalizingRef.current = false;
-    } finally {
       setPhaseTransitionLoading(false);
     }
   }, [connectRemedialJob, debugLessonFlow, hintsUsed, lessonSession, navigateToResult]);

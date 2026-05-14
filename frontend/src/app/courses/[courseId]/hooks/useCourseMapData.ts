@@ -21,7 +21,7 @@ export interface CourseMapNode {
   y: number;
 }
 
-const X_PATTERN = [52, 18, 82, 24, 76, 28, 84, 22, 72, 30, 80, 26, 74, 34, 56];
+const X_PATTERN = [72, 18, 82, 24, 76, 28, 84, 22, 72, 30, 80, 26, 74, 22, 76, 20];
 const NODE_VERTICAL_SPACING = 160;
 const MAP_TOP_OFFSET = 70;
 const FIRST_NODE_DOWN_OFFSET = 56;
@@ -114,18 +114,24 @@ export function useCourseMapData({
         unitNumber?: number;
       }[]
     ) => {
-      return sourceNodes.map((node, index) => ({
-        id: node.id,
-        title: node.title,
-        description: node.description,
-        status: node.status,
-        hasGeneratedLesson: node.hasGeneratedLesson,
-        unitTitle: node.unitTitle,
-        isUnitHeader: node.isUnitHeader,
-        unitNumber: node.unitNumber,
-        x: node.isUnitHeader ? 50 : X_PATTERN[index % X_PATTERN.length],
-        y: index * NODE_VERTICAL_SPACING + MAP_TOP_OFFSET + (index === 0 ? FIRST_NODE_DOWN_OFFSET : 0),
-      }));
+      let regularNodeIndex = 0;
+      return sourceNodes.map((node, index) => {
+        const x = node.isUnitHeader
+          ? 50
+          : X_PATTERN[regularNodeIndex++ % X_PATTERN.length];
+        return {
+          id: node.id,
+          title: node.title,
+          description: node.description,
+          status: node.status,
+          hasGeneratedLesson: node.hasGeneratedLesson,
+          unitTitle: node.unitTitle,
+          isUnitHeader: node.isUnitHeader,
+          unitNumber: node.unitNumber,
+          x,
+          y: index * NODE_VERTICAL_SPACING + MAP_TOP_OFFSET + (index === 0 ? FIRST_NODE_DOWN_OFFSET : 0),
+        };
+      });
     };
 
     if (!backendCourse) return [];

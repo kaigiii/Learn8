@@ -43,6 +43,7 @@ export function useLessonGenerationFlow({
     "Preparing lesson generation..."
   );
   const [backendJobId, setBackendJobId] = useState<string | null>(null);
+  const [stagesLoadedInstantly, setStagesLoadedInstantly] = useState(false);
 
   const backendCourseId = backendCourseIdNumber;
   const isBackendLesson = backendCourseId !== null;
@@ -169,6 +170,7 @@ export function useLessonGenerationFlow({
 
         if (response.status === JOB_STATUS.COMPLETED) {
           setBackendJobId(null);
+          setStagesLoadedInstantly(true);
           applyStages(response.result_data?.stages || []);
           return;
         }
@@ -231,6 +233,7 @@ export function useLessonGenerationFlow({
     backendError,
     backendJobProgress,
     backendJobMessage,
+    stagesLoadedInstantly,
     cancelGeneration,
   };
 }

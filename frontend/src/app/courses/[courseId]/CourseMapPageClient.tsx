@@ -235,7 +235,7 @@ export default function CourseMapPageClient({
                 return (
                   <path
                     key={index}
-                    d={`M ${node.x} ${node.y} Q ${mx + (index % 2 === 0 ? 12 : -12)} ${my} ${next.x} ${next.y}`}
+                    d={`M ${node.x} ${node.y} Q ${mx + (index % 2 === 0 ? 15 : -15)} ${my} ${next.x} ${next.y}`}
                     stroke={isActive ? "url(#pathGrad)" : "#999"}
                     strokeWidth="1.8"
                     strokeDasharray="4 3"
@@ -385,20 +385,32 @@ function MapNodeCircle({
           initial={{ opacity: 0, scale: 0.85 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay, type: "spring", damping: 14 }}
-          className="relative flex flex-col items-center justify-center rounded-[1.5rem] border border-white/40 px-8 py-4 shadow-[0_4px_20px_rgba(180,210,230,0.2),inset_0_1px_0_rgba(255,255,255,0.5)] backdrop-blur-md min-w-[220px]"
-          style={{
-            background: "linear-gradient(135deg, rgba(255,255,255,0.28) 0%, rgba(220,235,245,0.18) 100%)",
-          }}
+          className="relative"
         >
-          {/* top-left glow accent */}
-          <div className="pointer-events-none absolute -top-px -left-px h-1/3 w-1/2 rounded-tl-[1.5rem] bg-gradient-to-br from-white/40 to-transparent" />
+          <div className="relative flex items-center gap-3 rounded-[1.5rem] bg-[#55aaa6] px-7 py-3 min-w-[240px] shadow-[0_10px_24px_-6px_rgba(74,158,155,0.55),0_4px_10px_-2px_rgba(122,199,196,0.35)] overflow-hidden">
+            {/* Top inner highlight */}
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/40 to-transparent" />
 
-          <span className="font-heading text-[12px] font-medium uppercase tracking-[0.22em] text-black/55">
-            {t("courseMap.unit")} {node.unitNumber}
-          </span>
-          <span className="mt-1 font-heading text-lg font-bold text-black/75 leading-tight text-center">
-            {courseSlug && node.unitNumber ? translatePublicUnit(t, courseSlug, node.unitNumber, node.title) : node.title}
-          </span>
+            {/* Unit number badge */}
+            <div className="relative flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border-2 border-[#fde79a] bg-gradient-to-b from-[#fbd66b] to-[#e6a93f] shadow-inner">
+              <span
+                className="font-heading text-base font-extrabold text-white"
+                style={{ textShadow: "0 1px 2px rgba(140,90,20,0.5)" }}
+              >
+                {node.unitNumber}
+              </span>
+            </div>
+
+            {/* Title */}
+            <span
+              className="relative font-heading text-lg font-extrabold leading-tight text-white whitespace-nowrap"
+              style={{ textShadow: "0 1px 3px rgba(0,0,0,0.25)" }}
+            >
+              {courseSlug && node.unitNumber
+                ? translatePublicUnit(t, courseSlug, node.unitNumber, node.title)
+                : node.title}
+            </span>
+          </div>
         </motion.div>
       </div>
     );

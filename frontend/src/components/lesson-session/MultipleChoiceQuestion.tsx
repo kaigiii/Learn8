@@ -122,7 +122,7 @@ export default function MultipleChoiceQuestion({
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
+          transition={{ duration: 0.15 }}
           className="mb-6 rounded-2xl bg-white/70 backdrop-blur border border-white/60 shadow-sm px-6 py-5 flex items-start justify-between gap-4"
         >
           <p className="text-base font-semibold text-brand-gray-700 leading-relaxed">{question}</p>
@@ -144,9 +144,9 @@ export default function MultipleChoiceQuestion({
             return (
               <motion.button
                 key={opt.id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: isEliminated ? 0.35 : 1, x: 0 }}
-                transition={{ delay: i * 0.05 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: isEliminated ? 0.35 : 1 }}
+                transition={{ duration: 0.12 }}
                 onClick={() => {
                   if (isEliminated || result || isLocked) return;
                   setSelected(opt.id);

@@ -292,7 +292,7 @@ export default function SocialPageClient() {
         ]}
       />
 
-      <div className="mx-auto max-w-6xl w-full px-4 py-6 relative z-10 animate-fade-in">
+      <div className="mx-auto max-w-6xl w-full px-4 pt-12 pb-6 relative z-10 animate-fade-in">
         {/* Stat header cards */}
         <div className="mb-5 grid grid-cols-3 gap-3">
           <StatBadge

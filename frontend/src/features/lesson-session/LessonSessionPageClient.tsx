@@ -104,6 +104,7 @@ export default function LessonSessionPageClient({
     backendError,
     backendJobProgress,
     backendJobMessage,
+    stagesLoadedInstantly,
     cancelGeneration,
   } = useLessonGenerationFlow({
     routeCourseId: resolvedRouteCourseId,
@@ -197,14 +198,20 @@ export default function LessonSessionPageClient({
 
   const hasPendingStatusFlow =
     backendLoading ||
-    sessionLoading ||
+    (sessionLoading && !stagesLoadedInstantly) ||
     phaseTransitionLoading ||
     (!!lessonSession && (!isSessionInteractive || isNavigatingToResult));
   const awaitingSessionStart =
-    backendStages.length > 0 && !lessonSession && !sessionError;
+    !stagesLoadedInstantly && backendStages.length > 0 && !lessonSession && !sessionError;
   const showDelayedStatusPanel = useDelayedVisibility(hasPendingStatusFlow, 260);
+  // phaseTransitionLoading is user-initiated (skip / final continue) and the
+  // request always takes hundreds of ms — show the panel immediately instead
+  // of waiting for the anti-flash delay, which otherwise looks like the
+  // button click did nothing on the last question.
   const shouldRenderStatusPanel =
-    !!phaseTransitionError || (!backendStage ? hasPendingStatusFlow : showDelayedStatusPanel);
+    !!phaseTransitionError ||
+    phaseTransitionLoading ||
+    (!backendStage ? hasPendingStatusFlow : showDelayedStatusPanel);
   const shouldRenderLessonSessionSkeleton =
     (!backendStage && hasPendingStatusFlow && !shouldRenderStatusPanel && !backendError) ||
     awaitingSessionStart;

@@ -125,28 +125,37 @@ export function useLessonStageFlow({
     async (stageToSkip: LessonStage) => {
       if (advanceLockRef.current) return;
       advanceLockRef.current = true;
+      const isFinalStage = stageIdx >= totalStages - 1;
 
-      let advanced = false;
-      try {
-        const response = await submitStage(stageToSkip, { skipped: true });
-        if (!response) return;
-        // Inline the advance — we already hold the lock, so don't go through
-        // continueStage() which would re-check the lock and bail.
-        if (stageIdx < totalStages - 1) {
-          onAdvanceStage();
-        } else {
-          void onCompletePhase();
-        }
-        advanced = true;
-      } finally {
-        if (advanced) {
-          // Defer release so React commits the new stageIdx and the old
-          // SKIP button unmounts before another click can re-enter.
-          setTimeout(() => { advanceLockRef.current = false; }, 0);
-        } else {
-          // No advance happened — let the user retry immediately.
+      // Advance immediately so the user isn't waiting on a network round-trip.
+      // (This must not depend on lessonSession — public courses may have a
+      // session that hasn't fully entered the interactive state yet.)
+      if (!isFinalStage) {
+        onAdvanceStage();
+        // Queue the submission AFTER the UI commits. submitStage itself
+        // already no-ops when the session isn't interactive, so this is safe.
+        setTimeout(() => {
+          void submitStage(stageToSkip, { skipped: true });
           advanceLockRef.current = false;
-        }
+        }, 0);
+        return;
+      }
+
+      // Final stage: fire-and-forget the skip submission and immediately
+      // kick off phase completion so the transition panel shows up without
+      // waiting on the submit round-trip. complete-primary is the only
+      // request that actually gates navigation; the skip record is purely
+      // bookkeeping and the backend tolerates either ordering.
+      void submitStage(stageToSkip, { skipped: true }).catch(() => {
+        // submitStage handles conflict recovery internally.
+      });
+
+      try {
+        await onCompletePhase();
+      } catch {
+        // complete phase already reports errors; avoid unhandled rejections.
+      } finally {
+        advanceLockRef.current = false;
       }
     },
     [onAdvanceStage, onCompletePhase, stageIdx, submitStage, totalStages]

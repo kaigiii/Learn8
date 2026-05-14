@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import Image from "next/image";
+import { motion } from "framer-motion";
 import type { LessonSessionSummary } from "@/lib/apiTypes";
 import { useI18n } from "@/lib/i18n/useI18n";
 
@@ -9,7 +10,6 @@ interface LessonResultViewProps {
   resultSummary: LessonSessionSummary | null;
   accuracy: number;
   xpGained: number;
-  showLevelUp: boolean;
   displayLevel: number;
   currentXp: number;
   currentXpToNext: number;
@@ -22,7 +22,6 @@ export function LessonResultView({
   resultSummary,
   accuracy,
   xpGained,
-  showLevelUp,
   displayLevel,
   currentXp,
   currentXpToNext,
@@ -55,7 +54,7 @@ export function LessonResultView({
       className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden"
       style={{
         backgroundColor: "#d9ecf6",
-        backgroundImage: 'url("/backgrounds/ForgingBg.png")',
+        backgroundImage: 'url("/backgrounds/SettlementBg.png")',
         backgroundPosition: "center",
         backgroundSize: "cover",
         backgroundRepeat: "no-repeat",
@@ -64,12 +63,13 @@ export function LessonResultView({
       <VictoryConfetti />
       <DecorativeStars />
 
-      <div className="relative z-10 flex w-full max-w-lg flex-col items-center px-6">
+      <div className="relative z-10 flex w-full max-w-2xl flex-col items-center px-6 -mt-16">
+        <div className="w-full rounded-3xl border border-white/50 bg-white/50 px-8 pt-10 pb-8 shadow-2xl backdrop-blur-xl">
         <motion.h1
           initial={{ opacity: 0, scale: 0.5, y: -30 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ type: "spring", damping: 10, stiffness: 120, delay: 0.1 }}
-          className="mb-4 bg-gradient-to-b from-[#7AC7C4] via-[#5fb3af] to-[#D4A96A] bg-clip-text text-center font-heading text-4xl font-extrabold tracking-tight text-transparent sm:text-5xl"
+          className="mb-4 bg-gradient-to-b from-[#7AC7C4] via-[#5fb3af] to-[#8dd4d1] bg-clip-text text-center font-heading text-4xl font-extrabold tracking-tight text-transparent sm:text-5xl"
           style={{
             textShadow: "0 4px 18px rgba(122,199,196,0.25)",
           }}
@@ -134,23 +134,6 @@ export function LessonResultView({
             </div>
           </div>
 
-          <AnimatePresence>
-            {isRewardEligible && showLevelUp && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.5 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0 }}
-                className="mb-2 text-right"
-              >
-                <span
-                  className="bg-gradient-to-r from-[#7AC7C4] via-[#5fb3af] to-[#D4A96A] bg-clip-text font-heading text-lg font-extrabold italic text-transparent"
-                  style={{ textShadow: "0 0 16px rgba(122,199,196,0.35)" }}
-                >
-                  {t("lesson.levelUp")}
-                </span>
-              </motion.div>
-              )}
-          </AnimatePresence>
 
           <div className="mb-1 flex items-center justify-between px-0.5 text-[10px] font-bold text-brand-gray-500">
             <span>{t("lesson.lv")}{displayLevel}</span>
@@ -207,6 +190,7 @@ export function LessonResultView({
             <span className="relative z-10">{t("lesson.backToMap")}</span>
           </button>
         </motion.div>
+        </div>
       </div>
     </div>
   );
@@ -214,92 +198,34 @@ export function LessonResultView({
 
 function VictoryTrophy() {
   return (
-    <motion.svg
-      viewBox="0 0 160 170"
-      className="h-44 w-44"
-      fill="none"
-      animate={{ y: [0, -4, 0] }}
+    <motion.div
+      animate={{ y: [0, -6, 0] }}
       transition={{ repeat: Infinity, duration: 2.6, ease: "easeInOut" }}
     >
-      <defs>
-        <linearGradient id="trophyCup" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#F4D88B" />
-          <stop offset="45%" stopColor="#D4A96A" />
-          <stop offset="100%" stopColor="#A57C42" />
-        </linearGradient>
-        <linearGradient id="trophyHandle" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#E6BE7A" />
-          <stop offset="100%" stopColor="#9D7438" />
-        </linearGradient>
-        <linearGradient id="trophyBase" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#8AD0CC" />
-          <stop offset="100%" stopColor="#5fb3af" />
-        </linearGradient>
-        <radialGradient id="trophyShine" cx="35%" cy="30%" r="60%">
-          <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.7" />
-          <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0" />
-        </radialGradient>
-      </defs>
-
-      <path d="M40 24 Q22 32 22 58 Q22 84 48 92" stroke="url(#trophyHandle)" strokeWidth="9" strokeLinecap="round" fill="none" />
-      <path d="M120 24 Q138 32 138 58 Q138 84 112 92" stroke="url(#trophyHandle)" strokeWidth="9" strokeLinecap="round" fill="none" />
-
-      <path
-        d="M38 18 L122 18 L116 78 Q113 102 80 102 Q47 102 44 78 Z"
-        fill="url(#trophyCup)"
-        stroke="#9D7438"
-        strokeWidth="2"
+      <Image
+        src="/pattern/Trophy.png"
+        alt="trophy"
+        width={176}
+        height={176}
+        className="h-44 w-44 object-contain drop-shadow-[0_8px_24px_rgba(212,169,106,0.45)]"
+        priority
+        onError={(e) => {
+          // fallback to SVG emoji if trophy.png is not yet present
+          const img = e.currentTarget;
+          img.style.display = "none";
+          const svg = img.nextElementSibling as HTMLElement | null;
+          if (svg) svg.style.display = "block";
+        }}
       />
-      <path
-        d="M44 24 L116 24 L112 36 Q80 44 48 36 Z"
-        fill="url(#trophyShine)"
-      />
-
-      <StarShape cx={80} cy={56} r={11} fill="#FFFFFF" opacity={0.95} />
-      <StarShape cx={80} cy={56} r={7} fill="#D4A96A" opacity={0.9} />
-
-      <rect x="68" y="100" width="24" height="18" rx="3" fill="url(#trophyHandle)" />
-      <rect x="56" y="118" width="48" height="10" rx="3" fill="url(#trophyBase)" stroke="#4a9e9b" strokeWidth="1.5" />
-      <rect x="44" y="128" width="72" height="18" rx="5" fill="url(#trophyBase)" stroke="#4a9e9b" strokeWidth="1.5" />
-      <rect x="50" y="134" width="60" height="3" rx="1.5" fill="#FFFFFF" opacity="0.3" />
-
-      <motion.g
-        animate={{ opacity: [0.3, 1, 0.3] }}
-        transition={{ repeat: Infinity, duration: 2.2, ease: "easeInOut" }}
+      <span
+        style={{ display: "none", fontSize: "9rem", lineHeight: 1 }}
+        role="img"
+        aria-label="trophy"
       >
-        <circle cx="28" cy="40" r="2.5" fill="#FFD89A" />
-        <circle cx="132" cy="46" r="2" fill="#FFD89A" />
-        <circle cx="20" cy="78" r="1.8" fill="#7AC7C4" />
-        <circle cx="142" cy="76" r="2.2" fill="#7AC7C4" />
-      </motion.g>
-    </motion.svg>
+        🏆
+      </span>
+    </motion.div>
   );
-}
-
-function StarShape({
-  cx,
-  cy,
-  r,
-  fill,
-  opacity = 1,
-}: {
-  cx: number;
-  cy: number;
-  r: number;
-  fill: string;
-  opacity?: number;
-}) {
-  const points = Array.from({ length: 5 }, (_, i) => {
-    const outerAngle = (i * 72 - 90) * (Math.PI / 180);
-    const innerAngle = (i * 72 + 36 - 90) * (Math.PI / 180);
-    const ox = cx + r * Math.cos(outerAngle);
-    const oy = cy + r * Math.sin(outerAngle);
-    const ix = cx + r * 0.4 * Math.cos(innerAngle);
-    const iy = cy + r * 0.4 * Math.sin(innerAngle);
-    return `${ox},${oy} ${ix},${iy}`;
-  }).join(" ");
-
-  return <polygon points={points} fill={fill} opacity={opacity} />;
 }
 
 function DecorativeStars() {
@@ -346,32 +272,28 @@ function DecorativeStars() {
   );
 }
 
+const CONFETTI_COLORS = [
+  "#7AC7C4", "#D4A96A", "#F4D88B", "#5fb3af",
+  "#9ecbd4", "#E8B978", "#8AD0CC", "#F0C893", "#4a9e9b",
+];
+
 function VictoryConfetti() {
   const particles = useMemo(
     () =>
-      Array.from({ length: 80 }, (_, i) => {
-        const isStreak = i < 20;
+      Array.from({ length: 120 }, (_, i) => {
+        const duration = 3 + Math.random() * 3;
         return {
           id: i,
-          x: isStreak ? 40 + Math.random() * 20 : Math.random() * 100,
-          startY: isStreak ? 45 : -5,
-          endY: isStreak ? -10 + Math.random() * 30 : 110,
-          delay: isStreak ? Math.random() * 0.3 : 0.2 + Math.random() * 1.5,
-          duration: isStreak ? 0.6 + Math.random() * 0.5 : 2 + Math.random() * 2.5,
-          color: [
-            "#7AC7C4",
-            "#D4A96A",
-            "#F4D88B",
-            "#5fb3af",
-            "#9ecbd4",
-            "#E8B978",
-            "#8AD0CC",
-            "#F0C893",
-            "#4a9e9b",
-          ][i % 9],
-          size: isStreak ? 3 + Math.random() * 3 : 4 + Math.random() * 8,
-          rotation: Math.random() * 360,
-          spreadX: isStreak ? (Math.random() - 0.5) * 60 : 0,
+          x: Math.random() * 100,
+          duration,
+          // negative delay pre-offsets each particle into its cycle so the
+          // screen is already filled with confetti on first render
+          delay: -(Math.random() * duration),
+          color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+          width: 4 + Math.random() * 4,
+          height: 14 + Math.random() * 16,
+          driftX: (Math.random() - 0.5) * 60,
+          rotationEnd: 360 + Math.random() * 720,
         };
       }),
     []
@@ -382,30 +304,27 @@ function VictoryConfetti() {
       {particles.map((p) => (
         <motion.div
           key={p.id}
-          initial={{
-            top: `${p.startY}%`,
+          className="absolute"
+          style={{
             left: `${p.x}%`,
-            opacity: 1,
-            rotate: 0,
-            x: 0,
+            top: 0,
+            width: p.width,
+            height: p.height,
+            borderRadius: "2px",
+            backgroundColor: p.color,
           }}
           animate={{
-            top: `${p.endY}%`,
-            rotate: p.rotation + 540,
-            opacity: [1, 1, 0.6, 0],
-            x: p.spreadX,
+            // start just above viewport, fall to well below it
+            y: ["-5vh", "110vh"],
+            x: [0, p.driftX],
+            rotate: [0, p.rotationEnd],
           }}
           transition={{
             duration: p.duration,
             delay: p.delay,
-            ease: p.startY > 0 ? "easeOut" : "easeIn",
-          }}
-          className="absolute"
-          style={{
-            width: p.size,
-            height: p.size,
-            borderRadius: p.size > 7 ? "2px" : "50%",
-            backgroundColor: p.color,
+            repeat: Infinity,
+            repeatType: "loop",
+            ease: "linear",
           }}
         />
       ))}
