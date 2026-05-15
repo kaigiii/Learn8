@@ -19,9 +19,9 @@ export interface CourseMapNode {
   unitNumber?: number;
   x: number;
   y: number;
+  theta: number;
 }
 
-const X_PATTERN = [72, 18, 82, 24, 76, 28, 84, 22, 72, 30, 80, 26, 74, 22, 76, 20];
 const NODE_VERTICAL_SPACING = 160;
 const MAP_TOP_OFFSET = 70;
 const FIRST_NODE_DOWN_OFFSET = 56;
@@ -114,11 +114,40 @@ export function useCourseMapData({
         unitNumber?: number;
       }[]
     ) => {
-      let regularNodeIndex = 0;
+      let currentTheta = 0;
+      let lastUnitHeaderTheta = -180;
+
       return sourceNodes.map((node, index) => {
-        const x = node.isUnitHeader
-          ? 50
-          : X_PATTERN[regularNodeIndex++ % X_PATTERN.length];
+        if (node.isUnitHeader) {
+          if (index === 0) {
+            currentTheta = 0;
+          } else {
+            // Ensure at least 180 deg from previous unit header
+            // and must be a multiple of 180 (0, 180, 360...)
+            // and must be at least 90 deg from previous node
+            currentTheta = Math.max(
+              lastUnitHeaderTheta + 180,
+              Math.ceil((currentTheta + 89) / 180) * 180
+            );
+          }
+          lastUnitHeaderTheta = currentTheta;
+        } else {
+          // Regular node
+          // Consecutive nodes must alternate sides (90 deg -> 270 deg -> 450 deg...)
+          if (index > 0 && !sourceNodes[index - 1].isUnitHeader) {
+            currentTheta += 180;
+          } else {
+            // First node after unit header: move to next peak (90, 270, 450...)
+            currentTheta = Math.ceil((currentTheta + 44) / 90) * 90;
+            if (currentTheta % 180 === 0) currentTheta += 90;
+          }
+        }
+
+        const amp = 24;
+        const x = 50 + amp * Math.sin((currentTheta * Math.PI) / 180);
+        // Map theta to y. Scale 180 deg to the standard vertical spacing.
+        const y = currentTheta * (NODE_VERTICAL_SPACING / 180) + MAP_TOP_OFFSET + (index === 0 ? FIRST_NODE_DOWN_OFFSET : 0);
+
         return {
           id: node.id,
           title: node.title,
@@ -129,7 +158,8 @@ export function useCourseMapData({
           isUnitHeader: node.isUnitHeader,
           unitNumber: node.unitNumber,
           x,
-          y: index * NODE_VERTICAL_SPACING + MAP_TOP_OFFSET + (index === 0 ? FIRST_NODE_DOWN_OFFSET : 0),
+          y,
+          theta: currentTheta,
         };
       });
     };
