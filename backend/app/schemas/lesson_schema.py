@@ -197,6 +197,7 @@ class LessonSessionPayload(BaseModel):
 
 class LessonSessionCompleteRequest(BaseModel):
     hintsUsed: int = 0
+    voice_preset: str = "preset_01"
 
 
 class LessonSessionSummaryPayload(BaseModel):
@@ -223,6 +224,7 @@ class RemedialGenerationRequest(BaseModel):
     nodeId: Optional[str] = None
     sessionId: Optional[int] = None
     failedStages: List[FailedStageRecord] = Field(default_factory=list)
+    voice_preset: str = "preset_01"
 
 
 class SubmissionResponse(BaseModel):

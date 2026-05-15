@@ -20,6 +20,7 @@ import type {
 } from "@/lib/apiTypes";
 import type { LessonSessionSummary } from "@/lib/apiTypes";
 import { cacheLessonSessionSummary } from "./useLessonResultSummary";
+import useUserStore from "@/stores/app/useUserStore";
 
 interface UseLessonSessionFlowParams {
   backendCourseId: number | null;
@@ -48,6 +49,8 @@ export function useLessonSessionFlow({
 }: UseLessonSessionFlowParams) {
   const router = useRouter();
   const pathname = usePathname();
+  const { clientOnly: { preferences } } = useUserStore();
+  const voicePreset = preferences.voiceAssistant || "preset_01";
 
   const [lessonSession, setLessonSession] = useState<LessonSessionPayload | null>(null);
   const [sessionLoading, setSessionLoading] = useState(false);
@@ -272,7 +275,7 @@ export function useLessonSessionFlow({
           `/lessons/sessions/${lessonSession.sessionId}/complete-primary`,
           {
             method: "POST",
-            body: JSON.stringify({ hintsUsed }),
+            body: JSON.stringify({ hintsUsed, voice_preset: voicePreset }),
           }
         );
         window.clearTimeout(delayedTransitionId);
@@ -384,7 +387,7 @@ export function useLessonSessionFlow({
         `/lessons/sessions/${lessonSession.sessionId}/complete-remedial`,
         {
           method: "POST",
-          body: JSON.stringify({ hintsUsed }),
+          body: JSON.stringify({ hintsUsed, voice_preset: voicePreset }),
         }
       );
       if (isExitingRef.current) {

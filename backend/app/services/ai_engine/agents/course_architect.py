@@ -212,7 +212,9 @@ class AIArchitectService:
             role = "user" if msg["role"] == "teacher" else "assistant"
             messages.append((role, msg["content"]))
         
-        messages.append(("user", user_input))
+        # Only append user_input if it's not already the last message in history
+        if not conversation_history or conversation_history[-1]["content"] != user_input:
+            messages.append(("user", user_input))
 
         try:
             class FeynmanStudentReply(BaseModel):

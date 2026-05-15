@@ -126,7 +126,7 @@ def generate_algo_nodes():
                     "explanation": (
                         "Heap Sort 的魅力在於其絕對的穩定性：\n"
                         "1. 時間複雜度：無論輸入資料如何分佈，始終維持 O(n log n) 的高效表現。\n"
-                        "2. 空間利用：它是典型的就地排序 (In-place)，額外空間複雜度僅為 O(1)。\n"
+                        "2. 空間利用：它是典型的就地排序，額外空間複雜度僅為 O(1)。\n"
                         "3. 結構優勢：利用完全二元樹特性，讓每一次調整都嚴格控制在樹高範圍內。"
                     ),
                     "mediaType": "image" if title == "Heap Sort" or "Heap Sort" in title else "none",
@@ -137,7 +137,7 @@ def generate_algo_nodes():
             {
                 "component": "MultipleChoice",
                 "data": {
-                    "question": "為什麼在處理大型數據集時，Heap Sort 的最壞情況表現往往比快速排序 (Quick Sort) 更可靠？",
+                    "question": "為什麼在處理大型數據集時，Heap Sort 的最壞情況表現往往比Quick Sort更可靠？",
                     "options": [
                         {"id": "a", "text": "因為它不需要使用遞迴來處理子問題"},
                         {"id": "b", "text": "因為堆積結構保證了樹高平衡，避免了退化成 O(n^2) 的風險"},
@@ -152,7 +152,9 @@ def generate_algo_nodes():
                 "component": "FeynmanMirror",
                 "data": {
                     "topic": title,
-                    "goal": f"挑戰：向一個只聽過氣泡排序 (Bubble Sort) 的人解釋：為什麼 Heap Sort 的『最大堆積』策略能讓排序速度從 O(n^2) 大幅躍升到 O(n log n)？",
+                    "prompt": f"挑戰：假設我是你的學生，對「{title}」感到很好奇。請試著向我解釋它的核心原理，讓我這個初學者也能聽懂！",
+                    "sampleAnswer": f"「{title}」的核心在於利用二元堆積（Binary Heap）結構。以最大堆積為例，根節點永遠是最大值，我們不斷將根節點與末尾元素交換並縮減範圍，隨後執行向下調整（Heapify）來維持屬性，最終達成 O(n log n) 的原地排序。",
+                    "maxRounds": 8
                 }
             }
         ]
@@ -285,7 +287,7 @@ class MockLLMProvider(BaseLLMProvider):
         
         responses = [
             {
-                "reply": "原來如此！所以 Heap Sort 是利用『最大堆積』來運作。但我想確認一下，如果我要由小到大排序，為什麼不直接用『最小堆積』，而是要把最大的元素不斷換到陣列最後面呢？", 
+                "reply": "原來如此！所以堆積排序是利用『最大堆積』來運作。但我想確認一下，如果我要由小到大排序，為什麼不直接用『最小堆積』，而是要把最大的元素不斷換到陣列最後面呢？", 
                 "isSatisfied": False
             },
             {
@@ -293,18 +295,20 @@ class MockLLMProvider(BaseLLMProvider):
                 "isSatisfied": False
             },
             {
-                "reply": "聽起來很有效率！你提到它的最壞情況也是 O(n log n)，這比 Quick Sort 穩定多了。但既然它這麼強，為什麼在實際應用中（例如實作函式庫時），大家有時候還是更偏好 Merge Sort 或 Quick Sort？它有什麼弱點嗎？", 
+                "reply": "聽起來很有效率！你提到它的最壞情況也是 O(n log n)，這比快速排序穩定多了。但既然它這麼強，為什麼在實際應用中，大家有時候還是更偏好合併排序或快速排序？它有什麼弱點嗎？", 
                 "isSatisfied": False
             },
             {
-                "reply": "我完全明白了！雖然 Heap Sort 空間效率極高且時間穩定，但它不是『穩定排序 (Stable Sort)』，而且記憶體存取的不連續性會影響快取效能。謝謝你的詳細解釋，我對堆積排序有信心了！", 
+                "reply": "我完全明白了！雖然堆積排序空間效率極高且時間穩定，但它不是『穩定排序』，而且記憶體存取的不連續性會影響快取效能。謝謝你的詳細解釋，我對堆積排序有信心了！", 
                 "isSatisfied": True
             }
         ]
         # 根據目前的對話輪數決定回傳哪一個 Mock 回應
-        # messages 通常包含 [System, User, AI, User...]，所以輪數計算為 (len - 1) // 2
-        round_idx = (len(messages) - 1) // 2
-        data = responses[min(round_idx, len(responses)-1)]
+        # messages 通常包含 [System, Assistant(Goal), User(1), Assistant(1), User(2)...]
+        # 第一輪 User 互動時 len(messages) = 3 (System, Assistant, User)
+        # 所以 round_idx = (3 - 2) // 2 = 0，回傳 responses[0]
+        round_idx = (len(messages) - 2) // 2
+        data = responses[min(max(0, round_idx), len(responses)-1)]
         return schema.model_validate(data)
 
     def _mock_questionnaire(self, schema: Type[BaseModel]) -> BaseModel:

@@ -723,6 +723,7 @@ async def generate_lesson_from_node_endpoint(
     background_tasks: BackgroundTasks,
     course_id: int | None = None,
     allowed_components: str | None = None,
+    voice_preset: str = settings.DEFAULT_VOICE_PRESET,
     current_user: UserModel = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -1040,6 +1041,7 @@ async def generate_lesson_from_node_endpoint(
         course_folder_name,
         profile_summary,
         resolved_allowed_components,
+        voice_preset,
     )
     return {"job_id": job_id, "status": JobStatus.PENDING}
 
@@ -1775,6 +1777,7 @@ async def complete_primary_lesson_session(
         [_serialize_failed_record(record).model_dump() for record in failed_records],
         session.id,
         learner_profile_summary,
+        request.voice_preset,
     )
 
     db.refresh(session)
@@ -2017,5 +2020,6 @@ async def generate_remedial_stages_async_endpoint(
         [record.model_dump() for record in failed_records],
         request.sessionId,
         learner_profile_summary,
+        request.voice_preset,
     )
     return {"job_id": job_id, "status": JobStatus.PENDING}

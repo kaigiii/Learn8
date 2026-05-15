@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import GameButton from "@/components/ui/GameButton";
+import { useI18n } from "@/lib/i18n/useI18n";
 
 interface QuestionActionBarProps {
   // Centralized Navigation Props
@@ -26,12 +27,15 @@ export function QuestionActionBar({
   onSkip,
   onContinue,
   isContinueDisabled = false,
-  continueLabel = "CONTINUE",
-  skipLabel = "SKIP",
+  continueLabel,
+  skipLabel,
   leftSlot,
   rightSlot,
   justify = "between",
 }: QuestionActionBarProps) {
+  const { t } = useI18n();
+  const effectiveContinueLabel = continueLabel || t("lesson.action.continue");
+  const effectiveSkipLabel = skipLabel || t("lesson.action.skip");
   const [isSkipping, setIsSkipping] = useState(false);
   const delayTimerRef = useRef<number | null>(null);
 
@@ -90,7 +94,7 @@ export function QuestionActionBar({
                   <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/70 border-t-transparent" />
                 </span>
               ) : (
-                <span className="font-heading font-bold uppercase tracking-wide">{skipLabel}</span>
+                <span className="font-heading font-bold uppercase tracking-wide">{effectiveSkipLabel}</span>
               )}
             </GameButton>
           )}
@@ -108,7 +112,7 @@ export function QuestionActionBar({
             disabled={isContinueDisabled}
             className="min-w-[160px]"
           >
-            <span className="font-heading font-bold uppercase tracking-wide">{continueLabel}</span>
+            <span className="font-heading font-bold uppercase tracking-wide">{effectiveContinueLabel}</span>
           </GameButton>
         )}
       </div>

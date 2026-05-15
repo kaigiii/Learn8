@@ -9,6 +9,7 @@ import { HintButton } from "./HintButton";
 import { QuestionActionBar } from "./QuestionActionBar";
 import { QuestionVoiceReader } from "@/features/lesson-session/components/QuestionVoiceReader";
 import { QuestionStageHeader } from "./QuestionStageHeader";
+import { useI18n } from "@/lib/i18n/useI18n";
 import type {
   QuestionCommonActions,
   QuestionStageMeta,
@@ -65,6 +66,7 @@ export default function MatchingPairsQuestion({
   hideChrome = false,
   isRevealed = false,
 }: MatchingPairsQuestionProps) {
+  const { t } = useI18n();
   return (
     <>
       <div className={`flex-1 min-h-0 overflow-y-auto pr-1 ${!hideChrome ? "lesson-session-scroll" : ""}`}>
@@ -109,7 +111,7 @@ export default function MatchingPairsQuestion({
             />
           }
           onContinue={onSubmit}
-          continueLabel="SUBMIT"
+          continueLabel={t("lesson.action.submit")}
           isContinueDisabled={!allMatched}
         />
       )}

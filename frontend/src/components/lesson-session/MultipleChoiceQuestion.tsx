@@ -8,6 +8,7 @@ import { HintButton } from "./HintButton";
 import { QuestionActionBar } from "./QuestionActionBar";
 import { QuestionStageHeader } from "./QuestionStageHeader";
 import { QuestionVoiceReader } from "@/features/lesson-session/components/QuestionVoiceReader";
+import { useI18n } from "@/lib/i18n/useI18n";
 import type {
   QuestionCommonActions,
   QuestionFeedbackMessages,
@@ -75,6 +76,7 @@ export default function MultipleChoiceQuestion({
   userSelectedId,
   isLocked = false,
 }: MultipleChoiceQuestionProps) {
+  const { t } = useI18n();
   const [selected, setSelected] = useState<string | null>(null);
   const [result, setResult] = useState<"correct" | "wrong" | null>(null);
   const [eliminated, setEliminated] = useState<string[]>([]);
@@ -213,10 +215,10 @@ export default function MultipleChoiceQuestion({
           }
           continueLabel={
             result === "correct" 
-              ? "CONTINUE" 
+              ? t("lesson.action.continue") 
               : result === "wrong" 
-              ? "GOT IT" 
-              : "CHECK"
+              ? t("lesson.action.gotIt") 
+              : t("lesson.action.check")
           }
           isContinueDisabled={(!selected && !result) || isLocked}
         />
