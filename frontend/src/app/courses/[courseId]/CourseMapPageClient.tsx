@@ -226,16 +226,25 @@ export default function CourseMapPageClient({
               </defs>
               {nodes.slice(0, -1).map((node, index) => {
                 const next = nodes[index + 1];
-                const mx = (node.x + next.x) / 2;
-                const my = (node.y + next.y) / 2;
                 const isActive =
                   node.status !== NODE_STATUS.LOCKED ||
                   next.status !== NODE_STATUS.LOCKED;
 
+                // Sine wave path approximation using linear segments
+                const segments = 12;
+                const amp = 24;
+                let pathD = `M ${node.x} ${node.y}`;
+                for (let i = 1; i <= segments; i++) {
+                  const t = node.theta + (next.theta - node.theta) * (i / segments);
+                  const currX = 50 + amp * Math.sin((t * Math.PI) / 180);
+                  const currY = node.y + (next.y - node.y) * (i / segments);
+                  pathD += ` L ${currX} ${currY}`;
+                }
+
                 return (
                   <path
                     key={index}
-                    d={`M ${node.x} ${node.y} Q ${mx + (index % 2 === 0 ? 15 : -15)} ${my} ${next.x} ${next.y}`}
+                    d={pathD}
                     stroke={isActive ? "url(#pathGrad)" : "#999"}
                     strokeWidth="1.8"
                     strokeDasharray="4 3"
