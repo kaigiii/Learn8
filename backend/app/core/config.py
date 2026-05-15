@@ -114,5 +114,6 @@ class Settings(BaseSettings):
     ENABLED_PUBLIC_COURSES: str = "ai_neural_networks.yaml,python_fundamentals.yaml,world_history.yaml"
     ENABLED_GAME_MODULES: str = "ExplainerMedia.yaml,FeynmanMirror.yaml,MatchingPairs.yaml,MultipleChoice.yaml,Ordering.yaml"
     FEYNMAN_DEFAULT_MAX_ROUNDS: int = 8
+    DEFAULT_VOICE_PRESET: str = "preset_01"
 
 settings = Settings()

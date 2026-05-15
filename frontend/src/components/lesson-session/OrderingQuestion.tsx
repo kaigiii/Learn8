@@ -5,6 +5,7 @@ import { Reorder } from "framer-motion";
 import GameButton from "@/components/ui/GameButton";
 import type { SubmissionResponse } from "@/lib/apiTypes";
 import type { LessonStage } from "@/lib/apiTypes";
+import { useI18n } from "@/lib/i18n/useI18n";
 import { QuestionActionBar } from "./QuestionActionBar";
 import { QuestionStageHeader } from "./QuestionStageHeader";
 import { QuestionVoiceReader } from "@/features/lesson-session/components/QuestionVoiceReader";
@@ -48,6 +49,7 @@ export default function OrderingQuestion({
   hideChrome = false,
   isRevealed = false,
 }: OrderingQuestionProps) {
+  const { t } = useI18n();
   const stableDataSteps = JSON.stringify(stage.config.data?.steps || []);
   const stableInitialOrder = JSON.stringify(stage.config.initialState?.order || null);
 
@@ -149,10 +151,10 @@ export default function OrderingQuestion({
           onContinue={phase === "feedback" ? onContinue : () => void handleSubmit()}
           continueLabel={
             phase === "feedback" 
-              ? "CONTINUE" 
+              ? t("lesson.action.continue") 
               : phase === "submitting" 
-              ? "CHECKING..." 
-              : "CHECK ORDER"
+              ? t("lesson.action.checking") 
+              : t("lesson.action.checkOrder")
           }
           isContinueDisabled={phase === "submitting"}
         />

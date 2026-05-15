@@ -3,6 +3,7 @@
 import Image from "next/image";
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useI18n } from "@/lib/i18n/useI18n";
 import GameButton from "@/components/ui/GameButton";
 import { HintButton } from "./HintButton";
 import { QuestionActionBar } from "./QuestionActionBar";
@@ -95,6 +96,7 @@ export default function FeynmanQuestion({
   const [isFinished, setIsFinished] = useState(false);
   const [result, setResult] = useState<"correct" | "incorrect" | null>(null);
   const [advisorAdvice, setAdvisorAdvice] = useState("");
+  const { t } = useI18n();
   
   const scrollRef = useRef<HTMLDivElement>(null);
   const maxRounds = maxRoundsProp;
@@ -102,9 +104,9 @@ export default function FeynmanQuestion({
   // Initial prompt from student
   useEffect(() => {
     if (messages.length === 0) {
-      setMessages([{ role: "student", content: `Teacher, I'm curious about "${topic}". ${prompt}` }]);
+      setMessages([{ role: "student", content: t("feynman.initialStudentMessage", { topic, prompt }) }]);
     }
-  }, [messages.length, topic, prompt]);
+  }, [messages.length, topic, prompt, t]);
 
   // Auto scroll
   useEffect(() => {
@@ -136,7 +138,7 @@ export default function FeynmanQuestion({
       });
       
       const data = await res.json();
-      const studentReply = data.reply || "I'm still a bit confused...";
+      const studentReply = data.reply || t("feynman.fallback.confused");
       const isSatisfied = !!data.isSatisfied;
       
       const updatedHistory = [...newHistory, { role: "student" as const, content: studentReply }];
@@ -151,7 +153,7 @@ export default function FeynmanQuestion({
         // Failed!
         const finalRes = await onSubmit(teacherMsg, updatedHistory);
         setResult("incorrect");
-        setAdvisorAdvice(data.advice || "Try explaining with a simpler analogy next time.");
+        setAdvisorAdvice(data.advice || t("feynman.fallback.advice"));
         setIsFinished(true);
       } else {
         setRound(prev => prev + 1);
@@ -161,7 +163,7 @@ export default function FeynmanQuestion({
     } finally {
       setIsProcessing(false);
     }
-  }, [input, messages, isProcessing, isFinished, topic, round, onSubmit]);
+  }, [input, messages, isProcessing, isFinished, topic, round, onSubmit, t]);
 
   const handleHint = useCallback(async () => {
     await onHintUse();
@@ -181,14 +183,14 @@ export default function FeynmanQuestion({
             recommendedDurationMinutes={recommendedDurationMinutes}
             accentClassName="bg-gradient-to-br from-[#7AC7C4] to-[#5fb3af] shadow-[#7AC7C4]/30"
             accentTextClassName="text-brand-teal"
-            subtitle="— Feynman Interactive Challenge"
+            subtitle={`— ${t("feynman.subtitle")}`}
           />
           <div className="flex items-center justify-between py-2">
              <div className="flex items-center gap-2">
                 <span className="text-[10px] font-black uppercase tracking-widest text-brand-gray-400">Status</span>
                 <div className={`h-2 w-2 rounded-full animate-pulse ${isFinished ? 'bg-brand-gray-300' : 'bg-[#5fb3af]'}`} />
                 <span className="text-xs font-bold text-brand-gray-600">
-                    {isFinished ? 'Challenge Ended' : `Student is listening... (Round ${round}/${maxRounds})`}
+                    {isFinished ? t("feynman.status.ended") : t("feynman.status.listening", { round, maxRounds })}
                 </span>
              </div>
              {!isFinished && (
@@ -218,7 +220,7 @@ export default function FeynmanQuestion({
               {msg.role === "student" ? <StudentFeynman /> : <OwlTeacher />}
               <div className="flex flex-col gap-1" style={{ maxWidth: "78%" }}>
                 <span className={`text-[10px] font-black uppercase tracking-widest ${msg.role === "student" ? "text-[#5fb3af]" : "text-[#D4A96A] text-right"}`}>
-                  {msg.role === "student" ? "Student" : "You · Professor"}
+                  {msg.role === "student" ? t("feynman.role.student") : t("feynman.role.teacher")}
                 </span>
                 <div className={`px-4 py-3 rounded-2xl shadow-sm text-sm leading-relaxed ${
                   msg.role === "student"
@@ -264,12 +266,12 @@ export default function FeynmanQuestion({
               }`}
             >
               <h3 className={`text-xl font-black ${result === "correct" ? "text-[#3d8a2a]" : "text-[#9d6a1f]"}`}>
-                {result === "correct" ? "Success! The student understood!" : "Challenge Over"}
+                {result === "correct" ? t("feynman.result.success") : t("feynman.result.ended")}
               </h3>
 
               {result === "incorrect" && advisorAdvice && (
                 <div className="text-left bg-white/80 p-4 rounded-2xl border border-[#D4A96A]/30 shadow-inner backdrop-blur">
-                   <p className="text-[10px] font-black text-[#9d6a1f] uppercase tracking-widest mb-2">Professor Feynman&apos;s Advice</p>
+                   <p className="text-[10px] font-black text-[#9d6a1f] uppercase tracking-widest mb-2">{t("feynman.advice.title")}</p>
                    <p className="text-sm text-brand-gray-700 italic font-medium leading-relaxed">
                       &ldquo;{advisorAdvice}&rdquo;
                    </p>
@@ -278,7 +280,7 @@ export default function FeynmanQuestion({
 
               <div className="pt-2">
                 <GameButton variant="primary" onClick={onContinue}>
-                  CONTINUE
+                  {t("feynman.continue")}
                 </GameButton>
               </div>
             </motion.div>
@@ -290,10 +292,10 @@ export default function FeynmanQuestion({
               animate={{ opacity: 1, y: 0 }}
               className="mt-8 p-6 rounded-3xl border border-[#5fb3af]/40 bg-gradient-to-br from-[#e0f1f3]/85 to-[#d4ecef]/75 text-center space-y-4 backdrop-blur-md"
             >
-              <h3 className="text-xl font-black text-brand-teal">Challenge Result</h3>
+              <h3 className="text-xl font-black text-brand-teal">{t("feynman.challengeResult")}</h3>
 
               <div className="text-left bg-white/80 p-4 rounded-2xl border border-brand-teal/15 shadow-inner backdrop-blur">
-                 <p className="text-[10px] font-black text-brand-teal uppercase tracking-widest mb-2">Sample Model Answer</p>
+                 <p className="text-[10px] font-black text-brand-teal uppercase tracking-widest mb-2">{t("feynman.sampleAnswer")}</p>
                  <p className="text-sm text-brand-gray-700 italic font-medium leading-relaxed">
                     &ldquo;{sampleAnswer}&rdquo;
                  </p>
@@ -301,7 +303,7 @@ export default function FeynmanQuestion({
 
               <div className="pt-2">
                 <GameButton variant="primary" onClick={onContinue}>
-                  CONTINUE
+                  {t("feynman.continue")}
                 </GameButton>
               </div>
             </motion.div>
@@ -322,7 +324,7 @@ export default function FeynmanQuestion({
                     handleSend();
                   }
                 }}
-                placeholder="Type your explanation here..."
+                placeholder={t("feynman.placeholder")}
                 className="flex-1 bg-white/80 border border-[#9ecbd4]/40 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#7AC7C4]/30 focus:border-[#5fb3af] transition-all resize-none max-h-32 placeholder:text-brand-gray-400"
                 rows={Math.min(5, input.split("\n").length || 1)}
                 disabled={isProcessing}
@@ -339,7 +341,7 @@ export default function FeynmanQuestion({
               </button>
            </div>
            <p className="text-[10px] text-brand-gray-400 mt-2 text-center font-bold uppercase tracking-widest">
-              Shift + Enter for new line
+              {t("feynman.shiftEnter")}
            </p>
         </div>
       )}

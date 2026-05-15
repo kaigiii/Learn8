@@ -26,8 +26,44 @@ from app.services.infra.media.catalog import (
     format_media_catalog,
 )
 from app.services.infra.scheduler.workers.job_notifier import _notify_job_update, _publish_job_notification
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+from app.api.v1.endpoints.audio import pregenerate_audio_cache
+
+
+async def _prebuild_audios(stgs, voice_pref: str = settings.DEFAULT_VOICE_PRESET):
+    for s in stgs:
+        if not s or not s.config:
+            continue
+        data = s.config.data if isinstance(s.config.data, dict) else {}
+        comp = component_registry.get_component(s.component)
+        voice_targets = comp.get("voice_targets") if comp else None
+        if not voice_targets:
+            voice_targets = ["question", "prompt", "text"]
+
+        extracted_texts = []
+        for field in voice_targets:
+            if field in data and isinstance(data[field], str) and data[field].strip():
+                extracted_texts.append(data[field].strip())
+
+        text = " ".join(extracted_texts).strip()
+        if not text:
+            text = (
+                data.get("question")
+                or data.get("prompt")
+                or data.get("text")
+                or data.get("explanation")
+                or s.topic
+            )
+
+        if text:
+            # 優化：僅預先生成使用者偏好的音色，減少 80% 的 TTS 負載
+            for preset_id in [voice_pref]:
+                try:
+                    await pregenerate_audio_cache(text, preset_id)
+                except Exception:
+                    pass
 
 
 def _is_cancelled(db, job_id: str) -> bool:
@@ -44,6 +80,7 @@ async def run_lesson_generation_job(
     course_folder_name: str | None,
     profile_summary: str,
     allowed_components: list[str] | None = None,
+    voice_preset: str = settings.DEFAULT_VOICE_PRESET,
 ):
     """
     在背景獨立執行單元課程生成的 Worker。
@@ -119,36 +156,8 @@ async def run_lesson_generation_job(
             raise Exception("未能成功生成課程內容。")
 
         # 啟動非同步背景任務預建音檔快取
-        from app.api.v1.endpoints.audio import pregenerate_audio_cache
         import asyncio
-
-        async def _prebuild_audios(stgs):
-            for s in stgs:
-                if not s or not s.config:
-                    continue
-                data = s.config.data if isinstance(s.config.data, dict) else {}
-                comp = component_registry.get_component(s.component)
-                voice_targets = comp.get("voice_targets") if comp else None
-                if not voice_targets:
-                    voice_targets = ["question", "prompt", "text"]
-
-                extracted_texts = []
-                for field in voice_targets:
-                    if field in data and isinstance(data[field], str) and data[field].strip():
-                        extracted_texts.append(data[field].strip())
-
-                text = " ".join(extracted_texts).strip()
-                if not text:
-                    text = data.get("question") or data.get("prompt") or data.get("text") or data.get("explanation") or s.topic
-
-                if text:
-                    for preset_id in ["preset_01", "preset_02", "preset_03", "preset_04", "preset_05"]:
-                        try:
-                            await pregenerate_audio_cache(text, preset_id)
-                        except Exception:
-                            pass
-
-        asyncio.create_task(_prebuild_audios(stages))
+        asyncio.create_task(_prebuild_audios(stages, voice_preset))
 
         if stages:
             for stage in stages:
@@ -283,6 +292,7 @@ async def run_remedial_generation_job(
     failed_stages: list[dict],
     session_id: int | None = None,
     learner_profile_summary: str = "",
+    voice_preset: str = settings.DEFAULT_VOICE_PRESET,
 ):
     """
     在背景獨立執行補救課程生成的 Worker。
@@ -460,6 +470,10 @@ async def run_remedial_generation_job(
                 record.status = LessonFailedStageStatus.REMEDIAL_GENERATED
                 db.add(record)
         db.commit()
+
+        # 啟動非同步背景任務預建補救課程音檔快取
+        import asyncio
+        asyncio.create_task(_prebuild_audios(remedial_stages, voice_preset))
 
         _notify_job_update(
             db,

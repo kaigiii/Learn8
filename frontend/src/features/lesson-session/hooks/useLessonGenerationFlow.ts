@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError, apiFetch } from "@/lib/apiClient";
+import useUserStore from "@/stores/app/useUserStore";
 import { useRequireAuthRedirect } from "@/lib/auth/useRequireAuthRedirect";
 import { JOB_STATUS, JOB_TYPE } from "@/lib/domain/statuses";
 import { ensureRetryableJob, fetchScopedActiveJob } from "@/lib/jobs/recovery";
@@ -150,6 +151,8 @@ export function useLessonGenerationFlow({
           }
         }
 
+        const { voiceAssistant = "preset_01" } = useUserStore.getState().clientOnly.preferences;
+
         const response = await apiFetch<{
           status: typeof JOB_STATUS.PENDING | typeof JOB_STATUS.COMPLETED;
           job_id?: string;
@@ -161,7 +164,7 @@ export function useLessonGenerationFlow({
             allowedComponents.length
               ? `&allowed_components=${encodeURIComponent(allowedComponents.join(","))}`
               : ""
-          }`,
+          }&voice_preset=${voiceAssistant}`,
           {
             method: "POST",
             body: JSON.stringify(backendNode),

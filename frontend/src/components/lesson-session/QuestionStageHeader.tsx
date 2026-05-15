@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useI18n } from "@/lib/i18n/useI18n";
 
 interface QuestionStageHeaderProps {
   stageIndex: number;
@@ -27,11 +28,13 @@ export function QuestionStageHeader({
   subtitle,
   rightSlot,
 }: QuestionStageHeaderProps) {
+  const { t } = useI18n();
+  const effectiveStageLabel = stageLabel || t("lesson.stageLabel");
   const difficultyLabel =
-    difficulty === "high" ? "高" : difficulty === "medium" ? "中" : difficulty === "low" ? "低" : null;
+    difficulty === "high" ? t("common.difficulty.high") : difficulty === "medium" ? t("common.difficulty.medium") : difficulty === "low" ? t("common.difficulty.low") : null;
   const durationLabel =
     typeof recommendedDurationMinutes === "number" && Number.isFinite(recommendedDurationMinutes)
-      ? `${recommendedDurationMinutes} 分鐘`
+      ? `${recommendedDurationMinutes} ${t("common.minutesShort")}`
       : null;
 
   return (
@@ -51,7 +54,7 @@ export function QuestionStageHeader({
         <p
           className={`mb-0.5 text-[11px] font-bold uppercase tracking-wider ${accentTextClassName}`}
         >
-          {stageLabel} {stageIndex + 1} of {totalStages}
+          {effectiveStageLabel} {stageIndex + 1} {t("common.of")} {totalStages}
           {subtitle ? ` ${subtitle}` : ""}
         </p>
         <div className="flex items-center justify-between gap-4">
@@ -64,12 +67,12 @@ export function QuestionStageHeader({
           <div className="mt-2 flex flex-wrap items-center gap-2">
             {difficultyLabel ? (
               <span className="rounded-full border border-white/80 bg-white/72 px-2.5 py-1 text-[11px] font-bold tracking-[0.14em] text-brand-gray-600">
-                難易度 {difficultyLabel}
+                {t("common.difficulty")} {difficultyLabel}
               </span>
             ) : null}
             {durationLabel ? (
               <span className="rounded-full border border-white/80 bg-white/72 px-2.5 py-1 text-[11px] font-bold tracking-[0.08em] text-brand-gray-600">
-                建議 {durationLabel}
+                {t("common.recommended")} {durationLabel}
               </span>
             ) : null}
           </div>

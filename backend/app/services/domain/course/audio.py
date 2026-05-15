@@ -19,6 +19,9 @@ class AudioService:
         "preset_05": settings.PRESETS_DIR / "warm_uncle.wav"
     }
 
+    _locks: Dict[str, asyncio.Lock] = {}
+    _global_lock = asyncio.Lock()
+
     @staticmethod
     def get_cache_path(text: str, preset: str) -> Path:
         """計算並回傳音檔快取路徑。"""
@@ -78,15 +81,32 @@ class AudioService:
             except Exception:
                 pass
                 
-        content = await AudioService.generate_speech(text, preset)
+        # 使用鎖定機制防止併發生成
+        lock_key = f"{preset}_{hashlib.md5(text.encode('utf-8')).hexdigest()}"
         
-        # 寫入快取
-        try:
-            cache_path.write_bytes(content)
-        except Exception as e:
-            print(f"Failed to save audio cache: {e}")
+        async with AudioService._global_lock:
+            if lock_key not in AudioService._locks:
+                AudioService._locks[lock_key] = asyncio.Lock()
+            lock = AudioService._locks[lock_key]
             
-        return content
+        async with lock:
+            # 再次檢查快取，因為可能在等待鎖的時候已經被其他任務生成了
+            if cache_path.exists():
+                return cache_path.read_bytes()
+
+            content = await AudioService.generate_speech(text, preset)
+            
+            # 寫入快取
+            try:
+                cache_path.write_bytes(content)
+            except Exception as e:
+                print(f"Failed to save audio cache: {e}")
+            
+            # 清理鎖定物件（可選）
+            # async with AudioService._global_lock:
+            #     AudioService._locks.pop(lock_key, None)
+                
+            return content
 
     @staticmethod
     async def pregenerate_audio_cache(text: str, preset: str = "preset_01") -> Optional[str]:
@@ -144,9 +164,10 @@ class AudioService:
 
     @staticmethod
     async def batch_pregenerate_all(db: Session):
-        """批次生成所有遺漏的快取。"""
+        """批次生成所有遺漏的快取（優化版：僅預建預設音色）。"""
         texts = AudioService.extract_texts_from_lessons(db)
-        presets = ["preset_01", "preset_02", "preset_03", "preset_04", "preset_05"]
+        # 僅預建預設音色以節省資源，使用者切換音色時再即時生成
+        presets = ["preset_01"] 
         
         for txt in texts:
             for p in presets:
