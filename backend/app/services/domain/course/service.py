@@ -153,10 +153,10 @@ class CourseService:
         return forked
 
     @staticmethod
-    def delete_course(db: Session, course_id: int, user_id: int):
+    def delete_course(db: Session, course_id: int, user_id: int, is_admin: bool = False):
         """刪除課程及其關聯的實體檔案。"""
         course = db.get(CourseModel, course_id)
-        if not course or course.user_id != user_id:
+        if not course or (course.user_id != user_id and not is_admin):
             raise HTTPException(status_code=404, detail="Course not found")
             
         yaml_path = settings.CUSTOM_COURSES_DIR / f"custom_{course.id}.yaml"

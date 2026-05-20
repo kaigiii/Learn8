@@ -74,7 +74,9 @@ def update_custom_course(
     current_user: UserModel = Depends(get_current_user),
 ):
     course = db.get(CourseModel, course_id)
-    if not course or course.user_id != current_user.id:
+    from app.services.domain.user.service import UserService
+    is_admin = UserService.is_admin(current_user)
+    if not course or (course.user_id != current_user.id and not is_admin):
         raise HTTPException(status_code=404, detail="Course not found")
     
     if "title" in course_in:
@@ -171,5 +173,7 @@ def delete_custom_course(
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_user),
 ):
-    CourseService.delete_course(db, course_id, current_user.id)
+    from app.services.domain.user.service import UserService
+    is_admin = UserService.is_admin(current_user)
+    CourseService.delete_course(db, course_id, current_user.id, is_admin=is_admin)
     return {"status": "success"}
