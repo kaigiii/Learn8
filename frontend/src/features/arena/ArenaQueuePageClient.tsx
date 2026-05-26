@@ -243,11 +243,12 @@ export default function ArenaQueuePageClient() {
           </p>
         </motion.div>
 
-        <div className="relative z-10 mt-10 flex w-full flex-col items-center justify-center gap-5 lg:flex-row lg:gap-8 xl:gap-10">
+        <div className="relative z-10 mt-6 flex w-full flex-row items-center justify-center gap-2 sm:mt-10 sm:gap-4 lg:gap-8 xl:gap-10">
           <motion.div
             initial={{ opacity: 0, x: -60 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ type: "spring", damping: 14, stiffness: 120, delay: 0.15 }}
+            className="flex min-w-0 flex-1 justify-center lg:flex-none"
           >
             <PlayerDuelCard
               title={currentName}
@@ -263,6 +264,7 @@ export default function ArenaQueuePageClient() {
             initial={{ opacity: 0, x: 60 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ type: "spring", damping: 14, stiffness: 120, delay: 0.15 }}
+            className="flex min-w-0 flex-1 justify-center lg:flex-none"
           >
             <PlayerDuelCard
               title={hasOpponent ? opponentName : t("arena.queue.findingOpponent")}
@@ -278,7 +280,7 @@ export default function ArenaQueuePageClient() {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
-          className="relative z-10 mt-10 flex w-full max-w-3xl flex-col items-center gap-3"
+          className="relative z-10 mt-6 flex w-full max-w-3xl flex-col items-center gap-3 sm:mt-10"
         >
           <div className="flex flex-col gap-3 sm:flex-row">
             <GameButton
@@ -336,11 +338,11 @@ function VsBadge() {
       initial={{ opacity: 0, scale: 0.5 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ type: "spring", damping: 10, stiffness: 140, delay: 0.35 }}
-      className="relative flex flex-col items-center justify-center px-1 md:px-2 lg:px-3"
+      className="relative flex flex-shrink-0 flex-col items-center justify-center px-1 md:px-2 lg:px-3"
     >
       {/* Pulsing energy ring */}
       <motion.div
-        className="absolute h-32 w-32 rounded-full"
+        className="absolute h-16 w-16 rounded-full sm:h-28 sm:w-28 lg:h-32 lg:w-32"
         style={{
           background:
             "radial-gradient(circle, rgba(212,169,106,0.35) 0%, rgba(122,199,196,0.2) 45%, transparent 70%)",
@@ -350,7 +352,7 @@ function VsBadge() {
       />
       <div className="relative">
         <span
-          className="bg-gradient-to-br from-[#DEBA82] via-[#6dbfbc] to-[#55aaa6] bg-clip-text font-heading text-6xl font-black tracking-tight text-transparent md:text-7xl lg:text-[6.25rem]"
+          className="bg-gradient-to-br from-[#DEBA82] via-[#6dbfbc] to-[#55aaa6] bg-clip-text font-heading text-3xl font-black tracking-tight text-transparent sm:text-5xl md:text-7xl lg:text-[6.25rem]"
           style={{
             filter: "drop-shadow(0 4px 14px rgba(122,199,196,0.45))",
             WebkitTextStroke: "1px rgba(255,255,255,0.6)",
@@ -383,7 +385,7 @@ function PlayerDuelCard({
 
   return (
     <div
-      className={`relative w-full max-w-[360px] overflow-hidden rounded-[30px] bg-white/70 p-4 backdrop-blur-xl lg:w-[min(44vw,360px)] ${accentGlow}`}
+      className={`relative w-full max-w-[360px] overflow-hidden rounded-[20px] bg-white/70 p-2 backdrop-blur-xl sm:rounded-[30px] sm:p-4 lg:w-[min(44vw,360px)] ${accentGlow}`}
     >
       {/* Accent corner glow */}
       <div
@@ -392,7 +394,7 @@ function PlayerDuelCard({
         } h-1/3 w-1/2 bg-gradient-to-br from-white/60 to-transparent`}
       />
 
-      <div className="relative flex min-h-[290px] items-center justify-center overflow-hidden rounded-[24px] bg-[linear-gradient(155deg,rgba(232,245,247,0.85),rgba(200,228,233,0.92))] p-4">
+      <div className="relative flex min-h-[150px] items-center justify-center overflow-hidden rounded-[16px] bg-[linear-gradient(155deg,rgba(232,245,247,0.85),rgba(200,228,233,0.92))] p-2 sm:min-h-[230px] sm:rounded-[24px] sm:p-4 lg:min-h-[290px]">
         {/* Subtle inner grid pattern */}
         <div
           className="pointer-events-none absolute inset-0 opacity-30"
@@ -405,8 +407,8 @@ function PlayerDuelCard({
         {loading ? <SearchingIndicator /> : <AvatarBubble src={avatarSrc} alt={title} isAccepted={isAccepted} accent={accent} />}
       </div>
 
-      <div className="mt-3 rounded-[18px] border border-white/60 bg-white/85 px-5 py-3 shadow-[0_10px_24px_rgba(95,146,165,0.08)]">
-        <p className="truncate text-center font-heading text-[1.2rem] font-extrabold leading-tight text-brand-gray-700">
+      <div className="mt-2 rounded-[12px] border border-white/60 bg-white/85 px-2 py-2 shadow-[0_10px_24px_rgba(95,146,165,0.08)] sm:mt-3 sm:rounded-[18px] sm:px-5 sm:py-3">
+        <p className="truncate text-center font-heading text-sm font-extrabold leading-tight text-brand-gray-700 sm:text-lg lg:text-[1.2rem]">
           {title}
         </p>
       </div>
@@ -417,8 +419,8 @@ function PlayerDuelCard({
 function SearchingIndicator() {
   const { t } = useI18n();
   return (
-    <div className="flex flex-col items-center justify-center gap-4">
-      <div className="relative h-24 w-24">
+    <div className="flex flex-col items-center justify-center gap-2 sm:gap-4">
+      <div className="relative h-14 w-14 sm:h-20 sm:w-20 lg:h-24 lg:w-24">
         <motion.div
           className="absolute inset-0 rounded-full border-2 border-[#7AC7C4]/30"
           animate={{ scale: [1, 1.4, 1], opacity: [0.6, 0, 0.6] }}
@@ -429,8 +431,8 @@ function SearchingIndicator() {
           animate={{ scale: [1, 1.3, 1], opacity: [0.7, 0, 0.7] }}
           transition={{ repeat: Infinity, duration: 2, ease: "easeOut", delay: 0.4 }}
         />
-        <div className="absolute inset-4 flex items-center justify-center rounded-full bg-gradient-to-br from-[#7AC7C4] to-[#5fb3af] shadow-[0_10px_24px_rgba(122,199,196,0.45)]">
-          <svg viewBox="0 0 24 24" className="h-8 w-8 text-white" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <div className="absolute inset-[6px] flex items-center justify-center rounded-full bg-gradient-to-br from-[#7AC7C4] to-[#5fb3af] shadow-[0_10px_24px_rgba(122,199,196,0.45)] sm:inset-4">
+          <svg viewBox="0 0 24 24" className="h-5 w-5 text-white sm:h-7 sm:w-7 lg:h-8 lg:w-8" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="11" cy="11" r="7" />
             <path d="M21 21l-4.3-4.3" />
           </svg>
@@ -473,21 +475,21 @@ function AvatarBubble({
   const imageSrc = src || "/avatar/chicken.png";
 
   return (
-    <div className="relative flex h-[220px] w-[220px] items-center justify-center">
+    <div className="relative flex h-[96px] w-[96px] items-center justify-center sm:h-[170px] sm:w-[170px] lg:h-[220px] lg:w-[220px]">
       {/* Soft glow halo */}
       <div className="absolute inset-2 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.5),rgba(255,255,255,0)_60%)]" />
       {/* Avatar */}
-      <div className="relative h-[200px] w-[200px] overflow-hidden rounded-full bg-white shadow-[0_18px_30px_rgba(95,146,165,0.2)]">
-        <Image src={imageSrc} alt={alt} fill sizes="200px" className="object-cover" />
+      <div className="relative h-[86px] w-[86px] overflow-hidden rounded-full bg-white shadow-[0_18px_30px_rgba(95,146,165,0.2)] sm:h-[154px] sm:w-[154px] lg:h-[200px] lg:w-[200px]">
+        <Image src={imageSrc} alt={alt} fill sizes="(max-width: 640px) 96px, (max-width: 1024px) 170px, 220px" className="object-cover" />
       </div>
       {isAccepted ? (
         <motion.div
           initial={{ scale: 0, rotate: -45 }}
           animate={{ scale: 1, rotate: 0 }}
           transition={{ type: "spring", damping: 10, stiffness: 200 }}
-          className="absolute bottom-1 right-1 z-10 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-[0_10px_24px_rgba(16,185,129,0.5)] ring-4 ring-white"
+          className="absolute bottom-1 right-1 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-[0_10px_24px_rgba(16,185,129,0.5)] ring-2 ring-white sm:h-10 sm:w-10 sm:ring-4 lg:h-12 lg:w-12"
         >
-          <svg viewBox="0 0 24 24" className="h-7 w-7 text-white" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
+          <svg viewBox="0 0 24 24" className="h-4 w-4 text-white sm:h-6 sm:w-6 lg:h-7 lg:w-7" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M20 6L9 17l-5-5" />
           </svg>
         </motion.div>
