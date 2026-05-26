@@ -188,7 +188,7 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
   const displayRoundStartsInFuture = Boolean(
     displayRound?.startedAt && new Date(displayRound.startedAt).getTime() > Date.now()
   );
-  const isQuestionLoading = displayRound?.status === "pending" && !displayRoundStartsInFuture;
+  const isQuestionLoading = displayRound?.status === "pending" && !displayRoundStartsInFuture && match?.status !== "finished";
 
   const localRevealAnswer = submissionReview?.roundId === displayRound?.roundId
     ? submissionReview?.revealedAnswer ?? null
@@ -213,14 +213,30 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
       (displayRound.status === "pending" && displayRound.roundIndex === revealedRoundIndex + 1)
     )
   );
-  const displayRevealQuestion = (isSelfRevealVisible ? localRevealQuestion : null) ?? (isServerRevealVisible ? revealedQuestion : null);
+  // At match end there is no "next round" to open an intermission reveal window,
+  // so the final round's correct answer would otherwise never be shown before the
+  // summary. Surface the last round's revealed answer (from the round.revealed event,
+  // falling back to the fetched round state) once the match is finished.
+  const finalRevealAnswer = useMemo(() => {
+    if (match?.status !== "finished") return null;
+    return revealedAnswer ?? match?.activeRound?.revealedAnswer ?? displayRound?.revealedAnswer ?? null;
+  }, [match?.status, revealedAnswer, match?.activeRound?.revealedAnswer, displayRound?.revealedAnswer]);
+  const finalRevealQuestion = useMemo(() => buildRevealedQuestion(finalRevealAnswer), [finalRevealAnswer]);
+  const isFinalReveal = match?.status === "finished" && !!finalRevealQuestion;
+
+  const displayRevealQuestion =
+    (isSelfRevealVisible ? localRevealQuestion : null) ??
+    (isServerRevealVisible ? revealedQuestion : null) ??
+    (isFinalReveal ? finalRevealQuestion : null);
   const displayRevealCorrectId =
     (isSelfRevealVisible ? (localRevealQuestion?.correctOptionId || undefined) : undefined) ??
-    (isServerRevealVisible ? revealedCorrectId : undefined);
+    (isServerRevealVisible ? revealedCorrectId : undefined) ??
+    (isFinalReveal ? (finalRevealQuestion?.correctOptionId || undefined) : undefined);
   const displayRevealExplanation =
     (isSelfRevealVisible ? ((localRevealQuestion?.explanation as string | undefined) || undefined) : undefined) ??
-    (isServerRevealVisible ? revealedExplanation : undefined);
-  const showRevealMode = isQuestionLoading || isSelfRevealVisible || isServerRevealVisible;
+    (isServerRevealVisible ? revealedExplanation : undefined) ??
+    (isFinalReveal ? ((finalRevealQuestion?.explanation as string | undefined) || undefined) : undefined);
+  const showRevealMode = isQuestionLoading || isSelfRevealVisible || isServerRevealVisible || isFinalReveal;
   const [visibleQuestionRoundId, setVisibleQuestionRoundId] = useState<number | null>(null);
   useEffect(() => {
     if (isQuestionLoading || isInIntermission) return;
@@ -485,6 +501,25 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
     return () => { unsubscribe(); };
   }, [activeRound?.roundId, activeRound?.status, isReady, matchId]);
 
+  // Recovery while stuck on "Waiting for both players to load the question".
+  // The ready signal above is only sent once per round. If that message is dropped
+  // after the socket already reports "connected" (transient loss / backend restart),
+  // neither player ever re-sends and both stall on the loading screen indefinitely.
+  // While the loading screen is showing, re-send the ready signal periodically until
+  // the round transitions to active (the 1s match-state poll then clears the screen).
+  useEffect(() => {
+    if (!isQuestionLoading || !isReady) return;
+    const roundId = activeRound?.roundId;
+    if (roundId == null) return;
+    const resend = () => {
+      if (arenaWsClient.getStatus() === "connected") {
+        arenaWsClient.sendAction("question_ready", { matchId, roundId });
+      }
+    };
+    const intervalId = window.setInterval(resend, 2000);
+    return () => window.clearInterval(intervalId);
+  }, [isQuestionLoading, isReady, matchId, activeRound?.roundId]);
+
   useEffect(() => {
     if (activeRound?.question?.questionType === "MatchingPairs" && allMatched) {
       setSelectedOptionId(JSON.stringify(matchedPairs));
@@ -663,7 +698,7 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
     <div
       ref={questionAreaRef}
       style={isQuestionLoading ? { minHeight: `${cachedQuestionAreaHeight ?? 420}px` } : undefined}
-      className="relative rounded-[28px] border border-white/70 bg-white/74 p-6 shadow-xl backdrop-blur-xl"
+      className="relative rounded-[28px] border border-white/70 bg-white/74 p-4 shadow-xl backdrop-blur-xl sm:p-6"
     >
       {match?.status === "finished" && (showFinalSpinner || showFinalSummary) ? (
         !showFinalSummary ? (
@@ -742,7 +777,7 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
           </div>
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-brand-teal">
-              {isInIntermission ? "Round Reveal" : (isSelfRevealVisible ? "Your Result" : (displayRound?.question?.questionType || "Live Question"))}
+              {isInIntermission ? "Round Reveal" : (isSelfRevealVisible ? "Your Result" : (isFinalReveal ? "Round Reveal" : (displayRound?.question?.questionType || "Live Question")))}
             </p>
           </div>
         </div>
@@ -754,7 +789,7 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
         ) : null}
       </div>
 
-      <h2 className="font-heading text-2xl font-bold leading-tight text-brand-gray-700">
+      <h2 className="font-heading text-lg font-bold leading-tight text-brand-gray-700 sm:text-2xl">
         {renderQuestion?.prompt}
       </h2>
 
@@ -929,13 +964,17 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
       <GameButton
         className="mt-6 w-full py-4 text-lg"
         onClick={() => void handleSubmit()}
-        disabled={!selectedOptionId || submitting || (activeRound?.hasSubmitted ?? false) || isInIntermission || isQuestionLoading}
+        disabled={!selectedOptionId || submitting || (activeRound?.hasSubmitted ?? false) || isInIntermission || isQuestionLoading || isFinalReveal}
       >
         {isQuestionLoading
           ? "Loading question..."
           : isInIntermission
           ? `Next Round in ${intermissionSeconds}s`
-          : (isSelfRevealVisible ? `${submissionReview?.isCorrect ? "Correct" : "Incorrect"} · ${submissionReview?.scoreAwarded ?? 0} pts` : (activeRound?.hasSubmitted ? "Answer Locked ✓" : "Submit Challenge"))}
+          : isSelfRevealVisible
+          ? `${submissionReview?.isCorrect ? "Correct" : "Incorrect"} · ${submissionReview?.scoreAwarded ?? 0} pts`
+          : isFinalReveal
+          ? "Calculating results..."
+          : (activeRound?.hasSubmitted ? "Answer Locked ✓" : "Submit Challenge")}
       </GameButton>
         </>
         )
@@ -987,30 +1026,39 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
 
           {allPlayers.length >= 2 ? (
             <div className="mt-0 p-3">
-              <div className="mb-3 grid items-start gap-3 md:grid-cols-[140px_1fr_220px] lg:grid-cols-[140px_1fr_240px]">
+              <div className="mb-3 grid grid-cols-3 items-start gap-2 sm:gap-3 md:grid-cols-[140px_1fr_220px] lg:grid-cols-[140px_1fr_240px]">
                 {/* Yourself (Column 1 - Left) */}
                 <div className="mx-auto w-full max-w-[140px] md:order-1">
                   <div className="flex w-full flex-col items-center justify-center text-center">
                     <img
                       src={allPlayers[0].avatarUrl}
                       alt={allPlayers[0].displayName}
-                      className="h-20 w-20 rounded-full border-4 border-[#c7deec] bg-white object-cover shadow-[0_0_0_4px_rgba(226,241,248,0.9)]"
+                      className="h-14 w-14 rounded-full border-4 border-[#c7deec] bg-white object-cover shadow-[0_0_0_4px_rgba(226,241,248,0.9)] sm:h-16 sm:w-16 md:h-20 md:w-20"
                       onError={(event) => {
                         event.currentTarget.src = "/avatar/chicken.png";
                       }}
                     />
-                    <p className="mt-2 w-full text-center font-heading text-lg font-bold text-[#0a5d9a]">
+                    <p className="mt-2 w-full truncate text-center font-heading text-xs font-bold text-[#0a5d9a] sm:text-sm md:text-lg">
                       {allPlayers[0].displayName}
                     </p>
+                    {/* Mobile-only compact score (vertical bars are hidden on phones) */}
+                    <div className="mt-1 w-full md:hidden">
+                      <p className="font-heading text-sm font-black leading-none text-brand-gray-700">
+                        {allPlayers[0].score}<span className="ml-0.5">pts</span>
+                      </p>
+                      <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-[#2f3840]/15">
+                        <div className="h-full rounded-full bg-gradient-to-r from-[#6ed3b2] to-[#f4efb4]" style={{ width: `${allPlayers[0].fillPercent}%` }} />
+                      </div>
+                    </div>
                   </div>
                 </div>
 
                 {/* Round info & Timer (Column 2 - Middle) */}
                 <div className="mx-auto flex w-full max-w-[140px] flex-col items-center justify-center text-center md:order-2">
-                  <div className="relative flex h-20 w-20 items-center justify-center">
-                    <div className="absolute inset-0 rounded-full border-[6px] border-[#d2e8f2]" />
-                    <div className="absolute inset-[12px] rounded-full border-[3px] border-[#94b9c9] border-dashed" />
-                    <p className="relative z-10 font-heading text-3xl font-light leading-none text-[#2f404c]">
+                  <div className="relative flex h-16 w-16 items-center justify-center md:h-20 md:w-20">
+                    <div className="absolute inset-0 rounded-full border-[5px] border-[#d2e8f2] md:border-[6px]" />
+                    <div className="absolute inset-[10px] rounded-full border-[3px] border-[#94b9c9] border-dashed md:inset-[12px]" />
+                    <p className="relative z-10 font-heading text-2xl font-light leading-none text-[#2f404c] md:text-3xl">
                       {activeRound
                         ? (isQuestionLoading ? "..." : displaySeconds)
                         : (match?.status === "finished"
@@ -1018,7 +1066,7 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
                             : "--")}
                     </p>
                   </div>
-                  <p className="mt-2 w-full text-center text-sm font-bold text-brand-teal">
+                  <p className="mt-2 w-full text-center text-[11px] font-bold text-brand-teal sm:text-sm">
                     Round {(match?.currentRoundIndex ?? 0) + 1} / {match?.totalRounds ?? 0}
                   </p>
                 </div>
@@ -1030,28 +1078,62 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
                       <img
                         src={allPlayers[1].avatarUrl}
                         alt={allPlayers[1].displayName}
-                        className="h-20 w-20 rounded-full border-4 border-[#c7deec] bg-white object-cover shadow-[0_0_0_4px_rgba(226,241,248,0.9)]"
+                        className="h-14 w-14 rounded-full border-4 border-[#c7deec] bg-white object-cover shadow-[0_0_0_4px_rgba(226,241,248,0.9)] sm:h-16 sm:w-16 md:h-20 md:w-20"
                         onError={(event) => {
                           event.currentTarget.src = "/avatar/chicken.png";
                         }}
                       />
-                      <p className="mt-2 w-full text-center font-heading text-lg font-bold text-[#0a5d9a]">
+                      <p className="mt-2 w-full truncate text-center font-heading text-xs font-bold text-[#0a5d9a] sm:text-sm md:text-lg">
                         {allPlayers[1].displayName}
                       </p>
+                      {/* Mobile-only compact score (vertical bars are hidden on phones) */}
+                      <div className="mt-1 w-full md:hidden">
+                        <p className="font-heading text-sm font-black leading-none text-brand-gray-700">
+                          {allPlayers[1].score}<span className="ml-0.5">pts</span>
+                        </p>
+                        <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-[#2f3840]/15">
+                          <div className="h-full rounded-full bg-gradient-to-r from-[#6ed3b2] to-[#f4efb4]" style={{ width: `${allPlayers[1].fillPercent}%` }} />
+                        </div>
+                      </div>
                     </div>
                   ) : (
-                    <div className="text-center md:text-left mb-1.5 flex items-center justify-between">
-                      <p className="font-heading text-sm font-extrabold text-[#0a5d9a]">
-                        Opponents ({allPlayers.length - 1})
-                      </p>
-                    </div>
+                    <>
+                      {/* Mobile: show the highest-scoring opponent in the top row */}
+                      <div className="flex w-full flex-col items-center justify-center text-center md:hidden">
+                        <img
+                          src={allPlayers[1].avatarUrl}
+                          alt={allPlayers[1].displayName}
+                          className="h-14 w-14 rounded-full border-4 border-[#c7deec] bg-white object-cover shadow-[0_0_0_4px_rgba(226,241,248,0.9)] sm:h-16 sm:w-16"
+                          onError={(event) => {
+                            event.currentTarget.src = "/avatar/chicken.png";
+                          }}
+                        />
+                        <p className="mt-2 w-full truncate text-center font-heading text-xs font-bold text-[#0a5d9a] sm:text-sm">
+                          {allPlayers[1].displayName}
+                        </p>
+                        <div className="mt-1 w-full">
+                          <p className="font-heading text-sm font-black leading-none text-brand-gray-700">
+                            {allPlayers[1].score}<span className="ml-0.5">pts</span>
+                          </p>
+                          <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-[#2f3840]/15">
+                            <div className="h-full rounded-full bg-gradient-to-r from-[#6ed3b2] to-[#f4efb4]" style={{ width: `${allPlayers[1].fillPercent}%` }} />
+                          </div>
+                        </div>
+                      </div>
+                      {/* Desktop: opponents count label */}
+                      <div className="mb-1.5 hidden items-center justify-between text-center md:flex md:text-left">
+                        <p className="font-heading text-xs font-extrabold text-[#0a5d9a] sm:text-sm">
+                          Opponents ({allPlayers.length - 1})
+                        </p>
+                      </div>
+                    </>
                   )}
                 </div>
               </div>
 
               <div className="grid items-stretch gap-3 md:grid-cols-[140px_1fr_220px] lg:grid-cols-[140px_1fr_240px]">
-                {/* Your score bar (Column 1 - Left) */}
-                <div className="mx-auto h-full w-full max-w-[140px] rounded-[28px] border-[3px] border-[#78b7cf] bg-[#eef7ff]/85 p-2.5 shadow-md md:order-1">
+                {/* Your score bar (Column 1 - Left) — vertical bar is desktop-only */}
+                <div className="mx-auto hidden h-full w-full max-w-[140px] rounded-[28px] border-[3px] border-[#78b7cf] bg-[#eef7ff]/85 p-2.5 shadow-md md:order-1 md:block">
                   <div className="flex h-full flex-col items-center justify-between py-2">
                     <div className="text-center">
                       <p className="font-heading text-5xl font-bold leading-none text-[#2b3f4d]">
@@ -1079,9 +1161,9 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
                 </div>
 
                 {/* Other score bars (Column 3 - Right) */}
-                <div className="mx-auto h-full w-full max-w-[220px] lg:max-w-[240px] md:order-3">
+                <div className="mx-auto h-full w-full max-w-full md:order-3 md:max-w-[220px] lg:max-w-[240px]">
                   {allPlayers.length === 2 ? (
-                    <div className="mx-auto h-full w-full max-w-[140px] rounded-[28px] border-[3px] border-[#78b7cf] bg-[#eef7ff]/85 p-2.5 shadow-md">
+                    <div className="mx-auto hidden h-full w-full max-w-[140px] rounded-[28px] border-[3px] border-[#78b7cf] bg-[#eef7ff]/85 p-2.5 shadow-md md:block">
                       <div className="flex h-full flex-col items-center justify-between py-2">
                         <div className="text-center">
                           <p className="font-heading text-5xl font-bold leading-none text-[#2b3f4d]">
@@ -1103,13 +1185,15 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
                       </div>
                     </div>
                   ) : (
-                    <div className="h-full max-h-[380px] overflow-y-auto pr-1 space-y-2">
-                      {allPlayers.slice(1).map((player) => (
-                        <div
-                          key={player.userId}
-                          className="flex items-center justify-between gap-2 p-2.5 bg-[#eef7ff]/85 border-2 border-[#78b7cf] rounded-[20px] shadow-sm transition hover:bg-white/80"
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
+                    <>
+                      {/* Mobile: remaining opponents (top one is already in the header) — compact vertical card, 3 per row */}
+                      <div className="flex flex-wrap justify-center gap-2 md:hidden">
+                        {allPlayers.slice(2).map((player) => (
+                          <div
+                            key={player.userId}
+                            className="flex flex-col items-center gap-1 rounded-2xl border-2 border-[#78b7cf] bg-[#eef7ff]/85 p-2 text-center shadow-sm"
+                            style={{ width: "calc((100% - 1rem) / 3)" }}
+                          >
                             <img
                               src={player.avatarUrl}
                               alt={player.displayName}
@@ -1118,29 +1202,62 @@ export default function ArenaMatchPageClient({ matchId }: { matchId: number }) {
                                 event.currentTarget.src = "/avatar/chicken.png";
                               }}
                             />
-                            <div className="min-w-0 flex-1">
-                              <p className="font-heading text-sm font-bold text-[#0a5d9a] truncate leading-tight">
-                                {player.displayName}
-                              </p>
-                              <p className="text-[10px] font-bold uppercase tracking-wider text-brand-gray-500 mt-0.5">
-                                Rank #{player.rank}
-                              </p>
-                              <p className="font-heading text-base font-black text-brand-gray-700 mt-1">
-                                {player.score} <span className="text-[10px] font-normal font-sans text-brand-gray-400">pts</span>
-                              </p>
+                            <p className="w-full truncate font-heading text-sm font-bold leading-tight text-[#0a5d9a]">
+                              {player.displayName}
+                            </p>
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-brand-gray-500 leading-tight">
+                              Rank #{player.rank}
+                            </p>
+                            <p className="font-heading text-base font-black leading-none text-brand-gray-700">
+                              {player.score}<span className="ml-0.5 font-sans text-[10px] font-normal text-brand-gray-400">pts</span>
+                            </p>
+                            <div className="mt-0.5 h-2 w-full overflow-hidden rounded-full bg-[#2f3840]/15">
+                              <div className="h-full rounded-full bg-gradient-to-r from-[#6ed3b2] to-[#f4efb4]" style={{ width: `${player.fillPercent}%` }} />
                             </div>
                           </div>
-                          <div className="flex flex-col items-center flex-none">
-                            <div className="relative h-14 w-4 overflow-hidden rounded-[6px] bg-[#2f3840]">
-                              <div
-                                className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#f4efb4] to-[#6ed3b2] transition-all duration-700 ease-out"
-                                style={{ height: `${player.fillPercent}%` }}
+                        ))}
+                      </div>
+
+                      {/* Desktop: full opponent list in the right column */}
+                      <div className="hidden h-full max-h-[380px] overflow-y-auto pr-1 space-y-2 md:block">
+                        {allPlayers.slice(1).map((player) => (
+                          <div
+                            key={player.userId}
+                            className="flex items-center justify-between gap-2 p-2.5 bg-[#eef7ff]/85 border-2 border-[#78b7cf] rounded-[20px] shadow-sm transition hover:bg-white/80"
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <img
+                                src={player.avatarUrl}
+                                alt={player.displayName}
+                                className="h-11 w-11 flex-none rounded-full border-2 border-[#c7deec] bg-white object-cover"
+                                onError={(event) => {
+                                  event.currentTarget.src = "/avatar/chicken.png";
+                                }}
                               />
+                              <div className="min-w-0 flex-1">
+                                <p className="font-heading text-sm font-bold text-[#0a5d9a] truncate leading-tight">
+                                  {player.displayName}
+                                </p>
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-brand-gray-500 mt-0.5">
+                                  Rank #{player.rank}
+                                </p>
+                                <p className="font-heading text-base font-black text-brand-gray-700 mt-1">
+                                  {player.score} <span className="text-[10px] font-normal font-sans text-brand-gray-400">pts</span>
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex flex-col items-center flex-none">
+                              <div className="relative h-14 w-4 overflow-hidden rounded-[6px] bg-[#2f3840]">
+                                <div
+                                  className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#f4efb4] to-[#6ed3b2] transition-all duration-700 ease-out"
+                                  style={{ height: `${player.fillPercent}%` }}
+                                />
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    </>
                   )}
                 </div>
               </div>

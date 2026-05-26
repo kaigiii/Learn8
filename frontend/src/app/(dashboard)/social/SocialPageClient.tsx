@@ -336,9 +336,9 @@ export default function SocialPageClient() {
           />
         </div>
 
-        <div className="flex h-[600px] border border-[#9ecbd4]/30 bg-white/56 backdrop-blur-xl rounded-3xl overflow-hidden shadow-[0_24px_70px_rgba(97,163,184,0.18)]">
-          {/* Left Sidebar - Contacts & Groups */}
-          <div className="w-full md:w-[400px] flex flex-col border-r border-[#9ecbd4]/20 bg-white/40 backdrop-blur-md">
+        <div className="flex h-[calc(100dvh-13rem)] min-h-[460px] md:h-[600px] border border-[#9ecbd4]/30 bg-white/56 backdrop-blur-xl rounded-3xl overflow-hidden shadow-[0_24px_70px_rgba(97,163,184,0.18)]">
+          {/* Left Sidebar - Contacts & Groups. On mobile, hidden once a chat is open. */}
+          <div className={`${activeChat ? "hidden md:flex" : "flex"} w-full md:w-[400px] flex-col border-r border-[#9ecbd4]/20 bg-white/40 backdrop-blur-md`}>
           {/* Header & Tabs */}
           <div className="p-4 border-b border-[#9ecbd4]/20">
             <div className="mb-4 flex items-center justify-between">
@@ -654,13 +654,14 @@ export default function SocialPageClient() {
           </div>
         </div>
 
-        {/* Right Area - Chat Room */}
-        <div className="flex-1 flex flex-col bg-white/30 backdrop-blur-sm">
+        {/* Right Area - Chat Room. On mobile, shown only when a chat is open. */}
+        <div className={`${activeChat ? "flex" : "hidden md:flex"} flex-1 w-full flex-col bg-white/30 backdrop-blur-sm`}>
           {activeChat ? (
             <ChatroomPanel
               chatId={activeChat.id}
               type={activeChat.type}
               title={activeChat.title}
+              onBack={() => setActiveChat(null)}
               groupMembers={activeChat.type === "group" ? groups.find(g => g.id === activeChat.id)?.members : undefined}
               friendInfo={activeChat.type === "friend" ? friends.find(f => f.id === activeChat.id) : undefined}
               isGroupOwner={activeChat.type === "group" ? groups.find(g => g.id === activeChat.id)?.is_owner : false}
@@ -726,14 +727,14 @@ function StatBadge({
   value: number;
 }) {
   return (
-    <div className="relative rounded-3xl border border-[#9ecbd4]/30 bg-white/70 backdrop-blur-xl shadow-[0_12px_30px_rgba(97,163,184,0.18)] p-3.5">
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-brand-teal/15 text-brand-teal border border-brand-teal/20">
+    <div className="relative rounded-3xl border border-[#9ecbd4]/30 bg-white/70 backdrop-blur-xl shadow-[0_12px_30px_rgba(97,163,184,0.18)] p-2.5 sm:p-3.5">
+      <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-2xl bg-brand-teal/15 text-brand-teal border border-brand-teal/20">
           {icon}
         </div>
         <div className="min-w-0">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-brand-gray-400 truncate">{label}</p>
-          <p className="font-heading text-xl font-extrabold text-brand-gray-700 leading-none mt-0.5">{value}</p>
+          <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-brand-gray-400 truncate">{label}</p>
+          <p className="font-heading text-lg sm:text-xl font-extrabold text-brand-gray-700 leading-none mt-0.5">{value}</p>
         </div>
       </div>
     </div>
