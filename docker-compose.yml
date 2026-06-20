@@ -12,7 +12,7 @@ services:
       - ./backend/.env:/app/.env
     environment:
       - PYTHONUNBUFFERED=1
-      - DATABASE_URL=postgresql://learn8_user:learn8_password@postgres:5432/learn8_db
+      - DATABASE_URL=postgresql://${DB_USER:-learn8_user}:${DB_PASSWORD:-learn8_password}@postgres:5432/${DB_NAME:-learn8_db}
       - REDIS_URL=redis://learn8_redis:6379/0
     depends_on:
       - postgres
@@ -31,9 +31,9 @@ services:
     container_name: learn8_postgres
     restart: unless-stopped
     environment:
-      - POSTGRES_USER=learn8_user
-      - POSTGRES_PASSWORD=learn8_password
-      - POSTGRES_DB=learn8_db
+      - POSTGRES_USER=${DB_USER:-learn8_user}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-learn8_password}
+      - POSTGRES_DB=${DB_NAME:-learn8_db}
     ports:
       - "5432:5432"
     volumes:
