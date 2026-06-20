@@ -6,6 +6,7 @@ import { useAuthStore } from "@/stores/app/useAuthStore";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n/useI18n";
 import type { TranslationKey } from "@/lib/i18n/translations";
+import { getDirectBackendUrl, getDirectBackendWsUrl } from "@/lib/apiClient";
 
 interface ChatMessage {
   id: number;
@@ -51,8 +52,7 @@ export default function ChatroomPanel({ chatId, type, title, groupMembers, frien
   const cancelledRef = useRef(false);
 
   // Derive Base URL dynamically
-  const isLocalhost = typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
-  const baseUrl = isLocalhost ? "http://127.0.0.1:8000/api/v1" : (process.env.NEXT_PUBLIC_API_URL || "/api/v1");
+  const baseUrl = getDirectBackendUrl("");
 
   const fetchMessages = async (initial = false) => {
     if (!token) return;
@@ -84,9 +84,7 @@ export default function ChatroomPanel({ chatId, type, title, groupMembers, frien
 
   const connectWs = () => {
     if (!token || cancelledRef.current) return;
-    const wsBaseUrl = isLocalhost
-      ? "ws://127.0.0.1:8000/api/v1"
-      : (process.env.NEXT_PUBLIC_API_URL?.replace(/^http/, "ws") || "ws://127.0.0.1:8000/api/v1");
+    const wsBaseUrl = getDirectBackendWsUrl("");
     const ws = new WebSocket(`${wsBaseUrl}/social/chat/ws?access_token=${token}`);
 
     ws.onmessage = (event) => {
@@ -132,10 +130,14 @@ export default function ChatroomPanel({ chatId, type, title, groupMembers, frien
     };
     void init();
 
-    // Polling fallback every 3s — handles cases where WS message is missed
+    // Polling fallback every 10s only if WS is not open
     const pollId = window.setInterval(() => {
-      if (!cancelledRef.current) void fetchMessages(false);
-    }, 3000);
+      const ws = wsRef.current;
+      const isWsConnected = ws && ws.readyState === WebSocket.OPEN;
+      if (!cancelledRef.current && !isWsConnected) {
+        void fetchMessages(false);
+      }
+    }, 10000);
 
     return () => {
       cancelledRef.current = true;

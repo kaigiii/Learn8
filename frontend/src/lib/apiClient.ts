@@ -157,15 +157,26 @@ export async function apiFetch<T>(
   return response.json() as Promise<T>;
 }
 
+export const BACKEND_DEV_PORT = process.env.NEXT_PUBLIC_BACKEND_PORT || "13105";
+
+export function getDirectBackendUrl(path: string): string {
+  const isDev = process.env.NODE_ENV === "development";
+  const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+  return isDev ? `http://${host}:${BACKEND_DEV_PORT}${API_BASE_URL}${path}` : `${API_BASE_URL}${path}`;
+}
+
+export function getDirectBackendWsUrl(path: string): string {
+  const isDev = process.env.NODE_ENV === "development";
+  const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+  const protocol = typeof window !== "undefined" && window.location.protocol === "https:" ? "wss" : "ws";
+  return isDev 
+    ? `${protocol}://${host}:${BACKEND_DEV_PORT}${API_BASE_URL}${path}` 
+    : (process.env.NEXT_PUBLIC_API_URL?.replace(/^http/, "ws") || `${protocol}://${host}:${BACKEND_DEV_PORT}${API_BASE_URL}${path}`);
+}
+
 export function buildSseUrl(jobId: string) {
-  // 優先嘗試連向後端直連埠口 (8000)，避開 Next.js dev proxy 的緩衝問題
-  const isLocalhost = typeof window !== "undefined" && 
-    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
-  
-  if (isLocalhost) {
-    return `http://127.0.0.1:8000/api/v1/jobs/${jobId}/stream`;
-  }
-  return `${API_BASE_URL}/jobs/${jobId}/stream`;
+  // 優先嘗試連向後端直連埠口 (13105)，避開 Next.js dev proxy 的緩衝問題
+  return getDirectBackendUrl(`/jobs/${jobId}/stream`);
 }
 
 export function createIdempotencyKey(scope: string) {

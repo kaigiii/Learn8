@@ -553,7 +553,9 @@ def test_competitive_service_prefers_closest_rating_match(db_session, user):
 def test_competitive_service_avoids_immediate_rematches_when_possible(db_session, user):
     from app.arena.config import arena_settings
     orig_base = arena_settings.ARENA_MATCHMAKING_BASE_WINDOW
+    orig_lookback = arena_settings.ARENA_MATCHMAKING_RECENT_REMATCH_LOOKBACK
     arena_settings.ARENA_MATCHMAKING_BASE_WINDOW = 100
+    arena_settings.ARENA_MATCHMAKING_RECENT_REMATCH_LOOKBACK = 3
     
     try:
         # Create fresh users for this test to avoid shared fixture state
@@ -599,6 +601,7 @@ def test_competitive_service_avoids_immediate_rematches_when_possible(db_session
         assert challenger_entry.matched_user_id == fresh_user.id
     finally:
         arena_settings.ARENA_MATCHMAKING_BASE_WINDOW = orig_base
+        arena_settings.ARENA_MATCHMAKING_RECENT_REMATCH_LOOKBACK = orig_lookback
 
 
 def test_competitive_service_expands_rating_window_for_long_waiters(db_session, user):

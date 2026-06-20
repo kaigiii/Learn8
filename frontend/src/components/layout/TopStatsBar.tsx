@@ -8,6 +8,7 @@ import ProfileSettingsDialog from "@/features/profile/ProfileSettingsDialog";
 import { useAuthStore } from "@/stores/app/useAuthStore";
 import useUserStore, { selectAvailableCredits } from "@/stores/app/useUserStore";
 import { useI18n } from "@/lib/i18n/useI18n";
+import { getDirectBackendUrl } from "@/lib/apiClient";
 
 interface TopStatsBarProps {
   backHref?: string;
@@ -62,9 +63,7 @@ export default function TopStatsBar({
   React.useEffect(() => {
     if (!authUser || !authToken) return;
 
-    const isLocalhost = typeof window !== "undefined" &&
-      (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
-    const baseUrl = isLocalhost ? "http://127.0.0.1:8000/api/v1" : (process.env.NEXT_PUBLIC_API_URL || "/api/v1");
+    const baseUrl = getDirectBackendUrl("");
 
     const url = `${baseUrl}/social/friends/stream-invites?access_token=${encodeURIComponent(authToken)}`;
     const es = new EventSource(url);
