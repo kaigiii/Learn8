@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { FiSend, FiBookOpen, FiLoader, FiShare2, FiPlus } from "react-icons/fi";
+import { FiSend, FiBookOpen, FiLoader, FiShare2, FiPlus, FiChevronLeft } from "react-icons/fi";
 import { useAuthStore } from "@/stores/app/useAuthStore";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n/useI18n";
@@ -30,9 +30,11 @@ interface ChatroomPanelProps {
   isGroupOwner?: boolean;
   groupInviteCode?: string;
   onGroupAction?: (action: "delete" | "leave") => void;
+  /** Mobile only: return to the contacts list. */
+  onBack?: () => void;
 }
 
-export default function ChatroomPanel({ chatId, type, title, groupMembers, friendInfo, isGroupOwner, groupInviteCode, onGroupAction }: ChatroomPanelProps) {
+export default function ChatroomPanel({ chatId, type, title, groupMembers, friendInfo, isGroupOwner, groupInviteCode, onGroupAction, onBack }: ChatroomPanelProps) {
   const router = useRouter();
   const { t } = useI18n();
   const token = useAuthStore(s => s.token);
@@ -252,13 +254,25 @@ export default function ChatroomPanel({ chatId, type, title, groupMembers, frien
         className="p-4 border-b border-brand-gray-100 bg-white/70 flex items-center justify-between cursor-pointer hover:bg-white/90 transition select-none"
         onClick={() => setShowInfo(!showInfo)}
       >
-        <h3 className="font-heading font-extrabold text-brand-gray-700 tracking-tight flex items-center gap-2">
-          <span className="text-xl">💬</span> {title}
-          <span className="text-xs bg-brand-teal/10 text-brand-teal font-extrabold px-2 py-0.5 rounded-full border border-brand-teal/20 ml-1">
-            {type === "group" ? `👥 ${groupInviteCode ?? t("chat.group")}` : `👤 ${t("chat.friend")}`}
-          </span>
-        </h3>
-        <button className="text-xs font-bold text-brand-gray-400 bg-brand-gray-50 hover:bg-brand-gray-100 px-2.5 py-1.5 rounded-xl border border-brand-gray-200 transition">
+        <div className="flex items-center gap-2 min-w-0">
+          {onBack && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onBack(); }}
+              className="md:hidden flex-shrink-0 -ml-1 flex h-8 w-8 items-center justify-center rounded-xl text-brand-gray-500 hover:bg-brand-gray-100 transition"
+              aria-label={t("common.back")}
+            >
+              <FiChevronLeft className="w-5 h-5" />
+            </button>
+          )}
+          <h3 className="font-heading font-extrabold text-brand-gray-700 tracking-tight flex items-center gap-2 min-w-0">
+            <span className="text-xl flex-shrink-0">💬</span> <span className="truncate">{title}</span>
+            <span className="hidden sm:inline-flex flex-shrink-0 text-xs bg-brand-teal/10 text-brand-teal font-extrabold px-2 py-0.5 rounded-full border border-brand-teal/20 ml-1">
+              {type === "group" ? `👥 ${groupInviteCode ?? t("chat.group")}` : `👤 ${t("chat.friend")}`}
+            </span>
+          </h3>
+        </div>
+        <button className="flex-shrink-0 text-xs font-bold text-brand-gray-400 bg-brand-gray-50 hover:bg-brand-gray-100 px-2.5 py-1.5 rounded-xl border border-brand-gray-200 transition">
           {showInfo ? t("chat.backToChat") : t("chat.viewDetails")}
         </button>
       </div>
