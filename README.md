@@ -82,7 +82,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
 python3.12 -m alembic upgrade head
-python3.12 -m uvicorn app.main:app --reload --port 8000
+python3.12 -m uvicorn app.main:app --reload --port 13105
 ```
 
 Frontend：
@@ -110,14 +110,14 @@ python -m uvicorn Learn8_tts.api:app --reload --port 15060
 
 啟動後：
 
-- Frontend: `http://localhost:3000`
-- Backend API docs: `http://localhost:8000/docs`
+- Frontend: `http://localhost:13104`
+- Backend API docs: `http://localhost:13105/docs`
 - VoxCPM TTS: `http://localhost:15060`
 
 環境變數補充：
 
 - `.env` 需填 `GOOGLE_API_KEY` 與 `DATABASE_URL`
-- 前端 API 預設 `http://localhost:8000/api/v1`
+- 前端 API 預設 `http://localhost:13105/api/v1`
 
 ## Linux 安裝 Redis
 

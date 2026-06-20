@@ -130,7 +130,7 @@ def generate_algo_nodes():
                         "3. 結構優勢：利用完全二元樹特性，讓每一次調整都嚴格控制在樹高範圍內。"
                     ),
                     "mediaType": "image" if title == "Heap Sort" or "Heap Sort" in title else "none",
-                    "mediaUrl": "http://localhost:8000/api/v1/courses/files/public/heap-sort-complexity.png" if title == "Heap Sort" or "Heap Sort" in title else None,
+                    "mediaUrl": "http://localhost:13105/api/v1/courses/files/public/heap-sort-complexity.png" if title == "Heap Sort" or "Heap Sort" in title else None,
                 }
             },
             # Stage 4: Complexity Quiz (MultipleChoice)
