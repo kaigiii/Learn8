@@ -714,6 +714,8 @@ class RoundEngine:
     def _build_standings(self, match: ArenaMatchModel, rounds: list[ArenaRoundModel]) -> list[dict]:
         answer_map: dict[int, list[ArenaAnswerModel]] = {player.user_id: [] for player in match.players}
         for round_item in rounds:
+            if round_item.status != ArenaRoundStatus.CLOSED:
+                continue
             for answer in round_item.answers:
                 answer_map.setdefault(answer.user_id, []).append(answer)
 
@@ -984,10 +986,6 @@ class RoundEngine:
                 "matchId": match.id,
                 "roundId": round_model.id,
                 "userId": current_user.id,
-                "selectedOptionId": selected_option_id,
-                "answerPayload": answer_payload,
-                "isCorrect": is_correct,
-                "scoreAwarded": score_awarded,
                 "activeRound": self._build_active_round_payload(round_model),
             },
         )
@@ -1040,18 +1038,27 @@ class RoundEngine:
         match_actually_finished = (remaining_rounds_count == 0)
 
         state = self.get_match_state(db, match.id, current_user)
-        return {
-            "accepted": True,
-            "alreadySubmitted": False,
-            "isCorrect": is_correct,
-            "scoreAwarded": score_awarded,
-            "responseTimeMs": response_time_ms,
-            "selectedOptionId": selected_option_id,
-            "revealedAnswer": revealed_answer,
-            "roundClosed": round_closed,
-            "matchFinished": match_actually_finished,
-            "state": state,
-        }
+        if not round_closed:
+            return {
+                "accepted": True,
+                "alreadySubmitted": False,
+                "roundClosed": False,
+                "matchFinished": False,
+                "state": state,
+            }
+        else:
+            return {
+                "accepted": True,
+                "alreadySubmitted": False,
+                "isCorrect": is_correct,
+                "scoreAwarded": score_awarded,
+                "responseTimeMs": response_time_ms,
+                "selectedOptionId": selected_option_id,
+                "revealedAnswer": revealed_answer,
+                "roundClosed": True,
+                "matchFinished": match_actually_finished,
+                "state": state,
+            }
 
     def _schedule_proactive_settle(self, match_id: int, round_id: int, delay_seconds: float):
         """

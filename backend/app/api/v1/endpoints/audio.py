@@ -32,6 +32,8 @@ async def upload_voice_preset_bridge(
     """
     檔案傳輸橋樑：Learn8 將檔案轉發給 VoxCPM 進行聲音克隆註冊
     """
+    if not settings.AUDIO_ENABLED:
+        raise HTTPException(status_code=400, detail="語音功能已關閉。")
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             files = {"file": (file.filename, await file.read(), file.content_type)}
@@ -52,6 +54,8 @@ async def batch_pregenerate_audios(
     """
     批次補建歷史關卡音檔
     """
+    if not settings.AUDIO_ENABLED:
+        raise HTTPException(status_code=400, detail="語音功能已關閉。")
     from app.db.session import SessionLocal
     db = SessionLocal()
     try:
