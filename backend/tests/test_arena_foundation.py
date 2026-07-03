@@ -930,9 +930,9 @@ def test_round_engine_initializes_rounds_and_advances_match(db_session, user):
     assert first_submit["accepted"] is True
     assert first_submit["state"]["status"] == "in_progress"
     assert first_submit["roundClosed"] is False
-    assert first_submit["revealedAnswer"]["correctOptionId"] == user_answer
-    assert first_submit["isCorrect"] is True
-    assert first_submit["scoreAwarded"] > 0
+    assert "revealedAnswer" not in first_submit
+    assert "isCorrect" not in first_submit
+    assert "scoreAwarded" not in first_submit
 
     second_submit = round_engine.submit_answer(
         db_session,
@@ -943,6 +943,9 @@ def test_round_engine_initializes_rounds_and_advances_match(db_session, user):
     )
     assert second_submit["accepted"] is True
     assert second_submit["roundClosed"] is True
+    assert second_submit["revealedAnswer"]["correctOptionId"] == user_answer
+    assert second_submit["isCorrect"] is False
+    assert second_submit["scoreAwarded"] == 0
     assert second_submit["state"]["activeRound"] is not None
     assert second_submit["state"]["activeRound"]["status"] == "pending"
     second_ready_state = _activate_round_for_players(db_session, round_engine, match.id, [user, second_user])

@@ -44,6 +44,9 @@ class AudioService:
     @staticmethod
     async def generate_speech(text: str, preset: str) -> bytes:
         """向 VoxCPM 請求語音合成並回傳音訊位元組。"""
+        if not settings.AUDIO_ENABLED:
+            raise HTTPException(status_code=400, detail="語音合成功能已關閉。")
+
         ref_path = AudioService.resolve_reference_path(preset)
         
         payload = {

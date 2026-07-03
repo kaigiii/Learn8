@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     CORS_ALLOW_ORIGINS: str = "*"
 
     # VoxCPM (Audio Service)
+    AUDIO_ENABLED: bool = True
     VOXCPM_URL: str = "http://127.0.0.1:15060/v1/audio/speech"
     VOXCPM_UPLOAD_URL: str = "http://127.0.0.1:15060/v1/audio/upload"
 
@@ -43,7 +44,7 @@ class Settings(BaseSettings):
     # AI / LLM
     GOOGLE_API_KEY: Optional[str] = None
     LLM_PROVIDER: str = "google"  # google | lmstudio
-    GEMINI_MODEL: str = "gemini-2.5-flash"
+    GEMINI_MODEL: str = "gemini-3.1-flash-lite"
     LMSTUDIO_BASE_URL: str = "http://localhost:1234/v1"
     LMSTUDIO_MODEL: str = "mirothinker-v1.5-30b"
     LLM_TEMPERATURE: float = 0.7
@@ -59,13 +60,13 @@ class Settings(BaseSettings):
     # Workflow Settings
     SYLLABUS_CONCURRENCY_LIMIT: int = 3
     MAX_SYLLABUS_AUDIT_REFLECTIONS: int = 2
-    PLANNER_AGENT_MODEL: str = "gemini-2.5-flash"
-    AUDITOR_AGENT_MODEL: str = "gemini-2.5-flash"
+    PLANNER_AGENT_MODEL: str = "gemini-3.1-flash-lite"
+    AUDITOR_AGENT_MODEL: str = "gemini-3.1-flash-lite"
 
     # Document Processing & Vision
     PDF_PARSE_STRATEGY: str = "hybrid"  # basic | vision | hybrid
     VISION_LLM_PROVIDER: str = "google"
-    VISION_GEMINI_MODEL: str = "gemini-2.5-flash"
+    VISION_GEMINI_MODEL: str = "gemini-3.1-flash-lite"
     IMAGE_FILTER_ENABLED: bool = True
     IMAGE_FILTER_MODEL_PATH: str = str(BASE_DIR / "app" / "core" / "model.pth")
     IMAGE_FILTER_IMAGE_SIZE: int = 224
