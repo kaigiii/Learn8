@@ -113,7 +113,7 @@ class Settings(BaseSettings):
 
     # Content Whitelists (Comma-separated filenames)
     ENABLED_PUBLIC_COURSES: str = "ai_neural_networks.yaml,python_fundamentals.yaml,world_history.yaml"
-    ENABLED_GAME_MODULES: str = "ExplainerMedia.yaml,FeynmanMirror.yaml,MatchingPairs.yaml,MultipleChoice.yaml,Ordering.yaml"
+    ENABLED_GAME_MODULES: str = "ExplainerMedia.yaml,FeynmanMirror.yaml,MatchingPairs.yaml,MultipleChoice.yaml,Ordering.yaml,GoCountLiberties.yaml,GoCaptureStones.yaml,GoKo.yaml,GoEscape.yaml,GoNoEntry.yaml,GoConnect.yaml,GoCut.yaml,GoCountTerritory.yaml"
     FEYNMAN_DEFAULT_MAX_ROUNDS: int = 8
     DEFAULT_VOICE_PRESET: str = "preset_01"
 
