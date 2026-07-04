@@ -28,12 +28,17 @@ Learn8 的核心靈魂在於其背後的 **Multi-Agent (多代理人)** 協作�
 
 ### 1.3 關卡建築師 (The Architect)
 - **性格描述**：創意、富有幽默感、善於舉例。
-- **職責**：為每個知識點設計有趣的題目（MultipleChoice, Feynman 等）。
+- **職責**：為每個知識點設計有趣的題目與滑動投影片（MultipleChoice, ExplainerMedia 等）。
 - **Prompt 關鍵詞**：`"Write engaging feedback"`, `"Use real-world analogies"`, `"Follow the provided YAML schema strictly"`.
+- **💥 多模態視覺提示詞 (Multimodal Vision Prompt)**：
+  - 當課程包含圖片時，提示詞會被動態擴充：
+    - **System Prompt**：說明 `media_catalog` 索引規則，強制 AI 必須輸出對應的 `mediaIndex`，禁止自行編造或直接嵌入 Base64 數據。
+    - **User Prompt**：除主題大綱外，額外附帶 `[IMAGE INDEX: N] Description: ...` 標記並緊跟著對應的實體圖片 Base64 二進制流。
+  - **AI 解讀流程**：視覺模型（Gemini VLM）首先從 `User Prompt` 讀取實體圖像，與 `System Prompt` 提供的描述清單進行比對，判定哪張圖片的圍棋佈局或圖表對應目前要生成的投影片，最終在輸出的 JSON 中寫入該圖片的 `mediaIndex` 達成精準圖片配對。
 
 ---
 
-## 🛠️ 2. 提示詞工程技術細節
+## 🛠️ 2. 提示詞工程與 Agent 呼叫技術細節
 
 ### 2.1 少樣本學習 (Few-shot Learning)
 為了讓 AI 輸出正確的題型結構，我們在 Prompt 中嵌入了多組正確的範例：

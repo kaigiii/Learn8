@@ -198,8 +198,39 @@ voice_targets: ["instruction"]
 name: "ExplainerMedia"
 required_config_data_fields:
   - "title"
-  - "content"      # 講解內文
-  - "mediaType"    # text | image | video
+  - "explanation"       # 講解內文段落
+optional_config_data_fields:
+  - "bullets"           # 重點摘要列表 (Array of strings)
+  - "mediaType"         # svg | image | none
+  - "mediaSvg"          # SVG 內容字串 (僅在 mediaType = svg 時提供)
+  - "mediaDescription"  # 圖像詳細 OCR 語意描述 (僅在 mediaType = image 時提供)
+  - "mediaUrl"          # 圖片靜態 URL 路徑 (後處理自動替換)
+  - "mediaIndex"        # 當前課程 media_catalog 中的圖片索引編號
 submission_keys: ["acknowledged"]
-voice_targets: ["content"]
+voice_targets: ["title", "explanation"]
+```
+
+### 5.5 HeapSortSimulator (堆積排序演示組件)
+```yaml
+name: "HeapSortSimulator"
+required_config_data_fields:
+  - "title"
+  - "explanation"       # 理論情境說明
+  - "initialArray"      # 初始待排序整數陣列 (Array of integers)
+optional_config_data_fields:
+  - "messages"          # 包含 'ready', 'building', 'sorting', 'done' 四種階段狀態提示
+submission_keys: []
+```
+
+### 5.6 HeapSortExercise (堆積排序手動練習組件)
+```yaml
+name: "HeapSortExercise"
+required_config_data_fields:
+  - "title"
+  - "explanation"       # 操作引導說明
+  - "initialArray"      # 初始待排序整數陣列 (Array of integers)
+optional_config_data_fields:
+  - "messages"          # 包含 'initial', 'successSwap', 'successExtract', 'errorSwap', 'errorInvalid' 的引導提示
+  - "hints"             # 引導提示步驟陣列 (Array of strings)
+submission_keys: ["completed", "errorCount"]
 ```

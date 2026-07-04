@@ -103,6 +103,14 @@ Learn8 的全站 API 具備以下頂級技術亮點與架構特色：
 ### 5.3 課程複製與 Fork (`POST /api/v1/custom-courses/{id}/fork`)
 - **描述**：將他人分享的課程完整大綱與節點內容複製一份到自己的帳號下，建立獨立的學習進度。
 
+### 5.4 讀取課程圖片資產 API (`GET /api/v1/courses/files/images/{user_id}/{course_folder}/{filename}`)
+- **描述**：用於前端加載學員教材中抽取的實體圖片。此端點會將對應的靜態圖片以二進位流形式回傳。
+- **參數說明**：
+  - `user_id`: 課程創建者的 User ID。
+  - `course_folder`: 課程檔案對應的本地目錄名稱（通常為課程名稱拼音或 UUID 的 slug）。
+  - `filename`: 圖片檔案名稱（例如 `p14_img0.png`）。
+- **回應類型**：`image/png` | `image/jpeg` | `image/webp` 等圖片串流。
+
 ---
 
 ## 💬 6. 實時社交與對戰 API (Real-time & Social)
