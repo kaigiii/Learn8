@@ -33,6 +33,17 @@
 - **`stages`**: JSONB 陣列，存儲該節點的所有組件關卡數據（包含 `MultipleChoice` 等配置）。
 - **`status`**: `locked` (鎖定) | `available` (待解鎖) | `completed` (已完成)。
 
+### 2.3 `course_media_assets` (課程媒體圖片資產表)
+- **`user_id`**: 外鍵，連結所屬使用者。
+- **`course_id`**: 外鍵，連結所屬課程。
+- **`source_filename`**: 上傳的原始教材檔名（例如 `導師教學手冊圍棋.pdf`）。
+- **`asset_type`**: 資產類型（例如 `image`）。
+- **`asset_filename`**: 本機儲存的圖片檔案名稱（例如 `p14_img0.png`）。
+- **`asset_url`**: 前端加載圖片的 API 路由端點（例如 `/api/v1/courses/files/images/...`）。
+- **`description`**: 圖片詳細文字描述（Alt text），由 VLM 提取，並在講義生成時作為 AI 選圖依據。
+- **`page_number`**: 本圖片源自原始文檔的頁碼（1-indexed）。
+- **`asset_index`**: 本圖片在該頁面的出現順序索引（0-indexed）。
+
 ---
 
 ## ⚔️ 3. 競技場層 (Arena System)
@@ -68,7 +79,9 @@
 ## 📊 5. 數據關聯地圖 (ER Map Summary)
 
 - **User** -> **LedgerEvents** (1:N)
+- **User** -> **CourseMediaAssets** (1:N)
 - **Course** -> **Lessons** (1:N)
+- **Course** -> **CourseMediaAssets** (1:N)
 - **Course** -> **PublicCourse** (1:1)
 - **ArenaRoom** -> **ArenaRoomPlayers** (1:N)
 - **ArenaMatch** -> **ArenaMatchPlayers** (1:N)

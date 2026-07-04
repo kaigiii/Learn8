@@ -89,6 +89,8 @@ mindmap
 8.  **[8_admin_management_system.md](./8_admin_management_system.md)**：管理後台邏輯、題庫自動提取、系統引導機制。
 9.  **[9_social_friendship_system.md](./9_social_friendship_system.md)**：好友關係、實時 WS 網關、對戰邀請。
 10. **[10_database_schema_and_models.md](./10_database_schema_and_models.md)**：資料庫模型欄位定義與數據關聯圖。
-11. **[11_background_workers_and_scheduling.md](./11_background_workers_and_scheduling.md)**：**（補齊中）** 任務調度機制與重試邏輯。
+11. **[11_background_workers_and_scheduling.md](./11_background_workers_and_scheduling.md)**：任務調度機制與重試邏輯。
+12. **[12_prompt_engineering_and_agent_personas.md](./12_prompt_engineering_and_agent_personas.md)**：提示詞工程與多代理人/多模態 Vision Prompt 畫像設計。
+13. **[13_deployment_and_environment_config.md](./13_deployment_and_environment_config.md)**：全站部署配置、環境變數與 Docker 容器編排。
 
 ---

@@ -19,15 +19,26 @@
 在 `backend/` 根目錄下需建立 `.env` 檔案：
 
 ### 1.1 AI 與 API 密鑰
-- `GEMINI_API_KEY`: 核心 AI 生成所需的 Google AI Studio 密鑰。
-- `LLM_BASE_URL`: (選填) 若使用第三方 Proxy 或地端模型。
+- `GOOGLE_API_KEY`: 核心 Google Gemini SDK 所需的 API 密鑰（用於新版 SDK、多模態 VLM 以及嵌入向量）。
+- `GEMINI_API_KEY`: 供舊版 LangChain Google 整合呼叫的 API 密鑰（一般與 `GOOGLE_API_KEY` 相同）。
+- `LLM_PROVIDER`: 大語言模型提供商（選項: `google` | `mock` | `lmstudio`）。
+- `GEMINI_MODEL`: 講義與大綱生成的主模型（例如 `gemini-3.1-flash-lite`）。
 
-### 1.2 資料庫配置
-- `DATABASE_URL`: PostgreSQL 連線字串。
-- `CHROMA_SERVER_HOST`: 向量數據庫位址。
+### 1.2 檔案解析與視覺 VLM 設定
+- `PDF_PARSE_STRATEGY`: PDF 文件轉檔策略，決定如何處理教材文字與圖片。
+  - `basic`: 0 成本純文字提取 (使用 PyMuPDF)。
+  - `vision`: 強制對所有頁面進行多模態視覺 LLM 渲染與解析（耗費 API）。
+  - `hybrid`: 智慧混搭 (無圖頁面用 basic，有圖頁面用 vision)。
+  - `ocr`: **（推薦）** 使用 MarkItDown 提取實體圖片，並調用 VLM 僅對圖片做詳細 OCR 與語意描述（省錢且保留圖片）。
+- `VISION_LLM_PROVIDER`: 看圖的視覺模型提供商（選項: `google` | `lmstudio`，推薦使用 `google`）。
+- `VISION_GEMINI_MODEL`: 視覺辨識所使用之多模態模型（預設為 `gemini-3.1-flash-lite`）。
 
-### 1.3 系統安全性
-- `JWT_SECRET_KEY`: JWT 簽名用的隨機字串（切勿外流）。
+### 1.3 資料庫配置
+- `DATABASE_URL`: PostgreSQL 連線字串（格式為 `postgresql://user:password@host:port/dbname`）。
+- `CHROMA_SERVER_HOST`: 向量數據庫主機位址。
+
+### 1.4 系統安全性
+- `JWT_SECRET_KEY`: JWT 簽名加密用的隨機字串（切勿外流）。
 - `ACCESS_TOKEN_EXPIRE_MINUTES`: Token 有效期（預設 60 分鐘）。
 
 ---

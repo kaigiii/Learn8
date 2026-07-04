@@ -40,12 +40,19 @@ flowchart TD
 - **輸出**：建立一個全新的 `CourseModel` 實體。
 
 ### 階段 2: File Upload / RAG Context
-- **用途**：用戶上傳 PDF、Markdown、或純文字教材檔案，AI 提取上下文建立向量索引。
-- **輸入**：教材檔案文字或 PDF 二進制串流。
-- **輸出**：
-  - 檔案內容存入暫存目錄 `backend/data/temp/`。
-  - 切分 chunks、提取 Embedding 特徵，寫入向量資料庫 **`backend/data/chroma_db/`**。
-  - 在後續題目生成時，提供 RAG 知識庫檢索上下文。
+- **用途**：用戶上傳教材檔案，系統將其統一解析為 Markdown 並提取圖片資源，隨後提取 Embedding 向量特徵寫入向量資料庫。
+- **支援格式**：PDF (`.pdf`), Word (`.docx`), PowerPoint (`.pptx`), Excel (`.xlsx`), Markdown (`.md`), Plain Text (`.txt`)。
+- **解析引擎與策略**：
+  - **Office 文件**：透過 **Microsoft MarkItDown** 將 Office 文件轉檔為 Markdown，並自動抽取其中嵌有的圖片，進行 Base64 解碼後存檔。
+  - **PDF 文件**：根據 `PDF_PARSE_STRATEGY` 環境變數，支援 4 種轉檔策略：
+    - `basic`：0成本純文字提取 (使用 PyMuPDF)。
+    - `vision`：強制對所有頁面進行多模態視覺 LLM 渲染與解析。
+    - `hybrid`：智慧混搭 (無圖頁面用 basic，有圖頁面用 vision)。
+    - `ocr`：使用 **MarkItDown + Gemini OCR 視覺模型**。提取 PDF 實體圖片並僅對圖片做 VLM 文字描述提取，兼具低成本與高精準度。
+- **輸出與存儲**：
+  - 解析出的 Markdown 保存為文字，並切分 chunks 寫入向量資料庫 **`backend/data/chroma_db/`**。
+  - 提取出的實體圖片保存於 `backend/data/uploads/{user_id}/{course_folder}/images/` 下。
+  - 提取出的圖片屬性與 VLM 描述被寫入資料庫 **`course_media_assets`** 表，為後續講義生成提供 RAG 圖片目錄。
 
 ### 階段 3: Questionnaire Generation
 - **用途**：依 `topic` 與上傳的 RAG context 生成 3 個探索型診斷問卷問題。
@@ -105,7 +112,11 @@ flowchart TD
 
 ### 階段 6: Lesson Generation
 - **用途**：為單一學習節點（Node）生成包含多樣化、可自訂組件關卡的題目內容。
-- **輸入**：當前節點主題、`LessonNode` 結構、學員畫像。
+- **輸入**：當前節點主題、`LessonNode` 結構、學員畫像、`media_catalog` 圖片清單。
+- **💥 多模態圖像生成技術 (Multimodal Slide Generation)**：
+  - 如果該課程包含已註冊的圖片資源，`AIArchitectService` 會自動從本機目錄加載對應的實體圖片。
+  - 將其轉換為 Base64 格式，並以多模態 `HumanMessage` 形式併入對話提示詞（Prompt）發送給 Gemini 視覺大模型。
+  - 大腦 AI（LLM）能直接「觀看」實體圖像像素，並根據投影片內容在 `ExplainerMedia` 組件中精確選擇最相符的 `mediaIndex`。
 - **輸出**：包含動態選擇的組件（如 `ExplainerMedia`, `FeynmanMirror`, `MultipleChoice` 等）的 `LessonStage[]`。AI 會根據知識點難度自動決定組件數量與順序。
 
 ### 階段 7: Remedial Generation
