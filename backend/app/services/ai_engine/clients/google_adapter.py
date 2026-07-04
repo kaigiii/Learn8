@@ -62,7 +62,18 @@ class GoogleLLMProvider(BaseLLMProvider):
             "google", settings.GEMINI_MODEL, response.content, latency
         )
 
-        return response.content
+        content = response.content
+        # 處理部分新版 Gemini / LangChain 回傳結構化塊列表 (list[dict]) 的情況
+        # 統一將其中的文字部分拼裝為 str，以符合 generate_text 的字串回傳契約
+        if isinstance(content, list):
+            text_parts = []
+            for part in content:
+                if isinstance(part, str):
+                    text_parts.append(part)
+                elif isinstance(part, dict) and "text" in part:
+                    text_parts.append(part["text"])
+            content = "".join(text_parts)
+        return content
 
     async def generate_structured(
         self, messages: List[Any], schema: Type[BaseModel], **kwargs

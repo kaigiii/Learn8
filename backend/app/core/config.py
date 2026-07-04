@@ -64,7 +64,7 @@ class Settings(BaseSettings):
     AUDITOR_AGENT_MODEL: str = "gemini-3.1-flash-lite"
 
     # Document Processing & Vision
-    PDF_PARSE_STRATEGY: str = "hybrid"  # basic | vision | hybrid
+    PDF_PARSE_STRATEGY: str = "hybrid"  # basic | vision | hybrid | ocr
     VISION_LLM_PROVIDER: str = "google"
     VISION_GEMINI_MODEL: str = "gemini-3.1-flash-lite"
     IMAGE_FILTER_ENABLED: bool = True

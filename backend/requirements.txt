@@ -47,3 +47,15 @@ langgraph>=0.0.10
 
 pypdf
 PyYAML==6.0.1
+
+# MarkItDown & Document Parsing
+markitdown>=0.1.6
+markitdown-ocr @ git+https://github.com/microsoft/markitdown.git#subdirectory=packages/markitdown-ocr
+pdfminer-six>=20260107
+pdfplumber>=0.11.10
+mammoth~=1.11.0
+python-docx
+python-pptx
+pandas
+openpyxl
+
