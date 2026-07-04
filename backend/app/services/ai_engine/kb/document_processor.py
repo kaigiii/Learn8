@@ -71,6 +71,8 @@ class DocumentProcessor:
 
 
 # 系統啟動時註冊預設解析器
+from app.services.ai_engine.kb.parsers.markitdown_parser import MarkItDownOfficeParser
+
 DocumentProcessor.register_parser(".pdf", PDFParserStrategyRouter())
 DocumentProcessor.register_parser(".txt", TextParser())
 DocumentProcessor.register_parser(".md", TextParser())
@@ -79,3 +81,8 @@ DocumentProcessor.register_parser(".json", TextParser())
 DocumentProcessor.register_parser(".py", TextParser())
 DocumentProcessor.register_parser(".js", TextParser())
 DocumentProcessor.register_parser(".tsx", TextParser())
+
+# 註冊 Office 檔案格式
+DocumentProcessor.register_parser(".docx", MarkItDownOfficeParser())
+DocumentProcessor.register_parser(".pptx", MarkItDownOfficeParser())
+DocumentProcessor.register_parser(".xlsx", MarkItDownOfficeParser())

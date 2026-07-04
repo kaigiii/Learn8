@@ -1,4 +1,5 @@
 import json
+import os
 from typing import List, Optional
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.messages import SystemMessage, HumanMessage
@@ -101,30 +102,92 @@ class AIArchitectService:
                 ]
                 self.provider.bind_files(full_paths)
 
-        messages = [
-            (
-                "system",
-                build_node_system_prompt(allowed_components).format(profile=profile)
-                + f"\n\nVector Database Context:\n{rag_context}"
-                + (
-                    (
-                        "\n\nUse the media catalog ONLY for `ExplainerMedia` stages. "
-                        "If you want to show an image, you MUST set `mediaType` to `image` "
-                        "and provide `mediaIndex` from the catalog. "
-                        "Do NOT provide mediaUrl or fabricate URLs. "
-                        "Do NOT embed image data."
-                        "\n\n"
-                        + media_catalog
-                    )
-                    if media_catalog
-                    else ""
-                ),
-            ),
-            (
-                "user",
-                f"TOPIC: {topic}\nNODE TITLE: {node.title}\nNODE DESC: {node.description}",
-            ),
+        from langchain_core.messages import HumanMessage, SystemMessage
+
+        # 3. 建立系統提示訊息
+        system_content = (
+            build_node_system_prompt(allowed_components).format(profile=profile)
+            + f"\n\nVector Database Context:\n{rag_context}"
+        )
+        if media_catalog:
+            system_content += (
+                "\n\nUse the media catalog ONLY for `ExplainerMedia` stages. "
+                "If you want to show an image, you MUST set `mediaType` to `image` "
+                "and provide `mediaIndex` from the catalog. "
+                "Do NOT provide mediaUrl or fabricate URLs. "
+                "Do NOT embed image data."
+                "\n\n"
+                + media_catalog
+            )
+
+        system_message = SystemMessage(content=system_content)
+
+        # 4. 建立使用者提示與多模態圖片訊息
+        user_content_parts = [
+            {
+                "type": "text",
+                "text": f"TOPIC: {topic}\nNODE TITLE: {node.title}\nNODE DESC: {node.description}"
+            }
         ]
+
+        # 如果有圖片，則一併將實體圖片讀取為 Base64 數據並附在使用者訊息中，供 Vision LLM 視覺對比挑選
+        if media_catalog and course_id is not None and user_id is not None and course_folder is not None:
+            from app.db.session import SessionLocal
+            from app.models.course_media_asset import CourseMediaAssetModel
+            from app.services.infra.media.catalog import build_media_catalog
+            import base64
+
+            db = SessionLocal()
+            try:
+                assets = (
+                    db.query(CourseMediaAssetModel)
+                    .filter(CourseMediaAssetModel.course_id == course_id)
+                    .order_by(
+                        CourseMediaAssetModel.source_filename.asc(),
+                        CourseMediaAssetModel.page_number.asc().nullslast(),
+                        CourseMediaAssetModel.asset_index.asc().nullslast(),
+                        CourseMediaAssetModel.id.asc(),
+                    )
+                    .all()
+                )
+                if assets:
+                    catalog_items = build_media_catalog(assets)
+                    upload_dir = self.file_service.get_upload_dir(user_id, course_folder)
+                    
+                    user_content_parts.append({
+                        "type": "text",
+                        "text": "\n\nBelow are the actual images in this course corresponding to the catalog indices. Please visually check them to match the slides:\n"
+                    })
+
+                    for item in catalog_items:
+                        img_path = upload_dir / "images" / item.asset_filename
+                        if os.path.exists(img_path):
+                            try:
+                                with open(img_path, "rb") as img_f:
+                                    img_bytes = img_f.read()
+                                ext = item.asset_filename.split(".")[-1]
+                                if ext.lower() not in ["png", "jpeg", "jpg", "webp"]:
+                                    ext = "png"
+                                b64_img = base64.b64encode(img_bytes).decode("utf-8")
+                                data_uri = f"data:image/{ext};base64,{b64_img}"
+
+                                user_content_parts.append({
+                                    "type": "text",
+                                    "text": f"[IMAGE INDEX: {item.index}] Description: {item.description or 'No description'}"
+                                })
+                                user_content_parts.append({
+                                    "type": "image_url",
+                                    "image_url": {"url": data_uri}
+                                })
+                            except Exception as img_err:
+                                activity_logger.warning(
+                                    f"Failed to load catalog image {img_path} for slide architect: {img_err}"
+                                )
+            finally:
+                db.close()
+
+        user_message = HumanMessage(content=user_content_parts)
+        messages = [system_message, user_message]
 
         # 用於支援 List 型別的 Pydantic Wrapper
         class StageListWrapper(BaseModel):
