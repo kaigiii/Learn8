@@ -138,12 +138,14 @@ export default function CourseEditorPage() {
       newUnits[uIdx].nodes[nIdx].components = [];
     }
 
+    const isGoBoardComponent = ["GoCountLiberties", "GoCaptureStones", "GoKo", "GoEscape", "GoNoEntry", "GoConnect", "GoCut", "GoCountTerritory"].includes(type);
+
     const newComponent = {
       id: `c_${Date.now()}`,
       type,
       topic: "Python Basics",
       difficulty: "medium",
-      question: type === "ExplainerMedia" ? "" : "New Question",
+      question: type === "ExplainerMedia" ? "" : isGoBoardComponent ? "請解這個圍棋題" : "New Question",
       content: type === "ExplainerMedia" ? "This is a new media lesson." : undefined,
       options: type === "MultipleChoice" ? ["Option A", "Option B"] : undefined,
       correctOptionId: type === "MultipleChoice" ? "Option A" : undefined,
@@ -154,6 +156,8 @@ export default function CourseEditorPage() {
       ] : undefined,
       sampleAnswer: type === "FeynmanMirror" ? "A simple explanation of the concept." : undefined,
       maxRounds: type === "FeynmanMirror" ? 10 : undefined,
+      board: isGoBoardComponent ? ["........", "........", "........", "........", "........", "........", "........", "........"] : undefined,
+      expectedAnswer: isGoBoardComponent ? "4" : undefined,
       successFeedback: "Great job! That's correct.",
       errorFeedback: "Oops! Try again."
     };
@@ -417,6 +421,14 @@ export default function CourseEditorPage() {
                     { type: 'Ordering', label: 'Ordering', icon: <FiList /> },
                     { type: 'MatchingPairs', label: 'Matching', icon: <FiLayout /> },
                     { type: 'FeynmanMirror', label: 'Feynman', icon: <FiSettings /> },
+                    { type: 'GoCountLiberties', label: '數氣', icon: <FiLayout /> },
+                    { type: 'GoCaptureStones', label: '提子', icon: <FiLayout /> },
+                    { type: 'GoKo', label: '叫吃', icon: <FiLayout /> },
+                    { type: 'GoEscape', label: '逃跑', icon: <FiLayout /> },
+                    { type: 'GoNoEntry', label: '禁入點', icon: <FiLayout /> },
+                    { type: 'GoConnect', label: '連接', icon: <FiLayout /> },
+                    { type: 'GoCut', label: '分斷', icon: <FiLayout /> },
+                    { type: 'GoCountTerritory', label: '數目', icon: <FiLayout /> },
                   ].map((btn) => (
                     <button 
                       key={btn.type}

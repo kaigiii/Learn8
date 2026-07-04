@@ -8,6 +8,16 @@ import { multipleChoicePlugin } from "../question-types/multiple-choice/plugin";
 import { orderingPlugin } from "../question-types/ordering/plugin";
 import { heapSortPlugin } from "../question-types/heap-sort-simulator/plugin";
 import { heapSortExercisePlugin } from "../question-types/heap-sort-exercise/plugin";
+import {
+  goCaptureStonesPlugin,
+  goConnectPlugin,
+  goCountLibertiesPlugin,
+  goCountTerritoryPlugin,
+  goCutPlugin,
+  goEscapePlugin,
+  goKoPlugin,
+  goNoEntryPlugin,
+} from "../question-types/go-board/plugin";
 import type { LessonStagePlugin, LessonStagePluginRegistry, StageRenderer } from "./types";
 import { renderUnsupportedStage } from "./unsupportedStageRenderer";
 
@@ -19,6 +29,14 @@ const stagePlugins = [
   explainerMediaPlugin,
   heapSortPlugin,
   heapSortExercisePlugin,
+  goCountLibertiesPlugin,
+  goCaptureStonesPlugin,
+  goKoPlugin,
+  goEscapePlugin,
+  goNoEntryPlugin,
+  goConnectPlugin,
+  goCutPlugin,
+  goCountTerritoryPlugin,
 ] as const satisfies readonly LessonStagePlugin[];
 
 export const lessonStagePluginRegistry: LessonStagePluginRegistry = Object.fromEntries(
