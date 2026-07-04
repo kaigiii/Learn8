@@ -42,7 +42,7 @@ class TextSplitterService:
 
 
 class RAGEngine:
-    DB_DIR = "./data/chroma_db"
+    DB_DIR = str(settings.BASE_DIR / "data" / "chroma_db")
 
     def __init__(self, llm_provider: BaseLLMProvider):
         self._llm_provider = llm_provider
