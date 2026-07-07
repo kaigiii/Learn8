@@ -12,6 +12,7 @@ from app.services.infra.files.service import FileService
 from app.services.ai_engine.clients.base_provider import BaseLLMProvider
 from app.core.exceptions import LLMGenerationError
 from app.services.domain.user.activity_logger import activity_logger
+from app.services.domain.learning.go_puzzle_bank import apply_go_puzzle_bank
 
 # --- PROMPTS ---
 
@@ -201,6 +202,8 @@ class AIArchitectService:
                 # 後處理：補上 ID
                 for i, stage in enumerate(wrapper.stages):
                     stage.stageId = f"{node.id}-s{i}"
+                # 圍棋題型改用預先驗證好的題庫棋譜，取代 LLM 生成的盤面。
+                apply_go_puzzle_bank(wrapper.stages)
                 return wrapper.stages
             return []
         except Exception as e:
@@ -248,6 +251,7 @@ class AIArchitectService:
             if wrapper and wrapper.stages:
                 for index, stage in enumerate(wrapper.stages):
                     stage.stageId = f"{failed_records[0].failedStage.stageId}-remedial-{index}"
+                apply_go_puzzle_bank(wrapper.stages)
                 return wrapper.stages
             return []
         except Exception as e:

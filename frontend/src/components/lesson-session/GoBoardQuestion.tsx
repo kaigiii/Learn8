@@ -5,7 +5,6 @@ import {
   FiArrowRight,
   FiBookOpen,
   FiCheckCircle,
-  FiHelpCircle,
   FiSkipForward,
   FiXCircle,
 } from "react-icons/fi";
@@ -226,6 +225,7 @@ export default function GoBoardQuestion({
     componentType === "GoCountLiberties" || componentType === "GoCountTerritory";
   const isLibertiesMode = componentType === "GoCountLiberties";
   const isCaptureMode = componentType === "GoCaptureStones";
+  const isNoEntryMode = componentType === "GoNoEntry";
 
   // For "choose a point" questions, show which colour stone the learner is
   // placing. Capture/tesuji questions have Black playing onto White; the author
@@ -380,7 +380,9 @@ export default function GoBoardQuestion({
             ? "請數出被標記棋串的氣（相鄰的空點），並在下方輸入數量。每次生成都會是全新的 AI 棋局。"
             : isCaptureMode
               ? "請在棋盤上點選你要落子提走白棋的位置，或直接輸入座標（例如 D3）。每次生成都會是全新的 AI 棋局。"
-              : "請點選棋盤上的落子點，或直接在下方輸入答案。每次生成都會是全新的 AI 棋局。"}
+              : isNoEntryMode
+                ? "請在棋盤上點選黑棋不能下的禁入點（下了會沒有氣、又提不到子的位置），或直接輸入座標（例如 B2）。每次生成都會是全新的 AI 棋局。"
+                : "請點選棋盤上的落子點，或直接在下方輸入答案。每次生成都會是全新的 AI 棋局。"}
         </p>
       </div>
 
@@ -398,6 +400,11 @@ export default function GoBoardQuestion({
                 <span className="inline-block h-2.5 w-2.5 rounded-full bg-brand-teal" />
                 棋盤 · 點選你要落子提子的位置
               </>
+            ) : isNoEntryMode ? (
+              <>
+                <span className="inline-block h-2.5 w-2.5 rounded-full bg-brand-teal" />
+                棋盤 · 點選黑棋的禁入點
+              </>
             ) : (
               <>
                 <span className="inline-block h-2.5 w-2.5 rounded-full bg-brand-teal" />
@@ -405,9 +412,13 @@ export default function GoBoardQuestion({
               </>
             )}
           </div>
-          <div className="flex min-h-0 flex-1 items-center justify-center">
+          <div className="flex min-h-0 flex-1 items-center justify-center lg:[container-type:size]">
+            {/* The board must stay a perfect square so intersections (and the
+                round stones drawn on them) are never distorted. On desktop we
+                size it to min(container width, height) via container-query
+                units; on mobile it is simply a full-width square. */}
             <div
-              className="grid aspect-square w-full max-w-full rounded-lg p-2 sm:p-3 lg:max-h-full"
+              className="grid aspect-square w-full max-w-full rounded-lg p-2 sm:p-3 lg:h-[min(100cqw,100cqh)] lg:w-[min(100cqw,100cqh)] lg:max-w-none"
               style={{
                 gridTemplateColumns: `1.35rem repeat(${size}, 1fr)`,
                 gridTemplateRows: `1.35rem repeat(${size}, 1fr)`,
@@ -524,7 +535,7 @@ export default function GoBoardQuestion({
           <div className="text-sm font-semibold text-brand-gray-700">你的答案</div>
           {!isNumericAnswerMode && (
             <div className="flex items-center gap-1.5 text-xs text-brand-gray-600">
-              你要落下的是
+              {isNoEntryMode ? "要找的是禁入點，針對" : "你要落下的是"}
               <span
                 className={`inline-block h-4 w-4 rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.35)] ${playStoneStyle}`}
               />
@@ -556,7 +567,7 @@ export default function GoBoardQuestion({
                 type="button"
                 onClick={() => void handleSubmit()}
                 disabled={!answer.trim()}
-                className="flex-1 rounded-xl bg-brand-teal px-3 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#5fb3af] disabled:cursor-not-allowed disabled:bg-brand-gray-300"
+                className="flex-[2] rounded-xl bg-brand-teal px-3 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#5fb3af] disabled:cursor-not-allowed disabled:bg-brand-gray-300"
               >
                 提交答案
               </button>
@@ -567,16 +578,9 @@ export default function GoBoardQuestion({
                   setAnswer("");
                   setSubmissionFeedback(null);
                 }}
-                className="flex items-center gap-1 rounded-xl border border-brand-gray-300 bg-white px-3 py-2.5 text-sm font-medium text-brand-gray-600 transition-colors hover:border-brand-gray-400"
+                className="flex flex-1 items-center justify-center gap-1 rounded-xl border border-brand-gray-300 bg-white px-3 py-2.5 text-sm font-medium text-brand-gray-600 transition-colors hover:border-brand-gray-400"
               >
                 <FiSkipForward /> 跳過
-              </button>
-              <button
-                type="button"
-                onClick={() => onHintUse?.()}
-                className="flex items-center gap-1 rounded-xl border border-brand-gray-300 bg-white px-3 py-2.5 text-sm font-medium text-brand-gray-600 transition-colors hover:border-brand-gray-400"
-              >
-                <FiHelpCircle /> 提示
               </button>
             </div>
           ) : (

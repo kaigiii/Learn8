@@ -189,6 +189,95 @@ def find_capturing_moves(board: Any) -> list[str]:
     return sorted(moves)
 
 
+def _normalize_stone_color(value: Any) -> Optional[str]:
+    """Normalize a colour hint ("B"/"black"/"黑"…, "W"/"white"/"白"…) to "B"/"W"."""
+    if not isinstance(value, str):
+        return None
+    token = value.strip().lower()
+    if token in ("w", "white", "白", "白棋"):
+        return "W"
+    if token in ("b", "black", "黑", "黑棋"):
+        return "B"
+    return None
+
+
+def find_no_entry_points(board: Any, player: str = "B") -> list[str]:
+    """Empty points that are illegal ("禁入點"/suicide) for ``player`` to play.
+
+    Placing a stone is forbidden when the resulting group would have zero
+    liberties and the move captures nothing. Concretely an empty point P is a
+    no-entry point when: it has no empty neighbour, no adjacent opponent group
+    has P as its only liberty (nothing gets captured), and every adjacent
+    friendly group's only liberty is P (the played stone stays breathless).
+    Returns the coordinates sorted; an empty list means the board has none.
+    """
+    rows = _parse_go_board_rows(board)
+    if not rows:
+        return []
+
+    size = len(rows)
+    player_color = _normalize_stone_color(player) or "B"
+    opponent_color = "W" if player_color == "B" else "B"
+
+    def color_of(cell: str) -> Optional[str]:
+        if cell in ("B", "b"):
+            return "B"
+        if cell in ("W", "w"):
+            return "W"
+        return None
+
+    def neighbors(row: int, col: int):
+        for nr, nc in ((row - 1, col), (row + 1, col), (row, col - 1), (row, col + 1)):
+            if 0 <= nr < size and 0 <= nc < size:
+                yield nr, nc
+
+    def group_liberties(row: int, col: int) -> set[tuple[int, int]]:
+        group_color = color_of(rows[row][col])
+        stack = [(row, col)]
+        seen = {(row, col)}
+        liberties: set[tuple[int, int]] = set()
+        while stack:
+            cr, cc = stack.pop()
+            for nr, nc in neighbors(cr, cc):
+                cell = rows[nr][nc]
+                if cell == ".":
+                    liberties.add((nr, nc))
+                elif color_of(cell) == group_color and (nr, nc) not in seen:
+                    seen.add((nr, nc))
+                    stack.append((nr, nc))
+        return liberties
+
+    no_entry: set[str] = set()
+    for row in range(size):
+        for col in range(size):
+            if rows[row][col] != ".":
+                continue
+
+            board_neighbors = list(neighbors(row, col))
+            # Direct liberty -> always legal.
+            if any(rows[nr][nc] == "." for nr, nc in board_neighbors):
+                continue
+
+            captures_opponent = False
+            friendly_survives = False
+            for nr, nc in board_neighbors:
+                neighbor_color = color_of(rows[nr][nc])
+                if neighbor_color == opponent_color:
+                    if group_liberties(nr, nc) == {(row, col)}:
+                        captures_opponent = True
+                        break
+                elif neighbor_color == player_color:
+                    if group_liberties(nr, nc) - {(row, col)}:
+                        friendly_survives = True
+
+            if captures_opponent or friendly_survives:
+                continue
+
+            no_entry.add(_go_coordinate(row, col, size))
+
+    return sorted(no_entry)
+
+
 def _normalize_matching_pair_id(pair: Any, index: int) -> str:
     if isinstance(pair, dict) and pair.get("id"):
         return str(pair.get("id"))
@@ -395,7 +484,12 @@ async def evaluate_go_board(
     # when we can. Only fall back to the authored answer when the board cannot
     # be graded (e.g. no marked group / nothing capturable).
     valid_answers: Optional[set[str]] = None
-    if stage.component == "GoCountLiberties":
+    bank_acceptable = data.get("acceptableAnswers")
+    if isinstance(bank_acceptable, list) and bank_acceptable:
+        # Puzzle-bank coordinate questions carry the full set of correct points
+        # (e.g. several squares can capture / cut). Accept any of them.
+        valid_answers = {str(answer).replace(" ", "").upper() for answer in bank_acceptable}
+    elif stage.component == "GoCountLiberties":
         computed = count_marked_group_liberties(data.get("board"))
         if computed is not None:
             expected_answer = str(computed)
@@ -404,6 +498,15 @@ async def evaluate_go_board(
         if capturing_moves:
             valid_answers = {move.replace(" ", "").upper() for move in capturing_moves}
             expected_answer = " 或 ".join(capturing_moves)
+    elif stage.component == "GoNoEntry" and _parse_go_board_rows(data.get("board")):
+        # The board is authoritative for no-entry questions (there is no separate
+        # marker to trust). Only genuinely forbidden points count; a board with
+        # none is broken, so nothing is accepted and we don't surface the
+        # unreliable authored answer.
+        player = _normalize_stone_color(data.get("playerColor")) or "B"
+        no_entry_points = find_no_entry_points(data.get("board"), player)
+        valid_answers = {point.replace(" ", "").upper() for point in no_entry_points}
+        expected_answer = " 或 ".join(no_entry_points)
 
     submitted_answer = normalized_input["answer"]
     expected_text = str(expected_answer).strip()
