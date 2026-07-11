@@ -50,9 +50,7 @@ class Settings(BaseSettings):
     LLM_TEMPERATURE: float = 0.7
     LMSTUDIO_MAX_TOKENS: int = 16384
 
-    # Serve Go boards from the pre-verified deterministic puzzle bank
-    # (data/go_puzzles.json) instead of letting the LLM invent positions.
-    GO_USE_PUZZLE_BANK: bool = True
+
 
     # Syllabus generation options (Fine-grained control)
     AI_SYLLABUS_USE_FILE_API: bool = True

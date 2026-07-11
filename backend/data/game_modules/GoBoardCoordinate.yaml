@@ -5,10 +5,11 @@ voice_targets:
   - question
 required_config_data_fields:
   - question
+optional_config_data_fields:
+  - board_blueprint
+  - playerColor
   - board
   - expectedAnswer
-optional_config_data_fields:
-  - playerColor
   - acceptableAnswers
   - explanation
 submission_keys:

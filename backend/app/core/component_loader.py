@@ -80,10 +80,19 @@ class ComponentRegistryLoader:
         missing_fields = [
             field for field in self.get_required_data_fields(name) if field not in data
         ]
-        return [
+        errors = [
             f"Component `{name}` is missing required config.data field `{field}`."
             for field in missing_fields
         ]
+
+        if name in ("GoBoardCoordinate", "GoBoardNumeric"):
+            # Ensure it contains either board_blueprint or both board and expectedAnswer
+            if "board_blueprint" not in data and ("board" not in data or "expectedAnswer" not in data):
+                errors.append(
+                    f"Component `{name}` requires either `board_blueprint` or both `board` and `expectedAnswer` in config.data."
+                )
+
+        return errors
 
     def get_prompt_menu_string(self, component_names: Optional[List[str]] = None) -> str:
         """
