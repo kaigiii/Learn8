@@ -1,13 +1,8 @@
 import asyncio
 
 from app.schemas.lesson_schema import Feedback, GenericConfig, LessonStage, Validation
-from app.services.domain.learning.go_puzzle_bank import (
-    GO_COMPONENTS,
-    _load_bank,
-    apply_go_puzzle_bank,
-    random_go_puzzle,
-)
-from app.services.domain.learning.lesson_components.evaluators import (
+
+from app.services.domain.learning.lesson_components.go.evaluators import (
     count_marked_group_liberties,
     evaluate_go_board,
     find_capturing_moves,
@@ -178,65 +173,111 @@ def test_go_board_evaluator_accepts_coordinate_answers():
     assert evaluation["expectedAnswer"] == "4"
 
 
-def _bank_stage(component, data):
-    return LessonStage(
-        stageId="go-bank",
-        topic="圍棋",
-        skin="Scientific",
-        component=_map_legacy_component(component),
-        validation=Validation(type="exact", condition={"answer": data["expectedAnswer"]}),
-        feedback=Feedback(success="正確", error="再想想"),
-        config=GenericConfig(data=data, initialState={}),
-    )
 
 
-def test_puzzle_bank_has_all_types_and_is_5x5():
-    bank = _load_bank()
-    assert GO_COMPONENTS <= set(bank.keys())
-    for component in GO_COMPONENTS:
-        puzzles = bank[component]
-        assert len(puzzles) >= 15, f"{component} only has {len(puzzles)} puzzles"
-        for puzzle in puzzles:
-            board = puzzle["board"]
-            assert len(board) == 5 and all(len(row) == 5 for row in board)
-            assert puzzle["question"] and puzzle["explanation"]
+
+def test_validator_physical_sanity():
+    from app.services.domain.learning.lesson_components.go.validators import check_physical_and_state_rules
+
+    # 1. Valid configuration
+    valid_board = {"size": 9, "black": ["C4", "E4"], "white": ["D3"], "marks": []}
+    errors = check_physical_and_state_rules(valid_board, "C3", "B")
+    assert not errors
+
+    # 2. Overlapping stones
+    overlap_board = {"size": 9, "black": ["C4"], "white": ["C4"], "marks": []}
+    errors = check_physical_and_state_rules(overlap_board, "C3", "B")
+    assert any("重疊" in err for err in errors)
+
+    # 3. Coordinate out of bounds
+    oob_board = {"size": 5, "black": ["A6"], "white": ["E2"], "marks": []}
+    errors = check_physical_and_state_rules(oob_board, "C3", "B")
+    assert any("超出棋盤邊界" in err for err in errors)
+
+    # 4. Answer coordinate out of bounds
+    errors = check_physical_and_state_rules(valid_board, "K10", "B")
+    assert any("預期答案座標越界" in err for err in errors)
+
+    # 5. Suicide move
+    # Place white stones around C3
+    suicide_board = {
+        "size": 5,
+        "black": [],
+        "white": ["C4", "C2", "B3", "D3"],
+        "marks": []
+    }
+    errors = check_physical_and_state_rules(suicide_board, "C3", "B")
+    assert any("自殺" in err for err in errors)
+
+    # 6. Pre-existing dead stones
+    # Black stone at C3 is fully surrounded by White but still present on board before move
+    dead_board = {
+        "size": 5,
+        "black": ["C3"],
+        "white": ["C4", "C2", "B3", "D3"],
+        "marks": []
+    }
+    errors = check_physical_and_state_rules(dead_board, "A1", "B")
+    assert any("死棋" in err for err in errors)
 
 
-def test_every_bank_puzzle_grades_its_own_answer_correct():
-    bank = _load_bank()
-    for component in GO_COMPONENTS:
-        for puzzle in bank[component]:
-            stage = _bank_stage(component, puzzle)
-            status, *_ = asyncio.run(
-                evaluate_go_board(stage, {"answer": puzzle["expectedAnswer"]}, "圍棋", None)
-            )
-            assert status == "correct", f"{component} {puzzle['board']} -> {puzzle['expectedAnswer']}"
+def test_validate_go_board_coordinate_with_mock_llm():
+    from app.services.domain.learning.lesson_components.go.validators import validate_go_board_coordinate
+
+    class MockProvider:
+        def __init__(self, reply: str):
+            self.reply = reply
+        async def generate_text(self, messages, **kwargs):
+            return self.reply
+
+    # Case A: AI Semantic check passes
+    data_pass = {
+        "board": {"size": 5, "black": ["A1"], "white": ["E5"], "marks": []},
+        "expectedAnswer": "B1",
+        "playerColor": "B",
+        "board_blueprint": "Place Black B1",
+        "question": "Where to play?",
+        "explanation": "Play B1"
+    }
+    mock_pass = MockProvider("YES")
+    errors = asyncio.run(validate_go_board_coordinate(data_pass, mock_pass))
+    assert not errors
+
+    # Case B: AI Semantic check fails
+    mock_fail = MockProvider("NO because expectedAnswer does not capture anything")
+    errors = asyncio.run(validate_go_board_coordinate(data_pass, mock_fail))
+    assert any("第三層 AI 語義校驗未通過" in err for err in errors)
 
 
-def test_bank_accepts_alternate_answers_and_rejects_wrong():
-    # Some coordinate puzzles (cut/connect/atari) have several correct points;
-    # every listed point must be accepted and a bogus one rejected.
-    bank = _load_bank()
-    component, multi = next(
-        (component, puzzle)
-        for component in GO_COMPONENTS
-        for puzzle in bank[component]
-        if len(puzzle.get("acceptableAnswers", [])) > 1
-    )
-    stage = _bank_stage(component, multi)
-    for good in multi["acceptableAnswers"]:
-        assert asyncio.run(evaluate_go_board(stage, {"answer": good}, "圍棋", None))[0] == "correct"
-    assert asyncio.run(evaluate_go_board(stage, {"answer": "Z9"}, "圍棋", None))[0] == "incorrect"
+def test_validate_go_board_numeric_liberties_and_territory():
+    from app.services.domain.learning.lesson_components.go.validators import validate_go_board_numeric
 
+    # Case A: Liberties count matches
+    data_lib = {
+        "board": {"size": 5, "black": ["C3"], "white": [], "marks": ["C3"]},
+        "expectedAnswer": "4",
+        "question": "How many氣?",
+    }
+    errors = asyncio.run(validate_go_board_numeric(data_lib, None))
+    assert not errors
+    assert data_lib["expectedAnswer"] == "4"
 
-def test_apply_go_puzzle_bank_replaces_go_board():
-    stage = _bank_stage(
-        "GoCaptureStones",
-        {"question": "ai", "board": ["....."], "expectedAnswer": "ZZ"},
-    )
-    apply_go_puzzle_bank([stage])
-    data = stage.config.data
-    assert data["board"]["size"] == 5
-    assert isinstance(data["board"]["black"], list)
-    assert data["expectedAnswer"] != "ZZ"
-    assert data.get("explanation")
+    # Case B: Liberties count mismatch (should autocorrect)
+    data_mismatch = {
+        "board": {"size": 5, "black": ["C3"], "white": [], "marks": ["C3"]},
+        "expectedAnswer": "2",  # incorrect, should be 4
+        "question": "How many氣?",
+    }
+    errors = asyncio.run(validate_go_board_numeric(data_mismatch, None))
+    assert not errors
+    assert data_mismatch["expectedAnswer"] == "4"  # Autocorrected!
+
+    # Case C: Liberties question but marks missing
+    data_no_marks = {
+        "board": {"size": 5, "black": ["C3"], "white": [], "marks": []},
+        "expectedAnswer": "4",
+        "question": "How many氣?",
+    }
+    errors = asyncio.run(validate_go_board_numeric(data_no_marks, None))
+    assert any("marks' 欄位為空" in err for err in errors)
+

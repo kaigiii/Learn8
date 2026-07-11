@@ -1,5 +1,6 @@
 import json
 import os
+import asyncio
 from typing import List, Optional
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.messages import SystemMessage, HumanMessage
@@ -209,8 +210,18 @@ class AIArchitectService:
                 # 後處理：補上 ID
                 for i, stage in enumerate(wrapper.stages):
                     stage.stageId = f"{node.id}-s{i}"
-                # 自動修正可能存在算氣或座標偏差的圍棋題型答案
-                self._autocorrect_go_stages(wrapper.stages)
+                # 執行動態註冊的組件擺放器 (如圍棋座標翻譯)
+                from app.services.domain.learning.lesson_components.placer_registry import placer_registry
+                import app.services.domain.learning.lesson_components.go.placer  # 強制載入並註冊圍棋 Placer
+                
+                placer_tasks = []
+                for stage in wrapper.stages:
+                    placer = placer_registry.get(stage.component)
+                    if placer:
+                        placer_tasks.append(placer(stage, self.provider))
+                if placer_tasks:
+                    await asyncio.gather(*placer_tasks)
+
                 return wrapper.stages
             return []
         except Exception as e:
@@ -258,8 +269,18 @@ class AIArchitectService:
             if wrapper and wrapper.stages:
                 for index, stage in enumerate(wrapper.stages):
                     stage.stageId = f"{failed_records[0].failedStage.stageId}-remedial-{index}"
-                # 自動修正可能存在算氣或偏差的圍棋題型答案
-                self._autocorrect_go_stages(wrapper.stages)
+                # 執行動態註冊的組件擺放器 (如圍棋座標翻譯)
+                from app.services.domain.learning.lesson_components.placer_registry import placer_registry
+                import app.services.domain.learning.lesson_components.go.placer  # 強制載入並註冊圍棋 Placer
+                
+                placer_tasks = []
+                for stage in wrapper.stages:
+                    placer = placer_registry.get(stage.component)
+                    if placer:
+                        placer_tasks.append(placer(stage, self.provider))
+                if placer_tasks:
+                    await asyncio.gather(*placer_tasks)
+
                 return wrapper.stages
             return []
         except Exception as e:
@@ -388,63 +409,6 @@ class AIArchitectService:
         except Exception as e:
             activity_logger.error(f"Lesson Tutor Error: {e}")
             raise LLMGenerationError(f"Failed to answer lesson question: {e}")
-
-    def _autocorrect_go_stages(self, stages: List[LessonStage]) -> None:
-        """Call GoRulesEngine to verify and auto-correct expected/acceptable answers on Go puzzles."""
-        from app.services.domain.learning.lesson_components.go_rules_engine import GoRulesEngine
-        from app.services.domain.learning.lesson_components.evaluators import _normalize_stone_color
-        
-        for stage in stages:
-            if stage.component in ("GoBoardCoordinate", "GoBoardNumeric"):
-                data = stage.config.data
-                if not isinstance(data, dict):
-                    continue
-                board = data.get("board")
-                if not board:
-                    continue
-                    
-                try:
-                    engine = GoRulesEngine(board)
-                    if not engine.grid:
-                        continue
-                        
-                    if stage.component == "GoBoardCoordinate":
-                        question_text = data.get("question", "")
-                        player = _normalize_stone_color(data.get("playerColor")) or "B"
-                        
-                        ans_list = []
-                        if "提" in question_text or "吃" in question_text:
-                            ans_list = engine.find_capturing_moves("W" if player == "B" else "B")
-                        elif "禁" in question_text:
-                            ans_list = engine.find_no_entry_points(player)
-                        elif "連" in question_text:
-                            ans_list = engine.find_connecting_moves(player)
-                        elif "斷" in question_text:
-                            ans_list = engine.find_cutting_moves(player)
-                        elif "逃" in question_text:
-                            ans_list = engine.find_escaping_moves(player)
-                        elif "劫" in question_text or "叫吃" in question_text:
-                            ans_list = engine.find_atari_moves(player)
-                        else:
-                            ans_list = engine.find_any_legal_action(player)
-                            
-                        if ans_list:
-                            data["expectedAnswer"] = ans_list[0]
-                            data["acceptableAnswers"] = ans_list
-                            
-                    elif stage.component == "GoBoardNumeric":
-                        if engine.marks:
-                            computed = engine.count_marked_group_liberties()
-                            if computed is not None:
-                                data["expectedAnswer"] = str(computed)
-                        elif "目" in data.get("question", ""):
-                            computed = engine.count_black_territory()
-                            data["expectedAnswer"] = str(computed)
-                except Exception as e:
-                    # Defensive against malformed dynamic board layout
-                    print(f"Failed to auto-correct generated Go stage: {e}")
-
-
 
 from fastapi import Depends
 from app.services.ai_engine.clients.factory import get_llm_provider
