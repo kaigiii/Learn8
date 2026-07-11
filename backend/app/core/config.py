@@ -54,6 +54,15 @@ class Settings(BaseSettings):
     # (data/go_puzzles.json) instead of letting the LLM invent positions.
     GO_USE_PUZZLE_BANK: bool = True
 
+    # Syllabus generation options (Fine-grained control)
+    AI_SYLLABUS_USE_FILE_API: bool = True
+
+    # Lesson generation options (Fine-grained control)
+    AI_LESSON_USE_FILE_API: bool = True
+
+    # Questionnaire generation options (Fine-grained control)
+    AI_QUESTIONNAIRE_USE_FILE_API: bool = True
+
     # RAG Settings
     RAG_ENABLE_QUERY_EXPANSION: bool = False
     RAG_TOP_K: int = 4
@@ -117,7 +126,7 @@ class Settings(BaseSettings):
 
     # Content Whitelists (Comma-separated filenames)
     ENABLED_PUBLIC_COURSES: str = "ai_neural_networks.yaml,python_fundamentals.yaml,world_history.yaml"
-    ENABLED_GAME_MODULES: str = "ExplainerMedia.yaml,FeynmanMirror.yaml,MatchingPairs.yaml,MultipleChoice.yaml,Ordering.yaml,GoCountLiberties.yaml,GoCaptureStones.yaml,GoKo.yaml,GoEscape.yaml,GoNoEntry.yaml,GoConnect.yaml,GoCut.yaml,GoCountTerritory.yaml"
+    ENABLED_GAME_MODULES: str = "ExplainerMedia.yaml,FeynmanMirror.yaml,MatchingPairs.yaml,MultipleChoice.yaml,Ordering.yaml,GoBoardCoordinate.yaml,GoBoardNumeric.yaml"
     FEYNMAN_DEFAULT_MAX_ROUNDS: int = 8
     DEFAULT_VOICE_PRESET: str = "preset_01"
 

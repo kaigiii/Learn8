@@ -75,6 +75,8 @@ async def run_syllabus_generation_job(
         )
 
         provider = LLMFactory.create()
+        if files_used:
+            provider.bind_files(files_used, use_google_file_api=settings.AI_SYLLABUS_USE_FILE_API)
         rag_engine = RAGEngine(provider)
         agent = SyllabusAgent(provider, rag_engine)
 

@@ -80,7 +80,7 @@ class FakeLLMProvider(BaseLLMProvider):
         super().__init__()
         self.last_messages: list[Any] | None = None
 
-    def bind_files(self, files: list[str]) -> "FakeLLMProvider":
+    def bind_files(self, files: list[str], use_google_file_api: bool = True) -> "FakeLLMProvider":
         self._inject_local_files(files)
         return self
 

@@ -62,15 +62,62 @@ function parseBoardData(board: unknown): { rows: string[][]; size: number; markP
   }
 
   if (board && typeof board === "object") {
+    const size = (board as { size?: number }).size || 9;
+    const black = (board as { black?: string[] }).black || [];
+    const white = (board as { white?: string[] }).white || [];
+    const marks = (board as { marks?: string[] }).marks || [];
     const maybeRows = (board as { rows?: unknown }).rows;
-    const boardRows = Array.isArray(maybeRows)
-      ? maybeRows.map((entry) => normalizeRow(entry))
-      : [];
-    const markPoints = Array.isArray((board as { marks?: unknown }).marks)
-      ? (board as { marks: unknown[] }).marks.map((entry) => String(entry))
-      : [];
-    const size = Math.max(9, ...boardRows.map((row) => row.length), boardRows.length);
-    return { rows: boardRows, size, markPoints };
+
+    if (Array.isArray(maybeRows)) {
+      const boardRows = maybeRows.map((entry) => normalizeRow(entry));
+      const markPoints = Array.isArray((board as { marks?: unknown }).marks)
+        ? (board as { marks: unknown[] }).marks.map((entry) => String(entry))
+        : [];
+      const actualSize = Math.max(size, ...boardRows.map((row) => row.length), boardRows.length);
+      return { rows: boardRows, size: actualSize, markPoints };
+    } else if (Array.isArray(black) || Array.isArray(white)) {
+      const rows: string[][] = Array.from({ length: size }, () =>
+        Array.from({ length: size }, () => ".")
+      );
+
+      const coordToIdx = (coord: string) => {
+        if (!coord || coord.length < 2) return null;
+        const match = coord.trim().toUpperCase().match(/^([A-Z])(\d+)$/);
+        if (!match) return null;
+        const colLetter = match[1];
+        const rowNum = parseInt(match[2], 10);
+        const colIndex = colLetter.charCodeAt(0) - 65;
+        const rowIndex = size - rowNum;
+        return { rowIndex, colIndex };
+      };
+
+      black.forEach((coord) => {
+        const idx = coordToIdx(coord);
+        if (idx && idx.rowIndex >= 0 && idx.rowIndex < size && idx.colIndex >= 0 && idx.colIndex < size) {
+          rows[idx.rowIndex][idx.colIndex] = "B";
+        }
+      });
+
+      white.forEach((coord) => {
+        const idx = coordToIdx(coord);
+        if (idx && idx.rowIndex >= 0 && idx.rowIndex < size && idx.colIndex >= 0 && idx.colIndex < size) {
+          rows[idx.rowIndex][idx.colIndex] = "W";
+        }
+      });
+
+      const markPoints: string[] = [];
+      marks.forEach((coord) => {
+        markPoints.push(coord.trim().toUpperCase());
+        const idx = coordToIdx(coord);
+        if (idx && idx.rowIndex >= 0 && idx.rowIndex < size && idx.colIndex >= 0 && idx.colIndex < size) {
+          if (rows[idx.rowIndex][idx.colIndex] === ".") {
+            rows[idx.rowIndex][idx.colIndex] = "X";
+          }
+        }
+      });
+
+      return { rows, size, markPoints };
+    }
   }
 
   return { rows: [], size: 9, markPoints: [] };
@@ -222,10 +269,18 @@ export default function GoBoardQuestion({
   } | null>(null);
   const parsedBoard = useMemo(() => parseBoardData(board), [board]);
   const isNumericAnswerMode =
-    componentType === "GoCountLiberties" || componentType === "GoCountTerritory";
-  const isLibertiesMode = componentType === "GoCountLiberties";
-  const isCaptureMode = componentType === "GoCaptureStones";
-  const isNoEntryMode = componentType === "GoNoEntry";
+    componentType === "GoBoardNumeric" ||
+    componentType === "GoCountLiberties" ||
+    componentType === "GoCountTerritory";
+  const isLibertiesMode =
+    componentType === "GoCountLiberties" ||
+    (componentType === "GoBoardNumeric" && parsedBoard.markPoints.length > 0);
+  const isCaptureMode =
+    componentType === "GoCaptureStones" ||
+    (componentType === "GoBoardCoordinate" && (question.includes("提") || question.includes("吃")));
+  const isNoEntryMode =
+    componentType === "GoNoEntry" ||
+    (componentType === "GoBoardCoordinate" && question.includes("禁"));
 
   // For "choose a point" questions, show which colour stone the learner is
   // placing. Capture/tesuji questions have Black playing onto White; the author
@@ -377,12 +432,12 @@ export default function GoBoardQuestion({
         {description && <p className="mb-2">{description}</p>}
         <p>
           {isNumericAnswerMode
-            ? "請數出被標記棋串的氣（相鄰的空點），並在下方輸入數量。每次生成都會是全新的 AI 棋局。"
+            ? "請數出被標記棋串的氣（相鄰的空點），並在下方輸入數量。"
             : isCaptureMode
-              ? "請在棋盤上點選你要落子提走白棋的位置，或直接輸入座標（例如 D3）。每次生成都會是全新的 AI 棋局。"
+              ? "請在棋盤上點選你要落子提走白棋的位置，或直接輸入座標（例如 D3）。"
               : isNoEntryMode
-                ? "請在棋盤上點選黑棋不能下的禁入點（下了會沒有氣、又提不到子的位置），或直接輸入座標（例如 B2）。每次生成都會是全新的 AI 棋局。"
-                : "請點選棋盤上的落子點，或直接在下方輸入答案。每次生成都會是全新的 AI 棋局。"}
+                ? "請在棋盤上點選黑棋不能下的禁入點（下了會沒有氣、又提不到子的位置），或直接輸入座標（例如 B2）。"
+                : "請點選棋盤上的落子點，或直接在下方輸入答案。"}
         </p>
       </div>
 

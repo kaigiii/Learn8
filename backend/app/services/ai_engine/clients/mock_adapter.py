@@ -167,7 +167,7 @@ class MockLLMProvider(BaseLLMProvider):
     def __init__(self):
         super().__init__()
 
-    def bind_files(self, files: List[str]) -> "BaseLLMProvider":
+    def bind_files(self, files: List[str], use_google_file_api: bool = True) -> "BaseLLMProvider":
         return self
 
     async def generate_text(self, messages: List[Any], **kwargs) -> str:
