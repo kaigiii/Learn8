@@ -7,7 +7,7 @@ from torch import nn
 from torchvision import models, transforms
 from PIL import Image
 
-DEFAULT_MODEL_PATH = Path(__file__).resolve().parent / "model.pth"
+DEFAULT_MODEL_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "models" / "image_filter_model.pth"
 LABEL_MAP = {"meaningless": 0, "useful": 1}
 _MODEL_CACHE: dict[tuple[str, str], nn.Module] = {}
 _TRANSFORMS_CACHE: dict[int, transforms.Compose] = {}
