@@ -79,7 +79,7 @@ class Settings(BaseSettings):
     VISION_LLM_PROVIDER: str = "google"
     VISION_GEMINI_MODEL: str = "gemini-3.1-flash-lite"
     IMAGE_FILTER_ENABLED: bool = True
-    IMAGE_FILTER_MODEL_PATH: str = str(BASE_DIR / "app" / "core" / "model.pth")
+    IMAGE_FILTER_MODEL_PATH: str = str(BASE_DIR / "data" / "models" / "image_filter_model.pth")
     IMAGE_FILTER_IMAGE_SIZE: int = 224
 
     # Application Limits & Pricing
