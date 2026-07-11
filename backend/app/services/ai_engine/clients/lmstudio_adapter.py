@@ -20,7 +20,7 @@ class LMStudioProvider(BaseLLMProvider):
             max_tokens=settings.LMSTUDIO_MAX_TOKENS,
         )
 
-    def bind_files(self, files: List[str]) -> "BaseLLMProvider":
+    def bind_files(self, files: List[str], use_google_file_api: bool = True) -> "BaseLLMProvider":
         # Local models don't have a Cloud File API. Read locally and inject into context.
         if files:
             self._inject_local_files(files)

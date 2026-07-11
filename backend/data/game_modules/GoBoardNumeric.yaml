@@ -1,0 +1,26 @@
+name: GoBoardNumeric
+frontend_registry_key: GoBoardNumeric
+allowed_in_remedial: true
+voice_targets:
+  - question
+required_config_data_fields:
+  - question
+  - board
+  - expectedAnswer
+optional_config_data_fields:
+  - playerColor
+  - explanation
+submission_keys:
+  - answer
+description: If the goal is to let the learner count a specific value on the Go board (e.g. number of liberties of marked group, number of territory eyes).
+schema_requirements: |
+  config.data MUST contain:
+  - question: A concise prompt explaining what to count (e.g., "被標記的棋子共有幾口氣？").
+  - board: A dictionary representing the board coordinate placements:
+    - size: An integer for the board size (e.g. 5, 9, 13, 19).
+    - black: A list of standard coordinate strings for Black stones (e.g. ["C4", "E4"]).
+    - white: A list of standard coordinate strings for White stones (e.g. ["D3"]).
+    - marks: A list of standard coordinate strings to overlay with a marked symbol (e.g. ["C4"]).
+    (Or legacy list of equal-length strings, one per row).
+  - expectedAnswer: A string representing the correct numeric answer (e.g. "4").
+  - explanation: Optional explanation text shown after submission.

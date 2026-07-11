@@ -53,7 +53,7 @@ class BaseLLMProvider(ABC):
             )
 
     @abstractmethod
-    def bind_files(self, files: List[str]) -> "BaseLLMProvider":
+    def bind_files(self, files: List[str], use_google_file_api: bool = True) -> "BaseLLMProvider":
         """將檔案綁定至 LLM 上下文 (透過原生 File API 或本地文本注入)。"""
         pass
 

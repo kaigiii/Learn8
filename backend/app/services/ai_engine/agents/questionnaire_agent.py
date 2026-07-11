@@ -59,15 +59,22 @@ class QuestionnaireAgent:
         topic: str,
         course_id: int = None,
         preferred_language: str | None = None,
+        files_used: List[str] | None = None,
     ) -> List[Question]:
 
-        # 取得上下文以確保問題的關聯性
-        context_chunks = await self.rag_engine.query_context(
-            topic, k=2, course_id=course_id
-        )
-        context_str = (
-            "\\n".join(context_chunks) if context_chunks else "No specific context."
-        )
+        from app.core.config import settings
+
+        if settings.AI_QUESTIONNAIRE_USE_FILE_API and files_used:
+            self.provider.bind_files(files_used, use_google_file_api=True)
+            context_str = "Reference materials uploaded directly. Focus questionnaire on these materials."
+        else:
+            # 取得上下文以確保問題的關聯性
+            context_chunks = await self.rag_engine.query_context(
+                topic, k=2, course_id=course_id
+            )
+            context_str = (
+                "\n".join(context_chunks) if context_chunks else "No specific context."
+            )
 
         messages = [
             (

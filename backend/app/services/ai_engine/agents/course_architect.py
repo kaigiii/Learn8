@@ -11,8 +11,8 @@ from app.services.ai_engine.kb.rag_engine import RAGEngine
 from app.services.infra.files.service import FileService
 from app.services.ai_engine.clients.base_provider import BaseLLMProvider
 from app.core.exceptions import LLMGenerationError
+from app.core.config import settings
 from app.services.domain.user.activity_logger import activity_logger
-from app.services.domain.learning.go_puzzle_bank import apply_go_puzzle_bank
 
 # --- PROMPTS ---
 
@@ -85,23 +85,30 @@ class AIArchitectService:
         include_full_files: bool = False,
     ) -> List[LessonStage]:
 
-        # 1. 取得 RAG 上下文
-        context_chunks = await self.rag_engine.query_context(topic, course_id=course_id)
-        rag_context = (
-            "\n\n".join(context_chunks)
-            if context_chunks
-            else "No specific database context found."
-        )
-
-        # 2. 綁定本地專案檔案 (僅在需要時開啟，避免 lesson generation 過度膨脹)
-        if include_full_files and user_id:
+        # 1. Check if course has materials uploaded, and upload directly to Google server
+        files_used = []
+        if user_id and course_folder:
             files = self.file_service.list_files(user_id, course_folder)
             if files:
-                full_paths = [
+                files_used = [
                     str(self.file_service.get_upload_dir(user_id, course_folder) / f)
                     for f in files
                 ]
-                self.provider.bind_files(full_paths)
+
+        if settings.AI_LESSON_USE_FILE_API and files_used:
+            self.provider.bind_files(files_used, use_google_file_api=True)
+            rag_context = "Reference materials uploaded directly to Google servers. Focus generation on these materials."
+        else:
+            # Fallback to local RAG context if no files uploaded or if File API is disabled for lessons
+            context_chunks = await self.rag_engine.query_context(topic, course_id=course_id)
+            rag_context = (
+                "\n\n".join(context_chunks)
+                if context_chunks
+                else "No specific database context found."
+            )
+            # Bind files locally as plain text if requested and File API is disabled for lessons
+            if not settings.AI_LESSON_USE_FILE_API and include_full_files and files_used:
+                self.provider.bind_files(files_used, use_google_file_api=False)
 
         from langchain_core.messages import HumanMessage, SystemMessage
 
@@ -202,8 +209,8 @@ class AIArchitectService:
                 # 後處理：補上 ID
                 for i, stage in enumerate(wrapper.stages):
                     stage.stageId = f"{node.id}-s{i}"
-                # 圍棋題型改用預先驗證好的題庫棋譜，取代 LLM 生成的盤面。
-                apply_go_puzzle_bank(wrapper.stages)
+                # 自動修正可能存在算氣或座標偏差的圍棋題型答案
+                self._autocorrect_go_stages(wrapper.stages)
                 return wrapper.stages
             return []
         except Exception as e:
@@ -251,7 +258,8 @@ class AIArchitectService:
             if wrapper and wrapper.stages:
                 for index, stage in enumerate(wrapper.stages):
                     stage.stageId = f"{failed_records[0].failedStage.stageId}-remedial-{index}"
-                apply_go_puzzle_bank(wrapper.stages)
+                # 自動修正可能存在算氣或偏差的圍棋題型答案
+                self._autocorrect_go_stages(wrapper.stages)
                 return wrapper.stages
             return []
         except Exception as e:
@@ -380,6 +388,62 @@ class AIArchitectService:
         except Exception as e:
             activity_logger.error(f"Lesson Tutor Error: {e}")
             raise LLMGenerationError(f"Failed to answer lesson question: {e}")
+
+    def _autocorrect_go_stages(self, stages: List[LessonStage]) -> None:
+        """Call GoRulesEngine to verify and auto-correct expected/acceptable answers on Go puzzles."""
+        from app.services.domain.learning.lesson_components.go_rules_engine import GoRulesEngine
+        from app.services.domain.learning.lesson_components.evaluators import _normalize_stone_color
+        
+        for stage in stages:
+            if stage.component in ("GoBoardCoordinate", "GoBoardNumeric"):
+                data = stage.config.data
+                if not isinstance(data, dict):
+                    continue
+                board = data.get("board")
+                if not board:
+                    continue
+                    
+                try:
+                    engine = GoRulesEngine(board)
+                    if not engine.grid:
+                        continue
+                        
+                    if stage.component == "GoBoardCoordinate":
+                        question_text = data.get("question", "")
+                        player = _normalize_stone_color(data.get("playerColor")) or "B"
+                        
+                        ans_list = []
+                        if "提" in question_text or "吃" in question_text:
+                            ans_list = engine.find_capturing_moves("W" if player == "B" else "B")
+                        elif "禁" in question_text:
+                            ans_list = engine.find_no_entry_points(player)
+                        elif "連" in question_text:
+                            ans_list = engine.find_connecting_moves(player)
+                        elif "斷" in question_text:
+                            ans_list = engine.find_cutting_moves(player)
+                        elif "逃" in question_text:
+                            ans_list = engine.find_escaping_moves(player)
+                        elif "劫" in question_text or "叫吃" in question_text:
+                            ans_list = engine.find_atari_moves(player)
+                        else:
+                            ans_list = engine.find_any_legal_action(player)
+                            
+                        if ans_list:
+                            data["expectedAnswer"] = ans_list[0]
+                            data["acceptableAnswers"] = ans_list
+                            
+                    elif stage.component == "GoBoardNumeric":
+                        if engine.marks:
+                            computed = engine.count_marked_group_liberties()
+                            if computed is not None:
+                                data["expectedAnswer"] = str(computed)
+                        elif "目" in data.get("question", ""):
+                            computed = engine.count_black_territory()
+                            data["expectedAnswer"] = str(computed)
+                except Exception as e:
+                    # Defensive against malformed dynamic board layout
+                    print(f"Failed to auto-correct generated Go stage: {e}")
+
 
 
 from fastapi import Depends

@@ -74,6 +74,7 @@ async def run_questionnaire_generation_job(
             topic,
             course_id=course_id,
             preferred_language=user.preferred_language,
+            files_used=files_used,
         )
 
         _notify_job_update(db, job, 80, "正在優化問題描述與選項...")

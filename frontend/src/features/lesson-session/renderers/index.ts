@@ -17,6 +17,8 @@ import {
   goEscapePlugin,
   goKoPlugin,
   goNoEntryPlugin,
+  goBoardCoordinatePlugin,
+  goBoardNumericPlugin,
 } from "../question-types/go-board/plugin";
 import type { LessonStagePlugin, LessonStagePluginRegistry, StageRenderer } from "./types";
 import { renderUnsupportedStage } from "./unsupportedStageRenderer";
@@ -29,6 +31,8 @@ const stagePlugins = [
   explainerMediaPlugin,
   heapSortPlugin,
   heapSortExercisePlugin,
+  goBoardCoordinatePlugin,
+  goBoardNumericPlugin,
   goCountLibertiesPlugin,
   goCaptureStonesPlugin,
   goKoPlugin,

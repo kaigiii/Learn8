@@ -6,6 +6,21 @@ REMEDIAL_COMPONENTS = registry.get_remedial_component_names()
 REMEDIAL_COMPONENT_BULLETS = "\n".join(f"- `{name}`" for name in REMEDIAL_COMPONENTS)
 REMEDIAL_COMP_SCHEMA = registry.get_prompt_schema_reference_string(REMEDIAL_COMPONENTS)
 
+GO_PUZZLE_GUIDE = """
+### GO BOARD DESIGN RULES (CRITICAL FOR GO PUZZLES)
+If you generate `GoBoardCoordinate` or `GoBoardNumeric`:
+1. Use the new structured dictionary format for the `board` object:
+   - `size`: An integer for board size (usually 9, 13, or 19; or 5 for simple exercises).
+   - `black`: List of coordinates of Black stones, e.g. ["C4", "D3"].
+   - `white`: List of coordinates of White stones, e.g. ["E4"].
+   - `marks`: List of coordinates to place visual indicators (e.g. circle/triangle/square), e.g. ["C4"].
+2. Coordinates represent Columns A-T (excluding I is NOT required, A, B, C... map directly where A=0, B=1, C=2, D=3, E=4, F=5, G=6, H=7, I=8, J=9, K=10, L=11, M=12, N=13, O=14, P=15, Q=16, R=17, S=18, T=19) and Rows count from the bottom up starting at 1. For example, on a 9x9 board:
+   - Bottom-left point is A1.
+   - Top-right point is J9.
+   - Center point is E5.
+3. You do NOT need to write a perfect coordinate answer in `expectedAnswer`, but try your best. The system's rules engine will automatically correct it anyway. However, you MUST specify `playerColor` ("B" or "W") and draw a valid board layout.
+"""
+
 REFINE_SYLLABUS_PROMPT = """
 You are the "Learn8 Architect".
 Your goal is to REFINE an existing Course Syllabus based on user feedback.
@@ -112,9 +127,12 @@ Design an optimal **Learning Sequence** for this node.
 - Use simpler components for basic explanation and challenging components for synthesis.
 
 Ensure the sequence makes pedagogical sense. Do not just generic quiz.
+
+VAR_GO_GUIDE
 """
         .replace("VAR_COMP_MENU", component_menu)
         .replace("VAR_COMP_SCHEMA", component_schema)
+        .replace("VAR_GO_GUIDE", GO_PUZZLE_GUIDE)
     )
 
 REMEDIAL_SYSTEM_PROMPT = """
@@ -222,10 +240,13 @@ Every LessonStage MUST include:
 - `recommendedDurationMinutes`: an integer number of minutes, usually between 2 and 12
 
 Remedial stages should usually skew easier and shorter than the original failed content.
+
+VAR_GO_GUIDE
 """
         .replace("VAR_PROFILE", profile_block)
         .replace("VAR_REMEDIAL_COMPONENTS", REMEDIAL_COMPONENT_BULLETS)
         .replace("VAR_REMEDIAL_COMPONENT_SCHEMA", REMEDIAL_COMP_SCHEMA)
+        .replace("VAR_GO_GUIDE", GO_PUZZLE_GUIDE)
     )
 
 SYSTEM_PROMPT_FEYNMAN_STUDENT = """

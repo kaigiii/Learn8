@@ -15,6 +15,10 @@ const goBoardMeta = {
 
 function getVariantLabel(component: string) {
   switch (component) {
+    case "GoBoardCoordinate":
+      return "落子";
+    case "GoBoardNumeric":
+      return "數棋";
     case "GoCountLiberties":
       return "數氣";
     case "GoCaptureStones":
@@ -132,6 +136,20 @@ export const goCutPlugin = createLessonStagePlugin(
 
 export const goCountTerritoryPlugin = createLessonStagePlugin(
   "GoCountTerritory",
+  GoBoardStageRenderer,
+  goBoardMeta,
+  parseGoBoardStage
+);
+
+export const goBoardCoordinatePlugin = createLessonStagePlugin(
+  "GoBoardCoordinate",
+  GoBoardStageRenderer,
+  goBoardMeta,
+  parseGoBoardStage
+);
+
+export const goBoardNumericPlugin = createLessonStagePlugin(
+  "GoBoardNumeric",
   GoBoardStageRenderer,
   goBoardMeta,
   parseGoBoardStage

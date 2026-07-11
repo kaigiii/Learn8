@@ -15,12 +15,18 @@ from app.services.domain.learning.lesson_components.evaluators import (
 )
 
 
+def _map_legacy_component(comp: str) -> str:
+    if comp in ("GoCountLiberties", "GoCountTerritory", "GoBoardNumeric"):
+        return "GoBoardNumeric"
+    return "GoBoardCoordinate"
+
+
 def _liberties_stage(board, expected_answer):
     return LessonStage(
         stageId="go-lib",
         topic="圍棋數氣",
         skin="Scientific",
-        component="GoCountLiberties",
+        component=_map_legacy_component("GoCountLiberties"),
         validation=Validation(type="exact", condition={"answer": str(expected_answer)}),
         feedback=Feedback(success="正確", error="再想想"),
         config=GenericConfig(
@@ -60,7 +66,7 @@ def _capture_stage(board):
         stageId="go-cap",
         topic="圍棋提子",
         skin="Scientific",
-        component="GoCaptureStones",
+        component=_map_legacy_component("GoCaptureStones"),
         validation=Validation(type="exact", condition={"answer": ""}),
         feedback=Feedback(success="正確", error="再想想"),
         config=GenericConfig(
@@ -104,7 +110,7 @@ def _no_entry_stage(board, expected_answer):
         stageId="go-noentry",
         topic="圍棋禁入點",
         skin="Scientific",
-        component="GoNoEntry",
+        component=_map_legacy_component("GoNoEntry"),
         validation=Validation(type="exact", condition={"answer": str(expected_answer)}),
         feedback=Feedback(success="正確", error="再想想"),
         config=GenericConfig(
@@ -147,7 +153,7 @@ def test_go_board_evaluator_accepts_coordinate_answers():
         stageId="go-1",
         topic="圍棋數氣",
         skin="Scientific",
-        component="GoCountLiberties",
+        component=_map_legacy_component("GoCountLiberties"),
         validation=Validation(type="exact", condition={"answer": "4"}),
         feedback=Feedback(success="正確", error="再想想"),
         config=GenericConfig(
@@ -177,7 +183,7 @@ def _bank_stage(component, data):
         stageId="go-bank",
         topic="圍棋",
         skin="Scientific",
-        component=component,
+        component=_map_legacy_component(component),
         validation=Validation(type="exact", condition={"answer": data["expectedAnswer"]}),
         feedback=Feedback(success="正確", error="再想想"),
         config=GenericConfig(data=data, initialState={}),
@@ -230,6 +236,7 @@ def test_apply_go_puzzle_bank_replaces_go_board():
     )
     apply_go_puzzle_bank([stage])
     data = stage.config.data
-    assert len(data["board"]) == 5 and all(len(row) == 5 for row in data["board"])
+    assert data["board"]["size"] == 5
+    assert isinstance(data["board"]["black"], list)
     assert data["expectedAnswer"] != "ZZ"
     assert data.get("explanation")
