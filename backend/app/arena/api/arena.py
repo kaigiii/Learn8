@@ -79,9 +79,12 @@ def get_public_course(
     if not course.syllabus_json:
         raise HTTPException(status_code=409, detail="This public course does not have a mapped syllabus yet")
         
-    path = CoursePath(**course.syllabus_json)
+    syllabus_data = course.syllabus_json if isinstance(course.syllabus_json, dict) else {}
+    path = CoursePath(**syllabus_data)
     path.id = course.id
     path.topic = course.topic
+    path.isPublic = True
+    path.isCustom = False
     
     return path.model_dump()
 

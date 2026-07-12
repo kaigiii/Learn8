@@ -18,10 +18,7 @@ from app.services.domain.user.activity_logger import activity_logger
 # --- PROMPTS ---
 
 from app.services.ai_engine.agents.course_architect_prompts import (
-    REFINE_SYLLABUS_PROMPT,
-    NODE_SYSTEM_PROMPT,
     build_node_system_prompt,
-    REMEDIAL_SYSTEM_PROMPT,
     build_remedial_system_prompt,
     SYSTEM_PROMPT_FEYNMAN_STUDENT,
     SYSTEM_PROMPT_FEYNMAN_ADVISOR,

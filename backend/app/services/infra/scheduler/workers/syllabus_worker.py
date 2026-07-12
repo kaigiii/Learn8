@@ -116,6 +116,11 @@ async def run_syllabus_generation_job(
             raise Exception(f"Course {course_id} not found.")
         c_model.title = syllabus.courseTitle
         c_model.topic = topic
+        
+        is_published = bool(c_model.is_published)
+        syllabus.isPublic = is_published
+        syllabus.isCustom = not is_published
+        
         c_model.syllabus_json = syllabus.model_dump()
         c_model.updated_at = utc_now()
         mark_syllabus_completed(c_model)
