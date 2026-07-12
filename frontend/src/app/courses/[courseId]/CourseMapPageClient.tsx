@@ -7,6 +7,7 @@ import TopStatsBar from "@/components/layout/TopStatsBar";
 import { NODE_STATUS } from "@/lib/domain/statuses";
 import { useDelayedVisibility } from "@/lib/ui/useDelayedVisibility";
 import { useCourseStore } from "@/stores/app/useCourseStore";
+import { useAuthStore } from "@/stores/app/useAuthStore";
 import useUserStore, { selectLastActiveNodeId } from "@/stores/app/useUserStore";
 import { CourseMapAssistantPanel } from "./components/CourseMapAssistantPanel";
 import { CourseMapBackground } from "./components/CourseMapBackground";
@@ -128,7 +129,21 @@ export default function CourseMapPageClient({
 
   const selectedNode =
     nodes.find((node) => node.id === selectedNodeId) ?? null;
-  const showAssistantPanel = Boolean(coursePath && !coursePath.isPublic);
+
+  const authUser = useAuthStore((s) => s.user);
+  const emailLocalPart = (authUser?.email || "").trim().toLowerCase().split("@")[0] ?? "";
+  const userHandle = (authUser?.full_name || authUser?.email || "").trim().toLowerCase();
+  const isDevAccount =
+    userHandle === "dev" ||
+    emailLocalPart === "dev" ||
+    userHandle.startsWith("dev ") ||
+    userHandle.startsWith("dev-") ||
+    userHandle.startsWith("dev_");
+  const isAdministrator = Boolean(authUser?.is_admin || isDevAccount);
+
+  const showAssistantPanel = Boolean(
+    coursePath && (!coursePath.isPublic || isAdministrator)
+  );
 
   if (!isBackendCourse) {
     return null;

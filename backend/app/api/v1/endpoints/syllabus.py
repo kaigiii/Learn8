@@ -62,9 +62,15 @@ async def generate_syllabus(
         raise HTTPException(status_code=404, detail="Course not found")
 
     if course.syllabus_json and not regenerate and course.status == CourseStatus.READY:
-        path = CoursePath(**course.syllabus_json)
+        syllabus_data = course.syllabus_json if isinstance(course.syllabus_json, dict) else {}
+        path = CoursePath(**syllabus_data)
         path.id = course.id
         path.topic = course.topic
+        
+        is_published = bool(course.is_published)
+        path.isPublic = is_published
+        path.isCustom = not is_published
+        
         return path
 
     ensure_course_can_generate_syllabus(course, regenerate=regenerate)
@@ -167,39 +173,37 @@ async def refine_syllabus_endpoint(
 ):
     course_folder_name = None
     course = None
+    is_admin = False
     learner_profile_summary = build_generation_profile_context(
         None,
         current_user.preferred_language,
         "General Audience",
     )
     if request.courseId:
-        from app.api.v1.endpoints.courses import SYSTEM_USER_EMAIL
-        system_user = db.query(UserModel).filter(UserModel.email == SYSTEM_USER_EMAIL).first()
-        course = db.query(CourseModel).filter(CourseModel.id == request.courseId).first()
-        if system_user and course and course.user_id == system_user.id:
-            raise HTTPException(status_code=403, detail="Official topics are immutable and cannot be refined.")
-
-    if request.courseId:
+        from app.services.domain.user.service import UserService
+        is_admin = UserService.is_admin(current_user)
+        
         def _fetch_refine_course():
-            return (
-                db.query(CourseModel)
-                .filter(
-                    CourseModel.id == request.courseId,
-                    CourseModel.user_id == current_user.id,
-                )
-                .first()
-            )
+            query = db.query(CourseModel).filter(CourseModel.id == request.courseId)
+            if not is_admin:
+                query = query.filter(CourseModel.user_id == current_user.id)
+            return query.first()
 
         course = await run_in_threadpool(_fetch_refine_course)
-        if course:
-            course_folder_name = course.folder_name
-            learner_profile_summary = build_generation_profile_context(
-                course.profile_json.get("summary")
-                if isinstance(course.profile_json, dict)
-                else None,
-                current_user.preferred_language,
-                "General Audience",
-            )
+        if not course:
+            raise HTTPException(status_code=404, detail="Course not found")
+
+        if course.is_published and not is_admin:
+            raise HTTPException(status_code=403, detail="Published courses are immutable and cannot be refined.")
+
+        course_folder_name = course.folder_name
+        learner_profile_summary = build_generation_profile_context(
+            course.profile_json.get("summary")
+            if isinstance(course.profile_json, dict)
+            else None,
+            current_user.preferred_language,
+            "General Audience",
+        )
 
     result = await syllabus_graph.ainvoke(
         {
@@ -230,26 +234,28 @@ async def refine_syllabus_endpoint(
     )
 
     refined_syllabus = result["syllabus"]
+    is_published = bool(course.is_published) if course else False
+    refined_syllabus.isPublic = is_published
+    refined_syllabus.isCustom = not is_published
 
     def _persist_refined_syllabus():
         course_id = request.currentSyllabus.id
         if not course_id:
             return
 
-        course = (
-            db.query(CourseModel)
-            .filter(CourseModel.id == course_id, CourseModel.user_id == current_user.id)
-            .first()
-        )
-        if not course:
+        query = db.query(CourseModel).filter(CourseModel.id == course_id)
+        if not is_admin:
+            query = query.filter(CourseModel.user_id == current_user.id)
+        target_course = query.first()
+        if not target_course:
             return
 
-        course.title = refined_syllabus.courseTitle
+        target_course.title = refined_syllabus.courseTitle
         if refined_syllabus.topic:
-            course.topic = refined_syllabus.topic
-        course.syllabus_json = refined_syllabus.model_dump()
-        flag_modified(course, "syllabus_json")
-        _sync_course_nodes(db, course, refined_syllabus)
+            target_course.topic = refined_syllabus.topic
+        target_course.syllabus_json = refined_syllabus.model_dump()
+        flag_modified(target_course, "syllabus_json")
+        _sync_course_nodes(db, target_course, refined_syllabus)
         db.commit()
 
     await run_in_threadpool(_persist_refined_syllabus)

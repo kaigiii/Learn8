@@ -7,42 +7,10 @@ from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
-GENERATE_QUESTIONS_PROMPT = """You are an expert educational psychologist.
-Your task is to create a short, adaptive questionnaire (3-5 questions) for a student about to learn: "{topic}".
-The goal is to understand their learning style, background knowledge, and personality to tailor the course.
-Preferred response language: {preferred_language}
-
-Context from their uploaded materials:
-{context}
-
-Output a JSON object with:
-- questions: List of objects {{ "id": string, "text": string, "type": "choice", "options": [string] }}
-
-RULES:
-1. GENERATE ONLY MULTIPLE CHOICE QUESTIONS.
-2. MUST provide 2-5 concise options (e.g. A, B, C, D) for every question.
-3. ALL questions must have options. Do NOT create open-ended questions.
-4. Do NOT include "Other" or "Skip" options (the UI adds them automatically).
-"""
-
-SUMMARIZE_PROFILE_PROMPT = """You are an expert curriculum designer.
-Analyze the following student responses to a pre-course questionnaire about "{topic}".
-Preferred response language: {preferred_language}
-
-Questions & Answers:
-{qa_pairs}
-
-Create a concise "Learner Profile" that I can use to customize their syllabus.
-Identify their:
-1. Learning Style (Visual, Theoretical, Practical, etc.)
-2. Knowledge Level (Beginner, Intermediate, Advanced)
-3. Specific Interests
-4. Tone preference
-
-Output a JSON object with:
-- summary: string (A paragraph describing the learner)
-- attributes: dict (Key-value pairs of the identified traits)
-"""
+from app.services.ai_engine.agents.questionnaire_prompts import (
+    GENERATE_QUESTIONS_PROMPT,
+    SUMMARIZE_PROFILE_PROMPT,
+)
 
 
 class QuestionList(BaseModel):

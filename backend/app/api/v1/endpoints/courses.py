@@ -169,7 +169,8 @@ def get_course_detail(
     if not course.syllabus_json:
         raise HTTPException(status_code=409, detail="Course syllabus is not ready yet")
 
-    path = CoursePath(**course.syllabus_json)
+    syllabus_data = course.syllabus_json if isinstance(course.syllabus_json, dict) else {}
+    path = CoursePath(**syllabus_data)
     path.id = course.id
     path.topic = course.topic
 
@@ -195,40 +196,35 @@ def get_course_detail(
             node.hasGeneratedLesson = node.id in generated_node_ids
 
     # Patch for public and custom courses: dynamically update status based on current_user's completions
-    system_user = db.query(UserModel).filter(UserModel.email == SYSTEM_USER_EMAIL).first()
-    is_custom = course and system_user and course.user_id != system_user.id
-    if is_custom:
-        path.isCustom = True
+    is_published = bool(course.is_published)
+    path.isPublic = is_published
+    path.isCustom = not is_published
 
-    if (system_user and course.user_id == system_user.id) or is_custom:
-        if system_user and course.user_id == system_user.id:
-            path.isPublic = True
+    completed_node_ids = {
+        row[0]
+        for row in db.query(LessonSessionModel.node_id)
+        .filter(
+            LessonSessionModel.user_id == current_user.id,
+            LessonSessionModel.course_id == course.id,
+            LessonSessionModel.status == LessonSessionStatus.COMPLETED,
+        )
+        .all()
+    }
 
-        completed_node_ids = {
-            row[0]
-            for row in db.query(LessonSessionModel.node_id)
-            .filter(
-                LessonSessionModel.user_id == current_user.id,
-                LessonSessionModel.course_id == course.id,
-                LessonSessionModel.status == LessonSessionStatus.COMPLETED,
-            )
-            .all()
-        }
+    all_nodes_flat = []
+    for unit in path.units:
+        for node in unit.nodes:
+            all_nodes_flat.append(node)
 
-        all_nodes_flat = []
-        for unit in path.units:
-            for node in unit.nodes:
-                all_nodes_flat.append(node)
-
-        for i, node in enumerate(all_nodes_flat):
-            if node.id in completed_node_ids:
-                node.status = NodeStatus.COMPLETED
-            elif i == 0:
-                node.status = NodeStatus.AVAILABLE
-            elif all_nodes_flat[i - 1].id in completed_node_ids:
-                node.status = NodeStatus.AVAILABLE
-            else:
-                node.status = NodeStatus.LOCKED
+    for i, node in enumerate(all_nodes_flat):
+        if node.id in completed_node_ids:
+            node.status = NodeStatus.COMPLETED
+        elif i == 0:
+            node.status = NodeStatus.AVAILABLE
+        elif all_nodes_flat[i - 1].id in completed_node_ids:
+            node.status = NodeStatus.AVAILABLE
+        else:
+            node.status = NodeStatus.LOCKED
 
     return path
 
@@ -678,6 +674,12 @@ async def update_node_status(
 
     await run_in_threadpool(_update_db_nodes)
 
-    path = CoursePath(**course_record.syllabus_json)
+    syllabus_data = course_record.syllabus_json if isinstance(course_record.syllabus_json, dict) else {}
+    path = CoursePath(**syllabus_data)
     path.id = course_record.id
+    
+    is_published = bool(course_record.is_published)
+    path.isPublic = is_published
+    path.isCustom = not is_published
+    
     return path
