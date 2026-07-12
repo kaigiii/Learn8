@@ -7,6 +7,8 @@ from sqlalchemy.orm import sessionmaker
 
 os.environ.setdefault("DATABASE_URL", "sqlite:///./learn8-test.db")
 os.environ.setdefault("SECRET_KEY", "test-secret-key")
+os.environ.setdefault("GOOGLE_API_KEY", "dummy-key-for-testing")
+os.environ.setdefault("GEMINI_API_KEY", "dummy-key-for-testing")
 
 from app.db.base import Base
 from app.db import registry  # noqa: F401
