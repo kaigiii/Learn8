@@ -124,6 +124,9 @@ def test_refine_syllabus_rules_and_admin_bypass(local_db_session, local_user):
     app.dependency_overrides[get_db] = lambda: local_db_session
     app.dependency_overrides[get_current_user] = lambda: local_user
 
+    from app.arena.config import arena_settings
+    original_admins = arena_settings.ARENA_ADMIN_EMAILS
+
     try:
         # Normal user trying to refine published course should get 403
         refine_payload = {
@@ -150,6 +153,8 @@ def test_refine_syllabus_rules_and_admin_bypass(local_db_session, local_user):
         local_db_session.commit()
         local_db_session.refresh(admin_user)
 
+        # Force email to be in allowed admins
+        arena_settings.ARENA_ADMIN_EMAILS = "dev@learn8.ai"
         app.dependency_overrides[get_current_user] = lambda: admin_user
 
         # Admin user trying to refine should bypass the 403 check
@@ -169,4 +174,5 @@ def test_refine_syllabus_rules_and_admin_bypass(local_db_session, local_user):
             assert response.json()["courseTitle"] == "Refined Published Course"
 
     finally:
+        arena_settings.ARENA_ADMIN_EMAILS = original_admins
         app.dependency_overrides.clear()
