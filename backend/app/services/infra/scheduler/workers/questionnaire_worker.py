@@ -65,6 +65,14 @@ async def run_questionnaire_generation_job(
         rag_engine = RAGEngine(provider)
         agent = QuestionnaireAgent(provider, rag_engine)
 
+        # 準備實體檔案絕對路徑
+        resolved_files = []
+        if course and course.folder_name and files_used:
+            from app.services.infra.files.service import FileService
+            resolved_files = FileService().resolve_absolute_paths(
+                files_used, user_id, course.folder_name
+            )
+
         _notify_job_update(db, job, 20, "正在掃描參考資料與上下文...")
         await asyncio.sleep(1)
 
@@ -74,7 +82,7 @@ async def run_questionnaire_generation_job(
             topic,
             course_id=course_id,
             preferred_language=user.preferred_language,
-            files_used=files_used,
+            files_used=resolved_files,
         )
 
         _notify_job_update(db, job, 80, "正在優化問題描述與選項...")

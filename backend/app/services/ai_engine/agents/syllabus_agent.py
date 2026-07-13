@@ -6,7 +6,6 @@ from pydantic import BaseModel, Field
 
 from app.domain.statuses import NodeStatus
 from app.schemas.course_schema import CoursePath, Unit as CourseUnit, LessonNode as CourseNode
-from app.services.ai_engine.kb.rag_engine import RAGEngine
 from app.services.ai_engine.clients.base_provider import BaseLLMProvider
 from app.services.ai_engine.agents.syllabus_prompts import (
     PLANNER_SYSTEM_PROMPT,
@@ -70,9 +69,8 @@ class AuditorOutput(BaseModel):
 # --- 代理人引擎 (AGENT) ---
 
 class SyllabusAgent:
-    def __init__(self, provider: BaseLLMProvider, rag_engine: RAGEngine):
+    def __init__(self, provider: BaseLLMProvider):
         self.provider = provider
-        self.rag_engine = rag_engine
 
     def apply_actions(self, course: CoursePath, actions: List[ActionItem]):
         """在原有大綱草稿上，批次進行增刪修動作"""
@@ -267,12 +265,10 @@ class SyllabusAgent:
 
 from fastapi import Depends
 from app.services.ai_engine.clients.factory import get_llm_provider
-from app.services.ai_engine.kb.rag_engine import get_rag_engine
 
 
 def get_syllabus_agent(
     provider: BaseLLMProvider = Depends(get_llm_provider),
-    rag_engine: RAGEngine = Depends(get_rag_engine),
 ) -> SyllabusAgent:
     """FastAPI Dependency for SyllabusAgent"""
-    return SyllabusAgent(provider, rag_engine)
+    return SyllabusAgent(provider)

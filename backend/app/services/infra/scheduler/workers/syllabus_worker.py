@@ -8,7 +8,6 @@ from app.core.time import utc_now
 from app.services.ai_engine.agents.syllabus_agent import SyllabusAgent
 from app.services.domain.user.activity_logger import ActivityLogger
 from app.services.ai_engine.clients.factory import LLMFactory
-from app.services.ai_engine.kb.rag_engine import RAGEngine
 from app.core.config import settings
 from app.services.infra.scheduler.workers.job_notifier import _notify_job_update, _publish_job_notification
 from app.services.domain.user.economy import spend_user_credits
@@ -75,10 +74,17 @@ async def run_syllabus_generation_job(
         )
 
         provider = LLMFactory.create()
-        if files_used:
-            provider.bind_files(files_used, use_google_file_api=settings.AI_SYLLABUS_USE_FILE_API)
-        rag_engine = RAGEngine(provider)
-        agent = SyllabusAgent(provider, rag_engine)
+        # 準備實體檔案絕對路徑
+        resolved_files = []
+        if course_folder_name and files_used:
+            from app.services.infra.files.service import FileService
+            resolved_files = FileService().resolve_absolute_paths(
+                files_used, user_id, course_folder_name
+            )
+
+        if resolved_files:
+            provider.bind_files(resolved_files, use_google_file_api=settings.AI_SYLLABUS_GEN_USE_FILE_API)
+        agent = SyllabusAgent(provider)
 
         def cb(prog: int | None, msg: str):
             _notify_job_update(

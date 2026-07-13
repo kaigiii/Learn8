@@ -69,6 +69,19 @@ class FileService:
         # 目前仍靜態呼叫 DocumentProcessor，依賴其類別方法
         return DocumentProcessor.read_content(file_path, max_chars=limit)
 
+    def list_absolute_files(self, user_id: int, course_folder: str) -> list[str]:
+        """列出該目錄下的所有檔案，並直接返回實體絕對路徑"""
+        upload_dir = self.get_upload_dir(user_id, course_folder)
+        files = self.list_files(user_id, course_folder)
+        return [str(upload_dir / f) for f in files]
+
+    def resolve_absolute_paths(self, filenames: list[str], user_id: int, course_folder: str) -> list[str]:
+        """將傳入的相對檔名清單，統一轉換為實體絕對路徑"""
+        if not filenames:
+            return []
+        upload_dir = self.get_upload_dir(user_id, course_folder)
+        return [str(upload_dir / f) for f in filenames]
+
 
 def get_file_service() -> FileService:
     """FastAPI Dependency for FileService"""

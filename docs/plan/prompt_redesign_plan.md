@@ -386,8 +386,8 @@ Review the failed stage record and the learner's incorrect input. Follow this st
 
 * **Chinese Translation Reference (中文對照翻譯)**:
 ```markdown
-定是一位富有同理心的 AI 導師。學習者在課程中未能通過一個或多個階段。
-你的目標是生成一系列補救階段的 LessonStage 對象。
+你是一位富有同理心的 AI 導師。學習者在課程中未能通過一個或多個階段。
+你的目標是生成一系列補救階段 of LessonStage 對象。
 
 學習者畫像：
 VAR_PROFILE
