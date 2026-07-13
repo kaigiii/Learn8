@@ -42,6 +42,7 @@ class AIArchitectService:
         self,
         current_syllabus: CoursePath,
         user_feedback: str,
+        topic: Optional[str] = None,
         user_id: Optional[int] = None,
         course_folder: Optional[str] = None,
         learner_profile_summary: str = "",
@@ -49,8 +50,33 @@ class AIArchitectService:
         from app.services.ai_engine.agents.syllabus_agent import SyllabusAgent, AuditorOutput
         from app.services.ai_engine.agents.syllabus_prompts import AUDITOR_SYSTEM_PROMPT
 
+        # 1. 準備檔案列表與路徑
+        files_used = []
+        if user_id and course_folder:
+            files_used = self.file_service.list_absolute_files(user_id, course_folder)
+
+        # 2. 依據 AI_SYLLABUS_EDIT_USE_FILE_API 與 RAG 設定載入上下文
+        rag_context = ""
+        if settings.AI_SYLLABUS_EDIT_USE_FILE_API and files_used:
+            self.provider.bind_files(files_used, use_google_file_api=True)
+            rag_context = "Reference materials uploaded directly to Google servers. Focus syllabus editing/refining on these materials."
+        else:
+            # Fallback to local RAG context if no files uploaded or if File API is disabled for editing
+            resolved_topic = topic or current_syllabus.topic or user_feedback
+            context_chunks = await self.rag_engine.query_context(resolved_topic, course_id=current_syllabus.id)
+            rag_context = (
+                "\n\n".join(context_chunks)
+                if context_chunks
+                else "No specific database context found."
+            )
+            # Bind files locally as plain text if requested and File API is disabled for editing
+            if not settings.AI_SYLLABUS_EDIT_USE_FILE_API and files_used:
+                self.provider.bind_files(files_used, use_google_file_api=False)
+
         refine_system_prompt = (
             AUDITOR_SYSTEM_PROMPT
+            + f"\n\nLearner Profile Summary:\n{learner_profile_summary or 'General Audience'}"
+            + f"\n\nVector Database/File Context:\n{rag_context}"
             + f"\n\nCRITICAL USER REQUEST:\nThe user explicitly requested the following change: '{user_feedback}'.\nYou MUST prioritize and apply this specific modification if it aligns with pedagogical logic. Output the required tool actions to apply the change."
         )
 
@@ -86,12 +112,7 @@ class AIArchitectService:
         # 1. Check if course has materials uploaded, and upload directly to Google server
         files_used = []
         if user_id and course_folder:
-            files = self.file_service.list_files(user_id, course_folder)
-            if files:
-                files_used = [
-                    str(self.file_service.get_upload_dir(user_id, course_folder) / f)
-                    for f in files
-                ]
+            files_used = self.file_service.list_absolute_files(user_id, course_folder)
 
         if settings.AI_LESSON_USE_FILE_API and files_used:
             self.provider.bind_files(files_used, use_google_file_api=True)

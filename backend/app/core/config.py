@@ -53,7 +53,8 @@ class Settings(BaseSettings):
 
 
     # Syllabus generation options (Fine-grained control)
-    AI_SYLLABUS_USE_FILE_API: bool = True
+    AI_SYLLABUS_GEN_USE_FILE_API: bool = True
+    AI_SYLLABUS_EDIT_USE_FILE_API: bool = True
 
     # Lesson generation options (Fine-grained control)
     AI_LESSON_USE_FILE_API: bool = True

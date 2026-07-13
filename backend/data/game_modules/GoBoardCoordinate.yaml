@@ -18,13 +18,10 @@ description: If the goal is to let the learner select a single coordinate on the
 schema_requirements: |
   config.data MUST contain:
   - question: A concise prompt explaining what to solve (e.g., "黑棋下在哪裡可以把白棋提走？").
-  - board: A dictionary representing the board coordinate placements:
-    - size: An integer for the board size (e.g. 5, 9, 13, 19).
-    - black: A list of standard coordinate strings for Black stones (e.g. ["C4", "E4"]).
-    - white: A list of standard coordinate strings for White stones (e.g. ["D3"]).
-    - marks: A list of standard coordinate strings to overlay with a marked symbol (e.g. ["C4"]).
-    (Or legacy list of equal-length strings, one per row).
-  - playerColor: Optional color hint ("B" or "W") indicating whose turn it is. Defaults to "B".
-  - expectedAnswer: The correct coordinate notation (e.g. "C4") matching standard board notation.
-  - acceptableAnswers: Optional list of all correct coordinate notations (e.g. ["C4", "D4"]).
-  - explanation: Optional explanation text shown after submission.
+  - board_blueprint: You MUST populate this field with a clear, step-by-step textual description of the board situation (e.g., "Board size 9. One Black stone at E5. White stones surrounding E5 at D5, F5, and E4. The player's turn is White, aiming to capture the Black stone at E5 by playing at E6.").
+  - playerColor: Color ("B" or "W") indicating whose turn it is.
+
+  CRITICAL RULES:
+  - You MUST NOT try to populate the complex `board` dictionary or `expectedAnswer` directly. Leave them empty/omitted. A downstream specialist mapper agent will compile your `board_blueprint` into precise coordinate lists and validate them against rules of Go.
+  - All text fields (question, explanation, prompts) MUST be in the preferred language of the learner.
+

@@ -34,6 +34,7 @@ async def refine_step(state: SyllabusState):
     new_syllabus = await architect_service.refine_course_syllabus(
         current_syllabus=state["syllabus"],
         user_feedback=state["user_feedback"],
+        topic=state.get("topic"),
         user_id=state.get("user_id"),
         course_folder=state.get("course_folder"),
         learner_profile_summary=state.get("learner_profile_summary") or "",
