@@ -100,8 +100,8 @@ async def generate_syllabus(
         files = file_service.list_files(current_user.id, course_folder_name)
 
         if settings.AI_SYLLABUS_GEN_USE_FILE_API:
-            # Files are bound directly to Google File API in the background worker, so no local string fallback is needed.
-            full_text_context = "Reference materials uploaded directly to Google servers."
+            # Files are bound directly to the AI provider in the background worker, so no local string fallback is needed.
+            full_text_context = "Reference materials bound directly to the AI provider."
         else:
             # Fallback to local text extraction if File API is disabled
             for fname in files:

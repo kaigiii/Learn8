@@ -2,7 +2,7 @@ import uuid
 from typing import List
 import os
 import datetime
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks, Query
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
@@ -458,6 +458,7 @@ async def get_public_image(filename: str):
 async def upload_course_document(
     file: UploadFile = File(...),
     course_id: int | None = None,
+    ingest_rag: bool | None = Query(None, description="Whether to ingest the document into RAG database upon upload"),
     current_user: UserModel = Depends(get_current_user),
     db: Session = Depends(get_db),
     file_service: FileService = Depends(get_file_service),
@@ -479,16 +480,22 @@ async def upload_course_document(
         db.commit()
         db.refresh(course)
 
+    from app.core.config import settings
+    should_ingest = ingest_rag if ingest_rag is not None else settings.AI_INGEST_RAG_ON_UPLOAD
+
     try:
         file_service.save_upload_file(file, current_user.id, course.folder_name)
-        await file.seek(0)
-        await rag_engine.ingest_document(
-            file,
-            user_id=current_user.id,
-            course_id=course_id,
-            course_folder=course.folder_name,
-        )
-        return {"message": "File uploaded and ingested."}
+        if should_ingest:
+            await file.seek(0)
+            await rag_engine.ingest_document(
+                file,
+                user_id=current_user.id,
+                course_id=course_id,
+                course_folder=course.folder_name,
+            )
+            return {"message": "File uploaded and ingested."}
+        else:
+            return {"message": "File uploaded successfully (RAG ingestion skipped)."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

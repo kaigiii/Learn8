@@ -59,7 +59,7 @@ class AIArchitectService:
         rag_context = ""
         if settings.AI_SYLLABUS_EDIT_USE_FILE_API and files_used:
             self.provider.bind_files(files_used, use_google_file_api=True)
-            rag_context = "Reference materials uploaded directly to Google servers. Focus syllabus editing/refining on these materials."
+            rag_context = "Reference materials bound directly to the AI provider. Focus syllabus editing/refining on these materials."
         else:
             # Fallback to local RAG context if no files uploaded or if File API is disabled for editing
             resolved_topic = topic or current_syllabus.topic or user_feedback
@@ -116,7 +116,7 @@ class AIArchitectService:
 
         if settings.AI_LESSON_USE_FILE_API and files_used:
             self.provider.bind_files(files_used, use_google_file_api=True)
-            rag_context = "Reference materials uploaded directly to Google servers. Focus generation on these materials."
+            rag_context = "Reference materials bound directly to the AI provider. Focus generation on these materials."
         else:
             # Fallback to local RAG context if no files uploaded or if File API is disabled for lessons
             context_chunks = await self.rag_engine.query_context(topic, course_id=course_id)

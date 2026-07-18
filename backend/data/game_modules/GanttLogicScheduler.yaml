@@ -1,0 +1,21 @@
+name: "GanttLogicScheduler"
+frontend_registry_key: "GanttLogicScheduler"
+description: "通用甘特圖排程器。學員需在簡化時間軸上安排任務起迄並拉出先後順序，系統自動驗證相依性與總工期邏輯。"
+allowed_in_remedial: false
+required_config_data_fields:
+  - "title"
+  - "tasks"
+  - "timeLimit"
+optional_config_data_fields:
+  - "dependencies"
+  - "instruction"
+submission_keys:
+  - "completed"
+  - "logicErrors"
+  - "durationUsed"
+schema_requirements: |
+  - `title`: String, title of the scheduling scenario (e.g., "專案進度落後補救排程").
+  - `tasks`: Array of objects: `[{id, label, defaultDuration}]`.
+  - `timeLimit`: Integer, total days/hours available on the scheduler timeline.
+  - `dependencies`: Array of strings defining sequential constraints (e.g., `["task1 -> task2"]` meaning task1 must finish before task2 starts).
+  - `instruction`: String, describes the scenario constraints and requirements.
