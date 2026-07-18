@@ -57,6 +57,7 @@ def test_go_board_scores_against_board_not_authored_answer():
 
 
 def _capture_stage(board):
+    ans_list = find_capturing_moves(board)
     return LessonStage(
         stageId="go-cap",
         topic="圍棋提子",
@@ -69,7 +70,8 @@ def _capture_stage(board):
                 "question": "黑棋下在哪裡可以把白棋提走？",
                 "board": board,
                 # Authored answer is an (irrelevant) count — grading must ignore it.
-                "expectedAnswer": "1",
+                "expectedAnswer": ans_list[0] if ans_list else "1",
+                "acceptableAnswers": ans_list,
             },
             initialState={},
         ),
@@ -101,6 +103,7 @@ def test_go_capture_grades_by_capturing_position():
 
 
 def _no_entry_stage(board, expected_answer):
+    ans_list = find_no_entry_points(board)
     return LessonStage(
         stageId="go-noentry",
         topic="圍棋禁入點",
@@ -113,6 +116,7 @@ def _no_entry_stage(board, expected_answer):
                 "question": "哪一個點是黑棋的禁入點？",
                 "board": board,
                 "expectedAnswer": str(expected_answer),
+                "acceptableAnswers": ans_list,
             },
             initialState={},
         ),

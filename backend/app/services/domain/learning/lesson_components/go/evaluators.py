@@ -53,44 +53,13 @@ async def evaluate_go_board(
 
     valid_answers: Optional[set[str]] = None
     bank_acceptable = data.get("acceptableAnswers")
-    if isinstance(bank_acceptable, list) and bank_acceptable:
+    if isinstance(bank_acceptable, list):
         valid_answers = {str(answer).replace(" ", "").upper() for answer in bank_acceptable}
     
     engine = GoRulesEngine(data.get("board"))
     
-    # 1. Coordinate / Single Click answering modes
-    if stage.component in ("GoBoardCoordinate", "GoCaptureStones", "GoNoEntry", "GoConnect", "GoCut", "GoEscape", "GoKo"):
-        if not valid_answers and engine.grid:
-            question_text = data.get("question", "")
-            player = _normalize_stone_color(data.get("playerColor")) or "B"
-            
-            is_matched = False
-            ans_list = []
-            if "提" in question_text or "吃" in question_text:
-                ans_list = engine.find_capturing_moves("W" if player == "B" else "B")
-                is_matched = True
-            elif "禁" in question_text:
-                ans_list = engine.find_no_entry_points(player)
-                is_matched = True
-            elif "連" in question_text:
-                ans_list = engine.find_connecting_moves(player)
-                is_matched = True
-            elif "斷" in question_text:
-                ans_list = engine.find_cutting_moves(player)
-                is_matched = True
-            elif "逃" in question_text:
-                ans_list = engine.find_escaping_moves(player)
-                is_matched = True
-            elif "劫" in question_text or "叫吃" in question_text:
-                ans_list = engine.find_atari_moves(player)
-                is_matched = True
-                
-            if is_matched:
-                valid_answers = {ans.replace(" ", "").upper() for ans in ans_list}
-                expected_answer = " 或 ".join(ans_list)
-                
     # 2. Numeric / Liberty Counting modes
-    elif stage.component in ("GoBoardNumeric", "GoCountLiberties", "GoCountTerritory"):
+    if stage.component in ("GoBoardNumeric", "GoCountLiberties", "GoCountTerritory"):
         if stage.component in ("GoBoardNumeric", "GoCountLiberties") and engine.marks:
             computed = engine.count_marked_group_liberties()
             if computed is not None:
@@ -98,6 +67,10 @@ async def evaluate_go_board(
         elif stage.component in ("GoBoardNumeric", "GoCountTerritory") and "目" in data.get("question", ""):
             computed = engine.count_black_territory()
             expected_answer = str(computed)
+
+    # 後備相容性：若無 acceptableAnswers，將 expectedAnswer 包裝為 valid_answers 比對
+    if valid_answers is None and expected_answer:
+        valid_answers = {str(expected_answer).replace(" ", "").upper()}
 
     submitted_answer = normalized_input["answer"]
     expected_text = str(expected_answer).strip()

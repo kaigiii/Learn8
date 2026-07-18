@@ -11,6 +11,7 @@ import app.services.domain.learning.lesson_components.go.validators  # Force val
 activity_logger = logging.getLogger("activity_logger")
 
 class BoardPlacerOutput(BaseModel):
+    thoughtProcess: str = Field(description="Step-by-step reasoning of the coordinates and answer. You must calculate the grid coordinates and expected move reasoning here FIRST before outputting coordinate lists.")
     size: int = Field(description="Board size, usually 5, 9, 13, or 19")
     black: List[str] = Field(description="List of Black stone coordinates, e.g. ['C4', 'E4']")
     white: List[str] = Field(description="List of White stone coordinates, e.g. ['D3']")
@@ -22,6 +23,9 @@ class BoardPlacerOutput(BaseModel):
 
 BOARD_PLACER_SYSTEM_PROMPT = """You are a professional Go board coordinate mapper (Agent 2).
 Your job is to translate a textual description of a Go board situation (a blueprint) and a target question into precise 2D coordinate lists.
+
+### CRITICAL INSTRUCTION
+You MUST first analyze the board size, calculate each stone's coordinate position step-by-step, verify there are no overlaps, determine the correct move, and write down this reasoning in the `thoughtProcess` field. Only then populate the other coordinate lists and expected answer.
 
 ### GO BOARD COORDINATE RULES
 1. The grid coordinates use standard notation:

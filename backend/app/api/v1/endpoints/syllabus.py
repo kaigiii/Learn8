@@ -99,17 +99,22 @@ async def generate_syllabus(
         file_service = FileService()
         files = file_service.list_files(current_user.id, course_folder_name)
 
-        for fname in files:
-            if fname.startswith("."):
-                continue
-            fpath = str(
-                file_service.get_upload_dir(current_user.id, course_folder_name) / fname
-            )
-            content = file_service.read_file_content(
-                fpath, max_chars=settings.MAX_COURSE_CONTEXT_BYTES
-            )
-            if content:
-                full_text_context += f"\\n--- Document: {fname} ---\\n{content}\\n"
+        if settings.AI_SYLLABUS_GEN_USE_FILE_API:
+            # Files are bound directly to Google File API in the background worker, so no local string fallback is needed.
+            full_text_context = "Reference materials uploaded directly to Google servers."
+        else:
+            # Fallback to local text extraction if File API is disabled
+            for fname in files:
+                if fname.startswith("."):
+                    continue
+                fpath = str(
+                    file_service.get_upload_dir(current_user.id, course_folder_name) / fname
+                )
+                content = file_service.read_file_content(
+                    fpath, max_chars=settings.MAX_COURSE_CONTEXT_BYTES
+                )
+                if content:
+                    full_text_context += f"\n--- Document: {fname} ---\n{content}\n"
 
     # Check for existing active job to prevent duplication
     existing_job = (

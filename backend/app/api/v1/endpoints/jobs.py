@@ -420,17 +420,22 @@ async def retry_job(
             if course_folder_name
             else []
         )
-        for fname in files:
-            if fname.startswith("."):
-                continue
-            fpath = str(
-                file_service.get_upload_dir(current_user.id, course_folder_name) / fname
-            )
-            content = file_service.read_file_content(
-                fpath, max_chars=settings.MAX_COURSE_CONTEXT_BYTES
-            )
-            if content:
-                full_text_context += f"\n--- Document: {fname} ---\n{content}\n"
+        if settings.AI_SYLLABUS_GEN_USE_FILE_API:
+            # Files will be uploaded directly via Google File API in the worker, no need to extract locally
+            full_text_context = "Reference materials uploaded directly to Google servers."
+        else:
+            # Fallback to local text extraction
+            for fname in files:
+                if fname.startswith("."):
+                    continue
+                fpath = str(
+                    file_service.get_upload_dir(current_user.id, course_folder_name) / fname
+                )
+                content = file_service.read_file_content(
+                    fpath, max_chars=settings.MAX_COURSE_CONTEXT_BYTES
+                )
+                if content:
+                    full_text_context += f"\n--- Document: {fname} ---\n{content}\n"
         mark_syllabus_started(course)
         new_job = _create_retry_job(db, current_user.id, job, metadata)
         background_tasks.add_task(
