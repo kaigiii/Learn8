@@ -1,0 +1,21 @@
+name: "DocumentAnomalyDebugger"
+frontend_registry_key: "DocumentAnomalyDebugger"
+description: "通用表格/文件數據除錯組件。學員需點擊圈出文件中異常點並勾選成因，適用於稽核、品質檢驗與報表查核訓練。"
+allowed_in_remedial: true
+required_config_data_fields:
+  - "title"
+  - "documentHtml"
+  - "anomalies"
+optional_config_data_fields:
+  - "checklistOptions"
+  - "instruction"
+submission_keys:
+  - "completed"
+  - "foundCount"
+  - "wrongClicks"
+schema_requirements: |
+  - `title`: String, title of the audit task.
+  - `documentHtml`: String, the rendered document report with custom click target markers (e.g. elements with `data-anomaly-id`).
+  - `anomalies`: Array of objects: `[{anomalyId, reason, points}]`. 學員點擊特定 anomalyId 的區域，並將其與正確原因關聯時得分。
+  - `checklistOptions`: Array of strings, selection checklist for identifying reasons.
+  - `instruction`: String, guidelines explaining the report audit context.

@@ -68,6 +68,7 @@ class Settings(BaseSettings):
     RAG_SEARCH_K: int = 2
     RAG_CHUNK_SIZE: int = 1000
     RAG_CHUNK_OVERLAP: int = 200
+    AI_INGEST_RAG_ON_UPLOAD: bool = True
 
     # Workflow Settings
     SYLLABUS_CONCURRENCY_LIMIT: int = 3
@@ -125,7 +126,7 @@ class Settings(BaseSettings):
 
     # Content Whitelists (Comma-separated filenames)
     ENABLED_PUBLIC_COURSES: str = "ai_neural_networks.yaml,python_fundamentals.yaml,world_history.yaml"
-    ENABLED_GAME_MODULES: str = "ExplainerMedia.yaml,FeynmanMirror.yaml,MatchingPairs.yaml,MultipleChoice.yaml,Ordering.yaml,GoBoardCoordinate.yaml,GoBoardNumeric.yaml"
+    ENABLED_GAME_MODULES: str = "ExplainerMedia.yaml,FeynmanMirror.yaml,MatchingPairs.yaml,MultipleChoice.yaml,Ordering.yaml,GoBoardCoordinate.yaml,GoBoardNumeric.yaml,DynamicCategorySorter.yaml,GanttLogicScheduler.yaml,DocumentAnomalyDebugger.yaml"
     FEYNMAN_DEFAULT_MAX_ROUNDS: int = 8
     DEFAULT_VOICE_PRESET: str = "preset_01"
 

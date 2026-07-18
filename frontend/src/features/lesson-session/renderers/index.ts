@@ -8,6 +8,9 @@ import { multipleChoicePlugin } from "../question-types/multiple-choice/plugin";
 import { orderingPlugin } from "../question-types/ordering/plugin";
 import { heapSortPlugin } from "../question-types/heap-sort-simulator/plugin";
 import { heapSortExercisePlugin } from "../question-types/heap-sort-exercise/plugin";
+import { dynamicCategorySorterPlugin } from "../question-types/dynamic-category-sorter/plugin";
+import { ganttLogicSchedulerPlugin } from "../question-types/gantt-logic-scheduler/plugin";
+import { documentAnomalyDebuggerPlugin } from "../question-types/document-anomaly-debugger/plugin";
 import {
   goCaptureStonesPlugin,
   goConnectPlugin,
@@ -31,6 +34,9 @@ const stagePlugins = [
   explainerMediaPlugin,
   heapSortPlugin,
   heapSortExercisePlugin,
+  dynamicCategorySorterPlugin,
+  ganttLogicSchedulerPlugin,
+  documentAnomalyDebuggerPlugin,
   goBoardCoordinatePlugin,
   goBoardNumericPlugin,
   goCountLibertiesPlugin,

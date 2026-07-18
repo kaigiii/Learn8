@@ -421,8 +421,8 @@ async def retry_job(
             else []
         )
         if settings.AI_SYLLABUS_GEN_USE_FILE_API:
-            # Files will be uploaded directly via Google File API in the worker, no need to extract locally
-            full_text_context = "Reference materials uploaded directly to Google servers."
+            # Files will be uploaded directly via the AI provider in the worker, no need to extract locally
+            full_text_context = "Reference materials bound directly to the AI provider."
         else:
             # Fallback to local text extraction
             for fname in files:

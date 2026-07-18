@@ -1,0 +1,21 @@
+name: "DynamicCategorySorter"
+frontend_registry_key: "DynamicCategorySorter"
+description: "通用多分類拖曳卡片組件。支持自訂多個分類箱與字卡，適用於各學科概念歸類測驗。"
+allowed_in_remedial: true
+required_config_data_fields:
+  - "title"
+  - "categories"
+  - "cards"
+optional_config_data_fields:
+  - "instruction"
+  - "hints"
+submission_keys:
+  - "completed"
+  - "errorCount"
+  - "wrongMatches"
+schema_requirements: |
+  - `title`: String, the title of this activity (e.g. "PDCA 階段任務分類挑戰").
+  - `categories`: Array of objects, defining the target buckets. Each bucket has `id` (string), `label` (string, e.g. "Plan (計畫)"), and `description` (optional string).
+  - `cards`: Array of objects, defining the cards to drag. Each card has `id` (string), `text` (string, the card text), and `correctCategoryId` (string, matching a bucket's ID).
+  - `instruction`: String, general guidance for the user.
+  - `hints`: Optional array of strings to assist struggling learners.

@@ -237,11 +237,90 @@ async def evaluate_explainer_media(
     )
 
 
+async def evaluate_dynamic_category_sorter(
+    stage: LessonStage,
+    user_input: Any,
+    _context_topic: str,
+    _architect_service: Any,
+    course_id: Optional[int] = None,
+):
+    normalized_input = user_input if isinstance(user_input, dict) else {}
+    error_count = normalized_input.get("errorCount", 0)
+    is_correct = error_count == 0 and normalized_input.get("completed", False)
+    
+    evaluation = {
+        "completed": normalized_input.get("completed", False),
+        "errorCount": error_count,
+        "wrongMatches": normalized_input.get("wrongMatches", [])
+    }
+    return (
+        "correct" if is_correct else "incorrect",
+        stage.feedback.success if is_correct else stage.feedback.error,
+        normalized_input,
+        evaluation,
+    )
+
+
+async def evaluate_gantt_logic_scheduler(
+    stage: LessonStage,
+    user_input: Any,
+    _context_topic: str,
+    _architect_service: Any,
+    course_id: Optional[int] = None,
+):
+    normalized_input = user_input if isinstance(user_input, dict) else {}
+    logic_errors = normalized_input.get("logicErrors", [])
+    is_correct = len(logic_errors) == 0 and normalized_input.get("completed", False)
+    
+    evaluation = {
+        "completed": normalized_input.get("completed", False),
+        "logicErrors": logic_errors,
+        "durationUsed": normalized_input.get("durationUsed", 0)
+    }
+    return (
+        "correct" if is_correct else "incorrect",
+        stage.feedback.success if is_correct else stage.feedback.error,
+        normalized_input,
+        evaluation,
+    )
+
+
+async def evaluate_document_anomaly_debugger(
+    stage: LessonStage,
+    user_input: Any,
+    _context_topic: str,
+    _architect_service: Any,
+    course_id: Optional[int] = None,
+):
+    data = stage.config.data if isinstance(stage.config.data, dict) else {}
+    total_anomalies = len(data.get("anomalies", []))
+    
+    normalized_input = user_input if isinstance(user_input, dict) else {}
+    found_count = normalized_input.get("foundCount", 0)
+    is_correct = (found_count == total_anomalies) and normalized_input.get("completed", False)
+    
+    evaluation = {
+        "completed": normalized_input.get("completed", False),
+        "foundCount": found_count,
+        "totalAnomalies": total_anomalies,
+        "wrongClicks": normalized_input.get("wrongClicks", 0)
+    }
+    return (
+        "correct" if is_correct else "incorrect",
+        stage.feedback.success if is_correct else stage.feedback.error,
+        normalized_input,
+        evaluation,
+    )
+
+
 evaluator_registry.register("MultipleChoice", evaluate_multiple_choice)
 evaluator_registry.register("Ordering", evaluate_ordering)
 evaluator_registry.register("MatchingPairs", evaluate_matching_pairs)
 evaluator_registry.register("FeynmanMirror", evaluate_feynman)
 evaluator_registry.register("ExplainerMedia", evaluate_explainer_media)
+evaluator_registry.register("DynamicCategorySorter", evaluate_dynamic_category_sorter)
+evaluator_registry.register("GanttLogicScheduler", evaluate_gantt_logic_scheduler)
+evaluator_registry.register("DocumentAnomalyDebugger", evaluate_document_anomaly_debugger)
 
 # 動態載入其他組件的評分器
 import app.services.domain.learning.lesson_components.go.evaluators
