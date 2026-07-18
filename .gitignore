@@ -77,3 +77,7 @@ backend/data/logs/
 backend/data/temp/
 backend/logs/*
 !backend/logs/.gitkeep
+
+# Docs
+docs/b2b/
+

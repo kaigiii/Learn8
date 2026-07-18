@@ -1,8 +1,104 @@
 import asyncio
+import io
+import base64
 from typing import List, Any
+from PIL import Image, ImageDraw, ImageFont
 from app.services.domain.learning.lesson_components.go.rules_engine import GoRulesEngine
 from app.services.domain.learning.lesson_components.go.evaluators import _normalize_stone_color
 from app.services.domain.learning.lesson_components.validator_registry import validator_registry
+
+def render_go_board(board_data: dict) -> bytes:
+    """利用 Pillow 渲染圍棋盤面配置成 PNG 圖片，並於四周標記 A-T / 1-N 座標標籤"""
+    size = board_data.get("size", 9)
+    black = board_data.get("black", [])
+    white = board_data.get("white", [])
+    marks = board_data.get("marks", [])
+    
+    img_size = 400
+    margin = 40
+    # 建立畫布，溫暖的木色背景
+    image = Image.new("RGB", (img_size, img_size), color="#E4A853")
+    draw = ImageDraw.Draw(image)
+    
+    # 計算網格大小
+    if size > 1:
+        cell_size = (img_size - 2 * margin) / (size - 1)
+    else:
+        cell_size = 0
+        
+    # 繪製網格線
+    for i in range(size):
+        offset = margin + i * cell_size
+        # 直線
+        draw.line([(offset, margin), (offset, img_size - margin)], fill="#000000", width=1)
+        # 橫線
+        draw.line([(margin, offset), (img_size - margin, offset)], fill="#000000", width=1)
+        
+    # 載入字型
+    try:
+        font = ImageFont.load_default()
+    except Exception:
+        font = None
+        
+    # 繪製欄位標籤 A-T (跳過欄位無特殊定義時，ord-based A, B, C...)
+    for i in range(size):
+        col_letter = chr(65 + i)
+        offset = margin + i * cell_size
+        draw.text((offset - 3, margin - 20), col_letter, fill="#000000", font=font)
+        draw.text((offset - 3, img_size - margin + 5), col_letter, fill="#000000", font=font)
+        
+    # 繪製列數標籤 1-N (由下往上)
+    for j in range(size):
+        row_num = str(j + 1)
+        offset = img_size - margin - j * cell_size
+        draw.text((margin - 20, offset - 5), row_num, fill="#000000", font=font)
+        draw.text((img_size - margin + 10, offset - 5), row_num, fill="#000000", font=font)
+        
+    # 棋子半徑
+    stone_r = (cell_size * 0.45) if size > 1 else 15
+    
+    def coord_to_px(coord: str):
+        coord = coord.strip().upper()
+        if len(coord) < 2:
+            return None
+        col_letter = coord[0]
+        try:
+            row_num = int(coord[1:])
+        except ValueError:
+            return None
+        c_idx = ord(col_letter) - 65
+        r_idx = row_num - 1
+        cx = margin + c_idx * cell_size
+        cy = img_size - margin - r_idx * cell_size
+        return cx, cy
+
+    # 畫黑子
+    for coord in black:
+        pos = coord_to_px(coord)
+        if pos:
+            cx, cy = pos
+            draw.ellipse([cx - stone_r, cy - stone_r, cx + stone_r, cy + stone_r], fill="#111111", outline="#000000", width=1)
+            
+    # 畫白子
+    for coord in white:
+        pos = coord_to_px(coord)
+        if pos:
+            cx, cy = pos
+            draw.ellipse([cx - stone_r, cy - stone_r, cx + stone_r, cy + stone_r], fill="#FFFFFF", outline="#777777", width=1)
+            
+    # 畫紅色 X 標記
+    for coord in marks:
+        pos = coord_to_px(coord)
+        if pos:
+            cx, cy = pos
+            mark_size = stone_r * 0.5
+            draw.line([(cx - mark_size, cy - mark_size), (cx + mark_size, cy + mark_size)], fill="#FF0000", width=2)
+            draw.line([(cx + mark_size, cy - mark_size), (cx - mark_size, cy + mark_size)], fill="#FF0000", width=2)
+            
+    buf = io.BytesIO()
+    image.save(buf, format="PNG")
+    return buf.getvalue()
+
 
 def check_physical_and_state_rules(board: dict, expected_answer: str, player_color: str) -> List[str]:
     """第一、二層程式碼校驗：物理邊界、棋子重疊、落子前死棋與自殺判定"""
@@ -73,35 +169,63 @@ async def validate_go_board_coordinate(data: dict, llm_provider: Any) -> List[st
     if errors:
         return errors
 
-    # 執行第三層 AI 語義校驗
+    # 執行第三層 AI 語義多模態視覺校驗
     try:
         blueprint = data.get("board_blueprint", "無文字描述")
         question = data.get("question", "")
         explanation = data.get("explanation", "")
 
         verification_prompt = (
-            "你是一位嚴格的圍棋裁判助理。請在腦中模擬落子，核對以下生成內容是否存在邏輯或題意矛盾。\n\n"
-            f"【問題文字】：{question}\n"
-            f"【落子方顏色】：{'黑棋' if player_color == 'B' else '白棋'}\n"
-            f"【題目文字藍圖描述】：{blueprint}\n"
-            f"【生成的座標棋盤配置】：黑子: {board.get('black')}, 白子: {board.get('white')}, 標記: {board.get('marks')}\n"
-            f"【預期正確解答座標】：{expected_answer}\n"
-            f"【解析說明】：{explanation}\n\n"
-            "請仔細檢查：\n"
-            "1. 結合棋盤佈局，當落子方下在預期解答點後，是否能完美實現問題和藍圖所要求的目的（如成功提子、逃跑、連接或完成死活要點）？\n"
-            "2. 題目描述與實體棋盤座標有沒有產生矛盾？\n\n"
-            "如果沒有任何邏輯或題意問題，請輸出 'YES'。如果發現 any 邏輯矛盾、棋子畫錯或答案不對，請直接輸出 'NO' 並簡短說明錯誤原因（不超過150字）。"
+            "You are a strict Go referee assistant. Please verify whether the following setup matches the attached board image and question logic.\n\n"
+            f"- Question: {question}\n"
+            f"- Player Color: {'Black' if player_color == 'B' else 'White'}\n"
+            f"- Board Blueprint: {blueprint}\n"
+            f"- Coordinates: Black: {board.get('black')}, White: {board.get('white')}, Marks: {board.get('marks')}\n"
+            f"- Expected Play Coordinate: {expected_answer}\n"
+            f"- Explanation: {explanation}\n\n"
+            "Analyze the image and setup step-by-step:\n"
+            "1. List each stone coordinate shown on the image and verify if it matches the 'Coordinates' list.\n"
+            "2. Note the board orientation: columns are A-T from left to right, rows are 1-N from bottom to top.\n"
+            "3. If Player plays at the Expected Play Coordinate, does it successfully achieve the goal of the Question?\n\n"
+            "Output your step-by-step analysis first. Finally, end your response with exactly 'VERDICT: YES' if correct, or 'VERDICT: NO - [reason]' if there is any mistake."
         )
 
+        from langchain_core.messages import SystemMessage, HumanMessage
+        
+        # 1. 渲染盤面配置成 PNG bytes
+        png_bytes = render_go_board(board)
+        b64_image = base64.b64encode(png_bytes).decode("utf-8")
+        data_uri = f"data:image/png;base64,{b64_image}"
+
+        # 2. 建構多模態 Prompt 訊息
         messages = [
-            ("system", "你只會回答 YES 或 NO (若為 NO 則附加理由)。"),
-            ("user", verification_prompt)
+            SystemMessage(content="You are a strict Go referee assistant. Perform a step-by-step analysis of the board image and output either 'VERDICT: YES' or 'VERDICT: NO - [reason]' at the very end."),
+            HumanMessage(content=[
+                {
+                    "type": "text",
+                    "text": verification_prompt
+                },
+                {
+                    "type": "image_url",
+                    "image_url": {"url": data_uri}
+                }
+            ])
         ]
+        
         raw_reply = await llm_provider.generate_text(messages)
         reply = raw_reply.strip()
 
-        if reply.upper().startswith("NO"):
-            errors.append(f"第三層 AI 語義校驗未通過：{reply}")
+        # 解析 VERDICT: YES / NO
+        if "VERDICT: YES" in reply.upper():
+            pass
+        elif "VERDICT: NO" in reply.upper():
+            import re
+            match = re.search(r"VERDICT:\s*NO\s*-?\s*(.*)", reply, re.IGNORECASE)
+            reason = match.group(1).strip() if match else reply
+            errors.append(f"第三層 AI 語義校驗未通過：{reason}")
+        else:
+            if "YES" not in reply.upper() or "NO" in reply.upper():
+                errors.append(f"第三層 AI 語義校驗未通過：{reply}")
     except Exception as e:
         errors.append(f"語義校驗調用異常：{str(e)}")
 

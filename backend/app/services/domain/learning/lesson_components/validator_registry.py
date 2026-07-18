@@ -1,7 +1,7 @@
-from typing import Callable, Dict, List, Any
+from typing import Callable, Dict, List, Any, Awaitable
 
 # Validator interface: takes config.data dict and llm_provider, returns list of validation errors
-Validator = Callable[[dict, Any], List[str]]
+Validator = Callable[[dict, Any], Awaitable[List[str]]]
 
 class LessonComponentValidatorRegistry:
     def __init__(self) -> None:
