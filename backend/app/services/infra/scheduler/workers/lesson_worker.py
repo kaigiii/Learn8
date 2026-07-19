@@ -92,8 +92,9 @@ async def run_lesson_generation_job(
         if not job or job.status == JobStatus.CANCELLED:
             return
 
+        node_title = node_data.get("title", "單元")
         _notify_job_update(
-            db, job, 10, "準備生成單元課程內容...", status=JobStatus.PROCESSING
+            db, job, 10, f"準備為您生成「{node_title}」的關卡內容...", status=JobStatus.PROCESSING
         )
 
         user = db.query(UserModel).filter(UserModel.id == user_id).first()
@@ -107,7 +108,7 @@ async def run_lesson_generation_job(
         file_service = FileService()
         architect_service = AIArchitectService(provider, rag_engine, file_service)
 
-        _notify_job_update(db, job, 30, "AI 正在為您撰寫個人化講義...")
+        _notify_job_update(db, job, 30, f"AI 正在為您撰寫「{node_title}」的個人化講義...")
 
         from app.schemas.course_schema import LessonNode
         from app.models.course_media_asset import CourseMediaAssetModel

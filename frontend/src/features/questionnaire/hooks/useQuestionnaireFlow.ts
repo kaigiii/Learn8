@@ -44,6 +44,7 @@ export function useQuestionnaireFlow() {
   const [jobMessage, setJobMessage] = useState("");
   const [jobType, setJobType] = useState<QuestionnaireJobType>(null);
   const [canRetryGeneration, setCanRetryGeneration] = useState(false);
+  const [autoGenerateAll, setAutoGenerateAll] = useState(false);
 
   const clearPendingQuestionnaire = useCallback(() => {
     clearPendingQuestionnaireNavigation();
@@ -435,7 +436,7 @@ export function useQuestionnaireFlow() {
       >(
         `/courses/generate-syllabus?topic=${encodeURIComponent(
           topic
-        )}&course_id=${courseId}`,
+        )}&course_id=${courseId}&auto_generate_lessons=${autoGenerateAll}`,
         { method: "POST" }
       );
 
@@ -467,6 +468,7 @@ export function useQuestionnaireFlow() {
     questions,
     router,
     topic,
+    autoGenerateAll,
   ]);
 
   const cancelGeneration = useCallback(async () => {
@@ -554,5 +556,7 @@ export function useQuestionnaireFlow() {
     retryGeneration,
     submitQuestionnaire,
     cancelGeneration,
+    autoGenerateAll,
+    setAutoGenerateAll,
   };
 }

@@ -47,6 +47,7 @@ async def generate_syllabus(
     background_tasks: BackgroundTasks,
     course_id: int,
     regenerate: bool = False,
+    auto_generate_lessons: bool = False,
     current_user: UserModel = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -161,6 +162,7 @@ async def generate_syllabus(
         full_text_context=full_text_context,
         files_used=files,
         regenerate=regenerate,
+        auto_generate_lessons=auto_generate_lessons,
     )
 
     # 立刻回傳 202 Accepted 給前端
