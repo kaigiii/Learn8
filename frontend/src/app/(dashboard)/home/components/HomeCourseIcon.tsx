@@ -15,12 +15,15 @@ export function HomeCourseIcon({ progress, className }: { progress?: number; cla
   const iconSrc = resolveTreeIcon(progress);
 
   return (
-    <Image
-      src={iconSrc}
-      alt="Course tree icon"
-      width={144}
-      height={144}
-      className={className ?? "h-36 w-36 object-contain"}
-    />
+    <div className={className ?? "h-36 w-36 flex items-center justify-center"}>
+      <Image
+        src={iconSrc}
+        alt="Course tree icon"
+        width={144}
+        height={144}
+        style={{ width: "100%", height: "auto", objectFit: "contain" }}
+        className="max-h-full max-w-full"
+      />
+    </div>
   );
 }

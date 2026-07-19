@@ -42,6 +42,7 @@ from app.services.domain.course.lifecycle import (
 from app.services.ai_engine.kb.rag_engine import RAGEngine, get_rag_engine
 from app.services.infra.scheduler.workers.questionnaire_worker import run_questionnaire_generation_job
 from app.core.config import settings
+from app.services.domain.course.export_service import ExportService
 
 router = APIRouter()
 
@@ -227,6 +228,37 @@ def get_course_detail(
             node.status = NodeStatus.LOCKED
 
     return path
+
+
+@router.get("/{course_id}/export-data", response_model=dict)
+def export_course_data(
+    course_id: int,
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    course = db.get(CourseModel, course_id)
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+    
+    if course.user_id != current_user.id:
+        system_user = db.query(UserModel).filter(UserModel.email == SYSTEM_USER_EMAIL).first()
+        if not system_user or course.user_id != system_user.id:
+            raise HTTPException(status_code=403, detail="Access denied")
+
+    return ExportService.get_export_data(db, course_id, current_user.id)
+
+
+@router.get("/{course_id}/export-template", response_model=dict)
+def export_course_template(
+    course_id: int,
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    course = db.get(CourseModel, course_id)
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+        
+    return {"template": ExportService.get_export_template()}
 
 
 @router.patch("/{course_id}", response_model=dict)
