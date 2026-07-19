@@ -33,7 +33,7 @@ def test_course_architect_prompts_format():
     
     # 1. Test build_node_system_prompt
     node_prompt = build_node_system_prompt(component_names=["MultipleChoice"])
-    formatted_node_prompt = node_prompt.format(profile="Learner loves hands-on coding")
+    formatted_node_prompt = node_prompt.replace("{profile}", "Learner loves hands-on coding")
     assert "Learner loves hands-on coding" in formatted_node_prompt
     assert "MultipleChoice" in formatted_node_prompt
 

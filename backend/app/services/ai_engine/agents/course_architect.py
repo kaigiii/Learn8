@@ -133,7 +133,7 @@ class AIArchitectService:
 
         # 3. 建立系統提示訊息
         system_content = (
-            build_node_system_prompt(allowed_components).format(profile=profile)
+            build_node_system_prompt(allowed_components).replace("{profile}", profile)
             + f"\n\nVector Database Context:\n{rag_context}"
         )
         if media_catalog:

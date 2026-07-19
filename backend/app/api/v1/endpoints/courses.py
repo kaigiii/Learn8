@@ -485,6 +485,14 @@ async def upload_course_document(
 
     try:
         file_service.save_upload_file(file, current_user.id, course.folder_name)
+        from app.services.domain.user.activity_logger import ActivityLogger
+        ActivityLogger.log_file_upload(
+            user_id=current_user.id,
+            user_email=current_user.email,
+            course_id=course.id,
+            course_name=course.title or "Unnamed Course",
+            filenames=[file.filename],
+        )
         if should_ingest:
             await file.seek(0)
             await rag_engine.ingest_document(
