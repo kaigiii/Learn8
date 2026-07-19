@@ -194,7 +194,8 @@ export function useCourseMapData({
     return buildPositions(sourceNodes);
   }, [backendCourse]);
 
-  const mapHeight = Math.max(680, nodes.length * NODE_VERTICAL_SPACING + MAP_BOTTOM_PADDING);
+  const maxY = nodes.length > 0 ? Math.max(...nodes.map((n) => n.y)) : 0;
+  const mapHeight = Math.max(680, maxY + MAP_BOTTOM_PADDING);
 
   const hasScrolledRef = useRef(false);
 

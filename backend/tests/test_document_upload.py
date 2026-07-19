@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 async def test_upload_course_document_skip_rag():
     file_mock = MagicMock(spec=UploadFile)
     file_mock.seek = AsyncMock()
+    file_mock.filename = "test_doc.pdf"
     current_user = UserModel(id=1, email="test@example.com")
     
     db_mock = MagicMock(spec=Session)
@@ -45,6 +46,7 @@ async def test_upload_course_document_skip_rag():
 async def test_upload_course_document_with_rag():
     file_mock = MagicMock(spec=UploadFile)
     file_mock.seek = AsyncMock()
+    file_mock.filename = "test_doc.pdf"
     current_user = UserModel(id=1, email="test@example.com")
     
     db_mock = MagicMock(spec=Session)

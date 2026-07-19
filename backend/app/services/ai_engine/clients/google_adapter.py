@@ -28,10 +28,12 @@ class GoogleLLMProvider(BaseLLMProvider):
         from google import genai
         self.client = genai.Client(api_key=settings.GOOGLE_API_KEY)
         self.google_files: List[dict] = []
+        self.bound_file_paths: List[str] = []
 
     def bind_files(self, files: List[str], use_google_file_api: bool = True) -> "BaseLLMProvider":
         if not files:
             return self
+        self.bound_file_paths = files
 
         if not use_google_file_api:
             self._inject_local_files(files)
@@ -128,20 +130,17 @@ class GoogleLLMProvider(BaseLLMProvider):
         return converted_messages
 
     async def generate_text(self, messages: List[Any], **kwargs) -> str:
-        # Attach any Google File API uploaded files to the messages
-        messages = self._attach_files_to_messages(messages)
+        orig_messages = list(messages)
+        attached_messages = self._attach_files_to_messages(messages)
 
-        # Fallback context mapping for logging
         log_context = self.injected_context
         if self.google_files:
             log_context = "Google File API URIs: " + ", ".join(f["file_uri"] for f in self.google_files)
 
-        # Inject local fallback context if present and no Google Files uploaded
         if self.injected_context and not self.google_files:
             from langchain_core.messages import SystemMessage
-            messages = [SystemMessage(content=self.injected_context)] + messages
+            attached_messages = [SystemMessage(content=self.injected_context)] + attached_messages
 
-        # Get prompts for activity logger
         def _get_text(m):
             return m[1] if isinstance(m, tuple) else getattr(m, "content", "")
 
@@ -149,10 +148,10 @@ class GoogleLLMProvider(BaseLLMProvider):
             return m[0] if isinstance(m, tuple) else getattr(m, "type", "")
 
         sys_prompt = next(
-            (_get_text(m) for m in messages if _get_type(m) == "system"), ""
+            (_get_text(m) for m in attached_messages if _get_type(m) == "system"), ""
         )
         user_prompt = next(
-            (_get_text(m) for m in messages if _get_type(m) == "user" or _get_type(m) == "human"), ""
+            (_get_text(m) for m in attached_messages if _get_type(m) == "user" or _get_type(m) == "human"), ""
         )
         ActivityLogger.log_llm_request(
             "google",
@@ -162,42 +161,53 @@ class GoogleLLMProvider(BaseLLMProvider):
             log_context,
         )
 
-        start_time = time.time()
-        response = await self.llm.ainvoke(messages)
-        latency = (time.time() - start_time) * 1000
+        try:
+            start_time = time.time()
+            response = await self.llm.ainvoke(attached_messages)
+            latency = (time.time() - start_time) * 1000
 
-        ActivityLogger.log_llm_response(
-            "google", settings.GEMINI_MODEL, response.content, latency
-        )
+            ActivityLogger.log_llm_response(
+                "google", settings.GEMINI_MODEL, response.content, latency
+            )
 
-        content = response.content
-        if isinstance(content, list):
-            text_parts = []
-            for part in content:
-                if isinstance(part, str):
-                    text_parts.append(part)
-                elif isinstance(part, dict) and "text" in part:
-                    text_parts.append(part["text"])
-            content = "".join(text_parts)
-        return content
+            content = response.content
+            if isinstance(content, list):
+                text_parts = []
+                for part in content:
+                    if isinstance(part, str):
+                        text_parts.append(part)
+                    elif isinstance(part, dict) and "text" in part:
+                        text_parts.append(part["text"])
+                content = "".join(text_parts)
+            return content
+        except Exception as e:
+            if self.google_files and self.bound_file_paths:
+                # Log warning and fall back to local text extraction
+                import logging
+                logger = logging.getLogger("activity")
+                logger.warning(
+                    f"Gemini generation with File API failed: {e}. Falling back to local text extraction."
+                )
+                self.google_files = []
+                self._inject_local_files(self.bound_file_paths)
+                # Re-run with local injected text
+                return await self.generate_text(orig_messages, **kwargs)
+            raise e
 
     async def generate_structured(
         self, messages: List[Any], schema: Type[BaseModel], **kwargs
     ) -> BaseModel:
-        # Attach any Google File API uploaded files to the messages
-        messages = self._attach_files_to_messages(messages)
+        orig_messages = list(messages)
+        attached_messages = self._attach_files_to_messages(messages)
 
-        # Fallback context mapping for logging
         log_context = self.injected_context
         if self.google_files:
             log_context = "Google File API URIs: " + ", ".join(f["file_uri"] for f in self.google_files)
 
-        # Inject local fallback context if present and no Google Files uploaded
         if self.injected_context and not self.google_files:
             from langchain_core.messages import SystemMessage
-            messages = [SystemMessage(content=self.injected_context)] + messages
+            attached_messages = [SystemMessage(content=self.injected_context)] + attached_messages
 
-        # Get prompts for activity logger
         def _get_text(m):
             return m[1] if isinstance(m, tuple) else getattr(m, "content", "")
 
@@ -205,10 +215,10 @@ class GoogleLLMProvider(BaseLLMProvider):
             return m[0] if isinstance(m, tuple) else getattr(m, "type", "")
 
         sys_prompt = next(
-            (_get_text(m) for m in messages if _get_type(m) == "system"), ""
+            (_get_text(m) for m in attached_messages if _get_type(m) == "system"), ""
         )
         user_prompt = next(
-            (_get_text(m) for m in messages if _get_type(m) == "user" or _get_type(m) == "human"), ""
+            (_get_text(m) for m in attached_messages if _get_type(m) == "user" or _get_type(m) == "human"), ""
         )
         ActivityLogger.log_llm_request(
             "google",
@@ -218,34 +228,47 @@ class GoogleLLMProvider(BaseLLMProvider):
             log_context,
         )
 
-        start_time = time.time()
-        if hasattr(self.llm, "with_structured_output"):
-            structured_llm = self.llm.with_structured_output(schema)
-            response = await structured_llm.ainvoke(messages)
+        try:
+            start_time = time.time()
+            if hasattr(self.llm, "with_structured_output"):
+                structured_llm = self.llm.with_structured_output(schema)
+                response = await structured_llm.ainvoke(attached_messages)
+                latency = (time.time() - start_time) * 1000
+                ActivityLogger.log_llm_response(
+                    "google", settings.GEMINI_MODEL, response.model_dump_json(), latency
+                )
+                return response
+
+            parser = PydanticOutputParser(pydantic_object=schema)
+            format_instructions = parser.get_format_instructions()
+
+            from langchain_core.messages import SystemMessage, AIMessage
+
+            fallback_messages = attached_messages + [
+                SystemMessage(
+                    content=(
+                        "You MUST output raw JSON exactly matching this schema. "
+                        "Do not output markdown code blocks.\n"
+                        f"{format_instructions}"
+                    )
+                )
+            ]
+
+            response = await self.llm.ainvoke(fallback_messages)
             latency = (time.time() - start_time) * 1000
             ActivityLogger.log_llm_response(
-                "google", settings.GEMINI_MODEL, response.model_dump_json(), latency
+                "google", settings.GEMINI_MODEL, response.content, latency
             )
-            return response
-
-        parser = PydanticOutputParser(pydantic_object=schema)
-        format_instructions = parser.get_format_instructions()
-
-        from langchain_core.messages import SystemMessage, AIMessage
-
-        fallback_messages = messages + [
-            SystemMessage(
-                content=(
-                    "You MUST output raw JSON exactly matching this schema. "
-                    "Do not output markdown code blocks.\n"
-                    f"{format_instructions}"
+            return parser.invoke(AIMessage(content=response.content))
+        except Exception as e:
+            if self.google_files and self.bound_file_paths:
+                import logging
+                logger = logging.getLogger("activity")
+                logger.warning(
+                    f"Gemini structured generation with File API failed: {e}. Falling back to local text extraction."
                 )
-            )
-        ]
-
-        response = await self.llm.ainvoke(fallback_messages)
-        latency = (time.time() - start_time) * 1000
-        ActivityLogger.log_llm_response(
-            "google", settings.GEMINI_MODEL, response.content, latency
-        )
-        return parser.invoke(AIMessage(content=response.content))
+                self.google_files = []
+                self._inject_local_files(self.bound_file_paths)
+                # Re-run with local injected text
+                return await self.generate_structured(orig_messages, schema, **kwargs)
+            raise e
