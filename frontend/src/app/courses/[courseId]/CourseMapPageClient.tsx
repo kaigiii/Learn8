@@ -16,6 +16,7 @@ import { useCourseMapData, type CourseMapNode } from "./hooks/useCourseMapData";
 import { useResolvedCourseRoute } from "./hooks/useResolvedCourseRoute";
 import { useI18n } from "@/lib/i18n/useI18n";
 import type { TranslationKey } from "@/lib/i18n/translations";
+import { apiFetch } from "@/lib/apiClient";
 
 const COMPACT_VIEWPORT_MEDIA_QUERY = "(max-width: 1023px)";
 
@@ -85,6 +86,48 @@ export default function CourseMapPageClient({
   const [isNodePanelOpen, setIsNodePanelOpen] = React.useState(false);
   const [isAssistantPanelOpen, setIsAssistantPanelOpen] = React.useState(false);
   const previousCompactViewportRef = React.useRef<boolean | null>(null);
+
+  const [isExporting, setIsExporting] = React.useState(false);
+
+  const handleExportHtml = async () => {
+    setIsExporting(true);
+    try {
+      const templateRes = await apiFetch<{ template: string }>(`/courses/${courseId}/export-template`);
+      const dataRes = await apiFetch<any>(`/courses/${courseId}/export-data`);
+
+      if (!templateRes.template || !dataRes) {
+        throw new Error("Failed to load template or course data.");
+      }
+
+      const jsonString = JSON.stringify(dataRes);
+      let finalHtml = templateRes.template.replace(
+        "null; /* __EXPORT_DATA_PLACEHOLDER__ */",
+        jsonString
+      );
+
+      // 1:1 還原原本前端用到的素材路徑，使其能正確載入開發伺服器的圖片與資源
+      const origin = window.location.origin;
+      finalHtml = finalHtml.replace(/\/(backgrounds|icons|svg|sounds|avatars|images)\//g, `${origin}/$1/`);
+
+      const blob = new Blob([finalHtml], { type: "text/html;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      
+      const safeTitle = (dataRes.courseTitle || "course").replace(/[\\/:*?"<>|]/g, "_");
+      link.download = `${safeTitle}.html`;
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      alert("匯出失敗，請重試。");
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   React.useEffect(() => {
     const media = window.matchMedia(COMPACT_VIEWPORT_MEDIA_QUERY);
@@ -173,7 +216,19 @@ export default function CourseMapPageClient({
             iconAlt: "Leaderboard",
           },
         ]}
-      />
+      >
+        <button
+          type="button"
+          onClick={handleExportHtml}
+          disabled={isExporting}
+          className="ml-2 inline-flex h-10 items-center gap-2 rounded-full border border-teal-500/30 bg-teal-50 px-4 text-sm font-heading font-bold text-teal-700 shadow-sm transition hover:bg-teal-100 disabled:opacity-50"
+        >
+          <svg className="h-4 w-4 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeMiterlimit="10" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1M12 4v12m0 0l4-4m-4 4l-4-4" />
+          </svg>
+          <span>{isExporting ? "匯出中..." : "匯出課程"}</span>
+        </button>
+      </TopStatsBar>
 
       <CourseMapBackground />
 
@@ -358,6 +413,7 @@ export default function CourseMapPageClient({
             </div>
           </div>
         )}
+
       </div>
     </div>
   );

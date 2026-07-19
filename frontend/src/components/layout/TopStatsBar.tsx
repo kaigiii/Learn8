@@ -34,6 +34,7 @@ interface TopStatsBarProps {
     iconText?: string;
     onClick?: (e: React.MouseEvent) => void;
   }>;
+  children?: React.ReactNode;
 }
 
 export default function TopStatsBar({
@@ -48,6 +49,7 @@ export default function TopStatsBar({
   mascotImageClassName,
   navLinks = [],
   quickLinks = [],
+  children,
 }: TopStatsBarProps = {}) {
   const [profileOpen, setProfileOpen] = useState(false);
   const pathname = usePathname();
@@ -199,6 +201,7 @@ export default function TopStatsBar({
               <span className="min-w-0 truncate font-heading text-lg font-extrabold leading-none text-brand-gray-700 max-[420px]:hidden md:text-[1.35rem]">
                 {pageTitle}
               </span>
+              {children}
               {navLinks.length > 0 ? (
                 <div className="ml-2 hidden min-w-0 items-center gap-2 md:flex">
                   {navLinks.map((link) => (
