@@ -159,10 +159,10 @@ def test_two_stage_syllabus_generation(caplog):
 
     # Assertions on Progress Callback Messages
     progress_texts = [msg for prog, msg in progress_messages]
-    assert any("啟動審查代理人 (Auditor Agent) 檢核課程細部節點" in t for t in progress_texts)
-    assert any("審查代理人正進行第 1 次深度審核與微調" in t for t in progress_texts)
-    assert any("審查代理人執行變更工具：UPDATE_COURSE_METADATA, INSERT_NODES" in t for t in progress_texts)
-    assert any("審查代理人正進行第 2 次深度審核與微調" in t for t in progress_texts)
+    assert any("正在啟動 AI 審查機制，檢核「Testing Multi-Agent Syllabus」課程細部節點" in t for t in progress_texts)
+    assert any("正在為「Testing Multi-Agent Syllabus」進行第 1 次深度審核與單元微調" in t for t in progress_texts)
+    assert any("正在優化課程大綱中的單元結構" in t for t in progress_texts)
+    assert any("正在為「Testing Multi-Agent Syllabus」進行第 2 次深度審核與單元微調" in t for t in progress_texts)
     assert any("課程大綱生成與審核完成，規劃出 1 個單元" in t for t in progress_texts)
 
 

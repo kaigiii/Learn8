@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError, apiFetch } from "@/lib/apiClient";
-import { NODE_STATUS, type NodeStatus } from "@/lib/domain/statuses";
+import { NODE_STATUS, type NodeStatus, JOB_STATUS } from "@/lib/domain/statuses";
 import { useRequireAuthRedirect } from "@/lib/auth/useRequireAuthRedirect";
 import type { CoursePath } from "@/lib/apiTypes";
 import { clearRecentCourseNavigation } from "@/lib/navigation/intents";
@@ -153,10 +153,14 @@ export function useCourseMapData({
 
     const checkActiveJob = async () => {
       try {
-        const response = await apiFetch<{ job_id: string | null }>(
+        const response = await apiFetch<{ job_id: string | null; status?: string }>(
           `/jobs/active?course_id=${courseId}&job_type=LESSON_GENERATION`
         );
-        if (response.job_id && !isUnmounted) {
+        const isActive =
+          response.status === JOB_STATUS.PENDING ||
+          response.status === JOB_STATUS.PROCESSING;
+
+        if (response.job_id && isActive && !isUnmounted) {
           connectJob(response.job_id);
         } else if (!isUnmounted) {
           setActiveJobId(null);

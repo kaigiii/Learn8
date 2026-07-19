@@ -28,12 +28,28 @@ class JobRegistry:
                 JobModel.message: "System restarted. Job marked as stale; please retry.",
                 JobModel.updated_at: datetime.now(timezone.utc)
             }, synchronize_session=False)
-            
             db.commit()
+
             if stale_count > 0:
                 logger.info(f"Cleanup on startup: Marked {stale_count} active jobs as STALE.")
+
+            # Cleanup stuck generating courses
+            from app.models.course import CourseModel
+            from app.domain.statuses import CourseStatus
+
+            generating_courses = db.query(CourseModel).filter(
+                CourseModel.status == CourseStatus.GENERATING
+            ).all()
+            for course in generating_courses:
+                if course.syllabus_json:
+                    course.status = CourseStatus.READY
+                else:
+                    course.status = CourseStatus.PROFILING
+            db.commit()
+            if generating_courses:
+                logger.info(f"Cleanup on startup: Reset status for {len(generating_courses)} generating courses.")
         except Exception as e:
-            logger.error(f"Failed to cleanup jobs on startup: {e}")
+            logger.error(f"Failed to cleanup jobs/courses on startup: {e}")
             db.rollback()
         finally:
             db.close()
