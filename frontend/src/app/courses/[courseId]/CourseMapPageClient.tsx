@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import TopStatsBar from "@/components/layout/TopStatsBar";
 import { NODE_STATUS } from "@/lib/domain/statuses";
@@ -74,6 +74,9 @@ export default function CourseMapPageClient({
     handleMouseDown,
     handleMouseMove,
     handleMouseUp,
+    activeJobId,
+    activeJobProgress,
+    activeJobMessage,
   } = useCourseMapData({
     courseId,
     routeCourseId,
@@ -229,6 +232,40 @@ export default function CourseMapPageClient({
           <span>{isExporting ? "匯出中..." : "匯出課程"}</span>
         </button>
       </TopStatsBar>
+
+      <AnimatePresence>
+        {activeJobId && (
+          <div className="absolute top-[88px] left-1/2 z-50 w-full max-w-sm -translate-x-1/2 px-4 pointer-events-none">
+            <motion.div
+              initial={{ opacity: 0, y: -20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -20, scale: 0.95 }}
+              className="pointer-events-auto flex flex-col gap-2.5 rounded-2xl border border-white/60 bg-white/92 p-4 shadow-[0_12px_36px_rgba(0,0,0,0.1)] backdrop-blur-md"
+            >
+              <div className="flex items-center gap-3">
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-brand-teal border-t-transparent" />
+                <div className="flex-1">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-brand-teal">
+                    自動生成關卡中 (Auto-generating Levels)
+                  </p>
+                  <p className="mt-0.5 text-xs font-semibold text-brand-gray-700">
+                    {activeJobMessage}
+                  </p>
+                </div>
+                <span className="text-xs font-heading font-extrabold text-brand-teal">
+                  {activeJobProgress}%
+                </span>
+              </div>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-brand-gray-100">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-brand-teal to-[#6dc8c4] transition-all duration-300"
+                  style={{ width: `${activeJobProgress}%` }}
+                />
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       <CourseMapBackground />
 

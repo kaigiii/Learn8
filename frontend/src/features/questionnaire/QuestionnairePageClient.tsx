@@ -26,6 +26,8 @@ export default function QuestionnairePageClient() {
     retryGeneration,
     submitQuestionnaire,
     cancelGeneration,
+    autoGenerateAll,
+    setAutoGenerateAll,
   } = useQuestionnaireFlow();
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const totalPages = questions.length > 0 ? questions.length + 1 : 0;
@@ -217,6 +219,25 @@ export default function QuestionnairePageClient() {
                         placeholder="I prefer practical examples, I already know the basics, I need this for work..."
                         className="w-full rounded-[24px] border border-brand-gray-200 bg-white px-4 py-3 text-sm text-brand-gray-700 outline-none transition focus:border-brand-teal focus:ring-2 focus:ring-brand-teal/15"
                       />
+                    </div>
+
+                    <div className="mt-6 rounded-[24px] border border-white/60 bg-white/70 p-5">
+                      <label className="flex cursor-pointer items-start gap-4">
+                        <input
+                          type="checkbox"
+                          className="mt-1 h-5 w-5 rounded border-brand-gray-200 text-brand-teal focus:ring-brand-teal accent-brand-teal cursor-pointer"
+                          checked={autoGenerateAll}
+                          onChange={(e) => setAutoGenerateAll(e.target.checked)}
+                        />
+                        <div className="min-w-0">
+                          <p className="text-base font-bold text-brand-gray-700">
+                            自動生成所有關卡課程內容 (Auto-generate All Levels)
+                          </p>
+                          <p className="mt-1 text-sm text-brand-gray-500 leading-relaxed">
+                            勾選此選項後，大綱地圖生成完畢時，系統會在背景自動為您依序生成每一關的詳細講義與題庫（約需 2~3 分鐘）。若不勾選，則維持「點擊每關時即時生成」。
+                          </p>
+                        </div>
+                      </label>
                     </div>
 
                     <div className="mt-6 flex flex-col gap-4 rounded-[24px] border border-white/70 bg-white/65 p-5 md:flex-row md:items-center md:justify-between">

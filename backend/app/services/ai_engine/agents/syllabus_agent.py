@@ -194,7 +194,7 @@ class SyllabusAgent:
 
         # 2. 呼叫 Auditor Agent 進行審查與迭代
         if progress_callback:
-            progress_callback(50, "🔍 啟動審查代理人 (Auditor Agent) 檢核課程細部節點...")
+            progress_callback(50, f"🔍 正在啟動 AI 審查機制，檢核「{topic}」課程細部節點...")
 
         max_reflections = getattr(settings, "MAX_SYLLABUS_AUDIT_REFLECTIONS", 3)
         reflection_count = 0
@@ -205,7 +205,7 @@ class SyllabusAgent:
             if progress_callback:
                 progress_callback(
                     50 + reflection_count * 10,
-                    f"🔄 審查代理人正進行第 {reflection_count} 次深度審核與微調..."
+                    f"🔄 正在為「{topic}」進行第 {reflection_count} 次深度審核與單元微調..."
                 )
 
             auditor_user_msg = (
@@ -234,7 +234,7 @@ class SyllabusAgent:
                 if progress_callback:
                     progress_callback(
                         None,
-                        f"🛠️ 審查代理人執行變更工具：{action_names}"
+                        "🛠️ 正在優化課程大綱中的單元結構..."
                     )
                 self.apply_actions(course_draft, auditor_out.actions)
 

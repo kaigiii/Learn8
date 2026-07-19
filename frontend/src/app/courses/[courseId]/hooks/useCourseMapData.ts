@@ -7,6 +7,7 @@ import { NODE_STATUS, type NodeStatus } from "@/lib/domain/statuses";
 import { useRequireAuthRedirect } from "@/lib/auth/useRequireAuthRedirect";
 import type { CoursePath } from "@/lib/apiTypes";
 import { clearRecentCourseNavigation } from "@/lib/navigation/intents";
+import { watchJobStream } from "@/lib/jobs/stream";
 
 export interface CourseMapNode {
   id: string;
@@ -46,6 +47,10 @@ export function useCourseMapData({
   const [backendLoading, setBackendLoading] = useState(false);
   const [backendError, setBackendError] = useState("");
   const mapContainerRef = useRef<HTMLDivElement>(null);
+
+  const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const [activeJobProgress, setActiveJobProgress] = useState<number>(0);
+  const [activeJobMessage, setActiveJobMessage] = useState<string>("");
 
   const [isMapReady, setIsMapReady] = useState(false);
 
@@ -100,6 +105,76 @@ export function useCourseMapData({
     if (!isBackendCourse) return;
     clearRecentCourseNavigation();
   }, [isBackendCourse]);
+
+  useEffect(() => {
+    if (!isBackendCourse || !courseId || !isReady || backendLoading) return;
+
+    let eventSource: EventSource | null = null;
+    let isUnmounted = false;
+
+    const connectJob = (jobId: string) => {
+      if (isUnmounted) return;
+      setActiveJobId(jobId);
+      
+      eventSource = watchJobStream(jobId, {
+        onUpdate: (data) => {
+          if (isUnmounted) return;
+          setActiveJobProgress(data.progress ?? 0);
+          setActiveJobMessage(data.message || "Generating lesson...");
+        },
+        onCompleted: async () => {
+          if (isUnmounted) return;
+          setActiveJobId(null);
+          // Reload the course map
+          try {
+            const data = await apiFetch<CoursePath>(`/courses/${courseId}`);
+            setBackendCourse(data);
+          } catch (err) {
+            console.error("Failed to reload course map", err);
+          }
+          // Check for next job after a short delay
+          setTimeout(() => {
+            if (!isUnmounted) void checkActiveJob();
+          }, 1500);
+        },
+        onFailed: () => {
+          if (isUnmounted) return;
+          setActiveJobId(null);
+          setTimeout(() => {
+            if (!isUnmounted) void checkActiveJob();
+          }, 1500);
+        },
+        onCancelled: () => {
+          if (isUnmounted) return;
+          setActiveJobId(null);
+        }
+      });
+    };
+
+    const checkActiveJob = async () => {
+      try {
+        const response = await apiFetch<{ job_id: string | null }>(
+          `/jobs/active?course_id=${courseId}&job_type=LESSON_GENERATION`
+        );
+        if (response.job_id && !isUnmounted) {
+          connectJob(response.job_id);
+        } else if (!isUnmounted) {
+          setActiveJobId(null);
+        }
+      } catch (err) {
+        console.error("Failed to check active jobs:", err);
+      }
+    };
+
+    void checkActiveJob();
+
+    return () => {
+      isUnmounted = true;
+      if (eventSource) {
+        eventSource.close();
+      }
+    };
+  }, [courseId, isBackendCourse, isReady, backendLoading]);
 
   const nodes = useMemo<CourseMapNode[]>(() => {
     const buildPositions = (
@@ -318,5 +393,8 @@ export function useCourseMapData({
     handleMouseDown,
     handleMouseMove,
     handleMouseUp,
+    activeJobId,
+    activeJobProgress,
+    activeJobMessage,
   };
 }

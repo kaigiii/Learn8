@@ -34,6 +34,7 @@ async def run_syllabus_generation_job(
     full_text_context: str,
     files_used: list,
     regenerate: bool = False,
+    auto_generate_lessons: bool = False,
 ):
     """
     在背景獨立執行課程大綱生成的 Worker。
@@ -179,6 +180,16 @@ async def run_syllabus_generation_job(
         )
         _publish_job_notification(db, job)
 
+        # 自動生成所有關卡
+        if auto_generate_lessons:
+            import asyncio
+            asyncio.create_task(
+                auto_generate_course_lessons(
+                    course_id=c_model.id,
+                    user_id=user.id,
+                )
+            )
+
     except Exception as e:
         logger.error(f"Syllabus generation job failed: {e}")
         failed_course = (
@@ -198,5 +209,131 @@ async def run_syllabus_generation_job(
             db.refresh(job)
             _publish_job_notification(db, job)
 
+    finally:
+        db.close()
+
+
+async def auto_generate_course_lessons(course_id: int, user_id: int):
+    """
+    背景非同步依序為課程下的所有節點（關卡）生成課程內容（Lessons）。
+    """
+    import uuid
+    from app.models.course import CourseModel, NodeModel
+    from app.models.user import UserModel
+    from app.models.lesson import LessonModel
+    from app.models.job import JobModel
+    from app.domain.statuses import JobType, JobStatus
+    from app.core.config import settings
+    from app.services.domain.user.credits import has_sufficient_credits
+    from app.services.domain.user.profile_context import build_generation_profile_context
+    from app.schemas.course_schema import LessonNode
+    from app.services.infra.scheduler.workers.lesson_worker import run_lesson_generation_job
+
+    db = SessionLocal()
+    try:
+        course = db.query(CourseModel).filter(CourseModel.id == course_id).first()
+        user = db.query(UserModel).filter(UserModel.id == user_id).first()
+        if not course or not user:
+            logger.warning(f"[AutoGenerate] Course {course_id} or User {user_id} not found.")
+            return
+
+        topic = course.topic or course.title
+        profile_summary = None
+        if course.profile_json:
+            profile_summary = course.profile_json.get("summary", "General Audience")
+        profile_context = build_generation_profile_context(
+            profile_summary,
+            user.preferred_language,
+            "General Learner",
+        )
+
+        nodes = db.query(NodeModel).filter(NodeModel.course_id == course_id).all()
+        logger.info(f"[AutoGenerate] Found {len(nodes)} nodes for course {course_id}. Starting sequential generation...")
+
+        for node_model in nodes:
+            # 檢查課程是否已被刪除或用戶取消
+            db.refresh(course)
+            if not course:
+                logger.info(f"[AutoGenerate] Course {course_id} was deleted. Stopping auto-generation.")
+                break
+
+            # 1. 檢查是否已有生成的 Lesson
+            existing_lesson = db.query(LessonModel).filter(
+                LessonModel.node_id == node_model.node_id,
+                LessonModel.course_id == course_id,
+                LessonModel.user_id == user_id,
+            ).first()
+            if existing_lesson:
+                logger.info(f"[AutoGenerate] Lesson for node {node_model.node_id} already exists. Skipping.")
+                continue
+
+            # 2. 檢查是否已有正在執行的生成 Job，避免重複生成
+            existing_jobs = db.query(JobModel).filter(
+                JobModel.course_id == course_id,
+                JobModel.job_type == JobType.LESSON_GENERATION,
+                JobModel.status.in_([JobStatus.PENDING, JobStatus.PROCESSING])
+            ).all()
+
+            node_already_generating = False
+            for job in existing_jobs:
+                if job.result_data and job.result_data.get("node_id") == node_model.node_id:
+                    node_already_generating = True
+                    break
+
+            if node_already_generating:
+                logger.info(f"[AutoGenerate] Lesson for node {node_model.node_id} is already generating. Skipping.")
+                continue
+
+            # 3. 點數餘額檢查
+            db.refresh(user)
+            if not has_sufficient_credits(user, settings.COST_LESSON_GENERATION):
+                logger.warning(f"[AutoGenerate] User {user_id} has insufficient credits ({user.credits}) to generate node {node_model.node_id}. Stopping auto-generation.")
+                break
+
+            # 4. 準備 Schema 物件
+            node_desc = node_model.data.get("description", "") if node_model.data else ""
+            node_schema = LessonNode(
+                id=node_model.node_id,
+                title=node_model.title,
+                description=node_desc,
+                status=node_model.status,
+                hasGeneratedLesson=False,
+            )
+
+            # 5. 建立 JobModel 用以追蹤與回報狀態
+            job_id = str(uuid.uuid4())
+            new_job = JobModel(
+                id=job_id,
+                user_id=user_id,
+                course_id=course_id,
+                job_type=JobType.LESSON_GENERATION,
+                status=JobStatus.PENDING,
+                progress=0,
+                message="正在準備自動生成關卡內容...",
+                result_data={
+                    "course_id": course_id,
+                    "node_id": node_model.node_id,
+                    "topic": topic,
+                },
+            )
+            db.add(new_job)
+            db.commit()
+
+            logger.info(f"[AutoGenerate] Triggering lesson generation for node {node_model.node_id} (Job ID: {job_id}).")
+
+            # 6. 同步/循序等待生成（避免對 LLM 模型造成併發限制）
+            await run_lesson_generation_job(
+                job_id=job_id,
+                user_id=user_id,
+                course_id=course_id,
+                topic=topic,
+                node_data=node_schema.model_dump(),
+                course_folder_name=course.folder_name,
+                profile_summary=profile_context,
+            )
+
+        logger.info(f"[AutoGenerate] Sequential lesson generation completed for course {course_id}.")
+    except Exception as e:
+        logger.exception(f"[AutoGenerate] Exception occurred during auto lesson generation: {e}")
     finally:
         db.close()
