@@ -21,6 +21,17 @@ class JobRegistry:
         """
         db = SessionLocal()
         try:
+            # 1. Archive previously STALE jobs to CANCELLED so they don't block the UI forever
+            db.query(JobModel).filter(
+                JobModel.status == JobStatus.STALE
+            ).update({
+                JobModel.status: JobStatus.CANCELLED,
+                JobModel.message: "Cleaned up on system restart.",
+                JobModel.updated_at: datetime.now(timezone.utc)
+            }, synchronize_session=False)
+            db.commit()
+
+            # 2. Mark currently active jobs from the interrupted run as STALE
             stale_count = db.query(JobModel).filter(
                 JobModel.status.in_(ACTIVE_JOB_STATUSES)
             ).update({
@@ -44,7 +55,8 @@ class JobRegistry:
                 if course.syllabus_json:
                     course.status = CourseStatus.READY
                 else:
-                    course.status = CourseStatus.PROFILING
+                    from app.services.domain.course.lifecycle import mark_syllabus_failed
+                    mark_syllabus_failed(course)
             db.commit()
             if generating_courses:
                 logger.info(f"Cleanup on startup: Reset status for {len(generating_courses)} generating courses.")
