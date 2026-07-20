@@ -13,7 +13,7 @@ import {
 } from "@/lib/navigation/intents";
 import { watchJobStream } from "@/lib/jobs/stream";
 import type {
-  CourseListItem,
+  ActiveJobResponse,
   CoursePath,
   DraftData,
   LearnerProfile,
@@ -24,6 +24,7 @@ export type QuestionnaireStep = "loading" | "answering" | "forging";
 export type QuestionnaireJobType =
   | typeof JOB_TYPE.QUESTIONNAIRE_GENERATION
   | typeof JOB_TYPE.SYLLABUS_GENERATION
+  | typeof JOB_TYPE.LESSON_GENERATION
   | null;
 
 export function useQuestionnaireFlow() {
@@ -45,6 +46,11 @@ export function useQuestionnaireFlow() {
   const [jobType, setJobType] = useState<QuestionnaireJobType>(null);
   const [canRetryGeneration, setCanRetryGeneration] = useState(false);
   const [autoGenerateAll, setAutoGenerateAll] = useState(false);
+
+  const autoGenerateAllRef = useRef(autoGenerateAll);
+  useEffect(() => {
+    autoGenerateAllRef.current = autoGenerateAll;
+  }, [autoGenerateAll]);
 
   const clearPendingQuestionnaire = useCallback(() => {
     clearPendingQuestionnaireNavigation();
@@ -166,6 +172,80 @@ export function useQuestionnaireFlow() {
     [clearPendingQuestionnaire, closeCurrentEventSource]
   );
 
+  const watchAllBackgroundLessons = useCallback(
+    (resolvedCourseId: number) => {
+      setJobType(JOB_TYPE.LESSON_GENERATION);
+      setJobProgress(0);
+      setJobMessage("Syllabus created! Preparing auto-generation of all levels...");
+
+      const checkAndConnect = async () => {
+        if (hasNavigatedAwayRef.current) return;
+        try {
+          // Wait a brief moment to let the background job start
+          await new Promise((resolve) => setTimeout(resolve, 800));
+          if (hasNavigatedAwayRef.current) return;
+
+          const response = await apiFetch<ActiveJobResponse>(
+            `/jobs/active?course_id=${resolvedCourseId}&job_type=${JOB_TYPE.LESSON_GENERATION}`
+          );
+
+          const isActive =
+            response.job_id &&
+            (response.status === JOB_STATUS.PENDING ||
+              response.status === JOB_STATUS.PROCESSING);
+
+          if (isActive && response.job_id) {
+            activeJobIdRef.current = response.job_id;
+            const source = watchJobStream(response.job_id, {
+              autoClose: false,
+              onUpdate: (data) => {
+                if (hasNavigatedAwayRef.current) return;
+                setJobProgress(data.progress ?? 0);
+                setJobMessage(data.message || "Generating lesson content...");
+              },
+              onCompleted: () => {
+                if (hasNavigatedAwayRef.current) return;
+                // Check next lesson generation job
+                void checkAndConnect();
+              },
+              onFailed: () => {
+                if (hasNavigatedAwayRef.current) return;
+                // Redirect immediately as fallback
+                clearPendingQuestionnaire();
+                hasNavigatedAwayRef.current = true;
+                rememberCourseNavigation(resolvedCourseId);
+                router.push(`/courses/${resolvedCourseId}`);
+              },
+              onStale: () => {
+                if (hasNavigatedAwayRef.current) return;
+                clearPendingQuestionnaire();
+                hasNavigatedAwayRef.current = true;
+                rememberCourseNavigation(resolvedCourseId);
+                router.push(`/courses/${resolvedCourseId}`);
+              },
+            });
+            eventSourceRef.current = source;
+          } else {
+            // No active background generation jobs remaining - redirect
+            clearPendingQuestionnaire();
+            hasNavigatedAwayRef.current = true;
+            rememberCourseNavigation(resolvedCourseId);
+            router.push(`/courses/${resolvedCourseId}`);
+          }
+        } catch (err) {
+          console.error("Failed to check active lesson jobs in questionnaire flow:", err);
+          clearPendingQuestionnaire();
+          hasNavigatedAwayRef.current = true;
+          rememberCourseNavigation(resolvedCourseId);
+          router.push(`/courses/${resolvedCourseId}`);
+        }
+      };
+
+      void checkAndConnect();
+    },
+    [clearPendingQuestionnaire, router]
+  );
+
   const connectSyllabusJob = useCallback(
     (jobId: string, pendingCourseId: number) => {
       closeCurrentEventSource();
@@ -204,16 +284,21 @@ export function useQuestionnaireFlow() {
             resolvedCourseId = pendingCourseId;
           }
 
-          clearPendingQuestionnaire();
           if (!resolvedCourseId) {
+            clearPendingQuestionnaire();
             setStep("answering");
             setError("Syllabus finished, but the course could not be located.");
             return;
           }
 
-          hasNavigatedAwayRef.current = true;
-          rememberCourseNavigation(resolvedCourseId);
-          router.push(`/courses/${resolvedCourseId}`);
+          if (autoGenerateAllRef.current) {
+            watchAllBackgroundLessons(resolvedCourseId);
+          } else {
+            clearPendingQuestionnaire();
+            hasNavigatedAwayRef.current = true;
+            rememberCourseNavigation(resolvedCourseId);
+            router.push(`/courses/${resolvedCourseId}`);
+          }
         },
         onFailed: (data) => {
           if (hasNavigatedAwayRef.current) return;
@@ -252,7 +337,7 @@ export function useQuestionnaireFlow() {
       eventSourceRef.current = source;
       return source;
     },
-    [clearPendingQuestionnaire, closeCurrentEventSource, router]
+    [clearPendingQuestionnaire, closeCurrentEventSource, router, watchAllBackgroundLessons]
   );
 
   useEffect(() => {

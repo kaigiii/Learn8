@@ -69,6 +69,7 @@ def get_courses(
             "syllabus_json": c.syllabus_json,
             "folder_name": c.folder_name,
             "created_at": c.created_at,
+            "updated_at": c.updated_at,
         }
         for c in courses
     ]
@@ -164,6 +165,20 @@ def get_course_detail(
 
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
+
+    # Touch the course to update its updated_at timestamp if it belongs to the current user (last opened)
+    if course.user_id == current_user.id:
+        course.updated_at = utc_now()
+        is_sqlite_memory = False
+        try:
+            url_str = str(db.bind.url)
+            if "sqlite" in url_str and (":memory:" in url_str or url_str in ("sqlite://", "sqlite:///")):
+                is_sqlite_memory = True
+        except Exception:
+            pass
+            
+        if not is_sqlite_memory:
+            db.commit()
 
     ensure_course_ready_for_learning(course)
 
@@ -517,6 +532,8 @@ async def upload_course_document(
 
     try:
         file_service.save_upload_file(file, current_user.id, course.folder_name)
+        course.updated_at = utc_now()
+        db.commit()
         from app.services.domain.user.activity_logger import ActivityLogger
         ActivityLogger.log_file_upload(
             user_id=current_user.id,

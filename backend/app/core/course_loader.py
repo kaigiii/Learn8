@@ -222,8 +222,19 @@ class PublicCourseRegistryLoader:
         if public_orphans:
             print(f"  [Cleanup] Found {len(public_orphans)} orphaned PublicCourseModel entries to remove.")
             for pc in public_orphans:
-                print(f"    - Deleting PublicCourseModel: {pc.slug}")
-                db.delete(pc)
+                from app.arena.models.arena_room import ArenaRoomModel
+                from app.arena.models.arena_match import ArenaMatchModel
+                
+                has_rooms = db.query(ArenaRoomModel.id).filter(ArenaRoomModel.public_course_id == pc.id).first() is not None
+                has_matches = db.query(ArenaMatchModel.id).filter(ArenaMatchModel.public_course_id == pc.id).first() is not None
+                
+                if has_rooms or has_matches:
+                    print(f"    - Skipping delete of PublicCourseModel '{pc.slug}' (ID {pc.id}) because it is still referenced by arena rooms/matches.")
+                    # Mark as not published to hide from the UI
+                    pc.is_published = False
+                else:
+                    print(f"    - Deleting PublicCourseModel: {pc.slug}")
+                    db.delete(pc)
 
         db.flush()
         db.commit()

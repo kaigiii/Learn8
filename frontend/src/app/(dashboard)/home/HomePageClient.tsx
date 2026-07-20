@@ -244,8 +244,10 @@ export default function HomePage() {
     });
 
     return items.sort((a: HomeLibraryItem, b: HomeLibraryItem) => {
-      if (a.kind !== b.kind) {
-        return a.kind === "draft" ? -1 : 1;
+      const timeA = new Date(a.course.updated_at || a.course.created_at).getTime();
+      const timeB = new Date(b.course.updated_at || b.course.created_at).getTime();
+      if (timeA !== timeB) {
+        return timeB - timeA;
       }
       return b.course.id - a.course.id;
     });
