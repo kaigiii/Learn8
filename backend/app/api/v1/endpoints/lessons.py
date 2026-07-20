@@ -71,6 +71,18 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
+def _touch_course_updated_at(db: Session, course_id: int | None, user_id: int):
+    if not course_id:
+        return
+    course = (
+        db.query(CourseModel)
+        .filter(CourseModel.id == course_id, CourseModel.user_id == user_id)
+        .first()
+    )
+    if course:
+        course.updated_at = utc_now()
+
+
 SYSTEM_USER_EMAIL = "public@learn8.system"
 
 
@@ -1172,6 +1184,9 @@ async def start_lesson_session(
         .first()
     )
     if existing_session:
+        # Touch the course to update its updated_at timestamp
+        _touch_course_updated_at(db, effective_course_id, current_user.id)
+        db.commit()
         # Standard session recovery
         if existing_session.status == LessonSessionStatus.REMEDIAL_GENERATING:
             _, remedial_stages = _resolve_session_stage_lists(existing_session)
@@ -1380,6 +1395,7 @@ async def start_lesson_session(
         phase=LessonSessionPhase.PRIMARY,
         lesson_stage_by_uid=lesson_stage_by_uid,
     )
+    _touch_course_updated_at(db, effective_course_id, current_user.id)
     db.commit()
     db.refresh(session)
     return _build_session_payload(db, session)
@@ -1662,6 +1678,7 @@ async def submit_answer(
             )
         recorded_failure = True
 
+    _touch_course_updated_at(db, session.course_id, current_user.id)
     db.commit()
 
     return SubmissionResponse(
@@ -1718,6 +1735,7 @@ async def complete_primary_lesson_session(
         session.active_phase = LessonSessionPhase.PRIMARY
         session.completed_at = utc_now()
         _award_session_completion_rewards(db, session, current_user)
+        _touch_course_updated_at(db, session.course_id, current_user.id)
         db.commit()
         _apply_course_node_completion(db, session.course_id, session.node_id, current_user.id)
         db.refresh(session)
@@ -1765,6 +1783,7 @@ async def complete_primary_lesson_session(
     )
     db.add(job)
     session.status = LessonSessionStatus.REMEDIAL_GENERATING
+    _touch_course_updated_at(db, session.course_id, current_user.id)
     db.commit()
 
     background_tasks.add_task(
@@ -1836,6 +1855,7 @@ async def complete_remedial_lesson_session(
     session.active_phase = LessonSessionPhase.REMEDIAL
     session.completed_at = now
     _award_session_completion_rewards(db, session, current_user)
+    _touch_course_updated_at(db, session.course_id, current_user.id)
     db.commit()
 
     _apply_course_node_completion(db, session.course_id, session.node_id, current_user.id)

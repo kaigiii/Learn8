@@ -80,6 +80,7 @@ export interface CourseListItem {
   draft_json?: DraftData | null;
   folder_name?: string | null;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface LessonStage {

@@ -228,6 +228,35 @@ async def stream_job_status(job_id: str):
     )
 
 
+def _is_job_obsolete(db: Session, job: JobModel) -> bool:
+    if job.status != JobStatus.STALE:
+        return False
+
+    metadata = _normalize_job_result_data(job)
+    course_id = job.course_id or metadata.get("course_id")
+
+    if job.job_type == JobType.SYLLABUS_GENERATION:
+        if course_id:
+            from app.models.course import CourseModel
+            from app.domain.statuses import CourseStatus
+            course = db.query(CourseModel).filter(CourseModel.id == course_id).first()
+            if course and course.status == CourseStatus.READY:
+                return True
+
+    elif job.job_type == JobType.LESSON_GENERATION:
+        node_id = metadata.get("node_id")
+        if course_id and node_id:
+            from app.models.lesson import LessonModel
+            lesson = db.query(LessonModel).filter(
+                LessonModel.course_id == course_id,
+                LessonModel.node_id == node_id
+            ).first()
+            if lesson:
+                return True
+
+    return False
+
+
 @router.get("/active")
 async def check_active_jobs(
     job_type: Optional[str] = None,
@@ -269,6 +298,12 @@ async def check_active_jobs(
     )
 
     if active_job:
+        if _is_job_obsolete(db, active_job):
+            active_job.status = JobStatus.CANCELLED
+            active_job.message = "Marked as cancelled because target content is already ready."
+            db.commit()
+            return {"job_id": None}
+
         retryable = (
             active_job.status == JobStatus.STALE
             and active_job.job_type in RETRYABLE_GENERATION_JOB_TYPES
