@@ -16,7 +16,7 @@ optional_config_data_fields:
   - mediaIndex
 submission_keys:
   - acknowledged
-description: If the goal is to explain a concept clearly using text and optional media support.
+description: If the goal is to explain a concept clearly using text and media support. You are strongly encouraged to design and generate custom, beautiful SVG diagrams (e.g., flowcharts, binary trees, step-by-step illustrations) to make the learning process visually engaging.
 schema_requirements: |
   config.data MUST contain:
   - title: A short title for the concept.
@@ -24,9 +24,9 @@ schema_requirements: |
 
   Optional fields:
   - bullets: A list of short key takeaways.
-  - mediaType: "svg" | "image" | "none"
-  - mediaSvg: A simple SVG string (only when mediaType = "svg").
-  - mediaDescription: A short textual description of the image (only when mediaType = "image").
+  - mediaType: "svg" | "image" | "none" (Strongly prefer "svg" for technical, structural, or multi-step concepts to display inline diagrams).
+  - mediaSvg: A simple, valid, inline SVG string with viewBox, widths, colors, etc. (only when mediaType = "svg").
+  - mediaDescription: A short textual description of the image or diagram (only when mediaType = "image" or "svg").
   - mediaUrl: OPTIONAL internal image URL. Do NOT fabricate or include external URLs.
   - mediaIndex: OPTIONAL index from the provided image catalog.
 
@@ -34,3 +34,10 @@ schema_requirements: |
   - Do NOT embed or paste any image data (no base64).
   - Do NOT fabricate or include any URLs.
   - If mediaType = "image", you MUST provide mediaIndex from the provided catalog.
+  - If mediaType = "svg", you MUST write functional, neat, high-quality XML/SVG code that can be embedded directly.
+    - SVG PRESETS & QUALITY RULES (MANDATED - VIOLATIONS WILL BE REJECTED):
+      1. RESPONSIVE LAYOUT (CRITICAL): You MUST use `viewBox` (e.g., `viewBox="0 0 500 300"`), set `<svg width="100%" height="auto">`, and keep coordinates inside safe margins to prevent clipping. NO EXCEPTIONS.
+      2. SYSTEM PALETTE & FONTS (CRITICAL): You MUST use rounded corners (`rx="8"`), `font-family="system-ui, sans-serif"`, and clean themed colors matching the platform (Teal `#0d9488`, Mint `#2dd4bf`, Neutral fills `#f8fafc`, Dark labels `#334155`). HARSH PRIMARY COLORS OR PLAIN BLACK/WHITE STYLING IS ABSOLUTELY UNACCEPTABLE.
+      3. STATIC DIAGRAMS ONLY (NO ANIMATIONS): The SVG MUST be completely static. Do NOT include any CSS `@keyframes` animations, transitions, or SMIL `<animate>` tags. Focus entirely on layout structure and visual clarity.
+      4. HIGH PEDAGOGICAL DETAIL & CONCRETE CONTENT (MANDATED): The diagram MUST be realistic, fully detailed, and visually concrete. DO NOT DRAW EMPTY PLACEHOLDERS OR SIMPLIFIED ABSTRACT SHAPES. For example, a fishbone diagram MUST include multiple detailed bones, cause-and-effect node boxes, and labels; a Gantt chart MUST draw a realistic timeline calendar grid, tasks, and dependency links. Every visual element must contain actual data, sub-components, and educational labels to explain the concept.
+      5. HOVER MICRO-INTERACTIONS: You MUST include hover transitions inside the SVG style block so shapes scale up smoothly (`transform: scale(1.05)`) and show a cursor-pointer when hovered.

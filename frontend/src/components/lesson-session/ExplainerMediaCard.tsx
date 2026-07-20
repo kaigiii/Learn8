@@ -27,7 +27,7 @@ function renderSvg(svg: string | undefined) {
   if (!trimmed.startsWith("<svg")) return null;
   return (
     <div
-      className="w-full max-w-xl overflow-hidden rounded-2xl border border-white/70 bg-white/80 p-4 shadow-sm"
+      className="w-full max-w-3xl h-full flex justify-center items-center overflow-hidden rounded-2xl border border-white/70 bg-white/80 p-2 shadow-sm [&>svg]:max-h-full [&>svg]:w-auto [&>svg]:max-w-full [&>svg]:h-auto"
       dangerouslySetInnerHTML={{ __html: trimmed }}
     />
   );
@@ -61,26 +61,28 @@ export default function ExplainerMediaCard({
   }, [onMount]);
 
   return (
-    <div className="flex flex-1 flex-col min-h-0">
-      <div className={`flex-1 min-h-0 overflow-y-auto pr-1 ${!hideChrome ? "lesson-session-scroll" : ""}`}>
+    <div className="flex flex-1 flex-col min-h-0 overflow-hidden">
+      <div className="flex-1 min-h-0 flex flex-col overflow-hidden pr-1">
         {!hideChrome && (
-          <QuestionStageHeader
-            stageIndex={stageIndex}
-            totalStages={totalStages}
-            stageLabel={stageLabel}
-            topic={topic}
-            difficulty={difficulty}
-            recommendedDurationMinutes={recommendedDurationMinutes}
-            accentClassName="bg-gradient-to-br from-brand-teal to-[#5fb3af] shadow-teal-300/30"
-            accentTextClassName="text-brand-teal"
-            subtitle="Explainer"
-          />
+          <div className="flex-shrink-0">
+            <QuestionStageHeader
+              stageIndex={stageIndex}
+              totalStages={totalStages}
+              stageLabel={stageLabel}
+              topic={topic}
+              difficulty={difficulty}
+              recommendedDurationMinutes={recommendedDurationMinutes}
+              accentClassName="bg-gradient-to-br from-brand-teal to-[#5fb3af] shadow-teal-300/30"
+              accentTextClassName="text-brand-teal"
+              subtitle="Explainer"
+            />
+          </div>
         )}
 
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-6 rounded-2xl border border-white/60 bg-white/75 px-6 py-5 shadow-sm backdrop-blur"
+          className="flex-shrink-0 mb-4 max-h-[35%] overflow-y-auto rounded-2xl border border-white/60 bg-white/75 px-6 py-5 shadow-sm backdrop-blur lesson-session-scroll"
         >
           <div className="flex justify-between items-start gap-2">
             <h3 className="text-lg font-bold text-brand-gray-700">{title}</h3>
@@ -102,32 +104,30 @@ export default function ExplainerMediaCard({
         </motion.div>
 
         {showSvg && svgBlock ? (
-          <div className="mb-6 flex justify-center">{svgBlock}</div>
+          <div className="flex-1 min-h-0 mb-4 flex justify-center items-center overflow-hidden">{svgBlock}</div>
         ) : null}
 
-        {showImage ? (
-          <div className="mb-6 rounded-2xl border border-white/70 bg-white/80 p-4 shadow-sm">
-            {hasImage ? (
+        {showImage && hasImage ? (
+          <div className="flex-1 min-h-0 mb-4 flex justify-center items-center overflow-hidden">
+            <div className="w-full max-w-3xl h-full flex flex-col justify-center items-center overflow-hidden rounded-2xl border border-white/70 bg-white/80 p-2 shadow-sm">
               <img
                 src={mediaUrl}
                 alt={mediaDescription || title}
-                className="w-full max-h-[500px] rounded-xl object-contain"
+                className="max-h-full max-w-full object-contain rounded-xl"
               />
-            ) : (
-              <div className="rounded-xl border border-dashed border-brand-gray-200 bg-brand-gray-50 px-4 py-6 text-center text-sm text-brand-gray-500">
-                Image description only
-              </div>
-            )}
-            {mediaDescription ? (
-              <p className="mt-3 text-xs font-medium text-brand-gray-500">
-                {mediaDescription}
-              </p>
-            ) : null}
+              {mediaDescription ? (
+                <p className="mt-2 text-xs font-medium text-brand-gray-500 flex-shrink-0">
+                  {mediaDescription}
+                </p>
+              ) : null}
+            </div>
           </div>
         ) : null}
       </div>
       {!hideChrome && (
-        <QuestionActionBar onContinue={onContinue} />
+        <div className="flex-shrink-0">
+          <QuestionActionBar onContinue={onContinue} />
+        </div>
       )}
     </div>
   );

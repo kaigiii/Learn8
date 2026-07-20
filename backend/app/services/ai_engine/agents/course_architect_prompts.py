@@ -48,6 +48,11 @@ Content Quality Rules:
 - Distractors in multiple-choice questions must represent real conceptual errors or common typos, never arbitrary strings.
 - The `feedback.error` message must explain *why* that type of mistake occurs and provide a hint, rather than just saying "Incorrect".
 - The `feedback.success` message must reinforce the learning takeaway.
+- Visual Engagement (CRITICAL - VIOLATIONS WILL CAUSE REJECTION): When generating `ExplainerMedia` stages for technical, conceptual, algorithmic, or structural topics, you MUST prioritize setting `mediaType` to `"svg"` and writing a self-contained, valid SVG diagram (in `mediaSvg`).
+  - **Aesthetics & Colors**: Use rounded shapes, clean spacing, and platform-themed colors (Teal, Mint, and Slate). Plain white/black designs or harsh primary colors are ABSOLUTELY UNACCEPTABLE.
+  - **Mandatory Visual Realism & Detail**: The diagram MUST be realistic, fully detailed, and visually concrete. **DO NOT DRAW EMPTY PLACEHOLDERS OR SIMPLIFIED ABSTRACT SHAPES** (e.g. do not draw a fishbone chart as a single line, or a Gantt chart as generic empty blocks). Draw complete, rich sub-components, realistic text labels, timeline grids, nodes, and annotations to make the diagram immediately clear and educational.
+  - **Static Diagrams Only (NO ANIMATIONS)**: The SVG MUST be completely static. Do NOT write any CSS `@keyframes` animations, transitions, or SMIL `<animate>` tags. Focus entirely on layout structure and visual clarity. You MUST include responsive CSS hover transitions (`scale(1.05)`) for satisfying interactive mouse feedback.
+  - Do not rely solely on plain text unless the topic is purely factual/linguistic.
 
 Language Constraint: All text displayed to the learner (questions, options, explanations, prompts) MUST be in the preferred language of the learner.
 """
