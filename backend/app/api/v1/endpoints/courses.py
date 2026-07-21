@@ -648,7 +648,9 @@ async def submit_course_questionnaire(
         request.questions,
         preferred_language=current_user.preferred_language,
     )
-    course.profile_json = profile.model_dump()
+    profile_data = profile.model_dump()
+    profile_data["additional_notes"] = request.additional_notes
+    course.profile_json = profile_data
     mark_questionnaire_completed(course)
     flag_modified(course, "profile_json")
     db.commit()

@@ -311,20 +311,22 @@ def test_go_puzzle_validation_loop_max_retries_fail(caplog):
     )
 
     mock_provider = MockGoPlacerLLMProvider(
-        placers=[placer_out_suicide, placer_out_suicide, placer_out_suicide],
+        placers=[placer_out_suicide] * 5,
         semantic_replies=[]
     )
 
     with pytest.raises(ValueError) as excinfo:
         asyncio.run(place_go_board(stage, mock_provider))
 
-    assert "Go Board Coordinate Placer failed after 3 attempts" in str(excinfo.value)
+    assert "Go Board Coordinate Placer failed after 5 attempts" in str(excinfo.value)
     
-    # Assert logs for all three failed attempts
+    # Assert logs for all five failed attempts
     log_text = caplog.text
     assert "Go Board Placer attempt 1 failed validation" in log_text
     assert "Go Board Placer attempt 2 failed validation" in log_text
     assert "Go Board Placer attempt 3 failed validation" in log_text
+    assert "Go Board Placer attempt 4 failed validation" in log_text
+    assert "Go Board Placer attempt 5 failed validation" in log_text
 
 
 def test_go_board_evaluator_legacy_fallback():

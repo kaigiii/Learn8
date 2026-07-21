@@ -161,6 +161,7 @@ class SyllabusAgent:
         profile_summary: str = None,
         context: str = None,
         progress_callback: Optional[Callable[[Optional[int], str], None]] = None,
+        additional_notes: Optional[str] = None,
     ) -> Optional[CoursePath]:
         """Multi-Agent 整合大綱生成主要進入點 (New Flow)"""
         logger.info(f"🚀 [SyllabusAgent] Starting Multi-Agent generation for '{topic}'...")
@@ -172,12 +173,14 @@ class SyllabusAgent:
         await asyncio.sleep(0.5)
 
         profile_str = profile_summary if profile_summary else "General Audience"
+        
+        user_prompt = f"Course Topic: {topic}\nProfile: {profile_str}\nKnowledge Base Context:\n{context or 'None'}"
+        if additional_notes:
+            user_prompt += f"\n\nUser's Special Instructions/Additional Notes:\n{additional_notes}"
+
         planner_messages = [
             ("system", PLANNER_SYSTEM_PROMPT),
-            (
-                "user",
-                f"Course Topic: {topic}\nProfile: {profile_str}\nKnowledge Base Context:\n{context or 'None'}"
-            ),
+            ("user", user_prompt),
         ]
 
         try:

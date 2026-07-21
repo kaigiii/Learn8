@@ -77,14 +77,25 @@ async def place_go_board(stage: LessonStage, llm_provider: Any) -> None:
     question = stage.config.data.get("question", "")
     player_color = stage.config.data.get("playerColor") or "B"
 
-    # 設置最大重試次數為 3 次
-    max_retries = 3
+    # 設置最大重試次數為 5 次
+    max_retries = 5
     feedback_msg = ""
+    previous_output = None
 
     for attempt in range(max_retries):
         user_content = f"Question: {question}\nPlayer Color: {player_color}\nBlueprint: {blueprint}"
         if feedback_msg:
-            user_content += f"\n\n[Previous Validation Error]: {feedback_msg}\nPlease correct the placement coordinates or expectedAnswer to resolve this error."
+            if previous_output:
+                user_content += (
+                    f"\n\n[Previous Generated Coordinates]:\n"
+                    f"- Size: {previous_output.size}\n"
+                    f"- Black: {previous_output.black}\n"
+                    f"- White: {previous_output.white}\n"
+                    f"- Marks: {previous_output.marks}\n"
+                    f"- Expected Answer: {previous_output.expectedAnswer}\n"
+                    f"- Acceptable Answers: {previous_output.acceptableAnswers}"
+                )
+            user_content += f"\n\n[Previous Validation Error]: {feedback_msg}\nPlease analyze the error, adjust the coordinates or expectedAnswer, and output a valid Go board configuration."
 
         messages = [
             ("system", BOARD_PLACER_SYSTEM_PROMPT),
@@ -139,6 +150,7 @@ async def place_go_board(stage: LessonStage, llm_provider: Any) -> None:
             return
         else:
             feedback_msg = "; ".join(errors)
+            previous_output = placer_out
             activity_logger.warning(
                 f"Go Board Placer attempt {attempt + 1} failed validation: {feedback_msg}"
             )

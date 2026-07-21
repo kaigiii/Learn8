@@ -60,13 +60,21 @@ async def evaluate_go_board(
     
     # 2. Numeric / Liberty Counting modes
     if stage.component in ("GoBoardNumeric", "GoCountLiberties", "GoCountTerritory"):
-        if stage.component in ("GoBoardNumeric", "GoCountLiberties") and engine.marks:
-            computed = engine.count_marked_group_liberties()
-            if computed is not None:
+        is_territory_question = (
+            stage.component == "GoCountTerritory" or 
+            (stage.component == "GoBoardNumeric" and "目" in data.get("question", ""))
+        )
+        if is_territory_question:
+            # For territory questions, trust the database expectedAnswer if it is a valid digit,
+            # otherwise fallback to counting black territory.
+            if not (expected_answer and str(expected_answer).strip().isdigit()):
+                computed = engine.count_black_territory()
                 expected_answer = str(computed)
-        elif stage.component in ("GoBoardNumeric", "GoCountTerritory") and "目" in data.get("question", ""):
-            computed = engine.count_black_territory()
-            expected_answer = str(computed)
+        else:
+            if engine.marks:
+                computed = engine.count_marked_group_liberties()
+                if computed is not None:
+                    expected_answer = str(computed)
 
     # 後備相容性：若無 acceptableAnswers，將 expectedAnswer 包裝為 valid_answers 比對
     if valid_answers is None and expected_answer:

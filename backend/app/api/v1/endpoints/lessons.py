@@ -1016,13 +1016,15 @@ async def generate_lesson_from_node_endpoint(
         db_course = await run_in_threadpool(_fetch_course_lesson)
         if db_course:
             course_folder_name = db_course.folder_name
+            profile_json = db_course.profile_json if isinstance(db_course.profile_json, dict) else {}
             profile_summary = build_generation_profile_context(
-                db_course.profile_json.get("summary")
-                if isinstance(db_course.profile_json, dict)
-                else None,
+                profile_json.get("summary"),
                 current_user.preferred_language,
                 "General Learner",
             )
+            add_notes = profile_json.get("additional_notes")
+            if add_notes:
+                profile_summary += f"\nUser's Custom Request/Instructions:\n{add_notes}"
 
     job_id = str(uuid.uuid4())
     new_job = JobModel(

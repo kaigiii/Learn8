@@ -210,18 +210,13 @@ export function useQuestionnaireFlow() {
               },
               onFailed: () => {
                 if (hasNavigatedAwayRef.current) return;
-                // Redirect immediately as fallback
-                clearPendingQuestionnaire();
-                hasNavigatedAwayRef.current = true;
-                rememberCourseNavigation(resolvedCourseId);
-                router.push(`/courses/${resolvedCourseId}`);
+                // Don't redirect immediately on single node failure; check next lesson generation job
+                void checkAndConnect();
               },
               onStale: () => {
                 if (hasNavigatedAwayRef.current) return;
-                clearPendingQuestionnaire();
-                hasNavigatedAwayRef.current = true;
-                rememberCourseNavigation(resolvedCourseId);
-                router.push(`/courses/${resolvedCourseId}`);
+                // Don't redirect immediately on stale job; check next lesson generation job
+                void checkAndConnect();
               },
             });
             eventSourceRef.current = source;
@@ -481,26 +476,14 @@ export function useQuestionnaireFlow() {
       })),
     };
 
-    const augmentedQuestions = [...questions];
-    if (freeText.trim()) {
-      augmentedQuestions.push({
-        id: "free-text-note",
-        text: "Additional User Notes",
-        type: "text",
-      });
-      submission.responses.push({
-        question_id: "free-text-note",
-        answer: freeText.trim(),
-      });
-    }
-
     try {
       await apiFetch<LearnerProfile>(`/courses/${courseId}/questionnaire/submit`, {
         method: "POST",
         body: JSON.stringify({
           submission,
           topic,
-          questions: augmentedQuestions,
+          questions,
+          additional_notes: freeText.trim() || undefined,
         }),
       });
 

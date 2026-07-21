@@ -204,13 +204,15 @@ async def refine_syllabus_endpoint(
             raise HTTPException(status_code=403, detail="Published courses are immutable and cannot be refined.")
 
         course_folder_name = course.folder_name
+        profile_json = course.profile_json if isinstance(course.profile_json, dict) else {}
         learner_profile_summary = build_generation_profile_context(
-            course.profile_json.get("summary")
-            if isinstance(course.profile_json, dict)
-            else None,
+            profile_json.get("summary"),
             current_user.preferred_language,
             "General Audience",
         )
+        add_notes = profile_json.get("additional_notes")
+        if add_notes:
+            learner_profile_summary += f"\nUser's Custom Request/Instructions:\n{add_notes}"
 
     result = await syllabus_graph.ainvoke(
         {
