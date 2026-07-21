@@ -37,7 +37,7 @@ export async function mockSubmitStage(
     }
   }
   // 4. 圍棋關卡驗證 (Go Board)
-  else if (stage.component.startsWith("go-") || stage.component.startsWith("go")) {
+  else if (stage.component.toLowerCase().startsWith("go")) {
     const correctAnswer = configData.correctAnswer || configData.answer || configData.solution;
     const userAnswer = input?.answer;
     if (correctAnswer !== undefined && userAnswer !== undefined) {

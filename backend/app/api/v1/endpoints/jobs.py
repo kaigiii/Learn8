@@ -445,11 +445,15 @@ async def retry_job(
         ensure_course_can_generate_syllabus(course, regenerate=bool(course.syllabus_json))
         course_folder_name = course.folder_name
         if course.profile_json:
+            profile_json = course.profile_json if isinstance(course.profile_json, dict) else {}
             profile_summary = build_generation_profile_context(
-                course.profile_json.get("summary", "General Audience"),
+                profile_json.get("summary", "General Audience"),
                 current_user.preferred_language,
                 "General Audience",
             )
+            add_notes = profile_json.get("additional_notes")
+            if add_notes:
+                profile_summary += f"\nUser's Custom Request/Instructions:\n{add_notes}"
         files = (
             file_service.list_files(current_user.id, course_folder_name)
             if course_folder_name
@@ -510,11 +514,15 @@ async def retry_job(
             raise HTTPException(status_code=404, detail="Course not found for lesson retry.")
         course_folder_name = course.folder_name
         if course.profile_json:
+            profile_json = course.profile_json if isinstance(course.profile_json, dict) else {}
             profile_summary = build_generation_profile_context(
-                course.profile_json.get("summary", "General Learner"),
+                profile_json.get("summary", "General Learner"),
                 current_user.preferred_language,
                 "General Learner",
             )
+            add_notes = profile_json.get("additional_notes")
+            if add_notes:
+                profile_summary += f"\nUser's Custom Request/Instructions:\n{add_notes}"
 
         node_payload = None
         for unit in course.syllabus_json.get("units", []):

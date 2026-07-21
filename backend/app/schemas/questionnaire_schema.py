@@ -32,3 +32,4 @@ class QuestionnaireSubmitRequest(BaseModel):
     submission: QuestionnaireSubmission
     topic: str
     questions: List[Question]
+    additional_notes: Optional[str] = None

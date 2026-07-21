@@ -627,15 +627,15 @@ export function OfflineCoursePlayer() {
           <div className="relative flex w-full min-h-0 flex-1 justify-center px-4 pb-4 sm:px-6 lg:px-8 pt-2">
             <div className="w-full max-w-[1000px] flex flex-col min-w-0 min-h-0">
               {/* 關卡主要內容渲染 */}
-              <div className="flex-1 min-h-0 overflow-y-auto pr-2 scrollbar-hide py-2">
+              <div className="flex-1 min-h-0 flex flex-col py-2">
                 {activeStage ? (
                   activeStage.component === "FeynmanMirror" ? (
-                    <div className="flex-grow flex flex-col min-h-[400px] justify-center items-center text-center rounded-3xl border border-amber-200/60 bg-amber-50/80 p-8 shadow-sm backdrop-blur-md">
-                      <div className="h-16 w-16 rounded-full bg-amber-100 flex items-center justify-center mb-4">
+                    <div className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center text-center rounded-3xl border border-amber-200/60 bg-amber-50/80 p-8 shadow-sm backdrop-blur-md">
+                      <div className="h-16 w-16 rounded-full bg-amber-100 flex items-center justify-center mb-4 flex-shrink-0">
                         <span className="text-3xl">💡</span>
                       </div>
-                      <h3 className="text-lg font-bold text-amber-800 mb-2">費曼教學關卡</h3>
-                      <p className="text-sm text-amber-700 max-w-md mb-6 leading-relaxed">
+                      <h3 className="text-lg font-bold text-amber-800 mb-2 flex-shrink-0">費曼教學關卡</h3>
+                      <p className="text-sm text-amber-700 max-w-md mb-6 leading-relaxed flex-shrink-0">
                         此關卡為「費曼教學」（需要與線上 AI 即時對話），離線下載版目前不支援此互動功能，但您仍可以閱讀下方的思考主題與參考解答：
                       </p>
                       

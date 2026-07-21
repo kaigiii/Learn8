@@ -272,9 +272,13 @@ export default function GoBoardQuestion({
     componentType === "GoBoardNumeric" ||
     componentType === "GoCountLiberties" ||
     componentType === "GoCountTerritory";
+  const isTerritoryMode =
+    componentType === "GoCountTerritory" ||
+    (componentType === "GoBoardNumeric" && question.includes("目"));
   const isLibertiesMode =
-    componentType === "GoCountLiberties" ||
-    (componentType === "GoBoardNumeric" && parsedBoard.markPoints.length > 0);
+    !isTerritoryMode &&
+    (componentType === "GoCountLiberties" ||
+      (componentType === "GoBoardNumeric" && parsedBoard.markPoints.length > 0));
   const isCaptureMode =
     componentType === "GoCaptureStones" ||
     (componentType === "GoBoardCoordinate" && (question.includes("提") || question.includes("吃")));
@@ -431,13 +435,17 @@ export default function GoBoardQuestion({
       <div className="rounded-2xl border border-brand-gray-100 bg-brand-gray-50 p-3 text-sm text-brand-gray-600">
         {description && <p className="mb-2">{description}</p>}
         <p>
-          {isNumericAnswerMode
-            ? "請數出被標記棋串的氣（相鄰的空點），並在下方輸入數量。"
-            : isCaptureMode
-              ? "請在棋盤上點選你要落子提走白棋的位置，或直接輸入座標（例如 D3）。"
-              : isNoEntryMode
-                ? "請在棋盤上點選黑棋不能下的禁入點（下了會沒有氣、又提不到子的位置），或直接輸入座標（例如 B2）。"
-                : "請點選棋盤上的落子點，或直接在下方輸入答案。"}
+          {isTerritoryMode
+            ? "請數出被圍住的地域大小（空點的目數），並在下方輸入數量。"
+            : isLibertiesMode
+              ? "請數出被標記棋串的氣（相鄰的空點），並在下方輸入數量。"
+              : isNumericAnswerMode
+                ? "請在下方輸入正確的數值答案。"
+                : isCaptureMode
+                  ? "請在棋盤上點選你要落子提走白棋的位置，或直接輸入座標（例如 D3）。"
+                  : isNoEntryMode
+                    ? "請在棋盤上點選黑棋不能下的禁入點（下了會沒有氣、又提不到子的位置），或直接輸入座標（例如 B2）。"
+                    : "請點選棋盤上的落子點，或直接在下方輸入答案。"}
         </p>
       </div>
 

@@ -99,6 +99,10 @@ async def run_syllabus_generation_job(
         from app.services.infra.scheduler.jobs.job_registry import JobRegistry
         JobRegistry.heartbeat(db, job)
 
+        additional_notes = None
+        if existing_course and existing_course.profile_json:
+            additional_notes = existing_course.profile_json.get("additional_notes")
+
         # 呼叫 LLM
         syllabus = await agent.run(
             topic,
@@ -108,6 +112,7 @@ async def run_syllabus_generation_job(
             profile_summary=profile_summary,
             context=full_text_context,
             progress_callback=cb,
+            additional_notes=additional_notes,
         )
 
         if _is_cancelled(db, job_id):
