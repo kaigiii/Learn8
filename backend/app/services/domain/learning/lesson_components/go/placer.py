@@ -35,9 +35,9 @@ You MUST first analyze the board size, calculate each stone's coordinate positio
      - Bottom-left point is A1.
      - Top-right point is I9 (since I is the 9th column).
      - Center point is E5.
-2. Ensure you place the stones EXACTLY where the blueprint describes their relative positions.
+2. Ensure you place the stones where the blueprint describes. If the blueprint has contradictions (e.g. placing both black and white stones on the same coordinate), you MUST resolve the conflict and shift/adjust the coordinates so they do not overlap. Physical rules (no overlaps, valid liberties) take absolute priority over the blueprint.
 3. The size of the board must match the size requested (usually 5, 9, 13, or 19).
-4. No two stones (black and white) can share the same coordinate.
+4. No two stones (black and white) can share the same coordinate. No overlap is allowed.
 5. The 'expectedAnswer' and 'acceptableAnswers' must contain coordinate strings (e.g. 'C4') or integer numbers as strings (e.g. '3') matching the question.
 6. Declare the correct 'puzzleType' based on the question goal:
    - 'capture': capturing stones
@@ -95,7 +95,7 @@ async def place_go_board(stage: LessonStage, llm_provider: Any) -> None:
                     f"- Expected Answer: {previous_output.expectedAnswer}\n"
                     f"- Acceptable Answers: {previous_output.acceptableAnswers}"
                 )
-            user_content += f"\n\n[Previous Validation Error]: {feedback_msg}\nPlease analyze the error, adjust the coordinates or expectedAnswer, and output a valid Go board configuration."
+            user_content += f"\n\n[Previous Validation Error]: {feedback_msg}\nPlease analyze the error carefully. Note that physical rules (no overlaps, valid liberties, no suicide) take absolute priority over the blueprint. If the blueprint has coordinate conflicts or overlaps, you MUST correct/adjust them in your new output to resolve the error."
 
         messages = [
             ("system", BOARD_PLACER_SYSTEM_PROMPT),
