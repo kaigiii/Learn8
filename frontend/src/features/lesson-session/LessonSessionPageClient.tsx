@@ -214,8 +214,10 @@ export default function LessonSessionPageClient({
     (!backendStage ? hasPendingStatusFlow : showDelayedStatusPanel);
   const shouldRenderLessonSessionSkeleton =
     (!backendStage && hasPendingStatusFlow && !shouldRenderStatusPanel && !backendError) ||
-    awaitingSessionStart;
+    awaitingSessionStart ||
+    (!lessonSession && !backendError && !sessionError);
   const shouldRenderImmersiveStatus =
+    !lessonSession ||
     shouldRenderStatusPanel ||
     shouldRenderLessonSessionSkeleton ||
     !!sessionError ||

@@ -8,6 +8,8 @@ import {
   FiSkipForward,
   FiXCircle,
 } from "react-icons/fi";
+import { useI18n } from "@/lib/i18n/useI18n";
+import { QuestionActionBar } from "./QuestionActionBar";
 import type { SubmissionResponse } from "@/lib/apiTypes";
 
 interface GoBoardQuestionProps {
@@ -31,6 +33,7 @@ interface GoBoardQuestionProps {
   onWrongAdvance?: () => void;
   onSkip?: () => void;
   onHintUse?: () => void;
+  hideChrome?: boolean;
 }
 
 function parseBoardData(board: unknown): { rows: string[][]; size: number; markPoints: string[] } {
@@ -260,7 +263,9 @@ export default function GoBoardQuestion({
   onWrongAdvance,
   onSkip,
   onHintUse,
+  hideChrome = false,
 }: GoBoardQuestionProps) {
+  const { t } = useI18n();
   const [answer, setAnswer] = useState("");
   const [submissionFeedback, setSubmissionFeedback] = useState<{
     submittedAnswer: string;
@@ -401,7 +406,9 @@ export default function GoBoardQuestion({
   const columnLabels = Array.from({ length: size }, (_, index) => String.fromCharCode(65 + index));
 
   return (
-    <div className="flex flex-col gap-4 rounded-3xl border border-brand-gray-200 bg-white p-5 shadow-sm sm:p-6 lg:h-full lg:min-h-0">
+    <div className="flex-1 flex flex-col min-h-0">
+      <div className={`flex-1 overflow-y-auto min-h-0 pr-1 ${!hideChrome ? "lesson-session-scroll" : ""}`}>
+        <div className="flex flex-col gap-4 rounded-3xl border border-brand-gray-200 bg-white p-5 shadow-sm sm:p-6 lg:h-full lg:min-h-0">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-teal">
@@ -624,37 +631,7 @@ export default function GoBoardQuestion({
             className="w-full rounded-xl border border-brand-gray-300 bg-white px-3 py-2.5 text-base font-semibold text-brand-gray-700 outline-none transition-colors focus:border-brand-teal disabled:bg-brand-gray-100 disabled:text-brand-gray-400"
           />
 
-          {!hasSubmitted ? (
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => void handleSubmit()}
-                disabled={!answer.trim()}
-                className="flex-[2] rounded-xl bg-brand-teal px-3 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#5fb3af] disabled:cursor-not-allowed disabled:bg-brand-gray-300"
-              >
-                提交答案
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  onSkip?.();
-                  setAnswer("");
-                  setSubmissionFeedback(null);
-                }}
-                className="flex flex-1 items-center justify-center gap-1 rounded-xl border border-brand-gray-300 bg-white px-3 py-2.5 text-sm font-medium text-brand-gray-600 transition-colors hover:border-brand-gray-400"
-              >
-                <FiSkipForward /> 跳過
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={handleAdvance}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-green px-3 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-brand-green-dark"
-            >
-              下一關 <FiArrowRight />
-            </button>
-          )}
+
 
           {submissionFeedback && (
             <div
@@ -698,6 +675,20 @@ export default function GoBoardQuestion({
           )}
         </div>
       </div>
+      </div>
+      </div>
+      {!hideChrome && (
+        <QuestionActionBar
+          onSkip={onSkip}
+          onContinue={hasSubmitted ? handleAdvance : handleSubmit}
+          isContinueDisabled={(!answer.trim() && !hasSubmitted)}
+          continueLabel={
+            hasSubmitted
+              ? t("lesson.action.continue")
+              : t("lesson.action.check")
+          }
+        />
+      )}
     </div>
   );
 }

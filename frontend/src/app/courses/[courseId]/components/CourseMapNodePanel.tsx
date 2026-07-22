@@ -207,6 +207,9 @@ export function CourseMapNodePanel({
   };
 
   const isLocked = selectedNode?.status === NODE_STATUS.LOCKED;
+  const isGenerating = selectedNode?.latestJobStatus === "pending" || selectedNode?.latestJobStatus === "processing";
+  const isFailed = selectedNode?.latestJobStatus === "failed";
+
   const contextTitle = (() => {
     if (coursePath?.isPublic && selectedNode && coursePath.courseTitle) {
       return translatePublicNode(
@@ -275,6 +278,20 @@ export function CourseMapNodePanel({
             </p>
           ) : null}
         </section>
+
+        {isFailed && !selectedNodeHasGeneratedLesson && selectedNode?.latestJobMessage ? (
+          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 shadow-sm">
+            <p className="font-semibold">{t("courseMap.generationFailed")}</p>
+            <p className="mt-1 text-xs opacity-90">{selectedNode.latestJobMessage}</p>
+          </div>
+        ) : null}
+
+        {isGenerating && !selectedNodeHasGeneratedLesson ? (
+          <div className="rounded-xl border border-brand-teal/20 bg-brand-teal/5 px-4 py-3 text-sm text-brand-teal flex items-center gap-2.5 shadow-sm">
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-brand-teal border-t-transparent" />
+            <p className="text-xs font-semibold">{selectedNode.latestJobMessage || t("courseMap.generating")}</p>
+          </div>
+        ) : null}
 
         {!coursePath?.isPublic && (
           <section>
@@ -345,7 +362,7 @@ export function CourseMapNodePanel({
         <button
           type="button"
           onClick={handleStart}
-          disabled={!selectedNode || isLocked || enabledItems.length === 0}
+          disabled={!selectedNode || isLocked || enabledItems.length === 0 || (isGenerating && !selectedNodeHasGeneratedLesson)}
           className="w-full rounded-2xl bg-gradient-to-r from-brand-teal to-[#5fb3af] px-5 py-3 text-sm font-bold text-white shadow-lg shadow-teal-300/30 transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-45"
         >
           {!selectedNode
@@ -354,7 +371,11 @@ export function CourseMapNodePanel({
               ? t("courseMap.nodeLocked")
               : enabledItems.length === 0
                 ? t("courseMap.enableQuestionType")
-                : t("courseMap.enterLesson")}
+                : isGenerating && !selectedNodeHasGeneratedLesson
+                  ? t("courseMap.generating")
+                  : isFailed && !selectedNodeHasGeneratedLesson
+                    ? t("courseMap.generationFailed")
+                    : t("courseMap.enterLesson")}
         </button>
       </div>
     </motion.div>

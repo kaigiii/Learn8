@@ -600,19 +600,32 @@ export function OfflineCoursePlayer() {
         <div className="relative flex flex-col h-full w-full overflow-hidden app-shared-bg">
           {/* 頂部進度導航欄 */}
           <div className="flex items-center gap-3 px-4 pt-4 pb-1 sm:px-6 lg:px-8 z-30">
-            <button
-              type="button"
-              onClick={() => {
-                setIsPlaying(false);
-                setStageIdx(0);
-                setSubmissionFeedback(null);
-              }}
-              className="relative z-20 h-9 w-9 rounded-full bg-white/60 backdrop-blur flex items-center justify-center hover:bg-white/80 transition shadow-sm border border-white/50"
-            >
-              <svg viewBox="0 0 24 24" className="h-5 w-5 text-brand-gray-600" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <path d="M18 6L6 18M6 6l12 12" />
-              </svg>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsPlaying(false);
+                  setStageIdx(0);
+                  setSubmissionFeedback(null);
+                }}
+                className="relative z-20 h-9 w-9 rounded-full bg-white/60 backdrop-blur flex items-center justify-center hover:bg-white/80 transition shadow-sm border border-white/50"
+                title="返回地圖"
+              >
+                <svg viewBox="0 0 24 24" className="h-5 w-5 text-brand-gray-600" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                onClick={handlePrevStage}
+                disabled={stageIdx === 0}
+                className="relative z-20 h-9 px-3 rounded-full bg-white/60 backdrop-blur flex items-center justify-center gap-1 hover:bg-white/80 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-sm border border-white/50 text-xs font-semibold text-brand-gray-600"
+                title="上一頁"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                <span>上一頁</span>
+              </button>
+            </div>
             <div className="flex-1">
               <div className="relative h-3 w-full bg-white/50 rounded-full overflow-hidden border border-white/40 shadow-inner">
                 <div
@@ -639,7 +652,7 @@ export function OfflineCoursePlayer() {
                         此關卡為「費曼教學」（需要與線上 AI 即時對話），離線下載版目前不支援此互動功能，但您仍可以閱讀下方的思考主題與參考解答：
                       </p>
                       
-                      <div className="w-full text-left space-y-4 bg-white/95 rounded-2xl p-6 border border-amber-200/50 max-w-xl shadow-inner">
+                      <div className="w-full text-left space-y-4 bg-white/95 rounded-2xl p-6 border border-amber-200/50 max-w-xl shadow-inner mb-6">
                         <div>
                           <span className="text-xs font-bold text-amber-600 block mb-1">【思考主題】</span>
                           <p className="text-sm font-semibold text-slate-800 leading-relaxed">{activeStage.topic}</p>
@@ -659,6 +672,13 @@ export function OfflineCoursePlayer() {
                           </div>
                         )}
                       </div>
+                      <button
+                        type="button"
+                        onClick={handleNextStage}
+                        className="px-8 py-3 rounded-xl bg-gradient-to-b from-[#7AC7C4] to-[#5fb3af] text-white font-bold text-sm shadow-md hover:brightness-105 transition-all min-w-[160px]"
+                      >
+                        {stageIdx < selectedNode!.stages.length - 1 ? "繼續前進" : "完成關卡"}
+                      </button>
                     </div>
                   ) : (
                     React.createElement(stageRenderers[activeStage.component as keyof typeof stageRenderers] || renderUnsupportedStage, {
@@ -677,25 +697,6 @@ export function OfflineCoursePlayer() {
                 ) : (
                   <div className="text-center text-slate-500 py-10">此關卡尚無內容。</div>
                 )}
-              </div>
-
-              {/* 底部導覽欄 */}
-              <div className="border-t border-white/40 pt-4 flex items-center justify-between mt-auto bg-transparent">
-                <button
-                  onClick={handlePrevStage}
-                  disabled={stageIdx === 0}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/70 border border-white/60 text-sm font-semibold text-brand-gray-600 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition shadow-sm"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  上一頁
-                </button>
-                <button
-                  onClick={handleNextStage}
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-gradient-to-r from-brand-teal to-[#5fb3af] text-white font-bold text-sm shadow-md transition hover:brightness-105"
-                >
-                  {stageIdx < selectedNode!.stages.length - 1 ? "下一頁" : "完成關卡"}
-                  <ChevronRight className="h-4 w-4" />
-                </button>
               </div>
             </div>
           </div>

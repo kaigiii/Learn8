@@ -224,6 +224,8 @@ class RAGEngine:
         k: Optional[int] = None,
         course_id: Optional[int] = None,
     ) -> List[str]:
+        if not settings.AI_INGEST_RAG_ON_UPLOAD:
+            return []
         vectorstore = self.get_vectorstore()
         if not vectorstore:
             return []

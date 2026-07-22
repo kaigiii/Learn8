@@ -207,9 +207,32 @@ def get_course_detail(
 
     generated_node_ids = {row[0] for row in lesson_query.distinct().all()}
 
+    from app.models.job import JobModel
+    from app.domain.statuses import JobType
+
+    jobs = (
+        db.query(JobModel)
+        .filter(
+            JobModel.course_id == course.id,
+            JobModel.job_type == JobType.LESSON_GENERATION,
+        )
+        .order_by(JobModel.created_at.desc())
+        .all()
+    )
+    node_jobs = {}
+    for job in jobs:
+        meta = job.result_data if isinstance(job.result_data, dict) else {}
+        nid = meta.get("node_id")
+        if nid and nid not in node_jobs:
+            node_jobs[nid] = job
+
     for unit in path.units:
         for node in unit.nodes:
             node.hasGeneratedLesson = node.id in generated_node_ids
+            job = node_jobs.get(node.id)
+            if job:
+                node.latestJobStatus = job.status
+                node.latestJobMessage = job.message
 
     # Patch for public and custom courses: dynamically update status based on current_user's completions
     is_published = bool(course.is_published)
