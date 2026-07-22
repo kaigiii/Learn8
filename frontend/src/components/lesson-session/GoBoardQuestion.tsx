@@ -475,13 +475,13 @@ export default function GoBoardQuestion({
               </>
             )}
           </div>
-          <div className="flex min-h-0 flex-1 items-center justify-center lg:[container-type:size]">
+          <div className="flex min-h-0 flex-1 items-center justify-center">
             {/* The board must stay a perfect square so intersections (and the
-                round stones drawn on them) are never distorted. On desktop we
-                size it to min(container width, height) via container-query
-                units; on mobile it is simply a full-width square. */}
+                round stones drawn on them) are never distorted. We use standard CSS
+                aspect-ratio, max-height, and max-width constraints to scale it
+                responsively within its container. */}
             <div
-              className="grid aspect-square w-full max-w-full rounded-lg p-2 sm:p-3 lg:h-[min(100cqw,100cqh)] lg:w-[min(100cqw,100cqh)] lg:max-w-none"
+              className="grid aspect-square w-full h-auto max-w-full max-h-full rounded-lg p-2 sm:p-3 lg:h-full lg:w-auto"
               style={{
                 gridTemplateColumns: `1.35rem repeat(${size}, 1fr)`,
                 gridTemplateRows: `1.35rem repeat(${size}, 1fr)`,
