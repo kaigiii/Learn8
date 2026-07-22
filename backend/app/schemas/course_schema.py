@@ -27,6 +27,8 @@ class LessonNode(BaseModel):
     description: str
     status: LessonNodeStatus = LessonNodeStatus.locked
     hasGeneratedLesson: bool = False
+    latestJobStatus: Optional[str] = None
+    latestJobMessage: Optional[str] = None
 
 
 class Unit(BaseModel):

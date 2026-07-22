@@ -53,6 +53,8 @@ export interface LessonNode {
   description: string;
   status: NodeStatus;
   hasGeneratedLesson?: boolean;
+  latestJobStatus?: string | null;
+  latestJobMessage?: string | null;
 }
 
 export interface CourseUnit {

@@ -15,6 +15,8 @@ export interface CourseMapNode {
   description: string;
   status: NodeStatus;
   hasGeneratedLesson?: boolean;
+  latestJobStatus?: string | null;
+  latestJobMessage?: string | null;
   unitTitle?: string;
   isUnitHeader?: boolean;
   unitNumber?: number;
@@ -188,6 +190,8 @@ export function useCourseMapData({
         description: string;
         status: NodeStatus;
         hasGeneratedLesson?: boolean;
+        latestJobStatus?: string | null;
+        latestJobMessage?: string | null;
         unitTitle?: string;
         isUnitHeader?: boolean;
         unitNumber?: number;
@@ -233,6 +237,8 @@ export function useCourseMapData({
           description: node.description,
           status: node.status,
           hasGeneratedLesson: node.hasGeneratedLesson,
+          latestJobStatus: node.latestJobStatus,
+          latestJobMessage: node.latestJobMessage,
           unitTitle: node.unitTitle,
           isUnitHeader: node.isUnitHeader,
           unitNumber: node.unitNumber,
@@ -264,6 +270,8 @@ export function useCourseMapData({
           description: node.description,
           status: node.status,
           hasGeneratedLesson: node.hasGeneratedLesson,
+          latestJobStatus: node.latestJobStatus,
+          latestJobMessage: node.latestJobMessage,
           unitTitle: unit.unitTitle,
           isUnitHeader: false,
         });
