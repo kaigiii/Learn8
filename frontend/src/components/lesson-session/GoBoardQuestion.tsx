@@ -5,12 +5,14 @@ import {
   FiArrowRight,
   FiBookOpen,
   FiCheckCircle,
+  FiInfo,
   FiSkipForward,
   FiXCircle,
 } from "react-icons/fi";
 import { useI18n } from "@/lib/i18n/useI18n";
 import { QuestionActionBar } from "./QuestionActionBar";
 import type { SubmissionResponse } from "@/lib/apiTypes";
+import { QuestionVoiceReader } from "@/features/lesson-session/components/QuestionVoiceReader";
 
 interface GoBoardQuestionProps {
   stageIndex?: number;
@@ -410,14 +412,22 @@ export default function GoBoardQuestion({
       <div className={`flex-1 overflow-y-auto min-h-0 pr-1 ${!hideChrome ? "lesson-session-scroll" : ""}`}>
         <div className="flex flex-col gap-4 rounded-3xl border border-brand-gray-200 bg-white p-5 shadow-sm sm:p-6 lg:h-full lg:min-h-0">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-teal">
-            {stageLabel ?? `第 ${stageIndex ?? 1} / ${totalStages ?? 1} 關`}
+        <div className="min-w-0 flex-1">
+          <div className="text-xs font-bold uppercase tracking-[0.2em] text-brand-teal flex items-center gap-1.5">
+            <span>{stageLabel ?? `第 ${stageIndex ?? 1} / ${totalStages ?? 1} 關`}</span>
+            {topic && (
+              <>
+                <span className="text-brand-gray-300">•</span>
+                <span>{topic}</span>
+              </>
+            )}
           </div>
-          <h2 className="mt-1 font-heading text-xl font-bold text-brand-gray-700">
-            {topic ?? variantLabel}
-          </h2>
-          <p className="mt-1 text-sm leading-relaxed text-brand-gray-600">{question}</p>
+          <div className="mt-2 flex items-start justify-between gap-4">
+            <h2 className="font-heading text-lg md:text-xl font-black text-brand-gray-700 leading-snug">
+              {question}
+            </h2>
+            <QuestionVoiceReader text={question} />
+          </div>
         </div>
         <div className="rounded-full border border-brand-teal/40 bg-brand-teal-bg px-3 py-1 text-sm font-semibold text-brand-teal">
           {variantLabel}
@@ -439,48 +449,21 @@ export default function GoBoardQuestion({
         </div>
       )}
 
-      <div className="rounded-2xl border border-brand-gray-100 bg-brand-gray-50 p-3 text-sm text-brand-gray-600">
-        {description && <p className="mb-2">{description}</p>}
-        <p>
-          {isTerritoryMode
-            ? "請數出被圍住的地域大小（空點的目數），並在下方輸入數量。"
-            : isLibertiesMode
-              ? "請數出被標記棋串的氣（相鄰的空點），並在下方輸入數量。"
-              : isNumericAnswerMode
-                ? "請在下方輸入正確的數值答案。"
-                : isCaptureMode
-                  ? "請在棋盤上點選你要落子提走白棋的位置，或直接輸入座標（例如 D3）。"
-                  : isNoEntryMode
-                    ? "請在棋盤上點選黑棋不能下的禁入點（下了會沒有氣、又提不到子的位置），或直接輸入座標（例如 B2）。"
-                    : "請點選棋盤上的落子點，或直接在下方輸入答案。"}
-        </p>
-      </div>
+      {description && (
+        <div className="bg-slate-900/5 px-4 py-3 rounded-2xl border border-slate-100 flex items-start gap-2.5">
+          <FiInfo className="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" />
+          <div className="text-xs font-medium text-slate-500 leading-relaxed">
+            {description}
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-5 lg:min-h-0 lg:flex-1 lg:grid-rows-1 lg:grid-cols-[minmax(0,1fr)_16rem]">
         {/* ── Go board ─────────────────────────────────────────────── */}
         <div className="flex min-h-0 flex-col rounded-2xl border border-brand-gray-200 bg-brand-gray-50 p-3 shadow-inner sm:p-4">
           <div className="mb-3 flex flex-shrink-0 items-center gap-2 text-sm font-semibold text-brand-gray-700">
-            {isLibertiesMode ? (
-              <>
-                <span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-400" />
-                棋盤 · 黃色標記為要計算的棋串
-              </>
-            ) : isCaptureMode ? (
-              <>
-                <span className="inline-block h-2.5 w-2.5 rounded-full bg-brand-teal" />
-                棋盤 · 點選你要落子提子的位置
-              </>
-            ) : isNoEntryMode ? (
-              <>
-                <span className="inline-block h-2.5 w-2.5 rounded-full bg-brand-teal" />
-                棋盤 · 點選黑棋的禁入點
-              </>
-            ) : (
-              <>
-                <span className="inline-block h-2.5 w-2.5 rounded-full bg-brand-teal" />
-                棋盤 · 點選你要落子的位置
-              </>
-            )}
+            <span className="inline-block h-2.5 w-2.5 rounded-full bg-brand-teal" />
+            棋盤
           </div>
           <div className="flex min-h-0 flex-1 items-center justify-center">
             {/* The board must stay a perfect square so intersections (and the

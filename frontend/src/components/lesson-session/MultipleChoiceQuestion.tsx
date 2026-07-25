@@ -9,6 +9,7 @@ import { QuestionActionBar } from "./QuestionActionBar";
 import { QuestionStageHeader } from "./QuestionStageHeader";
 import { QuestionVoiceReader } from "@/features/lesson-session/components/QuestionVoiceReader";
 import { useI18n } from "@/lib/i18n/useI18n";
+import { AlertCircle } from "lucide-react";
 import type {
   QuestionCommonActions,
   QuestionFeedbackMessages,
@@ -191,9 +192,16 @@ export default function MultipleChoiceQuestion({
 
         {/* Feedback message */}
         {result === "wrong" && (
-          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-4 text-sm text-red-500 font-medium">
-            {feedbackMsg.error}
-          </motion.p>
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-6 rounded-[2rem] p-5 flex items-start gap-3 border border-brand-coral/20 bg-brand-coral/5 text-brand-coral shadow-sm animate-shake"
+          >
+            <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5 text-brand-coral" />
+            <div>
+              <p className="text-sm font-bold">{feedbackMsg.error}</p>
+            </div>
+          </motion.div>
         )}
       </div>
 

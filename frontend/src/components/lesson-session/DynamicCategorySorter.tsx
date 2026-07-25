@@ -175,25 +175,30 @@ export default function DynamicCategorySorter({
             const cardsInCat = shuffledCards.filter((c) => placedCards[c.id] === cat.id);
             const isTarget = phase === "editing" && selectedCardId;
 
+            const categoryStyle = isTarget
+              ? "border-brand-teal bg-brand-teal/5 shadow-md shadow-brand-teal/5 ring-2 ring-brand-teal/20"
+              : "border-brand-gray-200 bg-white hover:border-brand-teal/40 hover:bg-brand-teal/5";
+
+            const hasCards = cardsInCat.length > 0;
+            const countBadgeStyle = hasCards
+              ? "bg-brand-teal/10 text-brand-teal border border-brand-teal/20"
+              : "bg-brand-gray-50 text-brand-gray-400 border border-brand-gray-100";
+
             return (
               <div
                 key={cat.id}
                 onClick={() => handlePlaceCard(cat.id)}
-                className={`rounded-[2rem] border-2 p-5 min-h-[160px] flex flex-col justify-between transition-all cursor-pointer ${
-                  isTarget
-                    ? "border-dashed border-brand-teal/40 bg-brand-teal/5 hover:bg-brand-teal/10 hover:border-brand-teal"
-                    : "border-slate-200 bg-white"
-                }`}
+                className={`rounded-[2rem] border-2 p-5 min-h-[160px] flex flex-col justify-between transition-all cursor-pointer ${categoryStyle}`}
               >
                 <div>
                   <div className="flex items-center justify-between border-b border-slate-100 pb-2 mb-3">
-                    <span className="text-sm font-black text-slate-800">{cat.label}</span>
-                    <span className="text-[10px] bg-slate-100 px-2 py-0.5 rounded-full font-bold text-slate-500">
+                    <span className="text-sm font-black text-slate-800 font-heading">{cat.label}</span>
+                    <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-black transition-all ${countBadgeStyle}`}>
                       {cardsInCat.length} 張卡
                     </span>
                   </div>
                   {cat.description && (
-                    <p className="text-xs text-slate-400 mb-3">{cat.description}</p>
+                    <p className="text-xs text-slate-400 mb-3 font-body">{cat.description}</p>
                   )}
 
                   {/* Placed Cards list */}
@@ -210,7 +215,7 @@ export default function DynamicCategorySorter({
                           phase === "feedback"
                             ? card.correctCategoryId === cat.id
                               ? "bg-brand-green/10 border-brand-green/30 text-brand-green"
-                              : "bg-red-50 border-red-200 text-red-500"
+                              : "bg-brand-coral/10 border-brand-coral/30 text-brand-coral"
                             : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
                         }`}
                       >
@@ -237,13 +242,13 @@ export default function DynamicCategorySorter({
                   initial={{ opacity: 0, scale: 0.95, y: 10 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                  className="w-full max-w-md bg-white rounded-2xl border border-slate-200 p-5 shadow-md flex flex-col items-center gap-4 text-center"
+                  className="w-full max-w-md bg-white rounded-2xl border-2 border-b-4 border-brand-gray-200 p-5 shadow-lg flex flex-col items-center gap-4 text-center hover:border-brand-teal/30 hover:shadow-xl transition-all"
                 >
                   <span className="text-xs font-black text-brand-teal tracking-widest uppercase bg-brand-teal/10 px-2.5 py-1 rounded-md">
                     待分類字卡
                   </span>
-                  <p className="text-base font-bold text-slate-800 px-2">{activeCard.text}</p>
-                  <p className="text-[10px] text-slate-400">
+                  <p className="text-base font-bold text-slate-800 px-2 font-heading">{activeCard.text}</p>
+                  <p className="text-[10px] text-slate-400 font-body">
                     請點選上方合適的分類箱，將此字卡拖入。
                   </p>
                 </motion.div>
@@ -253,9 +258,9 @@ export default function DynamicCategorySorter({
                   animate={{ opacity: 1 }}
                   className="flex flex-col items-center gap-2 text-center"
                 >
-                  <CheckCircle2 className="w-8 h-8 text-brand-green" />
-                  <p className="text-sm font-bold text-slate-700">所有字卡已分配完畢！</p>
-                  <p className="text-xs text-slate-400">可以點擊下方的「檢查答案」按鈕進行確認。</p>
+                  <CheckCircle2 className="w-8 h-8 text-brand-green animate-bounce" />
+                  <p className="text-sm font-bold text-slate-700 font-heading">所有字卡已分配完畢！</p>
+                  <p className="text-xs text-slate-400 font-body">可以點擊下方的「檢查答案」按鈕進行確認。</p>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -265,16 +270,16 @@ export default function DynamicCategorySorter({
         {/* Feedback Messages */}
         {phase === "feedback" && (
           <div
-            className={`rounded-[2rem] p-5 flex items-start gap-3 border ${
+            className={`rounded-[2rem] p-5 flex items-start gap-3 border shadow-sm ${
               result === "correct"
                 ? "bg-brand-green/5 border-brand-green/20 text-brand-green"
-                : "bg-red-50 border-red-200 text-red-500"
+                : "bg-brand-coral/5 border-brand-coral/20 text-brand-coral"
             }`}
           >
             {result === "correct" ? (
               <CheckCircle2 className="w-5 h-5 flex-shrink-0 mt-0.5 text-brand-green" />
             ) : (
-              <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5 text-red-500" />
+              <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5 text-brand-coral" />
             )}
             <div>
               <p className="text-sm font-bold">{message}</p>
