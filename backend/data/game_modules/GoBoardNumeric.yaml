@@ -1,6 +1,8 @@
 name: GoBoardNumeric
 frontend_registry_key: GoBoardNumeric
 allowed_in_remedial: true
+component_type: "specialized"
+recommendation_prompt: "If the topic is about Go (baduk) board play, coordinates, or capture capturing: Recommend `GoBoardCoordinate` or `GoBoardNumeric`."
 voice_targets:
   - question
 required_config_data_fields:

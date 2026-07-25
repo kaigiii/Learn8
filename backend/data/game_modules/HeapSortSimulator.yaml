@@ -2,6 +2,8 @@ name: "HeapSortSimulator"
 frontend_registry_key: "HeapSortSimulator"
 description: "自動化的堆積排序動畫演示，展示建立堆積與提取根節點的完整流程。"
 allowed_in_remedial: false
+component_type: "specialized"
+recommendation_prompt: "If the topic involves binary trees or heap sort simulation: Recommend `HeapSortExercise` or `HeapSortSimulator`."
 required_config_data_fields:
   - "initialArray"
   - "title"

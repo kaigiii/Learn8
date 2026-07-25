@@ -1,6 +1,8 @@
 name: MatchingPairs
 frontend_registry_key: MatchingPairs
 allowed_in_remedial: true
+component_type: "general"
+recommendation_prompt: "If the topic involves matching terminology, cause-effect, or syntax-definition pairs: Recommend `MatchingPairs`."
 voice_targets:
   - question
   - prompt

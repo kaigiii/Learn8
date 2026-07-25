@@ -2,6 +2,8 @@ name: "GanttLogicScheduler"
 frontend_registry_key: "GanttLogicScheduler"
 description: "通用甘特圖排程器。學員需在簡化時間軸上安排任務起迄並拉出先後順序，系統自動驗證相依性與總工期邏輯。"
 allowed_in_remedial: false
+component_type: "specialized"
+recommendation_prompt: "If the topic involves scheduling, project timelines, or sequence constraints: Recommend `GanttLogicScheduler`."
 required_config_data_fields:
   - "title"
   - "tasks"

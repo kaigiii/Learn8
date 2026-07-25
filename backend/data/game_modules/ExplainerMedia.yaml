@@ -1,6 +1,8 @@
 name: ExplainerMedia
 frontend_registry_key: ExplainerMedia
 allowed_in_remedial: false
+component_type: "general"
+recommendation_prompt: "If a concept is brand new and requires conceptual visual schemas or foundational definitions: Use `ExplainerMedia` to introduce the core model, matching the detail level to the complexity of the topic, and follow it with active practice."
 voice_targets:
   - title
   - explanation

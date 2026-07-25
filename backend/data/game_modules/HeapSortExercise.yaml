@@ -2,6 +2,8 @@ name: "HeapSortExercise"
 frontend_registry_key: "HeapSortExercise"
 description: "提供互動式堆積排序練習，讓使用者手動執行交換與調整步驟以完成排序。"
 allowed_in_remedial: true
+component_type: "specialized"
+recommendation_prompt: "If the topic involves binary trees or heap sort simulation: Recommend `HeapSortExercise` or `HeapSortSimulator`."
 required_config_data_fields:
   - "initialArray"
   - "title"

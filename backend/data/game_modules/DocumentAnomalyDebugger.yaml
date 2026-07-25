@@ -2,6 +2,8 @@ name: "DocumentAnomalyDebugger"
 frontend_registry_key: "DocumentAnomalyDebugger"
 description: "通用表格/文件數據除錯組件。學員需點擊圈出文件中異常點並勾選成因，適用於稽核、品質檢驗與報表查核訓練。"
 allowed_in_remedial: true
+component_type: "specialized"
+recommendation_prompt: "If the topic involves coding/configuration debugging or syntax proofreading: Recommend `DocumentAnomalyDebugger`."
 required_config_data_fields:
   - "title"
   - "documentHtml"
