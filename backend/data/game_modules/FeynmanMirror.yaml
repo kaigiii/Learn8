@@ -1,6 +1,8 @@
 name: FeynmanMirror
 frontend_registry_key: FeynmanMirror
 allowed_in_remedial: true
+component_type: "specialized"
+recommendation_prompt: "If the goal is to have the learner explain the concept in their own words: Recommend `FeynmanMirror`."
 voice_targets:
   - prompt
 required_config_data_fields: []

@@ -128,6 +128,51 @@ class ComponentRegistryLoader:
 
         return "\n\n".join(prompt_parts)
 
+    def get_prompt_recommendation_string(self, component_names: Optional[List[str]] = None) -> str:
+        """
+        根據載入的 YAML 檔案動態生成 'COMPONENT SELECTION RECOMMENDATION' 提示字串，
+        分組為 SPECIALIZED 與 GENERAL。
+        """
+        allowed_names = set(component_names or self.components.keys())
+        specialized_parts = []
+        general_parts = []
+        
+        seen_specialized_prompts = set()
+        seen_general_prompts = set()
+        
+        sorted_components = sorted(self.components.items(), key=lambda x: x[0])
+        
+        for name, data in sorted_components:
+            if name not in allowed_names:
+                continue
+            rec_prompt = data.get("recommendation_prompt", "")
+            comp_type = data.get("component_type", "general")
+            
+            if not rec_prompt:
+                continue
+                
+            if comp_type == "specialized":
+                if rec_prompt not in seen_specialized_prompts:
+                    specialized_parts.append(f"- {rec_prompt}")
+                    seen_specialized_prompts.add(rec_prompt)
+            else:
+                if rec_prompt not in seen_general_prompts:
+                    general_parts.append(f"- {rec_prompt}")
+                    seen_general_prompts.add(rec_prompt)
+                    
+        prompt_str = (
+            "Analyze the context material for this node. Strongly prefer utilizing the most engaging component that fits the educational context. "
+            "If none of the specialized components fit, naturally fallback to the general components.\n\n"
+        )
+        if specialized_parts:
+            prompt_str += "[SPECIALIZED HIGH-ENGAGEMENT COMPONENTS - PREFER THESE WHEN APPLICABLE]\n"
+            prompt_str += "\n".join(specialized_parts) + "\n\n"
+        if general_parts:
+            prompt_str += "[GENERAL COMPONENTS]\n"
+            prompt_str += "\n".join(general_parts)
+            
+        return prompt_str.strip()
+
 
 # 供整個應用程式使用的 Singleton 實例
 registry = ComponentRegistryLoader()

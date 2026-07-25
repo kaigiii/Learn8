@@ -1,6 +1,8 @@
 name: Ordering
 frontend_registry_key: Ordering
 allowed_in_remedial: true
+component_type: "general"
+recommendation_prompt: "If the topic involves ordering steps, phases, chronological events, or execution sequences: Recommend `Ordering`."
 voice_targets:
   - prompt
 required_config_data_fields:

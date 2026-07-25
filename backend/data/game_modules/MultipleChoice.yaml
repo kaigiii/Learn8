@@ -1,6 +1,8 @@
 name: MultipleChoice
 frontend_registry_key: MultipleChoice
 allowed_in_remedial: true
+component_type: "general"
+recommendation_prompt: "If the topic requires validating concept retention or predicting code execution outputs: Recommend `MultipleChoice`."
 voice_targets:
   - question
 required_config_data_fields:

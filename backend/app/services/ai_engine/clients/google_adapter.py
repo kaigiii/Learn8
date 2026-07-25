@@ -72,9 +72,28 @@ class GoogleLLMProvider(BaseLLMProvider):
                         google_file_name = None  # Deleted or expired, force re-upload
 
                 if not google_file_name:
-                    google_file = self.client.files.upload(file=file_path)
-                    google_file_name = google_file.name
-                    _uploaded_files_cache[file_hash] = google_file_name
+                    upload_path = file_path
+                    temp_file_created = False
+                    try:
+                        file_path.encode('ascii')
+                    except UnicodeEncodeError:
+                        import shutil
+                        import tempfile
+                        temp_dir = tempfile.gettempdir()
+                        upload_path = os.path.join(temp_dir, f"upload_{file_hash}.{ext}")
+                        shutil.copy2(file_path, upload_path)
+                        temp_file_created = True
+
+                    try:
+                        google_file = self.client.files.upload(file=upload_path)
+                        google_file_name = google_file.name
+                        _uploaded_files_cache[file_hash] = google_file_name
+                    finally:
+                        if temp_file_created and os.path.exists(upload_path):
+                            try:
+                                os.remove(upload_path)
+                            except Exception:
+                                pass
 
                 # Retrieve the active file descriptor to get the correct URI
                 google_file = self.client.files.get(name=google_file_name)

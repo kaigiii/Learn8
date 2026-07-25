@@ -2,6 +2,8 @@ name: "DynamicCategorySorter"
 frontend_registry_key: "DynamicCategorySorter"
 description: "通用多分類拖曳卡片組件。支持自訂多個分類箱與字卡，適用於各學科概念歸類測驗。"
 allowed_in_remedial: true
+component_type: "specialized"
+recommendation_prompt: "If the topic involves categorizing or sorting multiple concepts, cards, or terms into different categories/buckets: Recommend `DynamicCategorySorter`."
 required_config_data_fields:
   - "title"
   - "categories"
