@@ -285,3 +285,40 @@ def test_validate_go_board_numeric_liberties_and_territory():
     errors = asyncio.run(validate_go_board_numeric(data_no_marks, None))
     assert any("marks' 欄位為空" in err for err in errors)
 
+
+def test_go_coordinate_skipping_i():
+    from app.services.domain.learning.lesson_components.go.rules_engine import GoRulesEngine
+
+    # Create a 9x9 board structure to test coordinate conversions
+    board_data = {
+        "size": 9,
+        "black": ["H1", "J1", "K1"],  # H1 is column index 7, J1 is 8, K1 is 9 (K1 out of bounds for size 9)
+        "white": [],
+        "marks": ["J1"]
+    }
+    
+    engine = GoRulesEngine(board_data)
+    
+    # Check J1 converts to correct column index 8
+    # Since size is 9, row 1 (from bottom) translates to index: 9 - 1 = 8
+    # So J1 -> (8, 8)
+    assert engine.coord_to_idx("J1") == (8, 8)
+    
+    # Check H1 -> (8, 7)
+    assert engine.coord_to_idx("H1") == (8, 7)
+    
+    # Check K1 -> (8, 9)
+    assert engine.coord_to_idx("K1") == (8, 9)
+    
+    # Check bounds (K1 is out of bounds for size 9)
+    assert engine.in_bounds(8, 7)  # H1 is in bounds
+    assert engine.in_bounds(8, 8)  # J1 is in bounds
+    assert not engine.in_bounds(8, 9)  # K1 is out of bounds
+    
+    # Check coordinate strings mapping back
+    assert engine.get_coord_str(8, 7) == "H1"
+    assert engine.get_coord_str(8, 8) == "J1"
+    
+    # Check that 'I' coordinates are rejected
+    assert engine.coord_to_idx("I1") == (-1, -1)
+

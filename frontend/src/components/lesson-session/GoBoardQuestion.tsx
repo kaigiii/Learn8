@@ -91,7 +91,9 @@ function parseBoardData(board: unknown): { rows: string[][]; size: number; markP
         if (!match) return null;
         const colLetter = match[1];
         const rowNum = parseInt(match[2], 10);
-        const colIndex = colLetter.charCodeAt(0) - 65;
+        const colCharCode = colLetter.charCodeAt(0);
+        if (colCharCode === 73) return null; // 'I' is invalid
+        const colIndex = colCharCode < 73 ? colCharCode - 65 : colCharCode - 66;
         const rowIndex = size - rowNum;
         return { rowIndex, colIndex };
       };
@@ -129,7 +131,7 @@ function parseBoardData(board: unknown): { rows: string[][]; size: number; markP
 }
 
 function toCoordinate(rowIndex: number, colIndex: number, size: number) {
-  const file = String.fromCharCode(65 + colIndex);
+  const file = String.fromCharCode(colIndex < 8 ? 65 + colIndex : 66 + colIndex);
   return `${file}${size - rowIndex}`;
 }
 
@@ -405,7 +407,9 @@ export default function GoBoardQuestion({
     setAnswer(value);
   };
 
-  const columnLabels = Array.from({ length: size }, (_, index) => String.fromCharCode(65 + index));
+  const columnLabels = Array.from({ length: size }, (_, index) =>
+    String.fromCharCode(index < 8 ? 65 + index : 66 + index)
+  );
 
   return (
     <div className="flex-1 flex flex-col min-h-0">

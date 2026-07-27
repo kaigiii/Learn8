@@ -192,12 +192,11 @@ def test_go_puzzle_validation_loop_success(caplog):
     placer_out = BoardPlacerOutput(
         thoughtProcess="Let's capture the white stone at D3 by playing at C3.",
         size=9,
-        black=["C4", "E4"],
+        black=["D2", "D4", "E3"],
         white=["D3"],
         marks=[],
         expectedAnswer="C3",
-        acceptableAnswers=["C3"],
-        puzzleType="capture"
+        acceptableAnswers=["C3"]
     )
 
     mock_provider = MockGoPlacerLLMProvider(
@@ -247,8 +246,7 @@ def test_go_puzzle_validation_loop_retry_and_pass(caplog):
         white=["C4"], # Overlap!
         marks=[],
         expectedAnswer="C3",
-        acceptableAnswers=["C3"],
-        puzzleType="general"
+        acceptableAnswers=["C3"]
     )
 
     # Attempt 2: Correctly placed stones
@@ -259,8 +257,7 @@ def test_go_puzzle_validation_loop_retry_and_pass(caplog):
         white=["D3"],
         marks=[],
         expectedAnswer="C3",
-        acceptableAnswers=["C3"],
-        puzzleType="general"
+        acceptableAnswers=["C3"]
     )
 
     mock_provider = MockGoPlacerLLMProvider(
@@ -306,8 +303,7 @@ def test_go_puzzle_validation_loop_max_retries_fail(caplog):
         white=["C4", "C2", "B3", "D3"],
         marks=[],
         expectedAnswer="C3", # Suicide!
-        acceptableAnswers=["C3"],
-        puzzleType="general"
+        acceptableAnswers=["C3"]
     )
 
     mock_provider = MockGoPlacerLLMProvider(

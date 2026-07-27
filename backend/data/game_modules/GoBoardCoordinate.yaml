@@ -24,6 +24,7 @@ schema_requirements: |
   - playerColor: Color ("B" or "W") indicating whose turn it is.
 
   CRITICAL RULES:
+  - The coordinate system skips the letter 'I' (columns run A-H, then J-T). For example, a 9x9 board's top-right corner is J9, and a 19x19 board's center (Tengen) is K10. Make sure all coordinate references in your blueprint description skip the letter 'I'.
   - You MUST NOT try to populate the complex `board` dictionary or `expectedAnswer` directly. Leave them empty/omitted. A downstream specialist mapper agent will compile your `board_blueprint` into precise coordinate lists and validate them against rules of Go.
   - All text fields (question, explanation, prompts) MUST be in the preferred language of the learner.
 
