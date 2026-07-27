@@ -113,18 +113,22 @@ class GoRulesEngine:
         return neighbors
 
     def get_coord_str(self, r: int, c: int) -> str:
-        """Convert index (r, c) to Go standard coordinate notation, e.g. 'C4'."""
-        return f"{chr(65 + c)}{self.rows - r}"
+        """Convert index (r, c) to Go standard coordinate notation, e.g. 'C4', skipping 'I'."""
+        col_char = chr(65 + c) if c < 8 else chr(66 + c)
+        return f"{col_char}{self.rows - r}"
 
     def coord_to_idx(self, coord: str) -> tuple[int, int]:
-        """Convert Go standard coordinate string (e.g. 'C4') to index (r, c)."""
+        """Convert Go standard coordinate string (e.g. 'C4') to index (r, c), skipping 'I'."""
         if not coord or len(coord) < 2:
             return -1, -1
         match = re.match(r"^([A-Z])(\d+)$", coord.strip().upper())
         if not match:
             return -1, -1
         col_letter, row_num = match.groups()
-        c = ord(col_letter) - 65
+        c_ord = ord(col_letter)
+        if c_ord == 73:  # 'I' is invalid
+            return -1, -1
+        c = c_ord - 65 if c_ord < 73 else c_ord - 66
         r = self.rows - int(row_num)
         return r, c
 

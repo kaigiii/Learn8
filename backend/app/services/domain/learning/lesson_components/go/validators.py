@@ -40,9 +40,9 @@ def render_go_board(board_data: dict) -> bytes:
     except Exception:
         font = None
         
-    # 繪製欄位標籤 A-T (跳過欄位無特殊定義時，ord-based A, B, C...)
+    # 繪製欄位標籤 A-T (跳過 I)
     for i in range(size):
-        col_letter = chr(65 + i)
+        col_letter = chr(65 + i) if i < 8 else chr(66 + i)
         offset = margin + i * cell_size
         draw.text((offset - 3, margin - 20), col_letter, fill="#000000", font=font)
         draw.text((offset - 3, img_size - margin + 5), col_letter, fill="#000000", font=font)
@@ -66,7 +66,10 @@ def render_go_board(board_data: dict) -> bytes:
             row_num = int(coord[1:])
         except ValueError:
             return None
-        c_idx = ord(col_letter) - 65
+        c_ord = ord(col_letter)
+        if c_ord == 73:  # 'I' is invalid
+            return None
+        c_idx = c_ord - 65 if c_ord < 73 else c_ord - 66
         r_idx = row_num - 1
         cx = margin + c_idx * cell_size
         cy = img_size - margin - r_idx * cell_size
@@ -174,20 +177,22 @@ async def validate_go_board_coordinate(data: dict, llm_provider: Any) -> List[st
         blueprint = data.get("board_blueprint", "無文字描述")
         question = data.get("question", "")
         explanation = data.get("explanation", "")
+        acceptable_answers = data.get("acceptableAnswers") or [expected_answer]
 
         verification_prompt = (
-            "You are a strict Go referee assistant. Please verify whether the following setup matches the attached board image and question logic.\n\n"
+            "You are an expert Go solver and referee. Look at the attached board image and solve the following question.\n\n"
             f"- Question: {question}\n"
             f"- Player Color: {'Black' if player_color == 'B' else 'White'}\n"
-            f"- Board Blueprint: {blueprint}\n"
-            f"- Coordinates: Black: {board.get('black')}, White: {board.get('white')}, Marks: {board.get('marks')}\n"
-            f"- Expected Play Coordinate: {expected_answer}\n"
-            f"- Explanation: {explanation}\n\n"
-            "Analyze the image and setup step-by-step:\n"
-            "1. List each stone coordinate shown on the image and verify if it matches the 'Coordinates' list.\n"
-            "2. Note the board orientation: columns are A-T from left to right, rows are 1-N from bottom to top.\n"
-            "3. If Player plays at the Expected Play Coordinate, does it successfully achieve the goal of the Question?\n\n"
-            "Output your step-by-step analysis first. Finally, end your response with exactly 'VERDICT: YES' if correct, or 'VERDICT: NO - [reason]' if there is any mistake."
+            "Board Orientation: columns are A-T from left to right (skipping 'I', so A-H then J-T), rows are 1-N from bottom to top.\n\n"
+            "Please solve this puzzle step-by-step from the visual state shown in the image:\n"
+            "1. List the coordinates of the key stones and empty spots around the area of conflict.\n"
+            "2. Reason out the correct move coordinate(s) or numeric answer to solve the question. "
+            "If the board setup is flawed, incorrect, or contradictory to the question (e.g., the question asks to capture stones, but the target stones have multiple liberties and cannot be captured in one move), explain exactly what the logical error is.\n"
+            f"3. Now compare your solution with the system's acceptable candidate answers: {acceptable_answers}. Does at least one of these acceptable answers achieve the goal of the question?\n\n"
+            "Output your step-by-step reasoning first, and end your response with exactly:\n"
+            "VERDICT: YES (if at least one of the candidate answers is correct and the question/board are logically valid)\n"
+            "or\n"
+            "VERDICT: NO - [detailed explanation of the flaw, coordinate error, or wording contradiction] (if none of the candidate answers are correct or if there is a logic error, so the generator can correct it)"
         )
 
         from langchain_core.messages import SystemMessage, HumanMessage
