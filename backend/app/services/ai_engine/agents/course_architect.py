@@ -149,13 +149,52 @@ class AIArchitectService:
 
         system_message = SystemMessage(content=system_content)
 
-        # 4. 建立使用者提示與多模態圖片訊息
+        # 4. 建立使用者提示與多模態圖片訊息 (注入前後節點連續性脈絡)
+        continuity_context = ""
+        if course_id:
+            try:
+                from app.db.session import SessionLocal
+                from app.models.course import CourseModel
+                with SessionLocal() as db_session:
+                    course_rec = db_session.query(CourseModel).filter(CourseModel.id == course_id).first()
+                    if course_rec and course_rec.syllabus_json:
+                        s_data = course_rec.syllabus_json
+                        all_nodes = []
+                        for unit in s_data.get("units", []):
+                            for n in unit.get("nodes", []):
+                                all_nodes.append(n)
+
+                        curr_idx = next((idx for idx, n in enumerate(all_nodes) if n.get("id") == node.id), -1)
+                        if curr_idx != -1:
+                            parts = []
+                            if curr_idx > 0:
+                                prev_n = all_nodes[curr_idx - 1]
+                                parts.append(
+                                    f"PREVIOUS MASTERED NODE: '{prev_n.get('title')}' ({prev_n.get('description')}).\n"
+                                    "-> GUIDELINE: Assume the learner already understands concepts from previous nodes; connect smoothly from this foundation without repeating basic definitions."
+                                )
+                            if curr_idx + 1 < len(all_nodes):
+                                next_n = all_nodes[curr_idx + 1]
+                                parts.append(
+                                    f"UPCOMING NEXT NODE: '{next_n.get('title')}' ({next_n.get('description')}).\n"
+                                    "-> GUIDELINE: Build the mental scaffolding preparing the learner for this upcoming node."
+                                )
+                            if parts:
+                                continuity_context = "\n\n### CURRICULUM CONTINUITY CONTEXT:\n" + "\n".join(parts)
+            except Exception as ctx_err:
+                activity_logger.warning(f"Failed to resolve continuity context: {ctx_err}")
+
+        node_prompt_text = f"TOPIC: {topic}\nNODE TITLE: {node.title}\nNODE DESC: {node.description}"
+        if continuity_context:
+            node_prompt_text += f"\n{continuity_context}"
+
         user_content_parts = [
             {
                 "type": "text",
-                "text": f"TOPIC: {topic}\nNODE TITLE: {node.title}\nNODE DESC: {node.description}"
+                "text": node_prompt_text
             }
         ]
+
 
         # 如果有圖片，則一併將實體圖片讀取為 Base64 數據並附在使用者訊息中，供 Vision LLM 視覺對比挑選
         if media_catalog and course_id is not None and user_id is not None and course_folder is not None:
