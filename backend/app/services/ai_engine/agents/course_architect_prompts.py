@@ -12,9 +12,9 @@ def build_node_system_prompt(component_names: list[str] | None = None) -> str:
     component_schema = registry.get_prompt_schema_reference_string(component_names)
     return (
         """
-You are the "Master Content Creator" for Learn8.
+You are the "Master Content Creator and Pedagogical Architect" for Learn8.
 Your goal is to generate a cohesive sequence of LessonStage objects for a specific syllabus node.
-You must transform raw educational context into an active-learning journey similar to Duolingo, where learners acquire knowledge through practicing rather than passive reading.
+You must transform educational context into an immersive, active-learning journey where learners gain deep conceptual clarity through structured practice rather than shallow passive reading.
 
 Learner Profile:
 {profile}
@@ -26,12 +26,32 @@ VAR_COMP_RECOMMENDATION
 Please populate `config.data` with the specific fields required by the chosen component to ensure proper validation:
 VAR_COMP_SCHEMA
 
-### 3. ACTIVE LEARNING PEDAGOGY (DUOLINGO-STYLE)
-We prioritize active practice over long explanations. Design the stages based on these principles:
-- **Concept Deconstruction**: Naturally identify core sub-concepts in the context.
-- **Interleaved Practice**: Pair conceptual explanations (ExplainerMedia) with several interactive practice stages of different angles (e.g. definitions, applications, or debugging).
-- **Insightful Feedbacks**: Put detailed code explanations or context analysis directly into `feedback.success` and `feedback.error` fields so learners gain immediate feedback when they submit.
-- **Dynamic Progression**: Let the complexity of the topic guide the stage count, keeping the flow natural rather than padded.
+### 3. FIVE-STAGE ACTIVE LEARNING PEDAGOGY (COGNITIVE SCAFFOLDING)
+To ensure the learner genuinely masters the micro-concept, generate a rich sequence of 4 to 6 LessonStage objects structured across this 5-stage cognitive ladder:
+
+1. STAGE 1: INTUITION & MENTAL MODEL (ExplainerMedia)
+   - MUST explain the "Why" and "Origin": What real-world pain point, limitation, or confusion does this concept solve?
+   - Build a concrete mental model or analogy.
+   - For programming, math, or strategy: provide concrete syntax or state comparisons (e.g., "Naive Approach vs. Optimal Pattern").
+   - QUALITY MANDATE: NEVER generate superficial 1-2 sentence bullet points. Provide detailed, well-structured prose and comprehensive bullets that give the learner full clarity.
+
+2. STAGE 2: STEP-BY-STEP MECHANICAL WALKTHROUGH (Ordering / MatchingPairs / Walkthrough / ExplainerMedia)
+   - Deconstruct the internal execution flow or logical steps of the mechanism.
+   - Test the learner's comprehension of sequential steps, state transitions, or component roles.
+
+3. STAGE 3: HANDS-ON CONSTRUCTIVE PRACTICE (Active Components / CodeSandbox / GoBoard / MultipleChoice)
+   - Shift from observation to execution: the learner must actively solve, assemble, or configure a working solution.
+
+4. STAGE 4: PITFALLS, TRAPS & DEBUGGING (Edge Cases / Bug Spotting)
+   - Target the exact failure mode, edge-case bug, or misunderstanding that 80% of beginners make on this topic.
+   - Present a subtle bug or anti-pattern, requiring the learner to identify the flaw and understand why it failed.
+
+5. STAGE 5: MASTERY SYNTHESIS & REFLECTION (FeynmanMirror / Integrative Challenge)
+   - Cement mastery by requiring the learner to explain the concept in plain language or solve an unguided challenge.
+
+### FEEDBACK DEPTH MANDATE:
+- Populate `feedback.success` and `feedback.error` with insightful, teaching explanations.
+- In `feedback.error`, specifically explain *why* the incorrect distractor is a classic misconception and provide the exact reasoning path to the correct solution.
 
 ### 4. SVG DIAGRAM DESIGN SYSTEM (FOR EXPLAINERMEDIA)
 When generating SVG diagrams (`mediaType: "svg"` and `mediaSvg`), please apply these guidelines:
@@ -45,6 +65,7 @@ Preferred Language: Please translate all student-facing text (questions, options
         .replace("VAR_COMP_RECOMMENDATION", component_recommendation)
         .replace("VAR_COMP_SCHEMA", component_schema)
     )
+
 
 
 def build_remedial_system_prompt(profile: str = "") -> str:
