@@ -33,6 +33,8 @@
 - 預設情境、手動情境切換、播放、暫停、重播、倍速。
 - 學習事件時間軸。
 - 規則式 AI 摘要與建議。
+- 人機互動決策模擬：提示、降階、換題、短休息與恢復學習。
+- 每次介入的原因、門檻、使用者選擇與介入後效果。
 - 以現有實驗 CSV 進行離線 replay 的能力。
 - 明顯的 `MOCK` 標示。
 
@@ -43,7 +45,7 @@
 - 即時 LLM 呼叫。
 - 模型訓練、模型上線或準確度宣稱。
 - 將腦波資料寫入 Learn8 資料庫。
-- 自動改題、跳題、扣分、加分或控制 AI Tutor。
+- 在現有正式課程中直接改題、跳題、扣分、加分或控制 AI Tutor。第一階段只在隔離的 mock lesson sandbox 模擬介入。
 - 正式研究受測者流程、同意書或醫療用途。
 
 ---
@@ -76,6 +78,10 @@
    - 顯示由規則模板產生的狀態摘要與建議
 7. **Scenario Controls**
    - 自動劇本與手動狀態注入
+8. **Interaction Simulator**
+   - 顯示系統準備採取的介入、觸發原因與倒數
+   - 可接受、延後、拒絕或關閉自動調整
+   - 對照介入前後的狀態變化
 
 ### 4.2 課程頁 Overlay（第二個掛載點）
 
@@ -215,7 +221,39 @@ type NeuroLearningEvent = {
 };
 ```
 
-只允許 Learn8 把事件送入 mock 模組；mock 模組不得反向呼叫課程 action。
+正式 Learn8 整合時只允許 Learn8 把事件送入 mock 模組；mock 模組不得直接反向呼叫課程 action。mock lesson sandbox 可透過另一個明確的 `InterventionPort` 模擬換題等行為，避免展示邏輯與正式課程 store 耦合。
+
+### 6.3 介入建議契約
+
+狀態判斷不能直接等同於操作。決策層必須先產生一筆可檢查、可拒絕的介入建議：
+
+```ts
+type NeuroInterventionProposal = {
+  id: string;
+  timestampMs: number;
+  level: 0 | 1 | 2 | 3;
+  action:
+    | "observe"
+    | "soft_nudge"
+    | "offer_hint"
+    | "simplify_explanation"
+    | "change_question"
+    | "suggest_break"
+    | "pause_for_signal";
+  reasonCode: string;
+  evidenceWindowSeconds: number;
+  evidence: Array<{
+    metric: string;
+    value: number | string;
+    baseline?: number;
+    threshold?: number;
+  }>;
+  mode: "silent" | "ask-first" | "automatic";
+  expiresAtMs: number;
+};
+```
+
+執行結果另記為 `accepted`、`declined`、`dismissed`、`expired` 或 `auto-applied`，以便呈現使用者是否接受系統幫助，以及介入是否真的改善後續狀態。
 
 ---
 
@@ -255,6 +293,118 @@ type NeuroLearningEvent = {
 - UI frame 建議 5–10 Hz；不需要在 React state 中模擬全部 256 個 sample/s。
 - 分析指標每秒更新，顯示採 10 秒移動平均。
 - 狀態切換需有 dwell time 與 hysteresis，避免門檻附近跳動。
+
+### 7.4 人機互動閉環
+
+Mock 的核心展示流程應是：
+
+```text
+感測訊號
+  → 通過品質檢查
+  → 與個人 baseline 比較
+  → 結合答題與停留時間等學習事件
+  → 形成狀態假設
+  → 選擇最低必要介入
+  → 讓使用者接受、拒絕或延後
+  → 觀察介入後 20–60 秒是否改善
+  → 維持、升級或停止介入
+```
+
+系統目的不是看到低數值就立刻打斷，而是使用最低干擾的方法幫助學習者回到可學習狀態。
+
+### 7.5 介入層級
+
+| Level | 介入程度 | 適用條件 | 範例 |
+|---:|---|---|---|
+| 0 | 只觀察 | 訊號短暫波動，或證據不足 | 不改畫面，只記錄趨勢 |
+| 1 | 輕提示 | 分心持續但尚未答錯 | 動態角色提醒「我們換個節奏？」 |
+| 2 | 學習支援 | 分心／受挫持續，並有答錯或提示事件 | 提供提示、拆小步驟、切換圖像解釋 |
+| 3 | 流程調整 | 多次支援後仍未恢復，或明顯疲勞 | 詢問是否換題、降階或休息 |
+
+介入從 Level 0 逐級升高，不能從單一 EEG frame 直接跳到換題或中止學習。
+
+### 7.6 建議門檻與觸發規則
+
+門檻全部建立在校準後的 0–100 normalized score 與個人 baseline 上；以下是 mock 展示預設值，不是醫療或科學判定標準。
+
+| 情境 | 必要證據 | 最短持續 | 建議介入 |
+|---|---|---:|---|
+| 短暫分心 | engagement 低於 baseline 15 點 | 10 秒 | Level 0，只觀察 |
+| 持續分心 | engagement 低於 baseline 20 點 | 25 秒 | Level 1，輕提示 |
+| 可能受挫 | approach 低於 baseline 20 點，且 90 秒內至少一次答錯 | 15 秒 | Level 2，提供提示或換解釋 |
+| 題目不適配 | Level 2 已介入、再答錯一次，且狀態 30 秒未恢復 | 30 秒 | Level 3，詢問換同目標的替代題 |
+| 可能疲勞 | fatigue 高於 70，且 engagement 低於 35 | 45 秒 | Level 3，提示 2–5 分鐘休息 |
+| 嚴重疲勞 | 疲勞條件持續，且使用者已完成至少 15 分鐘學習 | 90 秒 | 建議暫停；仍由使用者決定 |
+| 訊號不良 | quality gate 未通過 | 3 秒 | 暫停推論，只提示調整裝置 |
+| 恢復 | engagement 回到 baseline ±10，品質良好 | 20 秒 | 解除提示並進入冷卻期 |
+
+額外限制：
+
+- 至少兩種證據才可觸發 Level 2/3，例如生理趨勢加答題事件。
+- `poor_signal`、分頁切到背景、lesson paused 時不累積認知狀態門檻。
+- 同一題前 10 秒不判斷分心，避免把閱讀題幹誤認為低投入。
+- 答題後 5 秒內不立即介入，讓使用者先閱讀回饋。
+
+### 7.7 換題不是跳過學習目標
+
+「更換題目」應維持相同 learning objective，只更換呈現形式或難度，而不是把不會的內容直接略過。
+
+優先順序：
+
+1. 原題增加一個小提示。
+2. 把題目拆成較小步驟。
+3. 從文字切換成圖像、例子或互動操作。
+4. 換成同概念、較低難度的替代題。
+5. 暫存原題，完成替代題後再回來確認理解。
+
+Mock lesson sandbox 應展示「原題 → 介入原因 → 替代題 → 是否恢復 → 是否回到原學習目標」的完整過程。
+
+### 7.8 休息提示設計
+
+休息提示不應像錯誤警報。建議提供三個選項：
+
+- `休息 2 分鐘`
+- `完成這題再休息`
+- `今天不要再提醒`
+
+接受休息後，畫面進入低刺激模式、停止題目倒數，並顯示簡單呼吸／伸展提示；返回時重新做 10–15 秒快速 baseline，而不是沿用休息前狀態。
+
+### 7.9 使用者控制權與自動化模式
+
+Mock Data Lab 應能切換三種策略，比較人機互動差異：
+
+| 模式 | 系統權限 | 適合展示 |
+|---|---|---|
+| `Observe` | 只觀察與記錄，不打斷 | 對照組、建立信任 |
+| `Assist` | 提示、換解釋、換題、休息都先詢問 | 建議作為產品預設 |
+| `Adaptive Demo` | Level 1/2 可自動執行；換題與休息仍需確認 | 展示閉環自適應能力 |
+
+即使在 Adaptive Demo，系統也不能自動結束課程、扣分或將題目標為完成。
+
+### 7.10 冷卻、抑制與防打擾
+
+- Level 1 介入後至少 45 秒不重複提醒。
+- Level 2 介入後至少觀察 30 秒再決定是否升級。
+- Level 3 被拒絕後，至少 3 分鐘不再提出同類建議。
+- 每 10 分鐘最多兩次主動打斷。
+- 使用者連續拒絕兩次後，本 session 自動降為 Observe。
+- 狀態恢復時不以彈窗慶祝，只在狀態卡安靜顯示「已恢復」。
+
+### 7.11 介入效果評估
+
+每次介入都比較介入前後的固定觀察窗：
+
+- 前窗：介入前 30 秒。
+- 後窗：介入後 30–60 秒。
+- 指標：engagement 變化、approach 變化、答題結果、使用者是否拒絕。
+
+Mock 應能展示三種結果：
+
+- `helped`：狀態改善或完成學習目標。
+- `no_change`：沒有明顯效果，維持觀察或升級。
+- `made_worse`：狀態惡化，停止同類介入並把控制權交還使用者。
+
+這讓產品重點從「AI 說使用者分心」轉成「系統採取什麼行動，以及該行動是否真的有幫助」。
 
 ---
 
@@ -356,15 +506,28 @@ Data Lab 驗收後，才在 `LessonSessionPageClient` 增加一個 lazy-loaded o
 - poor signal 時，metric 可顯示 raw/unknown，但不可產生 focused/frustrated 結論。
 - 所有狀態切換符合 dwell time。
 - AI 摘要證據必須與當下 frame/event 一致。
+- 單一指標或單一瞬間不得直接觸發換題或休息。
+- Level 2/3 介入必須能追溯至少兩項證據。
+- 介入被拒絕後必須遵守 cooldown，不可反覆詢問。
+- 介入不得自動改變分數、完成狀態或學習進度。
 
-### 12.4 UI
+### 12.4 人機互動
+
+- 可分別重播 `helped`、`no_change`、`made_worse` 三種介入結果。
+- Assist 模式下，換題與休息必須先取得使用者確認。
+- 使用者能查看「為什麼出現這個建議」。
+- 使用者可關閉本次 session 的自動調整。
+- 替代題保持相同 learning objective，且能回到原學習目標。
+- 休息返回後重新校準，不沿用休息前 baseline。
+
+### 12.5 UI
 
 - Desktop、tablet、mobile 均不溢出。
 - prefers-reduced-motion 下關閉高頻動畫。
 - mock 標示不可被收合或隱藏。
 - 獨立頁可完成播放、暫停、重播、倍速與情境切換。
 
-### 12.5 效能
+### 12.6 效能
 
 - 波形使用固定長度 ring buffer。
 - 不讓 React 每秒建立 256 次全頁 render。
@@ -381,18 +544,20 @@ Data Lab 驗收後，才在 `LessonSessionPageClient` 增加一個 lazy-loaded o
 
 ### Phase 1：Standalone Data Lab
 
-- 建立 feature 目錄、synthetic source、scenario engine 與獨立頁。
+- 建立 feature 目錄、synthetic source、scenario engine、interaction simulator 與獨立頁。
 - 不接現有課程流程。
 
 ### Phase 2：Replay 與事件時間軸
 
 - 加入經處理的 CSV replay fixture。
 - 加入 mock learning events 與規則式 AI summary。
+- 加入 mock lesson sandbox，展示提示、換解釋、替代題、休息與恢復閉環。
 
 ### Phase 3：Optional Lesson Widget
 
 - 以 feature flag 與 lazy loading 接入課程頁。
-- 只讀取公開事件，不改課程 state。
+- 初期只讀取公開事件並輸出 intervention proposal，不直接改課程 state。
+- 只有在獨立 sandbox 驗收後，才評估由正式課程 host 主動接受 proposal。
 
 ### Phase 4：未來實機 Proof of Concept（不在本次範圍）
 
@@ -410,6 +575,9 @@ Data Lab 驗收後，才在 `LessonSessionPageClient` 增加一個 lazy-loaded o
 - Data Lab 響應式頁面。
 - Synthetic 與 CSV replay source。
 - Rule engine 與文案表。
+- 介入層級、門檻、cooldown 與使用者控制策略。
+- 可替換題目、提示及休息流程的 mock lesson sandbox。
+- 每次介入的 audit log 與效果比較畫面。
 - 單元、整合與清理測試。
 - 功能旗標與停用說明。
 - 無障礙與效能檢查結果。
@@ -436,6 +604,9 @@ Data Lab 驗收後，才在 `LessonSessionPageClient` 增加一個 lazy-loaded o
 5. 功能旗標關閉時，Learn8 現有功能與網路行為無差異。
 6. mock 模組可在不修改核心 domain logic 的前提下移除。
 7. live Muse source 未完成也不影響本階段驗收。
+8. 可完整展示「持續分心 → 輕提示 → 仍未恢復 → 提供提示／替代題 → 狀態恢復」流程。
+9. 可完整展示疲勞時的休息建議、拒絕、冷卻與返回後重新校準。
+10. 每次介入都能查看觸發證據、使用者決定與介入後結果。
 
 ---
 
@@ -446,4 +617,7 @@ Data Lab 驗收後，才在 `LessonSessionPageClient` 增加一個 lazy-loaded o
 - AI 使用規則模板，不生成底層數據。
 - 使用統一 data-source contract，預留未來實機替換。
 - 優先採用相對 baseline、時間趨勢與品質 gate。
+- 產品主軸是人機互動閉環，不是單純腦波 dashboard。
+- 採漸進式介入；提示優先於換題，換題與休息保留使用者決定權。
+- 每次介入都要可解釋、可拒絕、可冷卻，並評估是否真正改善學習狀態。
 - 不碰資料庫、後端模型與現有課程狀態機。
