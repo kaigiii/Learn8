@@ -306,6 +306,262 @@ frontend/src/features/neuro-mock/components/
 
 視覺資產需要另行設計；若未來建立 moodboard 或角色佩戴頭帶的概念圖，再使用 image generation。實作階段應優先產出 SVG／元件化版本，保持清晰、可動畫與可換色。
 
+### 4.15 Art Direction：Soft Neuro Adventure
+
+正式設計方向命名為 **Soft Neuro Adventure**：Learn8 的溫暖遊戲化學習世界，加上一層柔和、可信任但不醫療化的神經科技感。
+
+三個設計關鍵字：
+
+- **Warm**：像學習夥伴，不像監控工具。
+- **Responsive**：畫面會回應使用者，但不搶走控制權。
+- **Legible**：所有狀態都能看懂原因，不用理解 EEG。
+
+應該呈現：
+
+- 圓潤、通透、有呼吸感。
+- 角色與教材優先，科技資訊退居第二層。
+- 波形、光環與接點形成一致的視覺語彙。
+- 警示採溫和引導，而不是危險或失敗感。
+
+不應呈現：
+
+- 黑底霓虹、駭客終端、醫院監視器。
+- 大量細小數字與四條高對比工程波形常駐。
+- 用紅色、抖動或急促聲音表達分心。
+- 以「讀心」、「偵測情緒」等神秘化敘事包裝產品。
+
+### 4.16 色彩系統
+
+優先沿用現有 Learn8 token，不建立第二套品牌色。Neuro feature 只能補充透明度、漸層與狀態組合。
+
+| Token／用途 | 色彩 | 使用方式 |
+|---|---|---|
+| `brand-teal` | `#7AC7C4` | 連線、校準、Neuro Orb 主色 |
+| `brand-teal-light` | `#B8E6E3` | 波紋、背景光、選取狀態 |
+| `brand-teal-bg` | `#E8F5F4` | 資訊卡、calibration 背景 |
+| `brand-green` | `#58CC02` | 校準完成、訊號恢復、確認動作 |
+| `brand-green-dark` | `#46A302` | green 文字與 focus ring |
+| `brand-coral` | `#E8734A` | 柔和注意、休息與介入建議 |
+| `brand-coral-dark` | `#D4623C` | coral 文字，不作大面積背景 |
+| `brand-gray-700` | `#333333` | 主文字 |
+| `brand-gray-500` | `#6B6B6B` | 次要文字 |
+| `brand-gray-200` | `#E2E2E2` | disabled、未知、未連線 |
+| White | `#FFFFFF` | 卡片與主要表面 |
+
+建議 Neuro 專用組合：
+
+```text
+Neuro Calm Gradient     #E8F5F4 → #B8E6E3
+Neuro Active Gradient   #B8E6E3 → #7AC7C4
+Neuro Recovery Gradient #E8F5F4 → rgba(88, 204, 2, 0.18)
+Neuro Attention Wash    rgba(232, 115, 74, 0.10)
+Neuro Glass Surface     rgba(255, 255, 255, 0.88)
+```
+
+狀態色規則：
+
+- `focused` 不用純綠色填滿畫面，只增加 teal 的亮度與規律性。
+- `distracted` 使用 coral 小面積 accent，不將背景整片變橘。
+- `poor_signal` 使用灰色斷線與局部 coral 接點，不使用錯誤紅。
+- `fatigued` 使用低飽和 teal/coral 混合，避免把疲勞畫成危險。
+- `MOCK` 標籤固定使用深灰字＋淡紫灰底，與生理狀態色分開。
+
+所有文字與背景組合至少符合 WCAG AA；coral 與 teal 淺色不得直接承載小字。
+
+### 4.17 字體與資訊層級
+
+沿用 Learn8 現有字體：
+
+- Heading：`Nunito`，圓潤、有親和力。
+- Body：`Open Sans`，確保長文與數字清晰。
+- Display：`Righteous` 僅用於產品名稱或短標誌，不用於數據。
+- Metric：使用 Open Sans 的 tabular numerals；不另引入工程感 monospace。
+
+建議層級：
+
+| Role | Desktop | Mobile | Weight |
+|---|---:|---:|---:|
+| Scene title | 32px / 40px | 26px / 32px | 800 |
+| Panel title | 20px / 28px | 18px / 24px | 800 |
+| Primary status | 18px / 26px | 16px / 22px | 700 |
+| Body | 15px / 24px | 14px / 22px | 400–600 |
+| Label | 12px / 16px | 12px / 16px | 700 |
+| Metric value | 24px / 30px | 20px / 26px | 800, tabular |
+| Caption | 11px / 16px | 11px / 16px | 600 |
+
+重要狀態先用人話，再補技術資料。例如先寫 `訊號穩定`，下面才顯示 `4/4 接點良好`；不要用 `RMS NORMAL` 當主要訊息。
+
+### 4.18 形狀、間距與表面
+
+沿用 Learn8 圓潤卡片，但避免所有物件都變成相同白色 pill。
+
+- 主舞台卡：最大圓角 32px。
+- 一般 panel：24px。
+- Inline support card：20px。
+- Button／status chip：9999px 或 16px，依內容長度。
+- Neuro Orb：正圓形。
+- Focus ring：2px `brand-teal`，外加 2px white separation。
+- 卡片 border：1px white/80 或 gray-200；避免粗黑框。
+- 主陰影：`0 16px 48px rgba(51, 80, 88, 0.12)`。
+- 小元件陰影：`0 8px 24px rgba(113, 145, 156, 0.10)`。
+
+Spacing 使用 4px 基準：
+
+- 小間距：4 / 8px。
+- 元件內距：12 / 16 / 20px。
+- 卡片內距：24 / 32px。
+- 區塊間距：32 / 48 / 64px。
+
+背景延續 `app-shared-bg`，Neuro 場景只增加 radial glow、波形與少量粒子，不能另換成深色科技背景。
+
+### 4.19 Icon、插畫與角色規範
+
+Icon 採 2–2.5px 圓角線條、round caps，優先使用現有 lucide-react；頭帶、四接點與 Neuro Orb 因需動畫，使用專用 SVG。
+
+角色使用原則：
+
+- 優先使用登入者選擇的 mascot；若技術限制，fallback 為 Learn8 owl。
+- 頭帶應依角色頭型稍微變形，不是把同一張 PNG 生硬覆蓋。
+- 角色表情最多使用 neutral、encouraging、resting、concerned 四種，不畫出痛苦或焦慮診斷表情。
+- 分心時角色只做輕微探頭、眨眼或手勢，不指責、不搖頭。
+- 休息模式角色坐下或伸展，傳達休息是正常行為。
+
+頭帶插畫：
+
+- 外型保留 Muse 2 可辨識的額帶輪廓，但簡化為 Learn8 插畫風格。
+- 接點位置以四個小光點表示，technical label 只在 calibration 詳情中顯示。
+- 不在一般學習畫面顯示頭部解剖或大腦寫實圖。
+
+### 4.20 Responsive 版面規格
+
+#### Desktop ≥ 1280px
+
+- Onboarding：中央舞台最大寬 1040px，角色／頭帶動畫佔 55%，步驟與操作佔 45%。
+- Data Lab：Learner View 65%，Operator View 35%，最小 operator 寬 360px。
+- 課程：Neuro Orb 位於進度條右端、Tutor button 之前；popover 最大寬 340px。
+- Choice sheet 可呈現為題目區右下的浮動卡，不一定滿版。
+
+#### Tablet 768–1279px
+
+- Onboarding 改為上下堆疊，動畫約佔 viewport 45%。
+- Data Lab 可切換 Learner／Operator tabs，避免兩欄過窄。
+- Neuro Orb 與 `Show tutor` 並列，但 Orb 優先保留 icon，Tutor 可維持文字按鈕。
+- Level 3 使用 bottom sheet。
+
+#### Mobile < 768px
+
+- Onboarding 使用全高 stepper，一個畫面只呈現一個動作。
+- 角色與頭帶動畫限制在 220–280px 高度。
+- 四接點用 2×2 grid，不呈現密集波形。
+- Neuro Orb 為 36px；popover 改為 bottom sheet。
+- Data Lab 預設 Learner View；Operator View 放入獨立 tab，raw 波形橫向滑動。
+- 換題動畫以垂直堆疊取代左右滑入，避免小螢幕方向混亂。
+
+#### Short viewport
+
+- 高度小於 700px 時，onboarding illustration 縮小，主要按鈕固定底部。
+- 休息模式允許內容滾動，但 timer 與返回按鈕固定可見。
+
+### 4.21 畫面線框層級
+
+#### Neuro Link Onboarding
+
+```text
+┌─────────────────────────────────────────────────────────┐
+│ Learn8                                  SIMULATED DATA   │
+│                                                         │
+│  ┌──────────────────┐  Step 2 of 4                     │
+│  │ mascot + Muse 2  │  戴上 Neuro Link                 │
+│  │ placement scene  │  讓額帶貼合前額與耳後             │
+│  │  • AF7    AF8 •  │                                  │
+│  │  • TP9   TP10 •  │  [重播動畫]                       │
+│  └──────────────────┘                                  │
+│                                [略過] [我已戴好 →]       │
+└─────────────────────────────────────────────────────────┘
+```
+
+#### Lesson Header
+
+```text
+[Exit] [================ Lesson Progress ==============] [Orb] [Tutor]
+                                                               │
+                                  ┌────────────────────────────┘
+                                  │ 訊號穩定
+                                  │ 最近 30 秒：平穩
+                                  │ [查看詳情] [提醒設定]
+                                  └────────────────────────────
+```
+
+#### Intervention Choice Sheet
+
+```text
+┌──────────────────────────────────────────────┐
+│ 🦉 要不要換個方式理解？                      │
+│ 這一題停留了一段時間，我們可以保留原進度。   │
+│                                              │
+│ [看圖像例子] [換一題同概念] [留在這題]       │
+│ 為什麼出現這個建議？                         │
+└──────────────────────────────────────────────┘
+```
+
+線框只定義資訊層級，不作為最終視覺稿；外包仍需提供高保真 desktop/mobile mockup。
+
+### 4.22 元件狀態矩陣
+
+每個互動元件至少交付以下狀態，不接受只畫 happy path：
+
+| Component | Required states |
+|---|---|
+| Connect stage | idle、searching、found、not-found、cancelled |
+| Contact point | waiting、checking、good、fair、poor |
+| Baseline | ready、measuring、paused、complete、failed |
+| Neuro Orb | neutral、focused、attention、poor-signal、paused、disabled |
+| Nudge | entering、visible、dismissed、cooldown |
+| Choice sheet | proposed、accepted、declined、expired |
+| Question swap | preparing、transitioning、alternate-active、returning |
+| Break mode | offered、counting、paused、early-return、recalibrating |
+| Stream | connected、stalled、reconnecting、offline、restored |
+
+### 4.23 文案語氣
+
+語氣為「安靜、尊重、具體」，不替使用者定義情緒。
+
+| 避免 | 改用 |
+|---|---|
+| 你分心了 | 最近的投入趨勢有些下降 |
+| 你很挫折 | 這個步驟似乎花了比較多時間 |
+| 你的腦波不好 | 有幾個接點的訊號不穩定 |
+| AI 決定替你換題 | 要不要用另一種方式理解同一概念？ |
+| 你應該休息 | 想休息 2 分鐘，還是完成這題再休息？ |
+| 專注力 42 分 | 最近 30 秒低於你的個人基準 |
+
+所有介入文案包含：觀察到的現象、可選行動、拒絕出口。避免保證「這樣一定會更專注」。
+
+### 4.24 設計交付與 Design QA
+
+開發前必須補齊以下設計產物，計劃書本身不能取代視覺稿：
+
+1. 一頁 visual moodboard：Learn8 現有風格、Neuro Link SVG 語言、禁止範例。
+2. Desktop 與 mobile onboarding 高保真稿。
+3. 課程頁 neutral、attention、poor-signal 三個高保真狀態。
+4. Level 1／2／3 介入畫面。
+5. 換題轉場 storyboard，至少 5 個關鍵影格。
+6. 休息與重新校準流程。
+7. Data Lab Learner／Operator 雙視圖。
+8. Component state sheet。
+9. Motion spec：duration、easing、delay、reduced-motion fallback。
+10. Copy deck：繁中主文案與英文 key。
+
+Design QA 驗收：
+
+- 與 Learn8 現有首頁、課程卡、按鈕與背景並排比較，不能像另一個產品。
+- 5 秒內能看懂目前是 mock、連線狀態與下一步。
+- 不閱讀 EEG 名詞也能完成佩戴與校準。
+- 介入出現時，使用者能明確找到拒絕或稍後選項。
+- 手機單手操作可觸及主要按鈕，touch target 至少 44×44px。
+- reduced-motion、keyboard、screen reader 與 200% zoom 可完成主要流程。
+- 所有畫面必須用真實長度的繁中文案驗證，不以 lorem ipsum 交付。
+
 ---
 
 ## 5. 外掛式架構
@@ -854,3 +1110,43 @@ Data Lab 驗收後，才在 `LessonSessionPageClient` 增加一個 lazy-loaded o
 - 採漸進式介入；提示優先於換題，換題與休息保留使用者決定權。
 - 每次介入都要可解釋、可拒絕、可冷卻，並評估是否真正改善學習狀態。
 - 不碰資料庫、後端模型與現有課程狀態機。
+
+---
+
+## 17. 計劃完整度與開發前 Gate
+
+此文件完成後，產品邏輯、UX journey、視覺方向、資料契約、整合邊界與驗收方式已可供 UI/UX 與前端估工；但「計劃書完整」不等於「視覺設計已完成」。以下產物通過前，不應直接開始 production implementation。
+
+### Gate A：產品決策
+
+- 確認產品名稱使用 `Neuro Link` 或替代名稱。
+- 確認預設模式為 `Assist`。
+- 確認是否使用登入者 mascot 或固定 owl 作為佩戴示範角色。
+- 確認換題、休息是否只存在 sandbox，或下一階段可接正式課程 host。
+
+### Gate B：高保真視覺
+
+- 完成 4-scene onboarding desktop/mobile 稿。
+- 完成 Neuro Orb 與所有狀態。
+- 完成介入、換題、休息、斷線和結果回顧稿。
+- 完成素材授權與 Muse 2 外觀使用確認。
+
+### Gate C：動態 prototype
+
+- 驗證佩戴動畫是否容易理解且不過長。
+- 驗證 Orb 是否看得見但不干擾答題。
+- 驗證 Level 1 提示不造成反效果。
+- 驗證換題轉場能傳達「相同學習目標」。
+- 驗證休息提示不帶有評價或失敗感。
+
+### Gate D：5 人可用性測試
+
+至少用互動 prototype 測試：
+
+1. 使用者是否知道這是 mock。
+2. 是否能指出四接點中哪一處需要調整。
+3. 是否理解 Neuro Orb 的狀態。
+4. 是否能拒絕換題或休息。
+5. 是否認為系統在幫助，而不是監控或評分自己。
+
+開發啟動條件：Gate A–C 完成；Gate D 可在前端 prototype 後進行，但結果必須在接正式課程前修正。
