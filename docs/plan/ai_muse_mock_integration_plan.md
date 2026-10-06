@@ -94,6 +94,218 @@
 
 Overlay 不可遮擋教材、答題按鈕或 AI Tutor；小螢幕預設收合。第一版可先保留掛載介面，待獨立 Data Lab 驗收後再啟用。
 
+### 4.3 核心 UX 概念：Neuro Link
+
+整體體驗不應像醫院儀器，也不應把使用者丟進滿是折線圖的工程 dashboard。建議將 Muse 2 包裝成 Learn8 世界中的 **Neuro Link／專注連線**：使用者戴上頭帶後，Learn8 的角色、教材與環境逐步「感應」到學習狀態。
+
+視覺語言沿用 Learn8 現有圓角、白色玻璃卡、teal、green、coral 與角色系統：
+
+- `brand-teal`：連線、校準、平靜的系統回饋。
+- `brand-green`：狀態穩定、完成校準、恢復專注。
+- `brand-coral`：需要注意或可能疲勞；避免使用強烈紅色警報。
+- 白色半透明卡：保留 Learn8 輕鬆、非醫療的感覺。
+- 波形不是獨立裝飾，而是會流入進度條、角色光環與背景粒子，形成「系統正在感知」的連續敘事。
+
+### 4.4 完整 UX Journey
+
+| Moment | 使用者看到什麼 | 使用者能做什麼 | 系統目的 |
+|---|---|---|---|
+| 進入課程前 | `使用 Neuro Link` 的選用卡片 | 開始模擬連線、略過 | 明確自願，不強迫使用 |
+| 搜尋裝置 | 頭帶輪廓由虛線逐步被掃描 | 取消、選擇 mock scenario | 建立期待，說明目前為模擬 |
+| 佩戴引導 | 全畫面角色示範戴上頭帶，四個接觸點依序亮起 | 下一步、重播動畫、略過 | 把抽象電極位置變得可理解 |
+| 接觸校準 | 頭部圖示上的 TP9/AF7/AF8/TP10 由灰轉 teal/green | 查看某接點提示、重新校準 | 讓「訊號品質」具體化 |
+| 建立 baseline | 呼吸般的圓環與 10–15 秒倒數 | 保持放鬆、取消 | 建立個人基準而非立即判斷 |
+| 進入學習 | 校準圓環縮成右上角 Neuro Orb | 展開、靜音提醒、關閉 | 平順進入課程，不突然消失 |
+| 穩定學習 | Orb 緩慢呼吸，進度條有低調波紋 | 不需操作 | 讓狀態存在但不搶注意力 |
+| 分心／受挫 | 先以角色表情、卡片邊緣與微文案柔和提示 | 接受提示、稍後、忽略 | 採最低必要介入 |
+| 換題 | 原題縮成卡片保留在一側，替代題從另一側滑入 | 接受替代題、留在原題 | 不製造「被系統強制趕走」感 |
+| 休息 | 教材淡出為低刺激休息場景 | 2 分鐘、做完再休息、今天不提醒 | 休息不是失敗，而是學習策略 |
+| 回到課程 | 快速重新校準，原學習目標重新浮現 | 繼續、改用簡單模式 | 保持任務連續性 |
+| 結束 session | 專注時間軸與「哪些介入有幫助」摘要 | 查看詳情、關閉 | 強調反思，不給健康評分 |
+
+### 4.5 連線與佩戴動畫：Neuro Link Onboarding
+
+這是最能建立產品記憶點的場景，建議使用 4 個連續 scene，而不是一個普通 loading modal。
+
+#### Scene A：尋找頭帶
+
+- 課程地圖背景輕微失焦，中央浮出一個白色圓角舞台。
+- Muse 頭帶以線稿輪廓出現；一道 teal 掃描光由左至右通過。
+- 掃描時四條細波形從畫面邊緣向中央靠攏，但還沒有連接。
+- 文案：`正在尋找你的 Neuro Link…`。
+- Mock 模式在舞台右上角永久顯示 `SIMULATED`，不偽裝成真實硬體。
+
+#### Scene B：佩戴示範
+
+- 使用 Learn8 的貓頭鷹或目前登入角色作為示範者，而不是寫實頭模。
+- 頭帶從角色頭頂上方落下，輕微彈性回彈後固定。
+- 前額 AF7/AF8、耳後 TP9/TP10 依序出現柔和脈衝。
+- 每亮起一個接點，就有一條細線連到旁邊的簡短提示：`貼合前額`、`避開頭髮`、`調整耳後位置`。
+- 提供 `重播佩戴動畫` 與 `我已戴好`，不能只靠動畫結束自動前進。
+
+#### Scene C：接觸品質校準
+
+- 角色縮到左側；右側出現 4 個大型 channel pills。
+- 每個 pill 依序呈現 `等待 → 偵測中 → 良好`。
+- poor signal 時，不要整頁紅色閃爍；對應位置輕輕晃動，並顯示局部調整動作。
+- 所有接點良好時，四條波形匯入中央 Neuro Orb，Orb 從空心變成實心 teal。
+
+#### Scene D：建立個人基準
+
+- Orb 擴張為柔和圓環，跟著 4 秒吸氣／4 秒吐氣節奏呼吸。
+- 中央顯示短倒數與文案：`保持自然即可，不需要刻意專注。`
+- 背景波形逐漸由不規則變得平穩，但不可暗示腦波真的被「控制」。
+- 完成時圓環縮進課程頁右上角，進度條短暫閃過一條 teal 波紋，直接銜接第一題。
+
+### 4.6 課程中的常駐元件：Neuro Orb
+
+右上角、進度條末端適合放置一個 36–44px 的 Neuro Orb，因為現有課程頁頂部已包含離開按鈕、主進度條與 mobile tutor button。
+
+Orb 的狀態：
+
+| 狀態 | 視覺 | 點擊後 |
+|---|---|---|
+| connected/neutral | teal 外環緩慢呼吸 | 展開 30 秒趨勢與訊號品質 |
+| focused | 外環略亮、波紋更規律 | 顯示「狀態穩定」，不額外讚美或打斷 |
+| attention | coral 小缺口繞行，不閃爍 | 顯示可選建議 |
+| poor signal | 外環斷成四段，問題 channel 呈灰色 | 顯示佩戴調整 mini guide |
+| paused | 靜止、降低飽和度 | 顯示恢復按鈕 |
+
+Orb 展開後使用 anchored popover，不使用中央 modal。Popover 只顯示：狀態趨勢、裝置品質、提醒模式與 `查看完整 Data Lab`。原始 EEG 圖表不應常駐在課程頁。
+
+### 4.7 介入 UI：先融入教材，再出現選擇
+
+介入不應一律使用 toast 或 modal。建議依層級使用不同載體：
+
+| Level | UI 載體 | 動畫與行為 |
+|---:|---|---|
+| 0 | 無可見介入 | 只更新 Orb 與 timeline |
+| 1 | Mascot micro-reaction | 角色從右側探頭 2 秒，顯示一句可忽略文字，不阻擋操作 |
+| 2 | Inline support card | 在題目回饋區展開提示／圖解卡，不覆蓋題目 |
+| 3 | Choice sheet | 從底部升起 2–3 個選項；背景不鎖死，使用者可關閉 |
+
+Level 1 範例：角色輕輕敲一下對話框：`要不要把這段拆小一點？`
+
+Level 2 範例：題目下方長出一張「換個角度」卡，先顯示一個具體例子，再提供 `我懂了`、`再簡單一點`。
+
+Level 3 範例：底部 choice sheet 顯示：
+
+- `換成圖像題`
+- `先看一個簡單例子`
+- `留在這一題`
+
+介入原因放在可展開的 `為什麼出現這個建議？`，不要直接寫「你的腦波顯示你很挫折」。建議文案：`你在這個步驟停留了一段時間，而且剛剛有一次答錯。系統正在模擬較適合的呈現方式。`
+
+### 4.8 換題轉場：保留方向感
+
+換題時不能直接 replace 整個畫面，否則使用者容易感到被懲罰或失去進度。
+
+建議轉場：
+
+1. 原題卡縮小到左後方，保留題號與 `稍後回來` 標籤。
+2. 中央出現一條短路徑，標示共同 learning objective。
+3. 替代題從右側滑入，顯示 `同一概念・另一種方式`。
+4. 答對替代題後，兩張卡以線條連起來，詢問要回原題確認或繼續。
+
+這個動畫讓使用者理解自己沒有退級，也沒有遺失原本進度。
+
+### 4.9 休息模式：從學習場景自然退場
+
+休息不應是一個冷冰冰的 timer modal。建議：
+
+- 教材卡向下淡出，但頁面主背景仍保留，避免像離開 Learn8。
+- 角色坐到畫面中央，頭帶仍在但燈光降低。
+- Neuro Orb 擴張成呼吸圈，顯示 2 分鐘環形計時。
+- 提供三種低刺激內容：看遠方、肩頸伸展、自然呼吸；不做遊戲化連點。
+- 隨時可按 `提早回來`。
+- 返回時先顯示 10–15 秒 mini calibration，再把原題或替代題從下方帶回。
+
+### 4.10 訊號中斷與錯誤復原
+
+BLE／mock stream 中斷時，教材不要整頁消失：
+
+- Neuro Orb 變為分段灰環。
+- 頂部出現非阻塞提示：`Neuro Link 暫時中斷，學習可以繼續。`
+- 所有自適應介入立即停止，但答題流程維持正常。
+- 點開後用簡化頭部圖指出可能鬆脫的位置。
+- 重新連線成功後只顯示短暫 `已恢復`，不重新播放完整 onboarding；若中斷超過門檻才做 mini calibration。
+
+這能清楚表達「腦波是加值層，不是 Learn8 的單點故障」。
+
+### 4.11 Session 結束：互動成效回顧
+
+結果頁不提供單一「腦力分數」。改用一條可理解的 journey：
+
+- 穩定學習區段。
+- 系統何時提出提示／替代題／休息。
+- 使用者接受或拒絕了什麼。
+- 介入後是否 `helped / no_change / made_worse`。
+- 一句中性摘要：`圖像化提示後，你較快回到題目；休息提醒被略過。`
+
+避免排行榜、紅綠評分或把 EEG 指標轉成個人能力標籤。
+
+### 4.12 Data Lab 的展示模式
+
+Data Lab 建議提供雙視圖：
+
+1. **Learner View**：完整模擬使用者看見的 onboarding、課程介入與休息動畫。
+2. **Operator View**：右側同步顯示 raw mock metrics、threshold、state、proposal、cooldown 與事件 log。
+
+兩者共用同一 scenario clock。外包驗收或展示時，可以在 Operator View 點選 `持續分心`、`答錯`、`疲勞`、`訊號鬆脫`，左側立即播放對應 UX，而不是只看 dashboard 數字變化。
+
+### 4.13 Motion 與感官原則
+
+- 預設動畫長度 180–500ms；佩戴 onboarding 可使用 700–1200ms 的敘事動畫。
+- 所有狀態動畫必須可 seek、可重播，scenario reset 後回到相同畫面。
+- 不使用高頻閃爍、劇烈震動或紅色全屏警告。
+- 專注狀態不做強烈慶祝，以免反而打斷專注。
+- `prefers-reduced-motion` 下，佩戴與換題動畫改為分步淡入，保留資訊但移除大幅位移。
+- 音效預設關閉；若啟用，只在連線完成與使用者主動接受介入時播放柔和提示音。
+
+### 4.14 素材與實作位置建議
+
+第一版優先使用 CSS、SVG 與 Framer Motion，避免導入大型動畫 runtime。建議素材：
+
+- Muse 頭帶簡化 SVG，可分別控制外框與四個接點。
+- Learn8 貓頭鷹／登入角色的「佩戴頭帶」狀態圖。
+- 頭部接點位置 SVG。
+- Neuro Orb SVG／CSS component。
+- 波形 path 與流動粒子。
+
+建議元件拆分：
+
+```text
+frontend/src/features/neuro-mock/components/
+  onboarding/
+    NeuroConnectStage.tsx
+    WearablePlacementScene.tsx
+    ContactCalibrationScene.tsx
+    BaselineScene.tsx
+  lesson/
+    NeuroOrb.tsx
+    NeuroPopover.tsx
+    AdaptiveNudge.tsx
+    InterventionChoiceSheet.tsx
+    QuestionSwapTransition.tsx
+    NeuroBreakMode.tsx
+  lab/
+    LearnerPreview.tsx
+    OperatorConsole.tsx
+    ScenarioTransport.tsx
+  summary/
+    InterventionJourney.tsx
+```
+
+與 Learn8 現有畫面的建議掛載位置：
+
+- 課程開始前：利用現有 immersive status 區域呈現 Neuro Link onboarding。
+- 課程頂部：在 `TopProgressBar` 後方加入 optional `NeuroOrb` slot。
+- 題目介入：由 `LessonStageRenderer` 外層的 optional overlay/inline slot 顯示，不修改各題型 component。
+- 右側 Tutor：只顯示 intervention explanation，不把 EEG dashboard 塞入聊天訊息。
+- 結果頁：增加 optional `InterventionJourney` section，不改既有分數計算。
+
+視覺資產需要另行設計；若未來建立 moodboard 或角色佩戴頭帶的概念圖，再使用 image generation。實作階段應優先產出 SVG／元件化版本，保持清晰、可動畫與可換色。
+
 ---
 
 ## 5. 外掛式架構
@@ -526,6 +738,14 @@ Data Lab 驗收後，才在 `LessonSessionPageClient` 增加一個 lazy-loaded o
 - prefers-reduced-motion 下關閉高頻動畫。
 - mock 標示不可被收合或隱藏。
 - 獨立頁可完成播放、暫停、重播、倍速與情境切換。
+- onboarding 可完整走過搜尋、佩戴、接點校準與 baseline 四個 scene。
+- 每個佩戴步驟都能手動前進、重播或略過，不依賴動畫自動完成。
+- Neuro Orb 在 neutral、attention、poor-signal、paused 狀態都有可辨識但不干擾的視覺。
+- 換題轉場保留原題、共同 learning objective 與返回路徑。
+- 休息模式能提早返回，且返回後播放 mini calibration。
+- stream 中斷時課程仍可答題，且自適應介入停止。
+- Learner View 與 Operator View 使用相同 scenario clock。
+- 所有狀態不能只靠顏色表達，需同時具備文字、形狀或 icon 差異。
 
 ### 12.6 效能
 
@@ -545,6 +765,7 @@ Data Lab 驗收後，才在 `LessonSessionPageClient` 增加一個 lazy-loaded o
 ### Phase 1：Standalone Data Lab
 
 - 建立 feature 目錄、synthetic source、scenario engine、interaction simulator 與獨立頁。
+- 完成 Learner View／Operator View，以及連線、佩戴、校準、baseline 的 UX prototype。
 - 不接現有課程流程。
 
 ### Phase 2：Replay 與事件時間軸
@@ -552,6 +773,7 @@ Data Lab 驗收後，才在 `LessonSessionPageClient` 增加一個 lazy-loaded o
 - 加入經處理的 CSV replay fixture。
 - 加入 mock learning events 與規則式 AI summary。
 - 加入 mock lesson sandbox，展示提示、換解釋、替代題、休息與恢復閉環。
+- 完成 Neuro Orb、漸進式介入、換題轉場與休息模式。
 
 ### Phase 3：Optional Lesson Widget
 
@@ -573,6 +795,9 @@ Data Lab 驗收後，才在 `LessonSessionPageClient` 增加一個 lazy-loaded o
 - 資料契約與所有型別。
 - Scenario 定義與 seed 說明。
 - Data Lab 響應式頁面。
+- Neuro Link onboarding 的四個可重播 scene。
+- Learn8 角色佩戴頭帶、四接點位置與 Neuro Orb 的 SVG／可動畫素材。
+- Learner View 與 Operator View 的同步展示。
 - Synthetic 與 CSV replay source。
 - Rule engine 與文案表。
 - 介入層級、門檻、cooldown 與使用者控制策略。
@@ -581,6 +806,8 @@ Data Lab 驗收後，才在 `LessonSessionPageClient` 增加一個 lazy-loaded o
 - 單元、整合與清理測試。
 - 功能旗標與停用說明。
 - 無障礙與效能檢查結果。
+- desktop、tablet、mobile 與 reduced-motion 的 UI 驗收紀錄。
+- 各主要流程的互動 prototype 或錄影：佩戴、校準、介入、換題、休息、中斷恢復。
 - 一份「如何新增 scenario」文件。
 - 一份「如何替換成 live source」文件。
 
@@ -607,6 +834,10 @@ Data Lab 驗收後，才在 `LessonSessionPageClient` 增加一個 lazy-loaded o
 8. 可完整展示「持續分心 → 輕提示 → 仍未恢復 → 提供提示／替代題 → 狀態恢復」流程。
 9. 可完整展示疲勞時的休息建議、拒絕、冷卻與返回後重新校準。
 10. 每次介入都能查看觸發證據、使用者決定與介入後結果。
+11. 可完整展示「連接 → 佩戴動畫 → 四接點校準 → baseline → 進入第一題」且過程可略過或重播。
+12. 換題時使用者能理解原題仍被保留，並知道替代題與原題屬於相同學習目標。
+13. 訊號中斷時 Learn8 仍可正常作答，重新連線不會遺失目前題目。
+14. Data Lab 可同步顯示 Learner View 的 UX 與 Operator View 的觸發證據。
 
 ---
 
@@ -618,6 +849,8 @@ Data Lab 驗收後，才在 `LessonSessionPageClient` 增加一個 lazy-loaded o
 - 使用統一 data-source contract，預留未來實機替換。
 - 優先採用相對 baseline、時間趨勢與品質 gate。
 - 產品主軸是人機互動閉環，不是單純腦波 dashboard。
+- UI/UX 主敘事是 Neuro Link：從佩戴動畫、接點校準一路自然縮成課程中的 Neuro Orb。
+- Data Lab 採 Learner／Operator 雙視圖，讓動畫體驗與底層觸發原因能同時驗證。
 - 採漸進式介入；提示優先於換題，換題與休息保留使用者決定權。
 - 每次介入都要可解釋、可拒絕、可冷卻，並評估是否真正改善學習狀態。
 - 不碰資料庫、後端模型與現有課程狀態機。
