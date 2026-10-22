@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useCallback } from "react";
+import dynamic from "next/dynamic";
 import ForgeStatus from "@/components/feedback/ForgeStatus";
 import GameButton from "@/components/ui/GameButton";
 import TopProgressBar from "@/components/ui/TopProgressBar";
@@ -18,8 +19,22 @@ import { useDelayedVisibility } from "@/lib/ui/useDelayedVisibility";
 import { LESSON_SESSION_PHASE, LESSON_SESSION_STATUS } from "@/lib/domain/statuses";
 import { useI18n } from "@/lib/i18n/useI18n";
 import type { TranslationKey } from "@/lib/i18n/translations";
+import type { NeuroLearningEvent } from "@/features/neuro-mock/contract";
+import type { CompetitionExperiencePlan } from "@/features/neuro-mock/components/lesson/CompetitionExperienceOverlay";
 
 const COMPACT_VIEWPORT_MEDIA_QUERY = "(max-width: 1023px)";
+const ENABLE_NEURO_MOCK = process.env.NEXT_PUBLIC_ENABLE_NEURO_MOCK === "true";
+const NeuroLessonWidget = ENABLE_NEURO_MOCK
+  ? dynamic(() => import("@/features/neuro-mock/components/lesson/NeuroLessonWidget"), { ssr: false })
+  : null;
+
+function readCompetitionExperiencePlan(value: unknown): CompetitionExperiencePlan | null {
+  if (!value || typeof value !== "object") return null;
+  const plan = value as Partial<CompetitionExperiencePlan>;
+  return plan.version === "competition-neuro-v1" && typeof plan.seed === "number" && typeof plan.nodeId === "string" && typeof plan.stageIndex === "number" && typeof plan.title === "string" && typeof plan.objective === "string" && !!plan.alternate
+    ? plan as CompetitionExperiencePlan
+    : null;
+}
 
 function courseSlugFromTitle(title: string): string {
   return title.toLowerCase().replace(/ /g, "-").replace(/&/g, "and");
@@ -69,6 +84,7 @@ export default function LessonSessionPageClient({
   const previousCompactViewportRef = React.useRef<boolean | null>(null);
 
   const [stageIdx, setStageIdx] = useState(0);
+  const [neuroEvents, setNeuroEvents] = useState<NeuroLearningEvent[]>([]);
 
   React.useEffect(() => {
     const media = window.matchMedia(COMPACT_VIEWPORT_MEDIA_QUERY);
@@ -175,6 +191,13 @@ export default function LessonSessionPageClient({
   const headerStageLabel = isRemedialPhase ? "Remedial" : "Stage";
   const progress = (displayStageIdx / displayTotalStages) * 100;
   const nodeDescription = backendNode?.description ?? "";
+  const neuroExperiencePlan = ENABLE_NEURO_MOCK
+    ? readCompetitionExperiencePlan(backendStage?.config.initialState?.neuroExperience)
+    : null;
+  const reportNeuroEvent = useCallback((type: NeuroLearningEvent["type"], metadata?: NeuroLearningEvent["metadata"]) => {
+    if (!ENABLE_NEURO_MOCK) return;
+    setNeuroEvents(events => [...events.slice(-39), { type, timestampMs: Date.now(), stageId: backendStage?.stageId, metadata }]);
+  }, [backendStage?.stageId]);
 
   const { submitStage, continueStage, skipStage, useHint } = useLessonStageFlow({
     lessonSession,
@@ -185,13 +208,15 @@ export default function LessonSessionPageClient({
     onCorrect: () => {
       markCorrect();
       triggerConfetti();
+      reportNeuroEvent("answer_correct");
     },
     onIncorrect: () => {
       markIncorrect();
       triggerShake();
+      reportNeuroEvent("answer_incorrect");
     },
-    onHintUsed: useSessionHint,
-    onAdvanceStage: () => setStageIdx((i) => i + 1),
+    onHintUsed: () => { useSessionHint(); reportNeuroEvent("hint_requested"); },
+    onAdvanceStage: () => { setStageIdx((i) => i + 1); reportNeuroEvent("stage_changed"); },
     onCompletePhase: completeCurrentPhase,
     onSubmissionConflict: handleSubmissionConflict,
   });
@@ -383,6 +408,7 @@ export default function LessonSessionPageClient({
                 stageIdx={displayStageIdx}
                 totalStages={displayTotalStages}
                 compact
+                assistantSignal={NeuroLessonWidget && neuroExperiencePlan ? <NeuroLessonWidget events={neuroEvents} plan={neuroExperiencePlan} /> : null}
               />
             </div>
           ) : null
@@ -399,6 +425,7 @@ export default function LessonSessionPageClient({
               currentStage={backendStage}
               stageIdx={displayStageIdx}
               totalStages={displayTotalStages}
+              assistantSignal={NeuroLessonWidget && neuroExperiencePlan ? <NeuroLessonWidget events={neuroEvents} plan={neuroExperiencePlan} /> : null}
             />
           </div>
         )}
