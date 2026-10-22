@@ -7,9 +7,32 @@ from app.services.ai_engine.clients.base_provider import BaseLLMProvider
 
 logger = logging.getLogger(__name__)
 
+def generate_showcase_stages():
+    """A visual tour of every enabled game module; each stage is intentionally self-contained."""
+    return [
+        {"component": "ExplainerMedia", "data": {
+            "title": "二分搜尋：每次排除一半",
+            "explanation": "在已排序資料中，二分搜尋每次只保留可能答案的一半。資料越大，這種縮小範圍的方式越有價值。",
+            "bullets": ["先確認資料已排序", "比較中間值", "只保留其中一半"], "mediaType": "svg",
+            "mediaDescription": "二分搜尋從完整範圍逐步縮小到目標",
+            "mediaSvg": '<svg viewBox="0 0 520 190" width="100%" height="auto" xmlns="http://www.w3.org/2000/svg"><rect width="520" height="190" rx="24" fill="#eefaf8"/><rect x="28" y="62" width="126" height="66" rx="16" fill="#d8f1ef"/><text x="91" y="92" text-anchor="middle" font-family="system-ui" font-size="17" font-weight="700" fill="#235257">1 — 64</text><text x="91" y="113" text-anchor="middle" font-family="system-ui" font-size="11" fill="#52777a">完整範圍</text><path d="M168 95H230" stroke="#0d9488" stroke-width="5" stroke-linecap="round"/><path d="M219 83l16 12-16 12" fill="none" stroke="#0d9488" stroke-width="5" stroke-linecap="round"/><rect x="246" y="62" width="126" height="66" rx="16" fill="#dff5e7"/><text x="309" y="92" text-anchor="middle" font-family="system-ui" font-size="17" font-weight="700" fill="#235257">33 — 64</text><text x="309" y="113" text-anchor="middle" font-family="system-ui" font-size="11" fill="#52777a">保留一半</text><path d="M386 95H432" stroke="#0d9488" stroke-width="5" stroke-linecap="round"/><circle cx="465" cy="95" r="26" fill="#c7ece8"/><text x="465" y="101" text-anchor="middle" font-family="system-ui" font-size="12" font-weight="700" fill="#235257">目標</text></svg>'}},
+        {"component": "MultipleChoice", "data": {"question": "哪一種時間複雜度在資料量變大時，成長最慢？", "options": [{"id": "a", "text": "O(n²)"}, {"id": "b", "text": "O(n log n)"}, {"id": "c", "text": "O(log n)"}, {"id": "d", "text": "O(n)"}], "correctOptionId": "c", "explanation": "O(log n) 每次大幅縮小問題範圍。"}},
+        {"component": "MatchingPairs", "data": {"question": "配對資料結構與最貼近的使用情境", "pairs": [{"id": "pair-1", "left": "Stack", "right": "瀏覽器上一頁／下一頁"}, {"id": "pair-2", "left": "Queue", "right": "列印工作排隊"}, {"id": "pair-3", "left": "Hash Map", "right": "用帳號快速找到資料"}, {"id": "pair-4", "left": "Heap", "right": "持續取出最高優先任務"}]}},
+        {"component": "Ordering", "data": {"steps": ["取得使用者輸入", "驗證格式與範圍", "執行核心運算", "回傳結果與回饋"]}},
+        {"component": "HeapSortSimulator", "data": {"title": "Heap Sort 動態演示", "initialArray": [12, 15, 10, 5, 8, 7], "explanation": "觀察數字如何先形成最大堆積，再依序被放到排序後的位置。", "messages": {"ready": "資料已載入", "building": "正在建立最大堆積", "sorting": "正在取出最大值並重建堆積", "done": "排序完成"}}},
+        {"component": "HeapSortExercise", "data": {"title": "手動修復最大堆積", "initialArray": [9, 14, 11, 6, 12, 7], "explanation": "找出子節點大於父節點的位置，手動交換後完成提取。", "messages": {"initial": "先找出違反最大堆積規則的位置", "successSwap": "交換正確，繼續檢查", "successExtract": "最大值已歸位", "errorSwap": "父節點必須不小於子節點", "errorInvalid": "請先修復堆積"}, "hints": ["從最後一個有子節點的位置往上檢查", "14 應該往上移動", "堆積正確後才能提取根節點"]}},
+        {"component": "DynamicCategorySorter", "data": {"title": "AI 名詞分類挑戰", "instruction": "把每張卡片分到監督式、非監督式或強化學習。", "categories": [{"id": "supervised", "label": "監督式學習", "description": "從帶標籤資料學習"}, {"id": "unsupervised", "label": "非監督式學習", "description": "從資料中找結構"}, {"id": "reinforcement", "label": "強化學習", "description": "透過回饋調整策略"}], "cards": [{"id": "card-1", "text": "用已標記信件判斷垃圾郵件", "correctCategoryId": "supervised"}, {"id": "card-2", "text": "依購物行為把顧客分群", "correctCategoryId": "unsupervised"}, {"id": "card-3", "text": "讓遊戲角色依獎勵學會走位", "correctCategoryId": "reinforcement"}, {"id": "card-4", "text": "預測房價", "correctCategoryId": "supervised"}, {"id": "card-5", "text": "找出新聞主題群", "correctCategoryId": "unsupervised"}, {"id": "card-6", "text": "讓機器手臂學會抓取", "correctCategoryId": "reinforcement"}], "hints": ["先問：答案標籤、資料結構，還是獎勵訊號？"]}},
+        {"component": "GanttLogicScheduler", "data": {"title": "產品發表倒數排程", "timeLimit": 8, "instruction": "在 8 個工作日內完成測試、影片、頁面上線與發表。", "tasks": [{"id": "test", "label": "功能測試", "defaultDuration": 2}, {"id": "video", "label": "錄製展示影片", "defaultDuration": 2}, {"id": "release", "label": "部署發表頁面", "defaultDuration": 1}, {"id": "launch", "label": "正式發表", "defaultDuration": 1}], "dependencies": ["test -> video", "video -> release", "release -> launch"]}},
+        {"component": "DocumentAnomalyDebugger", "data": {"title": "資料品質除錯：找出三個不可信欄位", "instruction": "點擊報表中的異常值，再選擇最合理的錯誤原因。", "documentHtml": '<h3>SaaS 產品週報</h3><table><thead><tr><th>指標</th><th>本週</th><th>上週</th><th>備註</th></tr></thead><tbody><tr><td>活躍使用者</td><td>12,480</td><td>11,902</td><td>正常</td></tr><tr><td>轉換率</td><td data-anomaly-id="a-rate">186%</td><td>4.8%</td><td>待確認</td></tr><tr><td>退款筆數</td><td data-anomaly-id="a-refund">-12</td><td>18</td><td>待確認</td></tr><tr><td>營收</td><td>$82,400</td><td>$78,100</td><td data-anomaly-id="a-date">資料更新：兩週前</td></tr></tbody></table>', "anomalies": [{"anomalyId": "a-rate", "reason": "百分比超出合理範圍，可能是分母或格式錯誤", "points": 3}, {"anomalyId": "a-refund", "reason": "退款筆數不可為負值", "points": 3}, {"anomalyId": "a-date", "reason": "資料過期，不能作為本週決策依據", "points": 3}], "checklistOptions": ["百分比超出合理範圍，可能是分母或格式錯誤", "退款筆數不可為負值", "資料過期，不能作為本週決策依據", "這是合理的季節性波動"]}},
+        {"component": "GoBoardCoordinate", "data": {"question": "黑棋下在哪裡可以封住白棋 E5 的最後一口氣？", "board": {"size": 9, "black": ["D5", "F5", "E4"], "white": ["E5"], "marks": []}, "playerColor": "B", "expectedAnswer": "E6", "explanation": "白棋 E5 的左、右、下已被黑棋佔住，E6 是最後一口氣。"}},
+        {"component": "GoBoardNumeric", "data": {"question": "被標記的黑棋 E5 還有幾口氣？", "board": {"size": 9, "black": ["E5"], "white": ["D5", "F5", "E4"], "marks": ["E5"]}, "playerColor": "W", "expectedAnswer": "1", "explanation": "E5 的左、右、下已被白棋佔住，只剩 E6。"}},
+        {"component": "FeynmanMirror", "data": {"topic": "Heap Sort 堆積排序", "prompt": "假設我是你的學生，對「Heap Sort 堆積排序」感到很好奇。請試著向我解釋它的核心原理，讓我這個初學者也能聽懂！", "sampleAnswer": "「Heap Sort 堆積排序」的核心在於利用二元堆積（Binary Heap）結構。以最大堆積為例，根節點永遠是最大值，我們不斷將根節點與末尾元素交換並縮減範圍，隨後執行向下調整（Heapify）來維持屬性，最終達成 O(n log n) 的原地排序。", "maxRounds": 8}},
+    ]
+
 def generate_algo_nodes():
-    """動態生成 53 個節點，第一關升級為參數化的 AlgoHierarchy 組件。"""
+    """動態生成課程節點，第一個節點是完整的 Learn8 元件展示關卡。"""
     raw_nodes = [
+        ("algo-showcase-1", "互動技能挑戰集", "每一關用不同方式思考與作答，完整體驗 Learn8 的互動元件。", "logic"),
         # Chapter 1
         ("algo-1-1", "Heap Sort 堆積排序", "基於二元堆積的排序演算法。", "tree"),
         ("algo-1-2", "迭代演算法", "以選擇排序 (Selection Sort) 為例。", "sorting"),
@@ -75,6 +98,9 @@ def generate_algo_nodes():
 
     nodes = []
     for node_id, title, desc, vibe in raw_nodes:
+        if node_id == "algo-showcase-1":
+            nodes.append({"id": node_id, "title": title, "description": desc, "stages": generate_showcase_stages()})
+            continue
         stages = [
             # Stage 1: Simulator
             {
@@ -268,22 +294,22 @@ class MockLLMProvider(BaseLLMProvider):
     def _mock_feynman_round(self, schema: Type[BaseModel], messages: List[Any]) -> BaseModel:
         # --- 費曼教學小抄 (可以直接複製貼上測試) ---
         # 第 1 輪回答建議：
-        # 「因為最大堆積的根節點永遠是最大值，我們把它跟最後一個元素交換後，最大值就排到了正確的末尾位置。重複這個過程，就能由後往前建立起從小到大的排序，且不需要額外空間。」
+        # 「你可以把資料想成一棵每個父節點都不小於子節點的樹，這就是最大堆積。最大值會一直待在樹頂；我們把它換到陣列最後，再把剩下的資料重新整理。重複這件事，最大值會從後面開始依序就位，最後整個陣列便由小到大排好。」
         #
         # 第 2 輪回答建議：
-        # 「我們會執行『向下調整 (Sift-Down)』。將新的根節點與其較大的子節點比較，如果子節點較大就交換，直到它不再小於子節點或成為葉子為止。這樣就能重新恢復最大堆積的屬性。」
+        # 「最小堆積也能排序，但它每次拿到的是最小值，通常要額外安排輸出位置。最大堆積的最大值正好可以直接放到陣列尚未排序區域的最後一格；那一格之後不用再碰，所以能在原陣列內完成由小到大的排序。」
         #
         # 第 3 輪回答建議：
-        # 「因為 Heap Sort 的結構保證了每次提取最大值的代價都是固定的 O(log n)，不會像 Quick Sort 那樣因為基準點選得不好而退化成 O(n^2)。它能保證穩定的最壞情況效能。」
+        # 「這時會做『向下調整』。把新的根節點和兩個子節點中較大的那一個比較；如果子節點比較大就交換，讓較大的值一路往上。一直做到父節點不小於任何子節點，或走到最底層，最大堆積就修復了。」
         #
         # 第 4 輪回答建議：
-        # 「主要的弱點是它不具備『穩定性』，相同的元素順序可能會被打亂。另外，它在記憶體中的跳躍式存取對 CPU 快取不夠友善，所以在處理極大數據時，實際速度可能慢於 Merge Sort。」
+        # 「Heap Sort 的優勢是最壞情況也保證 O(n log n)，而且只需要 O(1) 額外空間。但它不是穩定排序，相同值的原始順序可能改變；樹狀跳躍存取也比較不利於 CPU 快取。所以需要穩定性時常選 Merge Sort，而一般資料下追求平均速度時常選 Quick Sort。」
         # ---------------------------------------
 
-        # 第 1 輪考點：最大堆積與排序順序的關係 (為什麼由小到大排序要用最大堆積？)
-        # 第 2 輪考點：Heapify 維護機制 (當根節點被換掉後，如何恢復堆積屬性？)
-        # 第 3 輪考點：演算法穩定性與最壞情況 (為什麼 O(n log n) 在這裡比 Quick Sort 穩定？)
-        # 第 4 輪考點：實務限制 (為什麼 Heap Sort 不是不穩定排序，且快取效能較差？)
+        # 第 1 輪考點：最大堆積的基本直覺與排序流程
+        # 第 2 輪考點：最大堆積與由小到大排序的關係
+        # 第 3 輪考點：Heapify 維護機制 (當根節點被換掉後，如何恢復堆積屬性？)
+        # 第 4 輪考點：實務取捨 (最壞情況、穩定性與快取效能)
         
         responses = [
             {
@@ -378,7 +404,14 @@ class MockLLMProvider(BaseLLMProvider):
                 "topic": target_node["topic"] if "topic" in target_node else target_node["title"],
                 "component": s["component"],
                 "skin": "Scientific",
-                "config": {"data": s["data"].copy(), "initialState": {}},
+                "config": {
+                    "data": s["data"].copy(),
+                    # Competition-only UI script. The browser turns this deterministic
+                    # plan plus actual answers/hints into the live Neuro experience.
+                    # It deliberately lives in initialState so component data validators
+                    # and answer evaluators keep receiving their normal stage payload.
+                    "initialState": {"neuroExperience": self._mock_neuro_experience(target_node, idx, s["component"])},
+                },
                 "validation": {"type": "logic", "condition": None},
                 "feedback": {"success": "太棒了！", "error": "請再試一次。"}
             })
@@ -391,6 +424,33 @@ class MockLLMProvider(BaseLLMProvider):
         if "stages" in getattr(schema, "model_fields", {}):
             return schema.model_validate({"stages": stages})
         return schema.model_validate(stages[0] if stages else {})
+
+    def _mock_neuro_experience(self, node: dict, stage_index: int, component: str) -> dict:
+        """A repeatable competition script, not a physiological claim or LLM response."""
+        palette = ["aurora", "comet", "prism", "sunrise", "orbit"][stage_index % 5]
+        return {
+            "version": "competition-neuro-v1",
+            "seed": 20261017 + stage_index,
+            "nodeId": node["id"],
+            "stageIndex": stage_index,
+            "component": component,
+            "onboarding": stage_index == 0,
+            "baselineSeconds": 8,
+            "visualMode": palette,
+            "title": node["title"],
+            "objective": f"掌握 {node['title']} 的核心步驟",
+            "beats": {
+                "correct": "focused_burst",
+                "incorrect": "frustration_wave",
+                "hint": "recovery_stream",
+                "secondIncorrect": "alternate_route",
+            },
+            "alternate": {
+                "label": "視覺化拆解模式",
+                "headline": f"把 {node['title']} 拆成一條看得見的路徑",
+                "detail": "這是比賽展示用的替代呈現；原題與原本的計分流程仍保留。",
+            },
+        }
 
     def _mock_learner_profile(self, schema: Type[BaseModel]) -> BaseModel:
         return schema.model_validate({"summary": "專業資訊背景。", "attributes": {"background": "資訊技術", "pace": "快速", "focus": "演算法實作", "level": "進階中級"}})

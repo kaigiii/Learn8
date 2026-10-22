@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { ApiError, apiFetch } from "@/lib/apiClient";
@@ -24,6 +23,7 @@ export function LessonSessionChatPanel({
   stageIdx,
   totalStages,
   compact = false,
+  assistantSignal,
 }: {
   courseId: number | null;
   courseTopic: string;
@@ -36,6 +36,8 @@ export function LessonSessionChatPanel({
   stageIdx: number;
   totalStages: number;
   compact?: boolean;
+  /** Optional, feature-owned live context shown inside the tutor surface. */
+  assistantSignal?: React.ReactNode;
 }) {
   const { t } = useI18n();
   const [chatInput, setChatInput] = useState("");
@@ -44,6 +46,8 @@ export function LessonSessionChatPanel({
   >([]);
   const [isRecording, setIsRecording] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
+  const [activeSupportPane, setActiveSupportPane] = useState<"tutor" | "neuro">(assistantSignal ? "neuro" : "tutor");
+  const hasSeenAssistantSignal = useRef(Boolean(assistantSignal));
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -60,6 +64,13 @@ export function LessonSessionChatPanel({
   useEffect(() => {
     resizeInput();
   }, []);
+
+  useEffect(() => {
+    if (assistantSignal && !hasSeenAssistantSignal.current) {
+      hasSeenAssistantSignal.current = true;
+      setActiveSupportPane("neuro");
+    }
+  }, [assistantSignal]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -171,27 +182,43 @@ export function LessonSessionChatPanel({
       className="flex w-full flex-col overflow-hidden rounded-3xl border border-white/50 bg-white/60 shadow-lg shadow-teal-200/20 backdrop-blur-xl"
       style={compact ? { height: "100%", minHeight: 0 } : { height: "calc(100vh - 80px)" }}
     >
-      <div className="flex items-center gap-3 px-6 pt-6 pb-4">
-        <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-full shadow-md">
-          <Image
-            src="/icons/icon.ico"
-            alt="Lesson tutor avatar"
-            width={56}
-            height={56}
-            className="h-full w-full object-cover"
-          />
+      {assistantSignal ? (
+        <div className="px-5 pt-5 pb-4">
+          <div className="grid grid-cols-2 rounded-2xl border border-brand-teal/15 bg-brand-teal-bg/65 p-1" role="tablist" aria-label="學習支援面板">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeSupportPane === "tutor"}
+              onClick={() => setActiveSupportPane("tutor")}
+              className={`min-h-11 rounded-xl px-2 text-xs font-heading font-black transition ${activeSupportPane === "tutor" ? "bg-white text-brand-gray-700 shadow-sm" : "text-brand-gray-500 hover:bg-white/60"}`}
+            >
+              課程助理
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeSupportPane === "neuro"}
+              onClick={() => setActiveSupportPane("neuro")}
+              className={`min-h-11 rounded-xl px-2 text-xs font-heading font-black transition ${activeSupportPane === "neuro" ? "bg-brand-teal text-brand-gray-700 shadow-sm" : "text-brand-gray-500 hover:bg-white/60"}`}
+            >
+              Neuro Link
+            </button>
+          </div>
         </div>
-        <div>
-          <h3 className="font-heading text-[15px] font-bold text-brand-gray-700">
-            {t("chat.lessonTutor")}
-          </h3>
-          <p className="mt-0.5 text-xs text-brand-gray-400">
-            {t("chat.lessonTutorDesc")}
-          </p>
-        </div>
-      </div>
+      ) : null}
 
-      <div className="flex-1 space-y-3 overflow-y-auto px-5 pb-3">
+      {assistantSignal ? (
+        <div
+          role="tabpanel"
+          aria-label="Neuro Link 展示劇本"
+          aria-hidden={activeSupportPane !== "neuro"}
+          className={`min-h-0 flex-1 px-5 pb-5 ${activeSupportPane === "neuro" ? "block overflow-hidden" : "hidden"}`}
+        >
+          {assistantSignal}
+        </div>
+      ) : null}
+
+      <div role="tabpanel" aria-label="課程助理對話" aria-hidden={!!assistantSignal && activeSupportPane !== "tutor"} className={`flex-1 space-y-3 overflow-y-auto px-5 pb-3 ${assistantSignal && activeSupportPane !== "tutor" ? "hidden" : "block"} ${assistantSignal ? "" : "pt-5"}`}>
         {chatMessages.length === 0 && (
           <div className="flex flex-col items-center justify-center gap-3 py-8 text-center">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-teal/10">
@@ -240,9 +267,9 @@ export function LessonSessionChatPanel({
         <div ref={chatEndRef} />
       </div>
 
-      <div className="mx-5 h-px bg-gradient-to-r from-transparent via-brand-teal/20 to-transparent" />
+      <div className={`mx-5 h-px bg-gradient-to-r from-transparent via-brand-teal/20 to-transparent ${assistantSignal && activeSupportPane !== "tutor" ? "hidden" : "block"}`} />
 
-      <div className="flex items-center gap-2 px-5 py-3">
+      <div className={`items-center gap-2 px-5 py-3 ${assistantSignal && activeSupportPane !== "tutor" ? "hidden" : "flex"}`}>
         <div className="relative flex-1">
           {isRecording ? (
             <div className="flex h-[40px] items-center justify-center gap-[6px] rounded-xl border border-brand-teal/40 bg-white/70 px-4 py-3 ring-2 ring-brand-teal/30">

@@ -1,5 +1,8 @@
-/** @type {import('next').NextConfig} */
-const nextConfig = {
+import { PHASE_DEVELOPMENT_SERVER } from "next/constants.js";
+
+/** Keep dev chunks separate from production builds so HMR never serves a stale manifest. */
+const nextConfig = (phase) => ({
+  distDir: phase === PHASE_DEVELOPMENT_SERVER ? ".next-dev" : ".next",
   images: { unoptimized: true },
   async rewrites() {
     const backendPort = process.env.BACKEND_PORT || process.env.NEXT_PUBLIC_BACKEND_PORT || "13105";
@@ -11,6 +14,6 @@ const nextConfig = {
       },
     ];
   },
-};
+});
 
 export default nextConfig;
