@@ -37,6 +37,11 @@ class Settings(BaseSettings):
     AUTH_DEV_LOGIN_PASSWORD: str = "dev_password"
     JOB_STALE_TIMEOUT_MINUTES: int = 10
 
+    # Optional local Muse 2 gateway.  Keep disabled unless the server is the
+    # presentation machine paired with the physical headband.
+    MUSE_GATEWAY_ENABLED: bool = False
+    MUSE_GATEWAY_RENDER_HZ: int = 8
+
     # Database & Cache
     DATABASE_URL: str  # Required to be set in .env
     REDIS_URL: str = "redis://localhost:6379/0"

@@ -1,0 +1,6 @@
+# Optional dependencies for the local Muse 2 → Learn8 gateway.
+# Install only on the computer paired with the headband:
+#   pip install -r backend/requirements-muse.txt
+muselsl
+bleak
+numpy
