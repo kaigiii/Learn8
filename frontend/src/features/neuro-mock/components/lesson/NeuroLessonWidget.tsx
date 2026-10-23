@@ -3,20 +3,22 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { Activity, BrainCircuit, WandSparkles } from "lucide-react";
-import type { NeuroLearningEvent } from "../../contract";
+import type { NeuroLabSource, NeuroLearningEvent } from "../../contract";
 import { SyntheticScenarioSource } from "../../sources/SyntheticScenarioSource";
+import { MuseLiveSource } from "../../sources/MuseLiveSource";
 import { CompetitionExperienceOverlay, type CompetitionExperiencePlan } from "./CompetitionExperienceOverlay";
 
 /** Feature-owned display. It receives learning events but never changes lesson state. */
 export default function NeuroLessonWidget({ events, plan }: { events: NeuroLearningEvent[]; plan: CompetitionExperiencePlan }) {
-  const [source] = useState(() => new SyntheticScenarioSource());
+  const [source] = useState<NeuroLabSource>(() => process.env.NEXT_PUBLIC_ENABLE_MUSE_LIVE === "true" ? new MuseLiveSource() : new SyntheticScenarioSource());
   const snapshot = useSyncExternalStore(source.subscribe, source.getSnapshot, source.getSnapshot);
   const deliveredEvent = useRef<string | null>(null);
   const reducedMotion = useReducedMotion();
 
   useEffect(() => { source.connect(); source.setScene("linked"); source.resume(); return () => source.disconnect(); }, [source]);
-  // Recording presets remain inside the mock source and never touch lesson state or backend data.
+  // Recording presets only run against the deterministic showcase source.
   useEffect(() => {
+    if (process.env.NEXT_PUBLIC_ENABLE_MUSE_LIVE === "true") return;
     const preset = new URLSearchParams(window.location.search).get("neuro-demo");
     if (!preset) return;
     const timer = window.setTimeout(() => {

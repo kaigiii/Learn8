@@ -23,7 +23,9 @@ import type { NeuroLearningEvent } from "@/features/neuro-mock/contract";
 import type { CompetitionExperiencePlan } from "@/features/neuro-mock/components/lesson/CompetitionExperienceOverlay";
 
 const COMPACT_VIEWPORT_MEDIA_QUERY = "(max-width: 1023px)";
-const ENABLE_NEURO_MOCK = process.env.NEXT_PUBLIC_ENABLE_NEURO_MOCK === "true";
+const ENABLE_NEURO_MOCK =
+  process.env.NEXT_PUBLIC_ENABLE_NEURO_MOCK === "true" ||
+  process.env.NEXT_PUBLIC_ENABLE_MUSE_LIVE === "true";
 const NeuroLessonWidget = ENABLE_NEURO_MOCK
   ? dynamic(() => import("@/features/neuro-mock/components/lesson/NeuroLessonWidget"), { ssr: false })
   : null;

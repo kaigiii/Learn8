@@ -8,7 +8,7 @@ export type Quality = "good" | "fair" | "poor" | "unknown";
 export type NeuroChannelFrame = { waveform: number[]; rms: number; peakToPeak: number; quality: Quality };
 export type NeuroFrame = {
   schemaVersion: "1.0"; sessionId: string; sequence: number; timestampMs: number;
-  source: "synthetic" | "csv-replay" | "live"; mock: boolean; connection: "connected" | "disconnected" | "stalled" | "connecting";
+  source: "synthetic" | "muse-live"; mock: boolean; connection: "connected" | "disconnected" | "stalled" | "connecting";
   signal: { sampleRateHz: 256; overallQuality: Quality; channels: Record<Channel, NeuroChannelFrame> };
   metrics: { engagementIndex: number | null; frontalAlphaAsymmetry: number | null; blinkRatePerMinute: number | null; interestProbability: number | null };
   normalized: { engagement: number | null; approach: number | null; fatigue: number | null };
