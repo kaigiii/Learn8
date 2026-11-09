@@ -1,0 +1,36 @@
+# Python 虛擬環境
+venv/
+.venv/
+env/
+
+# Python 快取 / 編譯檔
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# 專案內的 .csv 預設不上傳，下面再逐一開例外。
+Data/*
+!Data/.gitkeep
+eeg_*.csv
+*.csv
+
+# Data/ 的原始 EEG 錄製要上傳（含選單 [5] 實驗保存的 <實驗檔名>_Original.csv）。
+# 注意順序：上面的 *.csv 會蓋掉更早的例外，所以這行必須排在 *.csv 之後。
+# 原始錄製體積不小（每分鐘約 0.8 MB），repo 會隨實驗次數持續變大。
+!Data/*.csv
+
+# 訓練用的標註資料要上傳（檔案很小，方便重現訓練結果）
+!Model/boring/*.csv
+!Model/interesting/*.csv
+!Model/PDF_Experiment/*.csv
+!Model/Learn8_Experiment/*.csv
+
+# 作業系統 / 編輯器
+.DS_Store
+.idea/
+.vscode/
+*.swp

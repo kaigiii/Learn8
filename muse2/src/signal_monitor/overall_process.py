@@ -1,0 +1,181 @@
+#!/usr/bin/env python3
+"""
+一鍵流程：即時監控 + 錄製 CSV → FFT → EI → FAA。
+
+這支程式把專案的各步驟串成一條龍（重用既有腳本，不重寫邏輯）：
+
+  步驟 1（同時進行）：直接 BLE 連線 MUSE 2，
+      - 終端機即時顯示原始 EEG（4 通道波形 / RMS / 訊號品質 / 取樣率）
+      - 同一份資料逐一樣本寫入 Data/<編號>.csv
+  步驟 2：停止後自動對該檔算每秒 FFT，只印出各通道的主頻與頻帶能量摘要（不存檔）
+    步驟 3：再跑 engagement.py（每秒 EI + 10 秒滑動平均 → EI/<編號>.csv）
+    步驟 4：再跑 faa.py（每秒 FAA + 10 秒滑動平均 → FAA/<編號>.csv）
+    步驟 3：EI / FAA / 眨眼 一次算完，輸出 Features/<編號>.csv
+
+停止錄製的方式：--seconds 到時自動停，或隨時按 Ctrl+C。
+
+用法:
+    python -m signal_monitor.overall_process                              # 自動掃描，錄到 Ctrl+C 為止
+    python -m signal_monitor.overall_process --seconds 60                 # 錄 60 秒後自動分析
+    python -m signal_monitor.overall_process --address 00:55:DA:B6:35:CA --seconds 60
+    python -m signal_monitor.overall_process --aux                        # 即時畫面也顯示 AUX
+    python -m signal_monitor.overall_process --no-analyze                 # 只監控+錄製，不做後續分析
+
+備註：EI 的「穩定分數」需要滿 10 秒才會輸出，想看平滑專注度請至少錄 10 秒以上。
+"""
+import argparse
+import csv
+import os
+import re
+import subprocess
+import sys
+import time
+
+from muselsl import backends
+from signal_monitor.hardware.ble import scan_muses
+from muselsl.muse import Muse
+
+# 重用即時監控（畫面）與錄製（檔名/通道）的既有元件
+from signal_monitor.hardware.monitor_raw import (
+    Monitor, render,
+    CLEAR, HIDE_CURSOR, SHOW_CURSOR, RESET, BOLD, CYAN, DIM,
+)
+from signal_monitor.data_utils.record_csv import CSV_DIR, next_csv_path, CHANNELS as REC_CHANNELS
+from signal_monitor.paths import PROJECT_ROOT
+from signal_monitor.analysis.features import build_features_csv  # noqa: F401  (相容舊匯入路徑)
+
+FEATURES_DIR = os.path.join(PROJECT_ROOT, "Features")
+
+
+class LiveRecorder:
+    """單一 BLE 回呼：同時餵給即時畫面（Monitor）並把樣本寫入 CSV。"""
+
+    def __init__(self, mon, writer):
+        self.mon = mon
+        self.writer = writer
+        self.count = 0
+
+    def on_eeg(self, data, timestamps):
+        # data 形狀 (5, 12)：先更新即時畫面緩衝，再寫入前 4 個通道（不含 AUX）
+        self.mon.on_eeg(data, timestamps)
+        n_ch = len(REC_CHANNELS)
+        for i in range(data.shape[1]):
+            self.writer.writerow(
+                [f"{timestamps[i]:.6f}"]
+                + [f"{data[ch, i]:.3f}" for ch in range(n_ch)]
+            )
+            self.count += 1
+
+
+def resolve_address(args):
+    if args.address:
+        return args.address, (args.name or "Muse")
+    print("掃描 MUSE 裝置中（請確認頭帶已開機、LED 閃爍）...")
+    muses, error = scan_muses()
+    if error:
+        sys.exit(f"掃描失敗：{error}")
+    if not muses:
+        sys.exit("找不到 MUSE 裝置。先執行 python -m signal_monitor.hardware.list_devices 排查。")
+    print(f"使用裝置：{muses[0]['name']}  [{muses[0]['address']}]")
+    return muses[0]["address"], muses[0]["name"]
+
+
+def run_analysis(csv_path):
+    """依序執行 FFT、EI、FAA 分析，並合併為 Features/<編號>.csv（含眨眼/BPM）。"""
+    py = sys.executable  # 目前的 venv python
+    # 先 flush 再叫子程序，確保標題印在子程序輸出「之前」（輸出被導向檔案時尤其重要）
+    print(f"\n{BOLD}{CYAN}=== 步驟 2：每秒 FFT 摘要（只顯示，不存檔）==={RESET}", flush=True)
+    subprocess.run([py, "-m", "signal_monitor.analysis.fft_energy", csv_path])
+    print(f"\n{BOLD}{CYAN}=== 步驟 3：EI + FAA + 眨眼 → Features ==={RESET}", flush=True)
+
+    # 直接在記憶體裡算完寫出 Features，不再經過 EI/ 與 FAA/ 中繼檔。
+    # 舊寫法是分別跑 engagement / faa 子程序、再把兩個檔讀回來合併，但
+    # subprocess.run() 的回傳碼沒人檢查：子程序失敗（例如缺 scipy、Ctrl+C）
+    # 時會變成開檔的 FileNotFoundError，更糟的是若上一次的 EI/<n>.csv 還在，
+    # 會靜默地把過期資料合併進 Features。
+    stem = re.sub(r"\.csv$", "", os.path.basename(csv_path))
+    features_path = os.path.join(FEATURES_DIR, f"{stem}.csv")
+    n_sec = build_features_csv(csv_path, features_path)
+    print(f"\n{BOLD}{CYAN}已輸出 {n_sec} 秒的 Features CSV：{features_path}{RESET}")
+
+
+def main():
+    ap = argparse.ArgumentParser(
+        description="MUSE 2 一鍵：即時監控 + 錄製 CSV → FFT → EI 專注度"
+    )
+    ap.add_argument("--address", help="MUSE 的 BLE address（省略則自動掃描）")
+    ap.add_argument("--name", help="裝置名稱（可選）")
+    ap.add_argument("--seconds", type=float, default=0, help="錄製秒數（0=直到 Ctrl+C）")
+    ap.add_argument("--fps", type=float, default=15.0, help="即時畫面刷新率（預設 15）")
+    ap.add_argument("--window", type=float, default=2.0, help="即時統計/波形視窗秒數（預設 2）")
+    ap.add_argument("--retries", type=int, default=3, help="連線重試次數（預設 3）")
+    ap.add_argument("--aux", action="store_true", help="即時畫面顯示 AUX（預設隱藏）")
+    ap.add_argument("--no-analyze", action="store_true", help="只監控+錄製，不做後續分析")
+    args = ap.parse_args()
+
+    show_idx = list(range(5)) if args.aux else [0, 1, 2, 3]
+    address, name = resolve_address(args)
+
+    # 準備輸出 CSV：Data/<下一個未使用編號>.csv
+    out_path = next_csv_path(CSV_DIR)
+    f = open(out_path, "w", newline="")
+    writer = csv.writer(f)
+    writer.writerow(["timestamp"] + REC_CHANNELS)
+
+    mon = Monitor(window_sec=args.window)
+    rec = LiveRecorder(mon, writer)
+
+    muse = Muse(address=address, name=name, callback_eeg=rec.on_eeg, backend="bleak")
+    print(f"連線中 {name} [{address}] ...")
+    if not muse.connect(retries=args.retries):
+        f.close()
+        os.remove(out_path)  # 連線失敗就不留空檔
+        sys.exit("連線失敗。請確認頭帶未被手機 App 佔用，且在附近。")
+    muse.start()
+
+    limit = args.seconds
+    hint = f"錄製 {limit:.0f} 秒" if limit else "錄製中，按 Ctrl+C 停止"
+    print(f"開始 -> {out_path}（{hint}）")
+
+    sys.stdout.write(CLEAR + HIDE_CURSOR)
+    sys.stdout.flush()   # 立即清掉上面的連線/開始訊息，再開始即時畫面
+    period = 1.0 / max(args.fps, 1.0)
+    t0 = time.time()
+    try:
+        while True:
+            # backends.sleep 會推動 asyncio 事件迴圈 -> 觸發 BLE 資料回呼
+            backends.sleep(period)
+            render(mon, name, address, show_idx)
+            if limit and (time.time() - t0) >= limit:
+                break
+    except KeyboardInterrupt:
+        pass
+    finally:
+        sys.stdout.write(SHOW_CURSOR + RESET + "\n")
+        try:
+            muse.stop()
+            muse.disconnect()
+        except Exception:
+            pass
+        f.close()
+
+    secs = rec.count / 256.0
+    print(f"已停止串流。錄製檔：{out_path}"
+          f"（共 {rec.count} 個樣本，約 {secs:.1f} 秒）")
+
+    if args.no_analyze:
+        print(f"{DIM}（--no-analyze：略過後續分析）{RESET}")
+        return
+    if rec.count < 256:
+        print(f"{DIM}資料不足 1 秒，略過後續分析。{RESET}")
+        return
+
+    run_analysis(out_path)
+    print(f"\n{BOLD}全部完成{RESET}：原始 {out_path} → Features（EI/FAA/Blink/BPM）")
+    if secs < 10:
+        print(f"{DIM}提醒：此段只有約 {secs:.0f} 秒，未滿 10 秒故無「穩定 EI」；"
+              f"想看平滑專注度請錄 10 秒以上。{RESET}")
+
+
+if __name__ == "__main__":
+    main()
