@@ -1,0 +1,10 @@
+{
+  "name": "learn8-deck",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npx --yes hyperframes@0.8.181 present .",
+    "studio": "npx --yes hyperframes@0.8.181 preview --background",
+    "check": "npx --yes hyperframes@0.8.181 check"
+  }
+}

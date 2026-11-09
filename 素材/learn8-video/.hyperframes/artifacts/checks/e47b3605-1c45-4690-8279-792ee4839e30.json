@@ -1,0 +1,811 @@
+{
+  "ok": false,
+  "strict": false,
+  "browserSkipped": true,
+  "lint": {
+    "ok": false,
+    "errorCount": 45,
+    "warningCount": 1,
+    "infoCount": 0,
+    "findings": [
+      {
+        "code": "composition_file_too_large",
+        "severity": "warning",
+        "message": "This HTML composition file has 905 lines. Smaller sub-compositions are easier to read, iterate on, and diff.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Split coherent scenes or layers into separate .html files under compositions/, then mount them from the parent with data-composition-src so each file stays small enough to inspect, revise, and validate independently."
+      },
+      {
+        "code": "slideshow_unresolved_ref",
+        "severity": "error",
+        "message": "Slideshow manifest error: slide \"rural\" fragment 10.2 is outside range [36.45, 72.2]",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Ensure every sceneId in the slideshow island matches the data-composition-id of a scene element in the composition, or provide explicit startTime/endTime."
+      },
+      {
+        "code": "slideshow_unresolved_ref",
+        "severity": "error",
+        "message": "Slideshow manifest error: slide \"rural\" fragment 10.7 is outside range [36.45, 72.2]",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Ensure every sceneId in the slideshow island matches the data-composition-id of a scene element in the composition, or provide explicit startTime/endTime."
+      },
+      {
+        "code": "slideshow_unresolved_ref",
+        "severity": "error",
+        "message": "Slideshow manifest error: slide \"rural\" fragment 11.2 is outside range [36.45, 72.2]",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Ensure every sceneId in the slideshow island matches the data-composition-id of a scene element in the composition, or provide explicit startTime/endTime."
+      },
+      {
+        "code": "slideshow_unresolved_ref",
+        "severity": "error",
+        "message": "Slideshow manifest error: slide \"mission\" fragment 20.2 is outside range [71.8, 89.00999999999999]",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Ensure every sceneId in the slideshow island matches the data-composition-id of a scene element in the composition, or provide explicit startTime/endTime."
+      },
+      {
+        "code": "slideshow_unresolved_ref",
+        "severity": "error",
+        "message": "Slideshow manifest error: slide \"mission\" fragment 20.7 is outside range [71.8, 89.00999999999999]",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Ensure every sceneId in the slideshow island matches the data-composition-id of a scene element in the composition, or provide explicit startTime/endTime."
+      },
+      {
+        "code": "slideshow_unresolved_ref",
+        "severity": "error",
+        "message": "Slideshow manifest error: slide \"sdg\" fragment 30.2 is outside range [88.61, 120.34]",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Ensure every sceneId in the slideshow island matches the data-composition-id of a scene element in the composition, or provide explicit startTime/endTime."
+      },
+      {
+        "code": "slideshow_unresolved_ref",
+        "severity": "error",
+        "message": "Slideshow manifest error: slide \"sdg\" fragment 30.7 is outside range [88.61, 120.34]",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Ensure every sceneId in the slideshow island matches the data-composition-id of a scene element in the composition, or provide explicit startTime/endTime."
+      },
+      {
+        "code": "slideshow_unresolved_ref",
+        "severity": "error",
+        "message": "Slideshow manifest error: slide \"sdg\" fragment 31.2 is outside range [88.61, 120.34]",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Ensure every sceneId in the slideshow island matches the data-composition-id of a scene element in the composition, or provide explicit startTime/endTime."
+      },
+      {
+        "code": "slideshow_unresolved_ref",
+        "severity": "error",
+        "message": "Slideshow manifest error: slide \"sdg\" fragment 31.7 is outside range [88.61, 120.34]",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Ensure every sceneId in the slideshow island matches the data-composition-id of a scene element in the composition, or provide explicit startTime/endTime."
+      },
+      {
+        "code": "slideshow_unresolved_ref",
+        "severity": "error",
+        "message": "Slideshow manifest error: slide \"system\" fragment 40.2 is outside range [119.94, 160.98]",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Ensure every sceneId in the slideshow island matches the data-composition-id of a scene element in the composition, or provide explicit startTime/endTime."
+      },
+      {
+        "code": "slideshow_unresolved_ref",
+        "severity": "error",
+        "message": "Slideshow manifest error: slide \"system\" fragment 40.7 is outside range [119.94, 160.98]",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Ensure every sceneId in the slideshow island matches the data-composition-id of a scene element in the composition, or provide explicit startTime/endTime."
+      },
+      {
+        "code": "slideshow_unresolved_ref",
+        "severity": "error",
+        "message": "Slideshow manifest error: slide \"system\" fragment 41.2 is outside range [119.94, 160.98]",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Ensure every sceneId in the slideshow island matches the data-composition-id of a scene element in the composition, or provide explicit startTime/endTime."
+      },
+      {
+        "code": "slideshow_unresolved_ref",
+        "severity": "error",
+        "message": "Slideshow manifest error: slide \"system\" fragment 41.7 is outside range [119.94, 160.98]",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Ensure every sceneId in the slideshow island matches the data-composition-id of a scene element in the composition, or provide explicit startTime/endTime."
+      },
+      {
+        "code": "slideshow_unresolved_ref",
+        "severity": "error",
+        "message": "Slideshow manifest error: slide \"paths\" fragment 50.2 is outside range [160.58, 188.64000000000001]",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Ensure every sceneId in the slideshow island matches the data-composition-id of a scene element in the composition, or provide explicit startTime/endTime."
+      },
+      {
+        "code": "slideshow_unresolved_ref",
+        "severity": "error",
+        "message": "Slideshow manifest error: slide \"paths\" fragment 50.7 is outside range [160.58, 188.64000000000001]",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Ensure every sceneId in the slideshow island matches the data-composition-id of a scene element in the composition, or provide explicit startTime/endTime."
+      },
+      {
+        "code": "slideshow_unresolved_ref",
+        "severity": "error",
+        "message": "Slideshow manifest error: slide \"paths\" fragment 51.2 is outside range [160.58, 188.64000000000001]",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Ensure every sceneId in the slideshow island matches the data-composition-id of a scene element in the composition, or provide explicit startTime/endTime."
+      },
+      {
+        "code": "slideshow_unresolved_ref",
+        "severity": "error",
+        "message": "Slideshow manifest error: slide \"paths\" fragment 51.7 is outside range [160.58, 188.64000000000001]",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Ensure every sceneId in the slideshow island matches the data-composition-id of a scene element in the composition, or provide explicit startTime/endTime."
+      },
+      {
+        "code": "slideshow_unresolved_ref",
+        "severity": "error",
+        "message": "Slideshow manifest error: slide \"editor\" fragment 60.2 is outside range [188.24, 225.96]",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Ensure every sceneId in the slideshow island matches the data-composition-id of a scene element in the composition, or provide explicit startTime/endTime."
+      },
+      {
+        "code": "slideshow_unresolved_ref",
+        "severity": "error",
+        "message": "Slideshow manifest error: slide \"editor\" fragment 60.7 is outside range [188.24, 225.96]",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Ensure every sceneId in the slideshow island matches the data-composition-id of a scene element in the composition, or provide explicit startTime/endTime."
+      },
+      {
+        "code": "slideshow_unresolved_ref",
+        "severity": "error",
+        "message": "Slideshow manifest error: slide \"editor\" fragment 61.2 is outside range [188.24, 225.96]",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Ensure every sceneId in the slideshow island matches the data-composition-id of a scene element in the composition, or provide explicit startTime/endTime."
+      },
+      {
+        "code": "slideshow_unresolved_ref",
+        "severity": "error",
+        "message": "Slideshow manifest error: slide \"editor\" fragment 61.7 is outside range [188.24, 225.96]",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Ensure every sceneId in the slideshow island matches the data-composition-id of a scene element in the composition, or provide explicit startTime/endTime."
+      },
+      {
+        "code": "slideshow_unresolved_ref",
+        "severity": "error",
+        "message": "Slideshow manifest error: slide \"arena\" fragment 70.2 is outside range [225.57, 250.88]",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Ensure every sceneId in the slideshow island matches the data-composition-id of a scene element in the composition, or provide explicit startTime/endTime."
+      },
+      {
+        "code": "slideshow_unresolved_ref",
+        "severity": "error",
+        "message": "Slideshow manifest error: slide \"arena\" fragment 70.7 is outside range [225.57, 250.88]",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Ensure every sceneId in the slideshow island matches the data-composition-id of a scene element in the composition, or provide explicit startTime/endTime."
+      },
+      {
+        "code": "slideshow_unresolved_ref",
+        "severity": "error",
+        "message": "Slideshow manifest error: slide \"arena\" fragment 71.2 is outside range [225.57, 250.88]",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Ensure every sceneId in the slideshow island matches the data-composition-id of a scene element in the composition, or provide explicit startTime/endTime."
+      },
+      {
+        "code": "slideshow_unresolved_ref",
+        "severity": "error",
+        "message": "Slideshow manifest error: slide \"neuro\" fragment 80.2 is outside range [250.47, 286.44]",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Ensure every sceneId in the slideshow island matches the data-composition-id of a scene element in the composition, or provide explicit startTime/endTime."
+      },
+      {
+        "code": "slideshow_unresolved_ref",
+        "severity": "error",
+        "message": "Slideshow manifest error: slide \"neuro\" fragment 80.7 is outside range [250.47, 286.44]",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Ensure every sceneId in the slideshow island matches the data-composition-id of a scene element in the composition, or provide explicit startTime/endTime."
+      },
+      {
+        "code": "slideshow_unresolved_ref",
+        "severity": "error",
+        "message": "Slideshow manifest error: slide \"neuro\" fragment 81.2 is outside range [250.47, 286.44]",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Ensure every sceneId in the slideshow island matches the data-composition-id of a scene element in the composition, or provide explicit startTime/endTime."
+      },
+      {
+        "code": "slideshow_unresolved_ref",
+        "severity": "error",
+        "message": "Slideshow manifest error: slide \"model\" fragment 90.2 is outside range [286.05, 325.68]",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Ensure every sceneId in the slideshow island matches the data-composition-id of a scene element in the composition, or provide explicit startTime/endTime."
+      },
+      {
+        "code": "slideshow_unresolved_ref",
+        "severity": "error",
+        "message": "Slideshow manifest error: slide \"model\" fragment 90.7 is outside range [286.05, 325.68]",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Ensure every sceneId in the slideshow island matches the data-composition-id of a scene element in the composition, or provide explicit startTime/endTime."
+      },
+      {
+        "code": "slideshow_unresolved_ref",
+        "severity": "error",
+        "message": "Slideshow manifest error: slide \"model\" fragment 91.2 is outside range [286.05, 325.68]",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Ensure every sceneId in the slideshow island matches the data-composition-id of a scene element in the composition, or provide explicit startTime/endTime."
+      },
+      {
+        "code": "slideshow_unresolved_ref",
+        "severity": "error",
+        "message": "Slideshow manifest error: slide \"model\" fragment 91.7 is outside range [286.05, 325.68]",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Ensure every sceneId in the slideshow island matches the data-composition-id of a scene element in the composition, or provide explicit startTime/endTime."
+      },
+      {
+        "code": "slideshow_unresolved_ref",
+        "severity": "error",
+        "message": "Slideshow manifest error: slide \"model\" fragment 92.2 is outside range [286.05, 325.68]",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Ensure every sceneId in the slideshow island matches the data-composition-id of a scene element in the composition, or provide explicit startTime/endTime."
+      },
+      {
+        "code": "slideshow_unresolved_ref",
+        "severity": "error",
+        "message": "Slideshow manifest error: slide \"close\" fragment 100.2 is outside range [325.28, 343.05999999999995]",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Ensure every sceneId in the slideshow island matches the data-composition-id of a scene element in the composition, or provide explicit startTime/endTime."
+      },
+      {
+        "code": "slideshow_unresolved_ref",
+        "severity": "error",
+        "message": "Slideshow manifest error: slide \"close\" fragment 100.7 is outside range [325.28, 343.05999999999995]",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Ensure every sceneId in the slideshow island matches the data-composition-id of a scene element in the composition, or provide explicit startTime/endTime."
+      },
+      {
+        "code": "slideshow_unresolved_ref",
+        "severity": "error",
+        "message": "Slideshow manifest error: slide \"close\" fragment 101.2 is outside range [325.28, 343.05999999999995]",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Ensure every sceneId in the slideshow island matches the data-composition-id of a scene element in the composition, or provide explicit startTime/endTime."
+      },
+      {
+        "code": "slideshow_unresolved_ref",
+        "severity": "error",
+        "message": "Slideshow manifest error: main-line slides \"pain\" and \"rural\" overlap",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Ensure every sceneId in the slideshow island matches the data-composition-id of a scene element in the composition, or provide explicit startTime/endTime."
+      },
+      {
+        "code": "slideshow_unresolved_ref",
+        "severity": "error",
+        "message": "Slideshow manifest error: main-line slides \"rural\" and \"mission\" overlap",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Ensure every sceneId in the slideshow island matches the data-composition-id of a scene element in the composition, or provide explicit startTime/endTime."
+      },
+      {
+        "code": "slideshow_unresolved_ref",
+        "severity": "error",
+        "message": "Slideshow manifest error: main-line slides \"mission\" and \"sdg\" overlap",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Ensure every sceneId in the slideshow island matches the data-composition-id of a scene element in the composition, or provide explicit startTime/endTime."
+      },
+      {
+        "code": "slideshow_unresolved_ref",
+        "severity": "error",
+        "message": "Slideshow manifest error: main-line slides \"sdg\" and \"system\" overlap",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Ensure every sceneId in the slideshow island matches the data-composition-id of a scene element in the composition, or provide explicit startTime/endTime."
+      },
+      {
+        "code": "slideshow_unresolved_ref",
+        "severity": "error",
+        "message": "Slideshow manifest error: main-line slides \"system\" and \"paths\" overlap",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Ensure every sceneId in the slideshow island matches the data-composition-id of a scene element in the composition, or provide explicit startTime/endTime."
+      },
+      {
+        "code": "slideshow_unresolved_ref",
+        "severity": "error",
+        "message": "Slideshow manifest error: main-line slides \"paths\" and \"editor\" overlap",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Ensure every sceneId in the slideshow island matches the data-composition-id of a scene element in the composition, or provide explicit startTime/endTime."
+      },
+      {
+        "code": "slideshow_unresolved_ref",
+        "severity": "error",
+        "message": "Slideshow manifest error: main-line slides \"editor\" and \"arena\" overlap",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Ensure every sceneId in the slideshow island matches the data-composition-id of a scene element in the composition, or provide explicit startTime/endTime."
+      },
+      {
+        "code": "slideshow_unresolved_ref",
+        "severity": "error",
+        "message": "Slideshow manifest error: main-line slides \"arena\" and \"neuro\" overlap",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Ensure every sceneId in the slideshow island matches the data-composition-id of a scene element in the composition, or provide explicit startTime/endTime."
+      },
+      {
+        "code": "slideshow_unresolved_ref",
+        "severity": "error",
+        "message": "Slideshow manifest error: main-line slides \"neuro\" and \"model\" overlap",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Ensure every sceneId in the slideshow island matches the data-composition-id of a scene element in the composition, or provide explicit startTime/endTime."
+      },
+      {
+        "code": "slideshow_unresolved_ref",
+        "severity": "error",
+        "message": "Slideshow manifest error: main-line slides \"model\" and \"close\" overlap",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "/Users/kaigiii/Coding/Learn8/素材/learn8-video/index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Ensure every sceneId in the slideshow island matches the data-composition-id of a scene element in the composition, or provide explicit startTime/endTime."
+      }
+    ],
+    "filesScanned": 1
+  },
+  "runtime": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": []
+  },
+  "layout": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": [],
+    "duration": 0,
+    "samples": [],
+    "transitionSamples": [],
+    "transitionSamplesDropped": 0,
+    "tolerance": 2,
+    "totalIssueCount": 0,
+    "truncated": false
+  },
+  "motion": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": [],
+    "enabled": false,
+    "samples": 0
+  },
+  "contrast": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": [],
+    "enabled": true,
+    "samples": [],
+    "checked": 0,
+    "passed": 0
+  },
+  "craft": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": [],
+    "enabled": false,
+    "step": 0,
+    "samples": 0
+  },
+  "hdr": {
+    "autoPromotion": null,
+    "inspection": "available"
+  },
+  "snapshots": {
+    "enabled": false,
+    "files": [],
+    "times": [],
+    "findingFiles": []
+  }
+}

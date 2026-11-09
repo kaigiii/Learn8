@@ -1,0 +1,103 @@
+/* Print / PDF edition overrides — injected only by tools/print/build.mjs, never part of the live deck */
+@font-face {
+  font-family: "L8 Huninn";
+  src: url("__FONTS__/huninn.ttf") format("truetype");
+}
+@font-face {
+  font-family: "L8 Noto TC";
+  src: url("__FONTS__/notosanstc.ttf") format("truetype");
+  font-weight: 100 900;
+}
+@page {
+  size: 1920px 1080px;
+  margin: 0;
+}
+html,
+body {
+  cursor: default !important;
+}
+#fs-btn {
+  display: none !important;
+}
+.pg-num {
+  position: absolute;
+  right: 96px;
+  bottom: 40px;
+  font-family: "Righteous", "L8 Huninn", sans-serif;
+  font-size: 30px;
+  color: rgba(22, 33, 63, 0.45);
+  z-index: 50;
+}
+.pr-title {
+  position: absolute;
+  left: 120px;
+  right: 120px;
+  top: 150px;
+  font-family: "Nunito", "L8 Huninn", sans-serif;
+  font-weight: 800;
+  font-size: 66px;
+  line-height: 1.25;
+  color: #16213f;
+}
+.pr-eyebrow {
+  position: absolute;
+  left: 120px;
+  top: 92px;
+  font-family: "Nunito", "L8 Huninn", sans-serif;
+  font-weight: 800;
+  font-size: 40px;
+  letter-spacing: 0.06em;
+  color: #b57800;
+}
+.pr-note {
+  position: absolute;
+  font-family: "Nunito", "L8 Huninn", sans-serif;
+  font-weight: 800;
+  color: #16213f;
+}
+.pr-cap {
+  position: absolute;
+  font-family: "Nunito", "L8 Huninn", sans-serif;
+  font-weight: 800;
+  font-size: 36px;
+  line-height: 1.35;
+  color: #16213f;
+  text-align: center;
+}
+.pr-cap small {
+  display: block;
+  font-family: "Open Sans", "L8 Noto TC", sans-serif;
+  font-weight: 500;
+  font-size: 30px;
+  color: rgba(22, 33, 63, 0.7);
+}
+.pr-cap b {
+  display: inline-flex;
+  width: 46px;
+  height: 46px;
+  margin-right: 12px;
+  border-radius: 50%;
+  background: #f5be3c;
+  color: #16213f;
+  align-items: center;
+  justify-content: center;
+  font-family: "Righteous", sans-serif;
+  font-size: 26px;
+  vertical-align: 4px;
+}
+
+/* ---- general legibility for 2-up printing: no faded body text ---- */
+.pt-d,
+.stg-d,
+.qa-cd,
+.arch-d,
+.fl-d,
+.bm-desc,
+.b-lab,
+.src-note,
+.qa-foot {
+  color: rgba(22, 33, 63, 0.78) !important;
+}
+.corner-mark {
+  opacity: 0.75 !important;
+}

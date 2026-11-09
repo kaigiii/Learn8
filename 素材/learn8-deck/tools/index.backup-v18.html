@@ -1,0 +1,4176 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script>
+      // Opened directly (phone / tablet / browser tab): use the device's real width from the first paint.
+      if (window.parent === window && !navigator.webdriver) {
+        document.querySelector('meta[name="viewport"]').setAttribute("content", "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover");
+      }
+    </script>
+    <title>Learn8 競賽簡報</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face {
+        font-family: "Righteous";
+        src: url("fonts/righteous.woff2") format("woff2");
+        font-weight: 400;
+        font-display: block;
+      }
+      @font-face {
+        font-family: "Nunito";
+        src: url("fonts/nunito.woff2") format("woff2");
+        font-weight: 200 1000;
+        font-display: block;
+      }
+      @font-face {
+        font-family: "Open Sans";
+        src: url("fonts/opensans.woff2") format("woff2");
+        font-weight: 300 800;
+        font-display: block;
+      }
+      @font-face {
+        font-family: "L8 Huninn";
+        src: url("fonts/huninn.woff2") format("woff2");
+        font-weight: 400;
+        font-display: block;
+      }
+      @font-face {
+        font-family: "L8 Noto TC";
+        src: url("fonts/notosanstc.woff2") format("woff2");
+        font-weight: 100 900;
+        font-display: block;
+      }
+
+      /* palette — cream #fbf7ef · navy #16213f · amber text #b57800 · gold #f5be3c
+         teal #7ac7c4 (Neuro) · coral #ff8a65 (dark slides) · SDG 4 red #c5192d */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #fbf7ef;
+        color: #16213f;
+        font-family: "Open Sans", "L8 Noto TC", sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      #root {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #fbf7ef;
+      }
+      .scene-frame {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        background: #fbf7ef;
+      }
+      .scene-frame.dark {
+        background: #0e1430;
+        color: #fff8ec;
+      }
+      .ambient {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+      svg.layer {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: visible;
+        pointer-events: none;
+      }
+
+      /* ---------- type ---------- */
+      .display {
+        font-family: "Righteous", "L8 Huninn", sans-serif;
+        font-weight: 400;
+        letter-spacing: 0.01em;
+      }
+      .heading {
+        font-family: "Nunito", "L8 Huninn", sans-serif;
+        font-weight: 800;
+      }
+      .body {
+        font-family: "Open Sans", "L8 Noto TC", sans-serif;
+      }
+      .accent {
+        color: #b57800;
+        text-shadow: 0 2px 18px rgba(245, 190, 60, 0.28);
+      }
+      .dark .accent {
+        color: #f5be3c;
+        text-shadow: 0 0 24px rgba(245, 190, 60, 0.55);
+      }
+      .ln {
+        display: block;
+      }
+      .hidden-init {
+        opacity: 0;
+      }
+      .wordmark {
+        font-family: "Righteous", "L8 Huninn", sans-serif;
+        color: #16213f;
+        white-space: nowrap;
+      }
+      .wordmark span {
+        color: #bd7f05;
+        text-shadow: 0 0 24px rgba(245, 190, 60, 0.55);
+      }
+      .dark .wordmark {
+        color: #ffffff;
+      }
+      .dark .wordmark span {
+        color: #f5be3c;
+        text-shadow: 0 0 20px rgba(245, 190, 60, 0.6);
+      }
+      .corner-mark {
+        position: absolute;
+        right: 96px;
+        top: 92px;
+        font-size: 40px;
+        opacity: 0.6;
+      }
+      .src-note {
+        position: absolute;
+        left: 120px;
+        bottom: 54px;
+        font-size: 30px;
+        color: rgba(22, 33, 63, 0.5);
+      }
+      .dark .src-note {
+        color: rgba(255, 248, 236, 0.45);
+      }
+
+      /* ---------- report header ---------- */
+      .rpt-eyebrow {
+        position: absolute;
+        left: 120px;
+        top: 92px;
+        font-family: "Nunito", "L8 Huninn", sans-serif;
+        font-weight: 800;
+        font-size: 40px;
+        letter-spacing: 0.06em;
+        color: #b57800;
+      }
+      .dark .rpt-eyebrow {
+        color: #7ac7c4;
+      }
+      .rpt-title {
+        position: absolute;
+        left: 120px;
+        right: 120px;
+        top: 150px;
+        font-size: 66px;
+        line-height: 1.25;
+        color: #16213f;
+      }
+      .dark .rpt-title {
+        color: #fff8ec;
+      }
+
+      /* ---------- numbered points ---------- */
+      .pts {
+        position: absolute;
+        display: flex;
+        flex-direction: column;
+        gap: 34px;
+      }
+      .pt {
+        display: flex;
+        gap: 26px;
+        align-items: flex-start;
+        opacity: 0;
+      }
+      .pt-n {
+        flex: none;
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: "Righteous", sans-serif;
+        font-size: 34px;
+        background: #f5be3c;
+        color: #16213f;
+        box-shadow: 0 6px 18px rgba(245, 190, 60, 0.35);
+      }
+      .pt-t {
+        font-family: "Nunito", "L8 Huninn", sans-serif;
+        font-weight: 800;
+        font-size: 46px;
+        line-height: 1.3;
+      }
+      .pt-d {
+        margin-top: 4px;
+        font-size: 40px;
+        line-height: 1.4;
+        color: rgba(22, 33, 63, 0.62);
+      }
+      .dark .pt-d {
+        color: rgba(255, 248, 236, 0.62);
+      }
+      .icon-tile {
+        flex: none;
+        width: 72px;
+        height: 72px;
+        border-radius: 18px;
+        background: rgba(245, 190, 60, 0.18);
+        border: 1px solid rgba(181, 120, 0, 0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+      }
+      .dark .icon-tile {
+        background: rgba(122, 199, 196, 0.12);
+        border-color: rgba(122, 199, 196, 0.4);
+      }
+
+      /* ---------- shared mock window ---------- */
+      .win {
+        position: absolute;
+        border-radius: 16px;
+        overflow: hidden;
+        background: #ffffff;
+        border: 1px solid rgba(22, 33, 63, 0.1);
+        box-shadow:
+          0 0 0 1px rgba(245, 190, 60, 0.08),
+          0 28px 70px rgba(22, 33, 63, 0.18);
+        opacity: 0;
+      }
+      .win-bar {
+        height: 44px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding-left: 18px;
+        background: #eef0f6;
+      }
+      .win-bar i {
+        width: 13px;
+        height: 13px;
+        border-radius: 50%;
+        background: rgba(22, 33, 63, 0.16);
+      }
+
+      /* shared loops */
+      @keyframes ringPulse {
+        0% {
+          transform: scale(1);
+          opacity: 0.8;
+        }
+        100% {
+          transform: scale(2.6);
+          opacity: 0;
+        }
+      }
+      .pulse-ring {
+        transform-box: fill-box;
+        transform-origin: center;
+        animation: ringPulse 1.6s ease-out infinite;
+      }
+      @keyframes blink {
+        50% {
+          opacity: 0;
+        }
+      }
+
+      /* ================= 1 · 痛點 (dark) ================= */
+      .bub {
+        position: absolute;
+        font-size: 62px;
+        padding: 26px 46px;
+        border-radius: 48px;
+        white-space: nowrap;
+        opacity: 0;
+      }
+      .bub::after {
+        content: "";
+        position: absolute;
+        bottom: -30px;
+        border: 18px solid transparent;
+      }
+      #pb-wrap {
+        position: absolute;
+        inset: 0;
+      }
+      #pfig {
+        position: absolute;
+        inset: 0;
+      }
+      .pf {
+        position: absolute;
+        opacity: 0;
+        overflow: visible;
+      }
+      #pf-board {
+        left: 560px;
+        top: 100px;
+        width: 800px;
+        height: 230px;
+      }
+      #pf-clock {
+        left: 1630px;
+        top: 120px;
+        width: 150px;
+        height: 150px;
+      }
+      #pf-floor {
+        left: 120px;
+        top: 1000px;
+        width: 1680px;
+        height: 2px;
+        background: rgba(255, 255, 255, 0.08);
+      }
+      #pf-teacher {
+        left: 380px;
+        top: 476px;
+        width: 234px;
+        height: 504px;
+      }
+      #pf-student {
+        left: 1150px;
+        top: 590px;
+        width: 440px;
+        height: 420px;
+      }
+      .pf-min {
+        transform-box: view-box;
+        transform-origin: 75px 75px;
+        animation: clockSpin 4s linear infinite;
+      }
+      @keyframes clockSpin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .pf-pencil {
+        transform-box: fill-box;
+        transform-origin: 0% 100%;
+        animation: pencilTap 0.45s ease-in-out infinite alternate;
+      }
+      @keyframes pencilTap {
+        from {
+          transform: rotate(-12deg);
+        }
+        to {
+          transform: rotate(8deg);
+        }
+      }
+      .pf-qwrap {
+        animation: qFloat 2.4s ease-in-out infinite;
+      }
+      @keyframes qFloat {
+        0%,
+        100% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(-8px);
+        }
+      }
+      .pf-qm {
+        font-family: "Righteous", sans-serif;
+        font-size: 56px;
+        fill: #ff8a65;
+      }
+      #pb-adult {
+        left: 300px;
+        top: 380px;
+        background: #2b3561;
+        color: #fff8ec;
+      }
+      #pb-adult::after {
+        left: 150px;
+        border-top-color: #2b3561;
+      }
+      #pb-kid {
+        right: 360px;
+        top: 450px;
+        background: #ff8a65;
+        color: #0e1430;
+      }
+      #pb-kid::after {
+        right: 200px;
+        border-top-color: #ff8a65;
+      }
+      #pb-dots {
+        position: absolute;
+        right: 360px;
+        top: 450px;
+        display: flex;
+        gap: 14px;
+        padding: 40px 46px;
+        border-radius: 48px;
+        background: rgba(255, 138, 101, 0.25);
+        opacity: 0;
+      }
+      #pb-dots i {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: #ff8a65;
+        animation: blink 1.2s steps(1) infinite;
+      }
+      #pb-dots i:nth-child(2) {
+        animation-delay: 0.4s;
+      }
+      #pb-dots i:nth-child(3) {
+        animation-delay: 0.8s;
+      }
+      #pp {
+        position: absolute;
+        left: 340px;
+        top: 320px;
+        width: 330px;
+        height: 520px;
+        padding: 16px;
+        border-radius: 46px;
+        background: #1b2246;
+        border: 3px solid rgba(255, 255, 255, 0.16);
+        box-shadow: 0 30px 70px rgba(0, 0, 0, 0.45);
+        opacity: 0;
+      }
+      #pp-screen {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        border-radius: 32px;
+        background: #f4f5f9;
+        overflow: hidden;
+        color: #16213f;
+      }
+      #pp-top {
+        padding: 26px 24px 14px;
+        font-size: 28px;
+      }
+      #pp-view {
+        position: relative;
+        margin: 0 18px;
+        height: 190px;
+        border-radius: 18px;
+        background: #2a3156;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #ffffff;
+        font-size: 30px;
+        white-space: nowrap;
+        overflow: hidden;
+      }
+      #pp-view b {
+        position: absolute;
+        width: 26px;
+        height: 26px;
+        border-color: #f5be3c;
+        border-style: solid;
+      }
+      #pp-scan {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        height: 4px;
+        background: #f5be3c;
+        box-shadow: 0 0 16px #f5be3c;
+        animation: scanY 1.4s ease-in-out infinite alternate;
+      }
+      @keyframes scanY {
+        from {
+          transform: translateY(10px);
+        }
+        to {
+          transform: translateY(176px);
+        }
+      }
+      #pp-flash {
+        position: absolute;
+        inset: 0;
+        background: #ffffff;
+        opacity: 0;
+      }
+      #pp-res {
+        margin: 18px;
+        padding: 20px 22px;
+        border-radius: 18px;
+        background: #ffffff;
+        box-shadow: 0 10px 24px rgba(22, 33, 63, 0.12);
+        opacity: 0;
+      }
+      #pp-res .k {
+        font-size: 24px;
+        color: rgba(22, 33, 63, 0.55);
+      }
+      #pp-res .v {
+        margin-top: 4px;
+        font-size: 46px;
+      }
+      #pp-res .t {
+        margin-top: 8px;
+        font-size: 24px;
+        color: #2f8f8a;
+      }
+      #pp-arrow {
+        position: absolute;
+        left: 690px;
+        top: 550px;
+        opacity: 0;
+      }
+      #pp-fly {
+        position: absolute;
+        left: 380px;
+        top: 650px;
+        padding: 6px 20px;
+        border-radius: 14px;
+        background: #ffffff;
+        color: #b57800;
+        font-size: 46px;
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+        opacity: 0;
+      }
+      .paper {
+        position: absolute;
+        top: 430px;
+        width: 420px;
+        height: 330px;
+        padding: 30px 34px;
+        border-radius: 20px;
+        background: #fff8ec;
+        color: #16213f;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
+        opacity: 0;
+      }
+      .paper .h {
+        font-size: 30px;
+        color: rgba(22, 33, 63, 0.55);
+        padding-bottom: 14px;
+        border-bottom: 2px dashed rgba(22, 33, 63, 0.15);
+      }
+      .paper svg {
+        position: absolute;
+        overflow: visible;
+      }
+      #pnote {
+        left: 830px;
+      }
+      #pn-line {
+        margin-top: 34px;
+        font-size: 38px;
+        white-space: nowrap;
+        display: flex;
+        align-items: baseline;
+        gap: 14px;
+      }
+      #pn-ans {
+        min-width: 110px;
+        font-size: 46px;
+        color: #b57800;
+        border-bottom: 3px solid rgba(181, 120, 0, 0.5);
+      }
+      #pn-check {
+        left: 356px;
+        top: 92px;
+        width: 50px;
+        height: 42px;
+      }
+      .stamp {
+        position: absolute;
+        right: 26px;
+        bottom: 22px;
+        font-size: 104px;
+        line-height: 1;
+        opacity: 0;
+      }
+      #pn-stamp {
+        color: #2f8f8a;
+      }
+      #ptest {
+        left: 1340px;
+      }
+      #pt-q {
+        margin-top: 26px;
+        font-size: 40px;
+        color: rgba(22, 33, 63, 0.55);
+      }
+      .pt-row {
+        margin-top: 18px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+      .pt-row i {
+        display: block;
+        width: 110px;
+        height: 12px;
+        border-radius: 6px;
+        background: rgba(22, 33, 63, 0.14);
+      }
+      .pt-row svg {
+        position: static;
+        width: 30px;
+        height: 30px;
+      }
+      #pt-stamp {
+        color: #e0532c;
+        font-size: 124px;
+        right: 34px;
+        bottom: 30px;
+      }
+      #pt-circle {
+        right: 0px;
+        bottom: 0px;
+        width: 210px;
+        height: 160px;
+      }
+      .ink {
+        fill: none;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-dasharray: 1;
+        stroke-dashoffset: 1;
+        opacity: 0;
+      }
+      #pain-line {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 880px;
+        text-align: center;
+        font-size: 88px;
+        color: #ff8a65;
+        text-shadow: 0 0 30px rgba(255, 138, 101, 0.4);
+      }
+
+      /* ================= 2 · 城鄉師資 (dark) ================= */
+      #r-eyebrow {
+        color: #ff8a65;
+      }
+      #r-left {
+        position: absolute;
+        left: 120px;
+        top: 230px;
+        width: 800px;
+      }
+      #r-right {
+        position: absolute;
+        left: 1040px;
+        top: 230px;
+        width: 760px;
+      }
+      .r-label {
+        font-size: 46px;
+        color: rgba(255, 248, 236, 0.92);
+      }
+      .r-label small {
+        display: block;
+        margin-top: 6px;
+        font-size: 40px;
+        font-weight: 600;
+        color: rgba(255, 248, 236, 0.55);
+      }
+      #r-people {
+        margin-top: 36px;
+        display: flex;
+        gap: 26px;
+      }
+      .r-person {
+        width: 176px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+      }
+      .r-person svg {
+        width: 176px;
+        height: 223px;
+      }
+      .r-swap {
+        position: relative;
+        width: 176px;
+        height: 223px;
+      }
+      .r-swap > div {
+        position: absolute;
+        inset: 0;
+      }
+      .r-swap svg {
+        display: block;
+      }
+      #r-p4-new {
+        opacity: 0;
+      }
+      .r-tag {
+        font-size: 40px;
+        height: 54px;
+        color: rgba(255, 248, 236, 0.45);
+      }
+      #r-p4-tag {
+        color: #ff8a65;
+        opacity: 0;
+      }
+      #r-stat {
+        margin-top: 30px;
+        display: flex;
+        align-items: baseline;
+        gap: 28px;
+        opacity: 0;
+      }
+      #r-num {
+        font-size: 128px;
+        line-height: 1;
+        color: #ff8a65;
+        text-shadow: 0 0 30px rgba(255, 138, 101, 0.35);
+      }
+      #r-cmp {
+        font-size: 44px;
+        color: rgba(255, 248, 236, 0.6);
+      }
+      #r-right > * {
+        opacity: 0;
+      }
+      .r-bars {
+        margin-top: 56px;
+        display: flex;
+        flex-direction: column;
+        gap: 34px;
+      }
+      .r-row {
+        display: flex;
+        align-items: center;
+        gap: 22px;
+      }
+      .r-row-l {
+        width: 130px;
+        font-size: 40px;
+        color: rgba(255, 248, 236, 0.75);
+      }
+      .r-track {
+        width: 440px;
+        height: 54px;
+        border-radius: 27px;
+        background: rgba(255, 255, 255, 0.07);
+        overflow: hidden;
+      }
+      .r-fill {
+        height: 100%;
+        border-radius: 27px;
+        transform-origin: 0 50%;
+      }
+      .r-row-v {
+        font-size: 44px;
+      }
+      #r-mult {
+        margin-top: 50px;
+        display: flex;
+        align-items: baseline;
+        gap: 20px;
+      }
+      #r-mult-n {
+        font-size: 128px;
+        line-height: 1;
+        color: #ff8a65;
+        text-shadow: 0 0 30px rgba(255, 138, 101, 0.35);
+      }
+      #r-mult-l {
+        font-size: 44px;
+        color: rgba(255, 248, 236, 0.6);
+      }
+
+      /* ================= 3 · Learn8 ================= */
+      #m-word {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 190px;
+        display: flex;
+        justify-content: center;
+      }
+      #m-word .wordmark {
+        font-size: 280px;
+        line-height: 1;
+      }
+      #m-nodes {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 540px;
+        display: flex;
+        justify-content: center;
+        align-items: flex-end;
+        gap: 56px;
+      }
+      .m-node {
+        font-size: 64px;
+        white-space: nowrap;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+      }
+      .m-ico {
+        width: 120px;
+        height: 120px;
+        overflow: visible;
+      }
+      #m-nodes .m-dot {
+        margin-bottom: 34px;
+      }
+      .m-dot {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: #f5be3c;
+        box-shadow: 0 0 18px rgba(245, 190, 60, 0.8);
+      }
+      #m-flow {
+        opacity: 0;
+      }
+      .m-pulse {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 22px;
+        height: 22px;
+        margin: -11px 0 0 -11px;
+        border-radius: 50%;
+        background: #f5be3c;
+        box-shadow:
+          0 0 18px 6px rgba(245, 190, 60, 0.75),
+          -40px 0 30px rgba(245, 190, 60, 0.25);
+        offset-path: path("M 300 840 L 1620 840");
+        offset-rotate: 0deg;
+        animation: runTrack 3.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+      }
+      .m-pulse.p2 {
+        animation-delay: -1.7s;
+      }
+      @keyframes runTrack {
+        0% {
+          offset-distance: 0%;
+          opacity: 0;
+        }
+        8% {
+          opacity: 1;
+        }
+        92% {
+          opacity: 1;
+        }
+        100% {
+          offset-distance: 100%;
+          opacity: 0;
+        }
+      }
+
+      /* ================= 4 · SDG 4 ================= */
+      #sdg-badge {
+        position: absolute;
+        left: 120px;
+        top: 330px;
+        width: 380px;
+        height: 380px;
+        border-radius: 26px;
+        background: #c5192d;
+        color: #ffffff;
+        padding: 30px 34px;
+        box-shadow: 0 26px 60px rgba(197, 25, 45, 0.28);
+        opacity: 0;
+      }
+      #sdg-badge .n {
+        font-family: "Righteous", sans-serif;
+        font-size: 190px;
+        line-height: 0.95;
+      }
+      #sdg-badge .t {
+        margin-top: 10px;
+        font-size: 64px;
+      }
+      #sdg-badge .e {
+        margin-top: 4px;
+        font-size: 27px;
+        letter-spacing: 0.04em;
+        white-space: nowrap;
+        opacity: 0.85;
+      }
+      #sdg-rings {
+        position: absolute;
+        left: 120px;
+        top: 330px;
+        width: 380px;
+        height: 380px;
+        opacity: 0;
+      }
+      #sdg-rings i {
+        position: absolute;
+        inset: 0;
+        border-radius: 26px;
+        border: 2px solid rgba(197, 25, 45, 0.45);
+        animation: sdgRing 3s ease-out infinite;
+      }
+      #sdg-rings i:nth-child(2) {
+        animation-delay: -1.5s;
+      }
+      @keyframes sdgRing {
+        0% {
+          transform: scale(1);
+          opacity: 0.7;
+        }
+        100% {
+          transform: scale(1.22);
+          opacity: 0;
+        }
+      }
+      #sdg-cap {
+        position: absolute;
+        left: 120px;
+        top: 740px;
+        width: 380px;
+        text-align: center;
+        font-size: 40px;
+        color: rgba(22, 33, 63, 0.62);
+      }
+      .sdg-row {
+        position: absolute;
+        left: 620px;
+        width: 1180px;
+        height: 176px;
+        border-radius: 20px;
+        background: #ffffff;
+        border: 1px solid rgba(22, 33, 63, 0.07);
+        box-shadow: 0 14px 40px rgba(22, 33, 63, 0.08);
+        display: flex;
+        align-items: center;
+        gap: 34px;
+        padding: 0 40px 0 0;
+        overflow: hidden;
+        opacity: 0;
+      }
+      .sdg-bar {
+        align-self: stretch;
+        width: 10px;
+        background: #c5192d;
+      }
+      .sdg-code {
+        width: 120px;
+        font-size: 62px;
+        color: #c5192d;
+      }
+      .sdg-tt {
+        font-size: 50px;
+      }
+      .chips {
+        margin-top: 10px;
+        display: flex;
+        gap: 14px;
+      }
+      .chip-k {
+        font-size: 40px;
+        padding: 2px 20px;
+        border-radius: 999px;
+        background: rgba(245, 190, 60, 0.2);
+        color: #8a5a00;
+        white-space: nowrap;
+      }
+
+      /* ================= 5 · 系統：學習路徑 ================= */
+      #sys {
+        position: absolute;
+        left: 120px;
+        top: 330px;
+        width: 1680px;
+        display: flex;
+        align-items: flex-start;
+      }
+      .stg {
+        width: 300px;
+        flex: none;
+        opacity: 0;
+      }
+      .stg-arrow {
+        width: 45px;
+        height: 300px;
+        flex: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+      }
+      .stg-vis {
+        position: relative;
+        width: 300px;
+        height: 300px;
+        border-radius: 24px;
+        background: #ffffff;
+        border: 1px solid rgba(22, 33, 63, 0.07);
+        box-shadow: 0 16px 44px rgba(22, 33, 63, 0.1);
+        overflow: hidden;
+      }
+      .stg-head {
+        margin-top: 26px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+      .stg-n {
+        flex: none;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: #f5be3c;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: "Righteous", sans-serif;
+        font-size: 28px;
+      }
+      .stg-t {
+        font-size: 44px;
+        white-space: nowrap;
+      }
+      .stg-d {
+        margin-top: 8px;
+        font-size: 40px;
+        line-height: 1.35;
+        color: rgba(22, 33, 63, 0.62);
+      }
+      /* stage visuals (illustrative UI, decorative sizes) */
+      .qb {
+        position: absolute;
+        font-size: 30px;
+        padding: 10px 18px;
+        border-radius: 18px;
+        background: #eef0f6;
+        white-space: nowrap;
+      }
+      .qb.me {
+        background: #f5be3c;
+      }
+      #pf-av {
+        position: absolute;
+        left: 104px;
+        top: 34px;
+        width: 92px;
+        height: 92px;
+        border-radius: 50%;
+        background: rgba(245, 190, 60, 0.25);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .pf-tag {
+        position: absolute;
+        font-size: 28px;
+        padding: 6px 16px;
+        border-radius: 999px;
+        border: 2px solid rgba(181, 120, 0, 0.4);
+        color: #8a5a00;
+        white-space: nowrap;
+      }
+      .ag {
+        position: absolute;
+        top: 70px;
+        width: 104px;
+        height: 104px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 30px;
+      }
+      #ag-p {
+        left: 22px;
+        background: #f5be3c;
+      }
+      #ag-a {
+        right: 22px;
+        background: #16213f;
+        color: #ffe1a0;
+      }
+      #ag-doc {
+        position: absolute;
+        left: 128px;
+        top: 98px;
+        width: 44px;
+        height: 52px;
+        animation: shuttle 1.8s ease-in-out infinite;
+      }
+      @keyframes shuttle {
+        0%,
+        100% {
+          transform: translateX(-16px);
+        }
+        50% {
+          transform: translateX(16px);
+        }
+      }
+      #ag-round {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 30px;
+        text-align: center;
+        font-size: 30px;
+        color: rgba(22, 33, 63, 0.6);
+      }
+      .km-node {
+        opacity: 0;
+      }
+      .rl-dot {
+        filter: drop-shadow(0 0 6px rgba(245, 190, 60, 0.9));
+      }
+
+      /* ================= 6 · 題型對應 ================= */
+      .step-n {
+        flex: none;
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: "Righteous", sans-serif;
+        font-size: 34px;
+        border: 2px solid rgba(22, 33, 63, 0.15);
+        background: rgba(255, 255, 255, 0);
+        color: rgba(22, 33, 63, 0.45);
+      }
+      #p-steps {
+        left: 120px;
+        top: 340px;
+        width: 660px;
+        gap: 40px;
+      }
+      #p-steps .pt {
+        opacity: 1;
+      }
+      #p-final-wrap {
+        position: absolute;
+        left: 120px;
+        top: 840px;
+        width: 680px;
+        opacity: 0;
+      }
+      #p-final-rule {
+        width: 90px;
+        height: 5px;
+        border-radius: 3px;
+        background: #f5be3c;
+        margin-bottom: 22px;
+      }
+      #p-final {
+        font-size: 58px;
+        line-height: 1.3;
+      }
+      #pw {
+        left: 840px;
+        top: 280px;
+        width: 960px;
+        height: 700px;
+      }
+      #pw-in {
+        position: absolute;
+        left: 28px;
+        right: 28px;
+        top: 72px;
+        height: 80px;
+        display: flex;
+        gap: 16px;
+        align-items: center;
+      }
+      #pw-field {
+        flex: 1;
+        height: 80px;
+        border-radius: 16px;
+        border: 2px solid rgba(22, 33, 63, 0.12);
+        background: #fbfbfd;
+        display: flex;
+        align-items: center;
+        padding: 0 24px;
+        gap: 14px;
+        font-size: 38px;
+      }
+      #pw-label {
+        font-size: 30px;
+        color: rgba(22, 33, 63, 0.5);
+        white-space: nowrap;
+      }
+      #pw-text {
+        white-space: nowrap;
+      }
+      #pw-caret {
+        width: 3px;
+        height: 42px;
+        margin-left: -10px;
+        background: #b57800;
+        animation: blink 1s steps(1) infinite;
+      }
+      #pw-btn {
+        height: 80px;
+        padding: 0 30px;
+        border-radius: 16px;
+        background: #f5be3c;
+        color: #16213f;
+        font-size: 34px;
+        display: flex;
+        align-items: center;
+        white-space: nowrap;
+      }
+      #pw-prog-track {
+        position: absolute;
+        left: 28px;
+        right: 28px;
+        top: 166px;
+        height: 6px;
+        border-radius: 3px;
+        background: rgba(22, 33, 63, 0.06);
+        overflow: hidden;
+      }
+      #pw-prog {
+        width: 100%;
+        height: 100%;
+        background: #f5be3c;
+        transform-origin: 0 50%;
+      }
+      #pw-stage {
+        position: absolute;
+        left: 28px;
+        right: 28px;
+        top: 192px;
+        bottom: 28px;
+        border-radius: 14px;
+        background: #f4f5f9;
+        overflow: hidden;
+      }
+      #pw-skel {
+        position: absolute;
+        inset: 28px;
+        display: flex;
+        flex-direction: column;
+        gap: 22px;
+        opacity: 0;
+      }
+      #pw-skel i {
+        display: block;
+        height: 38px;
+        border-radius: 10px;
+        background: linear-gradient(90deg, #e6e8ef 0%, #f6f7fa 50%, #e6e8ef 100%);
+        background-size: 200% 100%;
+        animation: shimmer 1.1s linear infinite;
+      }
+      #pw-skel i:nth-child(1) {
+        width: 46%;
+      }
+      #pw-skel i:nth-child(2) {
+        width: 78%;
+      }
+      #pw-skel i:nth-child(3) {
+        height: 220px;
+      }
+      #pw-skel i:nth-child(4) {
+        width: 62%;
+      }
+      @keyframes shimmer {
+        from {
+          background-position: 200% 0;
+        }
+        to {
+          background-position: 0 0;
+        }
+      }
+      .pw-shot {
+        position: absolute;
+        inset: 16px;
+        opacity: 0;
+      }
+      .pw-shot img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        filter: drop-shadow(0 10px 24px rgba(22, 33, 63, 0.16));
+      }
+
+      #p-wall {
+        position: absolute;
+        left: 820px;
+        top: 284px;
+        width: 1020px;
+        height: 640px;
+      }
+      .tw {
+        position: absolute;
+        width: 240px;
+        height: 196px;
+        border-radius: 16px;
+        background: #ffffff;
+        border: 1px solid rgba(22, 33, 63, 0.08);
+        box-shadow: 0 14px 34px rgba(22, 33, 63, 0.16);
+        overflow: hidden;
+        opacity: 0;
+      }
+      .tw img {
+        display: block;
+        width: 240px;
+        height: 148px;
+        object-fit: contain;
+        background: #f4f5f9;
+      }
+      .tw span {
+        display: block;
+        padding: 8px 14px 0;
+        font-size: 26px;
+        white-space: nowrap;
+      }
+
+      /* ================= 7 · 編輯器 ================= */
+      #e-pts {
+        left: 120px;
+        top: 340px;
+        width: 560px;
+      }
+      #e-file {
+        position: absolute;
+        left: 740px;
+        top: 214px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        font-size: 40px;
+        padding: 10px 26px 10px 18px;
+        border-radius: 16px;
+        background: #ffffff;
+        border: 2px solid rgba(197, 25, 45, 0.25);
+        box-shadow: 0 14px 34px rgba(22, 33, 63, 0.16);
+        opacity: 0;
+      }
+      #ew {
+        left: 720px;
+        top: 290px;
+        width: 1100px;
+      }
+      #ew-view {
+        position: relative;
+        width: 1100px;
+        height: 612px;
+        overflow: hidden;
+      }
+      #ew-zoom {
+        position: absolute;
+        inset: 0;
+      }
+      #ew-zoom img {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+      .ehl {
+        position: absolute;
+        border-radius: 10px;
+        border: 3px solid #f5be3c;
+        box-shadow:
+          0 0 0 5px rgba(245, 190, 60, 0.2),
+          0 0 28px rgba(245, 190, 60, 0.6);
+        opacity: 0;
+      }
+      #ehl-tree {
+        left: 0.8%;
+        top: 14.5%;
+        width: 15.4%;
+        height: 74%;
+      }
+      #ehl-diff {
+        left: 24.4%;
+        top: 18.2%;
+        width: 28.6%;
+        height: 5%;
+      }
+      #ehl-type {
+        left: 81.6%;
+        top: 13.6%;
+        width: 17.8%;
+        height: 29.4%;
+      }
+      #eghost {
+        position: absolute;
+        left: 1.6%;
+        top: 20.6%;
+        width: 14%;
+        padding: 6px 10px;
+        border-radius: 8px;
+        background: #ffffff;
+        border: 2px solid #f5be3c;
+        box-shadow: 0 10px 22px rgba(22, 33, 63, 0.25);
+        font-size: 18px;
+        white-space: nowrap;
+        opacity: 0;
+      }
+      #ecur {
+        position: absolute;
+        left: 60%;
+        top: 70%;
+        width: 34px;
+        height: 34px;
+        opacity: 0;
+      }
+      #erip {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 44px;
+        height: 44px;
+        margin: -22px 0 0 -22px;
+        border-radius: 50%;
+        border: 3px solid #f5be3c;
+        opacity: 0;
+      }
+      #e-chip {
+        position: absolute;
+        right: 100px;
+        top: 222px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        font-size: 40px;
+        padding: 8px 26px;
+        border-radius: 999px;
+        background: #16213f;
+        color: #ffe1a0;
+        opacity: 0;
+      }
+      #e-chip b {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: #f5be3c;
+        box-shadow: 0 0 12px #f5be3c;
+      }
+
+      /* ================= 8 · 競技場 ================= */
+      #a-pts {
+        left: 120px;
+        top: 340px;
+        width: 560px;
+        gap: 30px;
+      }
+      #a-tag {
+        position: absolute;
+        left: 120px;
+        top: 800px;
+        font-size: 62px;
+        line-height: 1.3;
+      }
+      #a-monitor {
+        position: absolute;
+        left: 720px;
+        top: 290px;
+        width: 1100px;
+        padding: 14px;
+        border-radius: 24px;
+        background: #16213f;
+        box-shadow:
+          0 0 0 1px rgba(245, 190, 60, 0.25),
+          0 34px 80px rgba(22, 33, 63, 0.3);
+        opacity: 0;
+      }
+      #a-monitor video {
+        display: block;
+        width: 100%;
+        height: auto;
+        border-radius: 12px;
+      }
+      #a-floor {
+        position: absolute;
+        left: 820px;
+        top: 950px;
+        width: 900px;
+        height: 40px;
+        border-radius: 50%;
+        background: radial-gradient(ellipse at center, rgba(22, 33, 63, 0.18), rgba(22, 33, 63, 0) 70%);
+      }
+      #a-toastw {
+        position: absolute;
+        right: 128px;
+        top: 250px;
+        opacity: 0;
+      }
+      #a-toast {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 26px;
+        border-radius: 999px;
+        background: #f5be3c;
+        color: #16213f;
+        font-size: 40px;
+        box-shadow: 0 12px 30px rgba(181, 120, 0, 0.35);
+        animation: toastPop 4.8s ease-in-out infinite;
+      }
+      @keyframes toastPop {
+        0%,
+        8% {
+          transform: translateY(18px) scale(0.9);
+          opacity: 0;
+        }
+        16%,
+        62% {
+          transform: translateY(0) scale(1);
+          opacity: 1;
+        }
+        74%,
+        100% {
+          transform: translateY(-14px) scale(0.96);
+          opacity: 0;
+        }
+      }
+      .w-ring {
+        animation: ringDrain 5s linear infinite;
+      }
+      @keyframes ringDrain {
+        from {
+          stroke-dashoffset: 0;
+        }
+        to {
+          stroke-dashoffset: 132;
+        }
+      }
+      .w-up {
+        animation: bob 1.6s ease-in-out infinite;
+      }
+      @keyframes bob {
+        0%,
+        100% {
+          transform: translateY(3px);
+        }
+        50% {
+          transform: translateY(-5px);
+        }
+      }
+      .w-bar {
+        transform-box: fill-box;
+        transform-origin: 50% 100%;
+        animation: barRace 2.2s ease-in-out infinite;
+      }
+      .w-bar.b2 {
+        animation-delay: -0.7s;
+      }
+      .w-bar.b3 {
+        animation-delay: -1.4s;
+      }
+      @keyframes barRace {
+        0%,
+        100% {
+          transform: scaleY(0.45);
+        }
+        50% {
+          transform: scaleY(1);
+        }
+      }
+
+      /* ================= 9 · Neuro Link (dark) ================= */
+      #n-dim {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.3);
+      }
+      .n-wave {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 3840px;
+        height: 1080px;
+        animation: waveFlow 16s linear infinite;
+      }
+      #n-wave {
+        opacity: 0.15;
+      }
+      #n-wave2 {
+        opacity: 0.08;
+        animation-duration: 26s;
+        animation-direction: reverse;
+      }
+      @keyframes waveFlow {
+        from {
+          transform: translateX(0);
+        }
+        to {
+          transform: translateX(-1920px);
+        }
+      }
+      #n-eyebrow {
+        font-family: "Righteous", sans-serif;
+        letter-spacing: 0.02em;
+        font-size: 44px;
+        top: 86px;
+        text-shadow: 0 0 24px rgba(122, 199, 196, 0.5);
+      }
+      #n-pts {
+        left: 120px;
+        top: 330px;
+        width: 600px;
+        gap: 30px;
+      }
+      #n-quote {
+        position: absolute;
+        left: 120px;
+        top: 790px;
+        width: 620px;
+        padding-left: 28px;
+        border-left: 5px solid #7ac7c4;
+        font-size: 46px;
+        line-height: 1.4;
+        color: #bfe7e5;
+        opacity: 0;
+      }
+      .mini-wave {
+        animation: miniWave 1.4s linear infinite;
+      }
+      @keyframes miniWave {
+        from {
+          transform: translateX(0);
+        }
+        to {
+          transform: translateX(-40px);
+        }
+      }
+      #n-frame {
+        position: absolute;
+        left: 760px;
+        top: 300px;
+        width: 1080px;
+        border-radius: 14px;
+        overflow: hidden;
+        border: 1px solid rgba(122, 199, 196, 0.35);
+        box-shadow: 0 0 30px rgba(122, 199, 196, 0.16);
+        opacity: 0;
+      }
+      #n-frame video {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+      #n-frame .n-clip + .n-clip {
+        position: absolute;
+        left: 0;
+        top: 0;
+        opacity: 0;
+      }
+      #n-mask {
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 76.4%;
+        background: #0b1028;
+        border-right: 2px solid rgba(122, 199, 196, 0.7);
+        box-shadow: 8px 0 40px rgba(122, 199, 196, 0.25);
+      }
+      #n-mask-label {
+        position: absolute;
+        right: 56px;
+        top: 0;
+        bottom: 0;
+        display: flex;
+        align-items: center;
+        font-size: 40px;
+        color: rgba(122, 199, 196, 0.9);
+        letter-spacing: 0.08em;
+      }
+      #n-hl {
+        position: absolute;
+        left: 77.2%;
+        top: 5.4%;
+        width: 21.2%;
+        height: 90.6%;
+        border-radius: 14px;
+        border: 2px solid rgba(122, 199, 196, 0.5);
+        box-shadow: 0 0 18px rgba(122, 199, 196, 0.2);
+      }
+
+      /* ================= 10 · 商業模式 ================= */
+      .bm-card {
+        position: absolute;
+        width: 590px;
+        height: 170px;
+        padding: 26px 32px;
+        border-radius: 22px;
+        background: #ffffff;
+        border: 1px solid rgba(22, 33, 63, 0.07);
+        box-shadow: 0 16px 44px rgba(22, 33, 63, 0.1);
+        display: flex;
+        gap: 18px;
+        align-items: center;
+        opacity: 0;
+      }
+      .bm-card .icon-tile {
+        width: 56px;
+        height: 56px;
+        border-radius: 14px;
+      }
+      .bm-name {
+        font-size: 48px;
+      }
+      .bm-desc {
+        margin-top: 2px;
+        font-size: 40px;
+        color: rgba(22, 33, 63, 0.66);
+      }
+      #bm-pay {
+        left: 80px;
+        top: 345px;
+        width: 600px;
+        height: 190px;
+      }
+      #bm-tch {
+        left: 1290px;
+        top: 270px;
+        width: 560px;
+      }
+      #bm-stu {
+        left: 1290px;
+        top: 460px;
+        width: 560px;
+      }
+      .bm-k {
+        font-size: 32px;
+        color: #b57800;
+      }
+      #bm-add {
+        position: absolute;
+        left: 120px;
+        right: 120px;
+        top: 668px;
+        display: flex;
+        justify-content: center;
+        gap: 28px;
+      }
+      .bm-addon {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        padding: 16px 30px;
+        border-radius: 18px;
+        background: #ffffff;
+        border: 1px dashed rgba(181, 120, 0, 0.45);
+        font-size: 40px;
+        white-space: nowrap;
+        opacity: 0;
+      }
+      .bm-addon .st {
+        font-size: 30px;
+      }
+      #bm-hub {
+        position: absolute;
+        left: 880px;
+        top: 385px;
+        width: 220px;
+        height: 220px;
+        opacity: 0;
+      }
+      #bm-hub-core {
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        background: #ffffff;
+        border: 4px solid #f5be3c;
+        box-shadow:
+          0 0 0 10px rgba(245, 190, 60, 0.14),
+          0 20px 50px rgba(181, 120, 0, 0.25);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 54px;
+      }
+      #bm-hub-ring {
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        border: 3px solid rgba(245, 190, 60, 0.6);
+        animation: hubRing 2.4s ease-out infinite;
+      }
+      @keyframes hubRing {
+        0% {
+          transform: scale(1);
+          opacity: 0.8;
+        }
+        100% {
+          transform: scale(1.45);
+          opacity: 0;
+        }
+      }
+      .bm-arrow {
+        fill: none;
+        stroke: #d9a640;
+        stroke-width: 4;
+        stroke-linecap: round;
+        stroke-dasharray: 1;
+        stroke-dashoffset: 1;
+        opacity: 0;
+      }
+      .bm-flow {
+        opacity: 0;
+      }
+      .bm-lab {
+        font-family: "Nunito", "L8 Huninn", sans-serif;
+        font-weight: 800;
+        font-size: 40px;
+        fill: #b57800;
+        opacity: 0;
+      }
+      #b-stats {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 790px;
+        display: flex;
+        justify-content: center;
+      }
+      .b-stat {
+        width: 640px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        opacity: 0;
+      }
+      .b-stat + .b-stat {
+        border-left: 1px solid rgba(22, 33, 63, 0.12);
+      }
+      .b-num {
+        font-size: 100px;
+        line-height: 1.05;
+        color: #b57800;
+        text-shadow: 0 4px 24px rgba(245, 190, 60, 0.25);
+        white-space: nowrap;
+      }
+      .b-lab {
+        font-size: 40px;
+        color: rgba(22, 33, 63, 0.62);
+      }
+
+      /* ================= Q&A 附錄 ================= */
+      .qa-scene .rpt-title {
+        font-size: 64px;
+      }
+      .qa-anim {
+        opacity: 0;
+      }
+      .toc {
+        position: absolute;
+        left: 120px;
+        top: 300px;
+        width: 1680px;
+        display: grid;
+        grid-template-columns: 826px 826px;
+        grid-auto-flow: column;
+        grid-template-rows: repeat(5, 116px);
+        column-gap: 28px;
+        row-gap: 20px;
+      }
+      .toc-item {
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 24px;
+        padding: 0 30px;
+        border-radius: 20px;
+        background: #ffffff;
+        border: 1px solid rgba(22, 33, 63, 0.08);
+        box-shadow: 0 10px 28px rgba(22, 33, 63, 0.07);
+        opacity: 0;
+      }
+      .toc-n {
+        flex: none;
+        width: 60px;
+        height: 60px;
+        border-radius: 16px;
+        background: #f5be3c;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 30px;
+      }
+      .toc-q {
+        font-size: 42px;
+        white-space: nowrap;
+      }
+      .qa-hint {
+        position: absolute;
+        left: 120px;
+        bottom: 54px;
+        font-size: 30px;
+        color: rgba(22, 33, 63, 0.5);
+      }
+      .qa-grid {
+        position: absolute;
+        left: 120px;
+        top: 320px;
+        width: 1680px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 28px;
+      }
+      .qa-card {
+        padding: 30px 36px 34px;
+        border-radius: 22px;
+        background: #ffffff;
+        border: 1px solid rgba(22, 33, 63, 0.07);
+        box-shadow: 0 14px 40px rgba(22, 33, 63, 0.08);
+        min-height: 250px;
+      }
+      .qa-ch {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+      }
+      .qa-n {
+        flex: none;
+        width: 52px;
+        height: 52px;
+        border-radius: 50%;
+        background: #f5be3c;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+      }
+      .qa-ct {
+        font-size: 46px;
+        flex: 1;
+      }
+      .st {
+        flex: none;
+        font-size: 30px;
+        padding: 4px 18px;
+        border-radius: 999px;
+        white-space: nowrap;
+      }
+      .st-ok {
+        background: rgba(47, 143, 138, 0.14);
+        color: #1d6b67;
+      }
+      .st-plan {
+        background: rgba(22, 33, 63, 0.07);
+        color: rgba(22, 33, 63, 0.62);
+      }
+      .st-rule,
+      .st-est {
+        background: rgba(245, 190, 60, 0.2);
+        color: #8a5a00;
+      }
+      .qa-cd {
+        margin-top: 16px;
+        font-size: 40px;
+        line-height: 1.45;
+        color: rgba(22, 33, 63, 0.7);
+      }
+      .qa-foot {
+        position: absolute;
+        left: 120px;
+        top: 930px;
+        font-size: 34px;
+        color: rgba(22, 33, 63, 0.55);
+      }
+      .qa-table {
+        position: absolute;
+        left: 120px;
+        top: 310px;
+        width: 1680px;
+        border-collapse: separate;
+        border-spacing: 0;
+        border-radius: 22px;
+        overflow: hidden;
+        background: #ffffff;
+        box-shadow: 0 14px 40px rgba(22, 33, 63, 0.08);
+      }
+      .qa-table th,
+      .qa-table td {
+        padding: 22px 34px;
+        text-align: left;
+        font-size: 40px;
+        border-bottom: 1px solid rgba(22, 33, 63, 0.07);
+      }
+      .qa-table th {
+        font-size: 38px;
+        background: #f3efe5;
+        color: rgba(22, 33, 63, 0.7);
+      }
+      .qa-table td:first-child {
+        color: rgba(22, 33, 63, 0.6);
+        white-space: nowrap;
+      }
+      .qa-table .hl {
+        background: rgba(245, 190, 60, 0.14);
+        color: #16213f;
+        font-weight: 800;
+      }
+      .qa-table th.hl {
+        background: #f5be3c;
+        color: #16213f;
+      }
+      .qa-table.center td:not(:first-child),
+      .qa-table.center th:not(:first-child) {
+        text-align: center;
+      }
+      .fl {
+        position: absolute;
+        left: 120px;
+        top: 340px;
+        width: 1680px;
+        display: flex;
+        align-items: center;
+        gap: 26px;
+      }
+      .fl-box {
+        flex: 1;
+        padding: 34px 36px;
+        border-radius: 24px;
+        background: #ffffff;
+        border: 1px solid rgba(22, 33, 63, 0.07);
+        box-shadow: 0 14px 40px rgba(22, 33, 63, 0.08);
+        min-height: 300px;
+      }
+      .fl-box.gold {
+        background: #fff4d6;
+        border-color: rgba(181, 120, 0, 0.3);
+      }
+      .fl-k {
+        font-size: 34px;
+        color: #b57800;
+      }
+      .fl-t {
+        margin-top: 10px;
+        font-size: 46px;
+        line-height: 1.3;
+      }
+      .fl-d {
+        margin-top: 14px;
+        font-size: 40px;
+        line-height: 1.45;
+        color: rgba(22, 33, 63, 0.7);
+      }
+      .fl-arrow {
+        flex: none;
+      }
+      .fl-note {
+        position: absolute;
+        left: 120px;
+        top: 800px;
+        width: 1680px;
+        display: flex;
+        align-items: center;
+        gap: 22px;
+        font-size: 42px;
+        padding: 28px 36px;
+        border-radius: 22px;
+        background: rgba(245, 190, 60, 0.14);
+      }
+      .cost-l {
+        position: absolute;
+        left: 120px;
+        top: 320px;
+        width: 960px;
+        display: flex;
+        flex-direction: column;
+        gap: 26px;
+      }
+      .cost-row {
+        display: grid;
+        grid-template-columns: 330px 1fr 150px;
+        align-items: center;
+        gap: 22px;
+        font-size: 40px;
+      }
+      .cost-track {
+        height: 44px;
+        border-radius: 22px;
+        background: rgba(22, 33, 63, 0.06);
+        overflow: hidden;
+      }
+      .cost-fill {
+        height: 100%;
+        border-radius: 22px;
+        background: #f5be3c;
+        transform-origin: 0 50%;
+      }
+      .cost-v {
+        text-align: right;
+      }
+      .cost-sum {
+        margin-top: 10px;
+        padding-top: 24px;
+        border-top: 2px dashed rgba(22, 33, 63, 0.15);
+        display: flex;
+        justify-content: space-between;
+        font-size: 48px;
+      }
+      .cost-r {
+        position: absolute;
+        left: 1160px;
+        top: 320px;
+        width: 640px;
+        padding: 34px 38px;
+        border-radius: 24px;
+        background: #ffffff;
+        box-shadow: 0 14px 40px rgba(22, 33, 63, 0.08);
+      }
+      .cost-r h4 {
+        font-size: 44px;
+      }
+      .cost-r li {
+        list-style: none;
+        margin-top: 22px;
+      }
+      .cost-r b {
+        display: block;
+        font-size: 42px;
+      }
+      .cost-r span {
+        display: block;
+        margin-top: 4px;
+        font-size: 40px;
+        color: rgba(22, 33, 63, 0.65);
+      }
+      .arch {
+        position: absolute;
+        left: 120px;
+        top: 320px;
+        width: 1680px;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+      .arch-row {
+        display: flex;
+        gap: 18px;
+      }
+      .arch-box {
+        flex: 1;
+        padding: 18px 26px;
+        border-radius: 18px;
+        background: #ffffff;
+        border: 1px solid rgba(22, 33, 63, 0.08);
+        box-shadow: 0 10px 26px rgba(22, 33, 63, 0.07);
+      }
+      .arch-box.core {
+        background: #fff4d6;
+        border-color: rgba(181, 120, 0, 0.3);
+      }
+      .arch-k {
+        font-size: 30px;
+        color: #b57800;
+      }
+      .arch-t {
+        margin-top: 2px;
+        font-size: 40px;
+      }
+      .arch-d {
+        margin-top: 2px;
+        font-size: 30px;
+        color: rgba(22, 33, 63, 0.62);
+      }
+      .met {
+        position: absolute;
+        left: 120px;
+        top: 330px;
+        width: 1680px;
+        display: flex;
+        gap: 28px;
+      }
+      .met-c {
+        flex: 1;
+        padding: 36px 38px;
+        border-radius: 24px;
+        background: #ffffff;
+        box-shadow: 0 14px 40px rgba(22, 33, 63, 0.08);
+        min-height: 330px;
+      }
+      .met-k {
+        font-size: 40px;
+        color: #b57800;
+      }
+      .met-t {
+        margin-top: 16px;
+        font-size: 50px;
+        line-height: 1.3;
+      }
+      .met-bar {
+        margin-top: 26px;
+        height: 10px;
+        border-radius: 5px;
+        background: linear-gradient(90deg, #f5be3c, rgba(245, 190, 60, 0.2));
+      }
+
+      /* ================= 11 · 結尾 ================= */
+      #cl-chat {
+        position: absolute;
+        inset: 0;
+      }
+      #cl-kid {
+        left: 380px;
+        top: 300px;
+        background: rgba(22, 33, 63, 0.08);
+        color: #16213f;
+        border-bottom-left-radius: 10px;
+      }
+      #cl-l8 {
+        position: absolute;
+        right: 300px;
+        top: 470px;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 14px;
+        opacity: 0;
+      }
+      #cl-l8 .wordmark {
+        font-size: 40px;
+      }
+      #cl-l8-b {
+        font-size: 56px;
+        padding: 26px 46px;
+        border-radius: 48px;
+        border-bottom-right-radius: 10px;
+        background: #f5be3c;
+        color: #16213f;
+        white-space: nowrap;
+        box-shadow: 0 18px 44px rgba(181, 120, 0, 0.3);
+      }
+      #cl-task {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        font-size: 40px;
+        padding: 14px 30px;
+        border-radius: 18px;
+        background: #ffffff;
+        border: 2px solid rgba(181, 120, 0, 0.35);
+        box-shadow: 0 12px 30px rgba(22, 33, 63, 0.1);
+        opacity: 0;
+      }
+      #c-main {
+        position: absolute;
+        left: 120px;
+        width: 900px;
+        top: 300px;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        --reveal: -15%;
+        -webkit-mask-image: linear-gradient(90deg, #000 calc(var(--reveal) - 14%), transparent var(--reveal));
+        mask-image: linear-gradient(90deg, #000 calc(var(--reveal) - 14%), transparent var(--reveal));
+        opacity: 0;
+      }
+      .c-row {
+        font-size: 108px;
+        line-height: 1.3;
+        white-space: nowrap;
+        background: linear-gradient(
+          100deg,
+          #16213f 0%,
+          #16213f 42%,
+          #e0a21c 47%,
+          #f5be3c 50%,
+          #e0a21c 53%,
+          #16213f 58%,
+          #16213f 100%
+        );
+        background-size: 300% 100%;
+        background-position: 100% 0;
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+      #c-mascot-glow {
+        position: absolute;
+        left: 960px;
+        top: 260px;
+        width: 960px;
+        height: 820px;
+        border-radius: 50%;
+        background: radial-gradient(ellipse at center, rgba(245, 190, 60, 0.32), rgba(245, 190, 60, 0) 68%);
+        opacity: 0;
+      }
+      #c-mascot {
+        position: absolute;
+        left: 1010px;
+        top: 200px;
+        width: 860px;
+        height: 860px;
+        opacity: 0;
+      }
+      #c-mascot img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        animation: floaty 4s ease-in-out infinite;
+      }
+      @keyframes floaty {
+        0%,
+        100% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(-14px);
+        }
+      }
+      #c-mark {
+        position: absolute;
+        left: 120px;
+        top: 680px;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 20px;
+        opacity: 0;
+      }
+      #c-mark .wordmark {
+        font-size: 84px;
+      }
+      #c-mark .wordmark span {
+        color: #b57800;
+      }
+      #c-tag {
+        margin-top: -6px;
+        font-size: 46px;
+        color: #b57800;
+      }
+      #c-sdg {
+        margin-top: 8px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        font-size: 40px;
+        color: #16213f;
+      }
+      #c-sdg b {
+        font-family: "Righteous", sans-serif;
+        font-weight: 400;
+        width: 60px;
+        height: 60px;
+        border-radius: 12px;
+        background: #c5192d;
+        color: #ffffff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 40px;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="application/hyperframes-slideshow+json">
+      {
+        "slides": [
+          {
+            "sceneId": "pain",
+            "fragments": [
+              0.2,
+              0.7,
+              1.2,
+              1.7
+            ],
+            "notes": "【▶1】「你到底哪裡不會？」（停）「……我也不知道。」（停）這可能是教室裡最常出現，也最無力的一段對話。\n【▶2】現在，答案從來不難拿。拍一張照，零點八秒，解答就在眼前。所以他做了一件很合理的事——把答案抄上去。\n【▶3】作業一百分，考試四十八分。（停）這中間發生了什麼？他卡住、他放棄、他假裝自己懂了——而這一切，沒有任何人看見。\n\n[約 0:36 · 3 次按鍵]"
+          },
+          {
+            "sceneId": "rural",
+            "fragments": [
+              10.2,
+              10.7,
+              11.2
+            ],
+            "notes": "而有些孩子，連那個會問他「你哪裡不會」的人，都留不住。\n【▶1】在偏遠地區的國小，每四位老師，就有一位是代理教師。\n【▶2】偏遠國中老師離開的速度，是全國的兩倍。老師每換一次，就有一群孩子，要重新被認識一次。（停）我們沒辦法替每個孩子留住一位老師。但我們可以讓對他的理解，不再跟著老師一起離開。\n\n[約 0:35 · 2 次按鍵]"
+          },
+          {
+            "sceneId": "mission",
+            "fragments": [
+              20.2
+            ],
+            "notes": "所以，我們做了 Learn8。（停）我們把內容生成、學習過程、競技挑戰、即時理解，接成同一條路。只為了一件事：讓每個學生，真的學進去。\n\n[約 0:15 · 0 次按鍵]"
+          },
+          {
+            "sceneId": "sdg",
+            "fragments": [
+              30.2,
+              30.7,
+              31.2,
+              31.7
+            ],
+            "notes": "這正是聯合國永續發展目標 SDG 4「優質教育」，要回答的問題。\n【▶1】4.1，學習要有成果——不是看完，是學會。\n【▶2】4.5，機會要平等——偏鄉的孩子，值得和城市的孩子，一樣被理解。\n【▶3】4.c，老師要被支持——讓代理老師、新手老師，都不必一個人從零開始。\n\n[約 0:25 · 3 次按鍵]"
+          },
+          {
+            "sceneId": "system",
+            "fragments": [
+              40.2,
+              40.7,
+              41.2,
+              41.7
+            ],
+            "notes": "那系統怎麼「看見」一個學生？從第一分鐘就開始：三道診斷問題，建立他的學員畫像——他會什麼、卡在哪、習慣怎麼學。\n【▶1】接著，兩個 AI 代理人分工：一個規劃課程，一個專門挑錯，來回修正，確保課不會教錯。\n【▶2】產出一張知識地圖，一關一關解鎖，學生隨時知道自己走到哪。\n【▶3】而最關鍵的是這裡：答錯，不會被扣分了事。系統會針對他錯的地方，馬上生成補救關卡——直到他真的懂了，才往下走。\n\n[約 0:39 · 3 次按鍵]"
+          },
+          {
+            "sceneId": "paths",
+            "fragments": [
+              50.2,
+              50.7,
+              51.2
+            ],
+            "notes": "而每一門課，都會長成那個學科該有的樣子。\n【▶1】學圍棋，就是一張能落子的棋盤；學演算法，就是一台會跑的模擬器；\n【▶2】專案管理、資料結構、AI、財務報表——每一種學科，都有它自己的互動題型。不管你想學什麼，Learn8 就長成那個樣子。\n\n[約 0:28 · 2 次按鍵]"
+          },
+          {
+            "sceneId": "editor",
+            "fragments": [
+              60.2,
+              60.7,
+              61.2
+            ],
+            "notes": "但 AI 再聰明，也不會比老師更懂他的學生。所以最後的決定權，必須在老師手上。\n【▶1】老師上傳自己的講義，系統就照著它生成課程；再依照班上的程度，調順序、調難度；\n【▶2】連題型都能一鍵替換，不用寫一行程式。（停）對一位剛到偏鄉報到的代理老師來說，這代表他不必從零開始——AI 先搭好骨架，他只要補上，對學生的了解。\n\n[約 0:36 · 2 次按鍵]"
+          },
+          {
+            "sceneId": "arena",
+            "fragments": [
+              70.2,
+              70.7,
+              71.2
+            ],
+            "notes": "課再好，學生不回來，一切都是零。\n【▶1】所以我們把練習變成對戰：倒數計時、實力相近的對手、即時跳動的分數。學生來，不是為了寫完作業——是為了贏。\n【▶2】練習就是競賽，競賽就是練習。當他自己想回來，學習才會真的累積。\n\n[約 0:22 · 2 次按鍵]"
+          },
+          {
+            "sceneId": "neuro",
+            "fragments": [
+              80.2,
+              80.7,
+              81.2
+            ],
+            "notes": "但再好的課、再好玩的對戰，都擋不住那一刻——學生卡住、準備放棄的那一刻。Neuro Link，就是為那一刻做的。戴上頭帶，自動連線。\n【▶1】他作答的同時，系統讀取腦波，看見他的專注正在變化。\n【▶2】當疲勞和挫折開始累積，介面會先一步調整——給提示、拆概念，或讓他先休息三十秒。（停）我們不是在監控學生。我們是在他放棄之前，先接住他。\n\n[約 0:34 · 2 次按鍵]"
+          },
+          {
+            "sceneId": "model",
+            "fragments": [
+              90.2,
+              90.7,
+              91.2,
+              91.7
+            ],
+            "notes": "商業模式上，Learn8 是 B2B2C。\n【▶1】學校和補習班付費，企業內訓也適用；老師用它備課，學生用它學習、對戰。\n【▶2】學生可以自己加購進階內容；老師的好教案被別校採用，就能分到版稅——讓好的教案，流到更多需要它的地方。\n【▶3】而一堂個人化課程的成本，估算只要台幣兩塊四，目標毛利七成。正因為成本這麼低，我們才有能力，把同樣的服務帶進偏鄉。\n\n[約 0:36 · 3 次按鍵]"
+          },
+          {
+            "sceneId": "close",
+            "fragments": [
+              100.2
+            ],
+            "notes": "這個時代，學習從來不缺內容。（停）缺的，是理解。Learn8 想做的，就是為每個學生，長出他需要的課。因為每個孩子，都值得被理解。（停）謝謝。\n\n[約 0:19 · 0 次按鍵]"
+          },
+          {
+            "sceneId": "qa",
+            "fragments": [
+              110.2
+            ],
+            "hotspots": [
+              {
+                "id": "h1",
+                "label": "跟 ChatGPT、拍照搜題差在哪？",
+                "target": "seq-qa1",
+                "region": {
+                  "x": 6.25,
+                  "y": 27.78,
+                  "w": 43.02,
+                  "h": 10.74
+                }
+              },
+              {
+                "id": "h2",
+                "label": "AI 生成的課會不會出錯？",
+                "target": "seq-qa2",
+                "region": {
+                  "x": 6.25,
+                  "y": 40.37,
+                  "w": 43.02,
+                  "h": 10.74
+                }
+              },
+              {
+                "id": "h3",
+                "label": "上傳的教材本身有錯怎麼辦？",
+                "target": "seq-qa3",
+                "region": {
+                  "x": 6.25,
+                  "y": 52.96,
+                  "w": 43.02,
+                  "h": 10.74
+                }
+              },
+              {
+                "id": "h4",
+                "label": "版權怎麼處理？",
+                "target": "seq-qa4",
+                "region": {
+                  "x": 6.25,
+                  "y": 65.56,
+                  "w": 43.02,
+                  "h": 10.74
+                }
+              },
+              {
+                "id": "h5",
+                "label": "偏鄉沒預算，誰付錢？",
+                "target": "seq-qa5",
+                "region": {
+                  "x": 6.25,
+                  "y": 78.15,
+                  "w": 43.02,
+                  "h": 10.74
+                }
+              },
+              {
+                "id": "h6",
+                "label": "一堂課的成本怎麼算？",
+                "target": "seq-qa6",
+                "region": {
+                  "x": 50.73,
+                  "y": 27.78,
+                  "w": 43.02,
+                  "h": 10.74
+                }
+              },
+              {
+                "id": "h7",
+                "label": "系統架構長什麼樣？",
+                "target": "seq-qa7",
+                "region": {
+                  "x": 50.73,
+                  "y": 40.37,
+                  "w": 43.02,
+                  "h": 10.74
+                }
+              },
+              {
+                "id": "h8",
+                "label": "學習成效怎麼衡量？",
+                "target": "seq-qa8",
+                "region": {
+                  "x": 50.73,
+                  "y": 52.96,
+                  "w": 43.02,
+                  "h": 10.74
+                }
+              },
+              {
+                "id": "h9",
+                "label": "Neuro Link 準不準？隱私呢？",
+                "target": "seq-qa9",
+                "region": {
+                  "x": 50.73,
+                  "y": 65.56,
+                  "w": 43.02,
+                  "h": 10.74
+                }
+              },
+              {
+                "id": "h10",
+                "label": "跟現有產品比有什麼不同？",
+                "target": "seq-qa10",
+                "region": {
+                  "x": 50.73,
+                  "y": 78.15,
+                  "w": 43.02,
+                  "h": 10.74
+                }
+              }
+            ],
+            "notes": "被問到時，點選對應題目（或按數字鍵）跳到答案；講完按 ← 回到這張目錄。"
+          }
+        ],
+        "slideSequences": [
+          {
+            "id": "seq-qa1",
+            "label": "Q1 跟 ChatGPT、拍照搜題差在哪？",
+            "slides": [
+              {
+                "sceneId": "qa1",
+                "fragments": [
+                  120.2
+                ],
+                "notes": "跟 ChatGPT、拍照搜題差在哪？\n\nAI 問答和搜題工具都很強，但它們有一個前提：學生知道自己要問什麼。而它們給的，是答案。Learn8 從診斷開始，用知識地圖帶著學生走，答錯就生成補救關卡，老師也能隨時介入。我們不是比誰答得快，而是確保學生真的學會。\n\n[講完按 ← 回到目錄]"
+              }
+            ]
+          },
+          {
+            "id": "seq-qa2",
+            "label": "Q2 AI 生成的課會不會出錯？",
+            "slides": [
+              {
+                "sceneId": "qa2",
+                "fragments": [
+                  130.2
+                ],
+                "notes": "AI 生成的課會不會出錯？\n\n我們設了四道防線。第一，內容照著上傳的教材生成，並標記來源檔案。第二，規劃和審查兩個代理人互相檢查課綱。第三，課綱和題型都有固定的結構格式，不符合就進不了系統。最後，老師可以在編輯器裡檢查、修改。\n\n[講完按 ← 回到目錄]"
+              }
+            ]
+          },
+          {
+            "id": "seq-qa3",
+            "label": "Q3 上傳的教材本身有錯怎麼辦？",
+            "slides": [
+              {
+                "sceneId": "qa3",
+                "fragments": [
+                  140.2
+                ],
+                "notes": "上傳的教材本身有錯怎麼辦？\n\n我們的原則是忠於教材——AI 不自作主張改寫內容，因為老師的教材，往往有他自己的教學設計。如果教材真的有錯，老師可以直接在編輯器修正；學生回報有疑慮的題目、再對照外部資料，則會進一步提醒老師複核。\n\n[講完按 ← 回到目錄]"
+              }
+            ]
+          },
+          {
+            "id": "seq-qa4",
+            "label": "Q4 版權怎麼處理？",
+            "slides": [
+              {
+                "sceneId": "qa4",
+                "fragments": [
+                  150.2
+                ],
+                "notes": "版權怎麼處理？\n\n要進入公開庫的教材，必須是通過審核的授權內容；收到權利人通知，就比照 YouTube 的機制下架。課程可以被複製、改編，而分潤機制，讓原作者因為被使用而獲益。\n\n[講完按 ← 回到目錄]"
+              }
+            ]
+          },
+          {
+            "id": "seq-qa5",
+            "label": "Q5 偏鄉沒預算，誰付錢？",
+            "slides": [
+              {
+                "sceneId": "qa5",
+                "fragments": [
+                  160.2
+                ],
+                "notes": "偏鄉沒預算，誰付錢？\n\n我們的模式是 B2B2C，付費的是一般學校、補習班和企業內訓。這些營收，加上企業的 CSR 贊助，支撐偏遠學校的免費方案。一堂個人化課程的成本只要大約台幣兩塊四，多開一個偏鄉帳號，邊際成本非常低。\n\n[講完按 ← 回到目錄]"
+              }
+            ]
+          },
+          {
+            "id": "seq-qa6",
+            "label": "Q6 一堂課的成本怎麼算？",
+            "slides": [
+              {
+                "sceneId": "qa6",
+                "fragments": [
+                  170.2
+                ],
+                "notes": "一堂課的成本怎麼算？\n\n我們以一堂三個單元、六個關卡的課程估算：課綱規劃與審查約 0.045 美元、出題約 0.009、費曼解釋評分約 0.008、AI 語音約 0.012，合計約 0.074 美元。降本有三個方向：簡單任務改用輕量模型、熱門主題直接用快取、通用語音預先生成。\n\n[講完按 ← 回到目錄]"
+              }
+            ]
+          },
+          {
+            "id": "seq-qa7",
+            "label": "Q7 系統架構長什麼樣？",
+            "slides": [
+              {
+                "sceneId": "qa7",
+                "fragments": [
+                  180.2
+                ],
+                "notes": "系統架構長什麼樣？\n\n前端是 Next.js，後端 FastAPI。AI 引擎用 LangGraph 跑規劃和審查兩個代理人，教材進 ChromaDB 做向量檢索。課程生成很耗時，所以用 PostgreSQL 的通知機制加 SSE 即時推播進度；競技場用 Redis 和 WebSocket 做即時對戰。語音是自架的 VoxCPM，腦波則用 MUSE 2 頭帶藍牙擷取。\n\n[講完按 ← 回到目錄]"
+              }
+            ]
+          },
+          {
+            "id": "seq-qa8",
+            "label": "Q8 學習成效怎麼衡量？",
+            "slides": [
+              {
+                "sceneId": "qa8",
+                "fragments": [
+                  190.2
+                ],
+                "notes": "學習成效怎麼衡量？\n\n我們看三層。短期，看完課率和回訪率；中期，看同類題目的答對率有沒有提升；長期，看競技場的 Elo 分數成長。這些數據平台裡都有，也能和傳統線上課程做對照比較。\n\n[講完按 ← 回到目錄]"
+              }
+            ]
+          },
+          {
+            "id": "seq-qa9",
+            "label": "Q9 Neuro Link 準不準？隱私呢？",
+            "slides": [
+              {
+                "sceneId": "qa9",
+                "fragments": [
+                  200.2
+                ],
+                "notes": "Neuro Link 準不準？隱私呢？\n\n我們已經能用 MUSE 2 頭帶，透過藍牙擷取四個通道的原始腦波。介面上的偵測、通知和休息流程已經串起來，接著把真實訊號接進來，做小規模的可用性研究。隱私上，我們只用即時趨勢來調整介面，不拿來監控，也不拿來評分。\n\n[講完按 ← 回到目錄]"
+              }
+            ]
+          },
+          {
+            "id": "seq-qa10",
+            "label": "Q10 跟現有產品比有什麼不同？",
+            "slides": [
+              {
+                "sceneId": "qa10",
+                "fragments": [
+                  210.2
+                ],
+                "notes": "跟現有產品比有什麼不同？\n\nDuolingo 遊戲化做得最好，但只有語言、內容是封閉的；NotebookLM 能讀你自己的資料，但沒有學習路徑和闖關。Learn8 把任意學科、學習路徑、競技和教師編輯接在一起，再加上即時狀態理解。\n\n[講完按 ← 回到目錄]"
+              }
+            ]
+          }
+        ]
+      }
+    </script>
+
+    <div id="root" data-composition-id="main" data-start="0" data-duration="220" data-width="1920" data-height="1080">
+      <!-- ============ 1 · 痛點 (dark) ============ -->
+      <div id="scene-pain" class="scene-frame dark" data-composition-id="pain" data-start="0" data-duration="10" data-label="痛點" data-width="1920" data-height="1080">
+        <div class="ambient" style="background: radial-gradient(ellipse 50% 45% at 50% 42%, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0) 70%)"></div>
+        <div id="pfig" data-layout-allow-overflow>
+          <svg id="pf-board" class="pf pf-room" viewBox="0 0 800 230" aria-hidden="true">
+            <rect x="0" y="0" width="800" height="230" rx="10" fill="#3a2f2a" />
+            <rect x="12" y="12" width="776" height="194" rx="4" fill="#1f3b36" />
+            <rect x="-10" y="212" width="820" height="16" rx="6" fill="#4a3c33" />
+            <rect x="80" y="204" width="34" height="9" rx="3" fill="#f3efe5" />
+            <text x="60" y="134" font-family="L8 Huninn, sans-serif" font-size="72" fill="rgba(255,255,255,0.86)">3/4 − 2/5 = ?</text>
+            <path d="M640 105 L640 43 A62 62 0 1 1 578 105 Z" fill="rgba(255,255,255,0.14)" />
+            <circle cx="640" cy="105" r="62" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="4" />
+            <path d="M640 43 V167 M578 105 H702" stroke="rgba(255,255,255,0.6)" stroke-width="3" />
+            <path d="M470 168 q14 -10 28 0 t28 0" stroke="rgba(255,255,255,0.35)" stroke-width="3" fill="none" />
+          </svg>
+          <svg id="pf-clock" class="pf pf-room" viewBox="0 0 150 150" aria-hidden="true">
+            <circle cx="75" cy="75" r="68" fill="#f3efe5" stroke="#2f3866" stroke-width="6" />
+            <g stroke="#2f3866" stroke-width="4" stroke-linecap="round">
+              <path d="M75 14 V24 M75 126 V136 M14 75 H24 M126 75 H136" />
+            </g>
+            <path d="M75 75 L103 58" stroke="#16213f" stroke-width="7" stroke-linecap="round" />
+            <path class="pf-min" d="M75 75 V22" stroke="#ff8a65" stroke-width="4" stroke-linecap="round" />
+            <circle cx="75" cy="75" r="6" fill="#16213f" />
+          </svg>
+          <div id="pf-floor" class="pf pf-room"></div>
+          <svg id="pf-teacher" class="pf" viewBox="0 0 260 560" aria-hidden="true">
+            <rect x="88" y="350" width="34" height="180" rx="17" fill="#2b3358" />
+            <rect x="138" y="350" width="34" height="180" rx="17" fill="#2b3358" />
+            <ellipse cx="100" cy="535" rx="30" ry="12" fill="#151a36" />
+            <ellipse cx="160" cy="535" rx="30" ry="12" fill="#151a36" />
+            <path d="M72 170 Q50 250 62 330" stroke="#8fa7d6" stroke-width="30" stroke-linecap="round" fill="none" />
+            <rect x="34" y="296" width="48" height="62" rx="5" fill="#c5192d" />
+            <path d="M40 302 V352" stroke="#fff8ec" stroke-width="3" />
+            <circle cx="63" cy="338" r="15" fill="#f2c9a5" />
+            <path d="M70 160 Q130 130 190 160 L205 360 Q130 380 55 360 Z" fill="#8fa7d6" />
+            <path d="M130 172 L130 366" stroke="#6f86b8" stroke-width="4" />
+            <path d="M108 148 L130 182 L152 148 Z" fill="#fff8ec" />
+            <path d="M188 172 Q236 206 244 150" stroke="#8fa7d6" stroke-width="30" stroke-linecap="round" fill="none" />
+            <circle cx="244" cy="140" r="15" fill="#f2c9a5" />
+            <rect x="117" y="118" width="26" height="32" fill="#f2c9a5" />
+            <circle cx="130" cy="82" r="50" fill="#f2c9a5" />
+            <path d="M80 82 Q80 28 132 30 Q182 30 182 82 Q170 54 130 56 Q96 56 80 82 Z" fill="#2b3358" />
+            <circle cx="111" cy="88" r="13" fill="none" stroke="#2b3358" stroke-width="4" />
+            <circle cx="149" cy="88" r="13" fill="none" stroke="#2b3358" stroke-width="4" />
+            <path d="M124 88 H136" stroke="#2b3358" stroke-width="4" />
+            <path d="M117 114 Q130 109 143 114" stroke="#9b5a45" stroke-width="4" fill="none" stroke-linecap="round" />
+          </svg>
+          <svg id="pf-student" class="pf" viewBox="0 0 440 420" aria-hidden="true">
+            <rect x="70" y="130" width="26" height="250" rx="10" fill="#2f3866" />
+            <path d="M100 205 Q160 160 232 182 L252 300 L100 300 Z" fill="#ff8a65" />
+            <g id="pf-head">
+              <rect x="176" y="150" width="28" height="34" fill="#f2c9a5" />
+              <circle cx="190" cy="128" r="44" fill="#f2c9a5" />
+              <path d="M146 126 Q146 80 192 82 Q236 84 234 128 Q222 102 190 104 Q160 104 146 126 Z" fill="#3a2a2a" />
+              <path d="M176 136 Q182 140 188 136 M200 136 Q206 140 212 136" stroke="#3a2a2a" stroke-width="4" fill="none" stroke-linecap="round" />
+              <path d="M186 156 Q194 152 202 156" stroke="#9b5a45" stroke-width="4" fill="none" stroke-linecap="round" />
+            </g>
+            <path d="M226 232 Q282 250 320 254" stroke="#ff8a65" stroke-width="28" stroke-linecap="round" fill="none" />
+            <path d="M252 256 L364 250 L368 266 L254 270 Z" fill="#fff8ec" />
+            <path d="M266 258 l10 -4 l8 6 l9 -5 l8 4 M300 262 l40 -2" stroke="rgba(22,33,63,0.5)" stroke-width="2" fill="none" />
+            <path d="M268 252 L292 266 M292 252 L268 266" stroke="#e0532c" stroke-width="2" />
+            <circle cx="262" cy="276" r="2.5" fill="#f3efe5" />
+            <circle cx="276" cy="279" r="2" fill="#f3efe5" />
+            <circle cx="355" cy="276" r="2" fill="#f3efe5" />
+            <circle cx="326" cy="254" r="13" fill="#f2c9a5" />
+            <path class="pf-pencil" d="M330 248 L352 222" stroke="#f5be3c" stroke-width="6" stroke-linecap="round" />
+            <rect x="120" y="266" width="310" height="22" rx="8" fill="#3a4470" />
+            <rect x="140" y="288" width="16" height="126" fill="#2f3866" />
+            <rect x="398" y="288" width="16" height="126" fill="#2f3866" />
+            <g class="pf-qwrap">
+              <text class="pf-qm" x="252" y="64">?</text>
+              <text class="pf-qm" x="296" y="34">?</text>
+              <text class="pf-qm" x="330" y="78">?</text>
+            </g>
+          </svg>
+        </div>
+        <div id="pb-wrap" data-layout-allow-overflow>
+          <div id="pb-adult" class="bub heading">你到底哪裡不會？</div>
+          <div id="pb-dots"><i></i><i></i><i></i></div>
+          <div id="pb-kid" class="bub heading">……我也不知道。</div>
+        </div>
+        <div id="pp">
+          <div id="pp-screen">
+            <div id="pp-top" class="heading">拍照搜題</div>
+            <div id="pp-view" class="display">
+              <b style="left: 14px; top: 14px; border-width: 4px 0 0 4px"></b><b style="right: 14px; top: 14px; border-width: 4px 4px 0 0"></b><b style="left: 14px; bottom: 14px; border-width: 0 0 4px 4px"></b><b style="right: 14px; bottom: 14px; border-width: 0 4px 4px 0"></b>
+              3/4 − 2/5 = ?
+              <div id="pp-scan"></div>
+            </div>
+            <div id="pp-res">
+              <div class="k heading">答案</div>
+              <div class="v display">B　7/20</div>
+              <div class="t heading">✓ 0.8 秒找到解答</div>
+            </div>
+            <div id="pp-flash"></div>
+          </div>
+        </div>
+        <svg id="pp-arrow" width="120" height="60" viewBox="0 0 120 60"><path d="M8 30 H 100 M 82 12 L 104 30 L 82 48" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="14 12" /></svg>
+        <div id="pnote" class="paper">
+          <div class="h heading">作業　第 3 題</div>
+          <div id="pn-line" class="display">3/4 − 2/5 = <span id="pn-ans"></span></div>
+          <svg id="pn-check" viewBox="0 0 60 50"><path class="ink" pathLength="1" d="M6 26 L22 42 L54 8" stroke="#2f8f8a" stroke-width="7" /></svg>
+          <div id="pn-stamp" class="stamp display">100</div>
+        </div>
+        <div id="ptest" class="paper">
+          <div class="h heading">期中考</div>
+          <div id="pt-q" class="heading">分數的加減</div>
+          <div class="pt-row"><i></i><svg viewBox="0 0 30 30"><path class="ink pt-x" pathLength="1" d="M6 6 L24 24 M24 6 L6 24" stroke="#e0532c" stroke-width="5" /></svg></div>
+          <div class="pt-row"><i style="width: 84px"></i><svg viewBox="0 0 30 30"><path class="ink pt-x" pathLength="1" d="M6 6 L24 24 M24 6 L6 24" stroke="#e0532c" stroke-width="5" /></svg></div>
+          <div class="pt-row"><i style="width: 126px"></i><svg viewBox="0 0 30 30"><path class="ink pt-x" pathLength="1" d="M6 6 L24 24 M24 6 L6 24" stroke="#e0532c" stroke-width="5" /></svg></div>
+          <div id="pt-stamp" class="stamp display">48</div>
+          <svg id="pt-circle" viewBox="0 0 230 170"><path class="ink" pathLength="1" d="M200 40 C 170 6, 60 4, 30 50 C 4 92, 50 158, 130 156 C 200 154, 228 104, 212 62 C 204 42, 186 30, 160 26" stroke="#e0532c" stroke-width="6" /></svg>
+        </div>
+        <div id="pp-fly" class="display">7/20</div>
+        <div id="pain-line" class="display hidden-init">看見答案，沒看見卡住。</div>
+      </div>
+
+      <!-- ============ 2 · 城鄉師資 (dark) ============ -->
+      <div id="scene-rural" class="scene-frame dark" data-composition-id="rural" data-start="10" data-duration="10" data-label="城鄉師資落差" data-width="1920" data-height="1080">
+        <div class="ambient" style="background: radial-gradient(ellipse 40% 45% at 26% 55%, rgba(255, 138, 101, 0.08), rgba(255, 138, 101, 0) 70%)"></div>
+        <div id="r-eyebrow" class="rpt-eyebrow hidden-init">城鄉之間的師資落差</div>
+        <div id="r-left">
+          <div class="r-label heading hidden-init" id="r-l1">偏遠地區國小<small>每 4 位老師</small></div>
+          <div id="r-people">
+            <div class="r-person hidden-init"><svg viewBox="0 0 150 190"><path d="M22 190 Q22 112 75 104 Q128 112 128 190 Z" fill="#8fa7d6" /><path d="M62 106 L75 124 L88 106 Z" fill="#fff8ec" /><rect x="66" y="80" width="18" height="26" fill="#f2c9a5" /><circle cx="75" cy="58" r="30" fill="#f2c9a5" /><path d="M45 58 Q45 24 76 25 Q106 26 106 58 Q98 40 75 41 Q54 41 45 58 Z" fill="#2b3358" /><circle cx="64" cy="60" r="9" fill="none" stroke="#2b3358" stroke-width="3" /><circle cx="86" cy="60" r="9" fill="none" stroke="#2b3358" stroke-width="3" /><path d="M73 60 H77" stroke="#2b3358" stroke-width="3" /><path d="M68 72 Q75 76 82 72" stroke="#9b5a45" stroke-width="3" fill="none" stroke-linecap="round" /></svg><div class="r-tag heading"></div></div>
+            <div class="r-person hidden-init"><svg viewBox="0 0 150 190"><path d="M22 190 Q22 112 75 104 Q128 112 128 190 Z" fill="#6fb0ac" /><path d="M62 106 L75 124 L88 106 Z" fill="#fff8ec" /><rect x="66" y="80" width="18" height="26" fill="#f2c9a5" /><circle cx="75" cy="58" r="30" fill="#f2c9a5" /><path d="M44 62 Q42 24 76 24 Q110 24 108 62 L110 102 Q100 94 102 64 Q96 42 75 42 Q54 42 48 64 Q50 94 40 102 Z" fill="#3a2a2a" /><circle cx="65" cy="60" r="3.2" fill="#2b3358" /><circle cx="85" cy="60" r="3.2" fill="#2b3358" /><path d="M68 72 Q75 76 82 72" stroke="#9b5a45" stroke-width="3" fill="none" stroke-linecap="round" /></svg><div class="r-tag heading"></div></div>
+            <div class="r-person hidden-init"><svg viewBox="0 0 150 190"><path d="M22 190 Q22 112 75 104 Q128 112 128 190 Z" fill="#b9a3d9" /><path d="M62 106 L75 124 L88 106 Z" fill="#fff8ec" /><rect x="66" y="80" width="18" height="26" fill="#f2c9a5" /><circle cx="75" cy="58" r="30" fill="#f2c9a5" /><circle cx="75" cy="22" r="13" fill="#5a3b2a" /><path d="M45 58 Q45 26 76 27 Q106 28 106 58 Q98 42 75 43 Q54 43 45 58 Z" fill="#5a3b2a" /><circle cx="65" cy="60" r="3.2" fill="#2b3358" /><circle cx="85" cy="60" r="3.2" fill="#2b3358" /><path d="M68 72 Q75 76 82 72" stroke="#9b5a45" stroke-width="3" fill="none" stroke-linecap="round" /></svg><div class="r-tag heading"></div></div>
+            <div id="r-p4" class="r-person hidden-init"><div class="r-swap"><div id="r-p4-old"><svg viewBox="0 0 150 190"><path d="M22 190 Q22 112 75 104 Q128 112 128 190 Z" fill="#c9b28a" /><path d="M62 106 L75 124 L88 106 Z" fill="#fff8ec" /><rect x="66" y="80" width="18" height="26" fill="#f2c9a5" /><circle cx="75" cy="58" r="30" fill="#f2c9a5" /><path d="M45 58 Q45 24 76 25 Q106 26 106 58 Q98 40 75 41 Q54 41 45 58 Z" fill="#b8bfcc" /><circle cx="64" cy="60" r="9" fill="none" stroke="#2b3358" stroke-width="3" /><circle cx="86" cy="60" r="9" fill="none" stroke="#2b3358" stroke-width="3" /><path d="M73 60 H77" stroke="#2b3358" stroke-width="3" /><path d="M68 72 Q75 76 82 72" stroke="#9b5a45" stroke-width="3" fill="none" stroke-linecap="round" /></svg></div><div id="r-p4-new"><svg viewBox="0 0 150 190"><path d="M22 190 Q22 112 75 104 Q128 112 128 190 Z" fill="#ff8a65" /><path d="M62 106 L75 124 L88 106 Z" fill="#fff8ec" /><rect x="66" y="80" width="18" height="26" fill="#f2c9a5" /><circle cx="75" cy="58" r="30" fill="#f2c9a5" /><path d="M45 58 Q45 24 76 25 Q106 26 106 58 Q98 40 75 41 Q54 41 45 58 Z" fill="#3a2a2a" /><path d="M104 44 Q124 56 112 84" stroke="#3a2a2a" stroke-width="11" stroke-linecap="round" fill="none" /><circle cx="65" cy="60" r="3.2" fill="#2b3358" /><circle cx="85" cy="60" r="3.2" fill="#2b3358" /><path d="M68 72 Q75 76 82 72" stroke="#9b5a45" stroke-width="3" fill="none" stroke-linecap="round" /></svg></div></div><div id="r-p4-tag" class="r-tag heading">代理</div></div>
+          </div>
+          <div id="r-stat"><div id="r-num" class="display">25.84%</div><div id="r-cmp" class="body">全國 16.58%</div></div>
+        </div>
+        <div id="r-right">
+          <div class="r-label heading" id="r-l2">偏遠地區國中<small>教師流動率</small></div>
+          <div class="r-bars">
+            <div class="r-row"><div class="r-row-l heading">全國</div><div class="r-track"><div id="r-f1" class="r-fill" style="width: 47.6%; background: rgba(255, 248, 236, 0.35)"></div></div><div class="r-row-v display">0.60%</div></div>
+            <div class="r-row"><div class="r-row-l heading">偏遠</div><div class="r-track"><div id="r-f2" class="r-fill" style="width: 100%; background: #ff8a65"></div></div><div class="r-row-v display" style="color: #ff8a65">1.26%</div></div>
+          </div>
+          <div id="r-mult"><div id="r-mult-l" class="body">是全國的</div><div id="r-mult-n" class="display">2.1 倍</div></div>
+        </div>
+        <div id="r-src" class="src-note body hidden-init">資料：立法院預算中心〈教育部主管 111 年度單位決算評估報告〉，111 學年度</div>
+      </div>
+
+      <!-- ============ 3 · Learn8 ============ -->
+      <div id="scene-mission" class="scene-frame" data-composition-id="mission" data-start="20" data-duration="10" data-label="Learn8" data-width="1920" data-height="1080">
+        <div class="ambient" style="background: radial-gradient(ellipse 50% 42% at 50% 38%, rgba(245, 190, 60, 0.22), rgba(245, 190, 60, 0) 70%)"></div>
+        <div id="m-word"><div id="m-word-inner" class="wordmark hidden-init">Learn<span>8</span></div></div>
+        <div id="m-nodes" class="heading">
+          <div id="m-n1" class="m-node hidden-init"><svg class="m-ico" viewBox="0 0 110 110"><rect x="16" y="34" width="58" height="66" rx="9" fill="#fff4d6" stroke="#b57800" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" /><rect x="30" y="20" width="58" height="66" rx="9" fill="#ffffff" stroke="#b57800" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" /><path d="M42 40 H76 M42 54 H70 M42 68 H62" stroke="#b57800" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none" /><path d="M92 8 l4 9 l9 4 l-9 4 l-4 9 l-4 -9 l-9 -4 l9 -4 z" fill="#f5be3c" /></svg><span>內容生成</span></div>
+          <div class="m-dot hidden-init"></div>
+          <div id="m-n2" class="m-node hidden-init"><svg class="m-ico" viewBox="0 0 110 110"><path d="M14 92 C 40 92, 34 58, 58 58 S 78 26, 96 26" fill="none" stroke="#b57800" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2 12" /><circle cx="14" cy="92" r="9" fill="#f5be3c" /><circle cx="58" cy="58" r="9" fill="#ffffff" stroke="#b57800" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" /><path d="M96 26 V4 M96 6 L114 12 L96 18" fill="#f5be3c" stroke="#b57800" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" /></svg><span>學習過程</span></div>
+          <div class="m-dot hidden-init"></div>
+          <div id="m-n3" class="m-node hidden-init"><svg class="m-ico" viewBox="0 0 110 110"><path d="M32 16 H78 V44 a23 23 0 0 1 -46 0 Z" fill="#f5be3c" stroke="#b57800" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" /><path d="M32 24 H16 v6 a16 16 0 0 0 16 16 M78 24 H94 v6 a16 16 0 0 1 -16 16" fill="none" stroke="#b57800" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" /><path d="M55 68 V84 M38 98 H72 M44 84 H66 V98 H44 Z" fill="#fff4d6" stroke="#b57800" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" /></svg><span>競技挑戰</span></div>
+          <div class="m-dot hidden-init"></div>
+          <div id="m-n4" class="m-node hidden-init"><svg class="m-ico" viewBox="0 0 110 110"><rect x="10" y="20" width="90" height="66" rx="12" fill="#ffffff" stroke="#b57800" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" /><path d="M20 56 H38 L46 36 L56 74 L64 46 L70 56 H90" fill="none" stroke="#f5be3c" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" /><path d="M42 98 H68" stroke="#b57800" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" /></svg><span>即時理解</span></div>
+        </div>
+        <svg class="layer" viewBox="0 0 1920 1080" aria-hidden="true">
+          <path id="m-track" d="M 300 840 L 1620 840" pathLength="1" style="opacity: 0" fill="none" stroke="rgba(181,120,0,0.35)" stroke-width="4" stroke-linecap="round" stroke-dasharray="1" stroke-dashoffset="1" />
+        </svg>
+        <div id="m-flow"><div class="m-pulse"></div><div class="m-pulse p2"></div></div>
+      </div>
+
+      <!-- ============ 4 · SDG 4 ============ -->
+      <div id="scene-sdg" class="scene-frame" data-composition-id="sdg" data-start="30" data-duration="10" data-label="SDG 4 優質教育" data-width="1920" data-height="1080">
+        <div class="ambient" style="background: radial-gradient(ellipse 40% 50% at 16% 50%, rgba(197, 25, 45, 0.07), rgba(197, 25, 45, 0) 70%), radial-gradient(ellipse 45% 50% at 70% 55%, rgba(245, 190, 60, 0.12), rgba(245, 190, 60, 0) 70%)"></div>
+        <div class="corner-mark wordmark">Learn<span>8</span></div>
+        <div class="rpt-eyebrow hidden-init">呼應主題 · SDG 4</div>
+        <div class="rpt-title heading hidden-init">優質教育，應該屬於每個學生</div>
+        <div id="sdg-rings"><i></i><i></i></div>
+        <div id="sdg-badge">
+          <div class="n">4</div>
+          <div class="t heading">優質教育</div>
+          <div class="e heading">QUALITY EDUCATION</div>
+        </div>
+        <div id="sdg-cap" class="body hidden-init">聯合國永續發展目標</div>
+        <svg class="layer" viewBox="0 0 1920 1080" aria-hidden="true">
+          <path class="sdg-link" d="M 500 520 C 560 520, 560 418, 620 418" pathLength="1" fill="none" stroke="rgba(197,25,45,0.45)" stroke-width="3" stroke-dasharray="1" stroke-dashoffset="1" />
+          <path class="sdg-link" d="M 500 520 C 560 520, 560 618, 620 618" pathLength="1" fill="none" stroke="rgba(197,25,45,0.45)" stroke-width="3" stroke-dasharray="1" stroke-dashoffset="1" />
+          <path class="sdg-link" d="M 500 520 C 560 520, 560 818, 620 818" pathLength="1" fill="none" stroke="rgba(197,25,45,0.45)" stroke-width="3" stroke-dasharray="1" stroke-dashoffset="1" />
+        </svg>
+        <div class="sdg-row" style="top: 330px">
+          <div class="sdg-bar"></div>
+          <div class="sdg-code display">4.1</div>
+          <div><div class="sdg-tt heading">有效的學習成果</div><div class="chips heading"><span class="chip-k">個人化學習路徑</span><span class="chip-k">答錯即補救</span></div></div>
+        </div>
+        <div class="sdg-row" style="top: 530px">
+          <div class="sdg-bar"></div>
+          <div class="sdg-code display">4.5</div>
+          <div><div class="sdg-tt heading">平等的受教機會</div><div class="chips heading"><span class="chip-k">不因城鄉而不同</span><span class="chip-k">每堂課約 NT$2.4</span></div></div>
+        </div>
+        <div class="sdg-row" style="top: 730px">
+          <div class="sdg-bar"></div>
+          <div class="sdg-code display">4.c</div>
+          <div><div class="sdg-tt heading">支援第一線教師</div><div class="chips heading"><span class="chip-k">AI 先搭課程框架</span><span class="chip-k">教師編輯器</span></div></div>
+        </div>
+      </div>
+
+      <!-- ============ 5 · 系統：學習路徑 ============ -->
+      <div id="scene-system" class="scene-frame" data-composition-id="system" data-start="40" data-duration="10" data-label="系統架構" data-width="1920" data-height="1080">
+        <div class="ambient" style="background: radial-gradient(ellipse 60% 45% at 50% 52%, rgba(245, 190, 60, 0.13), rgba(245, 190, 60, 0) 70%)"></div>
+        <div class="corner-mark wordmark">Learn<span>8</span></div>
+        <div class="rpt-eyebrow hidden-init">系統 · 個人學習路徑</div>
+        <div class="rpt-title heading hidden-init">每個學生的課，都是為他重新規劃的</div>
+        <div id="sys">
+          <div class="stg" id="stg1">
+            <div class="stg-vis">
+              <div class="qb heading" style="left: 22px; top: 34px">你現在的程度？</div>
+              <div class="qb me heading" style="right: 22px; top: 112px">剛開始學</div>
+              <div class="qb heading" style="left: 22px; top: 190px">喜歡怎麼學？</div>
+            </div>
+            <div class="stg-head"><div class="stg-n">1</div><div class="stg-t heading">診斷問卷</div></div>
+            <div class="stg-d body">三題摸清程度</div>
+          </div>
+          <div class="stg-arrow"><svg width="30" height="40" viewBox="0 0 30 40"><path d="M6 6l16 14-16 14" fill="none" stroke="#d9a640" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" /></svg></div>
+          <div class="stg" id="stg2">
+            <div class="stg-vis">
+              <div id="pf-av"><svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#b57800" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 4-6 8-6s8 2 8 6" /></svg></div>
+              <div class="pf-tag heading" style="left: 24px; top: 152px">初學者</div>
+              <div class="pf-tag heading" style="right: 24px; top: 152px">圖像型</div>
+              <div class="pf-tag heading" style="left: 56px; top: 220px">每天 20 分鐘</div>
+            </div>
+            <div class="stg-head"><div class="stg-n">2</div><div class="stg-t heading">學員畫像</div></div>
+            <div class="stg-d body">程度與學習風格</div>
+          </div>
+          <div class="stg-arrow"><svg width="30" height="40" viewBox="0 0 30 40"><path d="M6 6l16 14-16 14" fill="none" stroke="#d9a640" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" /></svg></div>
+          <div class="stg" id="stg3">
+            <div class="stg-vis">
+              <div id="ag-p" class="ag heading">規劃</div>
+              <div id="ag-a" class="ag heading">審查</div>
+              <svg id="ag-doc" viewBox="0 0 44 52"><path d="M4 2h26l10 10v38H4z" fill="#ffffff" stroke="#16213f" stroke-width="3" stroke-linejoin="round" /><path d="M11 22h22M11 30h22M11 38h14" stroke="#d9a640" stroke-width="3" stroke-linecap="round" /></svg>
+              <div id="ag-round" class="heading">來回修正</div>
+            </div>
+            <div class="stg-head"><div class="stg-n">3</div><div class="stg-t heading">雙代理人</div></div>
+            <div class="stg-d body">AI 互相審查課綱</div>
+          </div>
+          <div class="stg-arrow"><svg width="30" height="40" viewBox="0 0 30 40"><path d="M6 6l16 14-16 14" fill="none" stroke="#d9a640" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" /></svg></div>
+          <div class="stg" id="stg4">
+            <div class="stg-vis">
+              <svg width="300" height="300" viewBox="0 0 300 300">
+                <g stroke="rgba(22,33,63,0.18)" stroke-width="4" fill="none">
+                  <path d="M70 70 L150 120 L230 80 M150 120 L110 200 L190 220 L240 160" />
+                </g>
+                <circle class="km-node" cx="70" cy="70" r="22" fill="#f5be3c" />
+                <circle class="km-node pulse-ring" cx="70" cy="70" r="22" fill="none" stroke="#f5be3c" stroke-width="3" />
+                <circle class="km-node" cx="150" cy="120" r="20" fill="#ffffff" stroke="#b57800" stroke-width="4" />
+                <circle class="km-node" cx="230" cy="80" r="18" fill="#ffffff" stroke="rgba(22,33,63,0.3)" stroke-width="4" />
+                <circle class="km-node" cx="110" cy="200" r="18" fill="#ffffff" stroke="rgba(22,33,63,0.3)" stroke-width="4" />
+                <circle class="km-node" cx="190" cy="220" r="18" fill="#ffffff" stroke="rgba(22,33,63,0.3)" stroke-width="4" />
+                <circle class="km-node" cx="240" cy="160" r="18" fill="#ffffff" stroke="rgba(22,33,63,0.3)" stroke-width="4" />
+              </svg>
+            </div>
+            <div class="stg-head"><div class="stg-n">4</div><div class="stg-t heading">知識地圖</div></div>
+            <div class="stg-d body">一關一關解鎖</div>
+          </div>
+          <div class="stg-arrow"><svg width="30" height="40" viewBox="0 0 30 40"><path d="M6 6l16 14-16 14" fill="none" stroke="#d9a640" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" /></svg></div>
+          <div class="stg" id="stg5">
+            <div class="stg-vis">
+              <svg width="300" height="300" viewBox="0 0 300 300">
+                <circle cx="150" cy="150" r="92" fill="none" stroke="rgba(22,33,63,0.12)" stroke-width="5" stroke-dasharray="10 10" />
+                <circle class="rl-dot" r="10" fill="#f5be3c"><animateMotion dur="3s" repeatCount="indefinite" path="M 150 58 A 92 92 0 1 1 149.9 58" /></circle>
+                <g font-family="Nunito, L8 Huninn, sans-serif" font-weight="800" font-size="30" text-anchor="middle">
+                  <rect x="100" y="36" width="100" height="46" rx="23" fill="#16213f" /><text x="150" y="70" fill="#ffffff">作答</text>
+                  <rect x="186" y="196" width="100" height="46" rx="23" fill="#ff8a65" /><text x="236" y="230" fill="#16213f">答錯</text>
+                  <rect x="4" y="196" width="140" height="46" rx="23" fill="#f5be3c" /><text x="74" y="230" fill="#16213f">補救關卡</text>
+                </g>
+                <text x="150" y="160" text-anchor="middle" font-family="Nunito, L8 Huninn, sans-serif" font-weight="800" font-size="30" fill="rgba(22,33,63,0.6)">搞懂才前進</text>
+              </svg>
+            </div>
+            <div class="stg-head"><div class="stg-n">5</div><div class="stg-t heading">補救閉環</div></div>
+            <div class="stg-d body">答錯就補到會</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ 6 · 題型對應 ============ -->
+      <div id="scene-paths" class="scene-frame" data-composition-id="paths" data-start="50" data-duration="10" data-label="題型自動對應" data-width="1920" data-height="1080">
+        <div class="ambient" style="background: radial-gradient(ellipse 45% 55% at 70% 58%, rgba(245, 190, 60, 0.14), rgba(245, 190, 60, 0) 70%)"></div>
+        <div class="corner-mark wordmark">Learn<span>8</span></div>
+        <div class="rpt-eyebrow hidden-init">題型自動對應學科</div>
+        <div class="rpt-title heading hidden-init">同一套系統，長出完全不同的課</div>
+        <div id="p-steps" class="pts hidden-init">
+          <div class="pt step"><div class="step-n">1</div><div><div class="pt-t">輸入學習目標</div><div class="pt-d body">一句話就夠</div></div></div>
+          <div class="pt step"><div class="step-n">2</div><div><div class="pt-t">AI 生成課程</div><div class="pt-d body">單元、順序、關卡</div></div></div>
+          <div class="pt step"><div class="step-n">3</div><div><div class="pt-t">配對互動題型</div><div class="pt-d body">依學科自動選擇</div></div></div>
+        </div>
+        <div id="p-final-wrap">
+          <div id="p-final-rule"></div>
+          <div id="p-final" class="display accent">想學什麼，就長成什麼。</div>
+        </div>
+        <div id="pw" class="win">
+          <div class="win-bar"><i></i><i></i><i></i></div>
+          <div id="pw-in">
+            <div id="pw-field"><span id="pw-label" class="heading">學習目標</span><span id="pw-text" class="body"></span><span id="pw-caret"></span></div>
+            <div id="pw-btn" class="heading">生成課程</div>
+          </div>
+          <div id="pw-prog-track"><div id="pw-prog"></div></div>
+          <div id="pw-stage">
+            <div id="pw-skel"><i></i><i></i><i></i><i></i></div>
+            <div id="pw-go" class="pw-shot"><img src="assets/go.png" alt="圍棋落子題型" /></div>
+            <div id="pw-heap" class="pw-shot"><img src="assets/heapsort.png" alt="HeapSort 動態演示" /></div>
+          </div>
+        </div>
+        <div id="p-wall">
+          <div class="tw" style="left: 0px; top: 0px"><img src="assets/types/t10.png" alt="圍棋落子題型" /><span class="heading">圍棋落子</span></div>
+          <div class="tw" style="left: 260px; top: 0px"><img src="assets/types/t05.png" alt="動態演示題型" /><span class="heading">動態演示</span></div>
+          <div class="tw" style="left: 520px; top: 0px"><img src="assets/types/t08.png" alt="甘特排程題型" /><span class="heading">甘特排程</span></div>
+          <div class="tw" style="left: 780px; top: 0px"><img src="assets/types/t07.png" alt="分類題型" /><span class="heading">分類</span></div>
+          <div class="tw" style="left: 0px; top: 222px"><img src="assets/types/t02.png" alt="選擇題題型" /><span class="heading">選擇題</span></div>
+          <div class="tw" style="left: 260px; top: 222px"><img src="assets/types/t11.png" alt="圍棋數氣題型" /><span class="heading">圍棋數氣</span></div>
+          <div class="tw" style="left: 520px; top: 222px"><img src="assets/types/t03.png" alt="配對題型" /><span class="heading">配對</span></div>
+          <div class="tw" style="left: 780px; top: 222px"><img src="assets/types/t12.png" alt="費曼解釋題型" /><span class="heading">費曼解釋</span></div>
+          <div class="tw" style="left: 0px; top: 444px"><img src="assets/types/t09.png" alt="文件稽核題型" /><span class="heading">文件稽核</span></div>
+          <div class="tw" style="left: 260px; top: 444px"><img src="assets/types/t01.png" alt="圖解題型" /><span class="heading">圖解</span></div>
+          <div class="tw" style="left: 520px; top: 444px"><img src="assets/types/t04.png" alt="排序題型" /><span class="heading">排序</span></div>
+          <div class="tw" style="left: 780px; top: 444px"><img src="assets/types/t06.png" alt="操作模擬題型" /><span class="heading">操作模擬</span></div>
+        </div>
+      </div>
+
+      <!-- ============ 7 · 編輯器 ============ -->
+      <div id="scene-editor" class="scene-frame" data-composition-id="editor" data-start="60" data-duration="10" data-label="教師編輯器" data-width="1920" data-height="1080">
+        <div class="ambient" style="background: radial-gradient(ellipse 45% 50% at 72% 56%, rgba(245, 190, 60, 0.14), rgba(245, 190, 60, 0) 70%)"></div>
+        <div class="corner-mark wordmark">Learn<span>8</span></div>
+        <div class="rpt-eyebrow hidden-init">教師課程編輯器</div>
+        <div class="rpt-title heading hidden-init">老師不用從零備課</div>
+        <div id="e-pts" class="pts">
+          <div class="pt"><div class="pt-n">1</div><div><div class="pt-t">上傳自己的教材</div><div class="pt-d body">PDF、Word、簡報</div></div></div>
+          <div class="pt"><div class="pt-n">2</div><div><div class="pt-t">調整順序與難度</div><div class="pt-d body">貼近班上程度</div></div></div>
+          <div class="pt"><div class="pt-n">3</div><div><div class="pt-t">一鍵切換題型</div><div class="pt-d body">不需要寫程式</div></div></div>
+        </div>
+        <div id="e-file" class="heading">
+          <svg width="40" height="46" viewBox="0 0 44 52"><path d="M4 2h26l10 10v38H4z" fill="#c5192d" /><path d="M30 2v10h10" fill="#ffffff" fill-opacity="0.5" /><text x="22" y="40" text-anchor="middle" font-family="Nunito, sans-serif" font-weight="900" font-size="12" fill="#ffffff">PDF</text></svg>
+          第三章講義.pdf
+        </div>
+        <div id="e-chip" class="heading"><b></b>題型一鍵切換</div>
+        <div id="ew" class="win">
+          <div class="win-bar"><i></i><i></i><i></i></div>
+          <div id="ew-view">
+            <div id="ew-zoom" data-layout-allow-overflow>
+              <img src="assets/editor.png" alt="Learn8 課程編輯器" />
+              <div id="ehl-tree" class="ehl"></div>
+              <div id="ehl-diff" class="ehl"></div>
+              <div id="ehl-type" class="ehl"></div>
+              <div id="eghost" class="body">Heap Sort 堆積排序</div>
+              <div id="erip"></div>
+              <svg id="ecur" viewBox="0 0 24 24"><path d="M4 2l15 11-6.5 1.2L16 21l-3 1.4-3.5-6.8L4 20z" fill="#16213f" stroke="#ffffff" stroke-width="1.4" stroke-linejoin="round" /></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ 8 · 競技場 ============ -->
+      <div id="scene-arena" class="scene-frame" data-composition-id="arena" data-start="70" data-duration="10" data-label="競技場" data-width="1920" data-height="1080">
+        <div class="ambient" style="background: radial-gradient(ellipse 50% 50% at 68% 52%, rgba(245, 190, 60, 0.16), rgba(245, 190, 60, 0) 70%)"></div>
+        <div class="corner-mark wordmark">Learn<span>8</span></div>
+        <div class="rpt-eyebrow hidden-init">競技場 Arena</div>
+        <div class="rpt-title heading hidden-init">學生自己想回來，學習才會累積</div>
+        <div id="a-pts" class="pts">
+          <div class="pt">
+            <div class="icon-tile">
+              <svg width="56" height="56" viewBox="0 0 56 56"><circle cx="28" cy="28" r="21" fill="none" stroke="rgba(181,120,0,0.2)" stroke-width="6" /><circle class="w-ring" cx="28" cy="28" r="21" fill="none" stroke="#b57800" stroke-width="6" stroke-linecap="round" stroke-dasharray="132" transform="rotate(-90 28 28)" /></svg>
+            </div>
+            <div><div class="pt-t">倒數計時</div><div class="pt-d body">每題限時</div></div>
+          </div>
+          <div class="pt">
+            <div class="icon-tile">
+              <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#b57800" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z" /><path d="M7 6H4v1a3 3 0 0 0 3 3M17 6h3v1a3 3 0 0 1-3 3" /><path class="w-up" d="M12 11V6M10 8l2-2 2 2" /></svg>
+            </div>
+            <div><div class="pt-t">Elo 排位</div><div class="pt-d body">實力相近配對</div></div>
+          </div>
+          <div class="pt">
+            <div class="icon-tile">
+              <svg width="56" height="56" viewBox="0 0 56 56"><rect class="w-bar" x="9" y="12" width="9" height="34" rx="3" fill="#b57800" /><rect class="w-bar b2" x="24" y="12" width="9" height="34" rx="3" fill="#d9a640" /><rect class="w-bar b3" x="39" y="12" width="9" height="34" rx="3" fill="#f5be3c" /></svg>
+            </div>
+            <div><div class="pt-t">即時對手分數</div><div class="pt-d body">當下就看得到</div></div>
+          </div>
+        </div>
+        <div id="a-tag" class="display accent hidden-init"><span class="ln">練習就是競賽，</span><span class="ln">競賽就是練習。</span></div>
+        <div id="a-floor"></div>
+        <div id="a-monitor">
+          <video id="arena-video" src="assets/arena.mp4" muted loop playsinline preload="auto" data-start="70" data-duration="10" data-track-index="2"></video>
+        </div>
+        <div id="a-toastw">
+          <div id="a-toast" class="display">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#16213f" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7" /></svg>
+            Elo +25
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ 9 · Neuro Link (dark) ============ -->
+      <div id="scene-neuro" class="scene-frame dark" data-composition-id="neuro" data-start="80" data-duration="10" data-label="Neuro Link" data-width="1920" data-height="1080">
+        <svg id="n-wave2" class="n-wave" viewBox="0 0 3840 1080" preserveAspectRatio="none" aria-hidden="true">
+          <path d="M0 640 Q 240 520 480 640 T 960 640 T 1440 640 T 1920 640 T 2400 640 T 2880 640 T 3360 640 T 3840 640" fill="none" stroke="#7AC7C4" stroke-width="3" />
+        </svg>
+        <svg id="n-wave" class="n-wave" viewBox="0 0 3840 1080" preserveAspectRatio="none" aria-hidden="true">
+          <path d="M0 540 C 160 380 320 380 480 540 S 800 700 960 540 S 1280 380 1440 540 S 1760 700 1920 540 S 2240 380 2400 540 S 2720 700 2880 540 S 3200 380 3360 540 S 3680 700 3840 540" fill="none" stroke="#7AC7C4" stroke-width="4" />
+        </svg>
+        <div id="n-dim"></div>
+        <div class="corner-mark wordmark">Learn<span>8</span></div>
+        <div id="n-eyebrow" class="rpt-eyebrow hidden-init">Neuro Link</div>
+        <div class="rpt-title heading hidden-init">在學生放棄之前，先理解他</div>
+        <div id="n-pts" class="pts">
+          <div class="pt">
+            <div class="icon-tile">
+              <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#7ac7c4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15a8 8 0 0 1 16 0" /><rect x="2.5" y="14" width="4" height="6" rx="1.5" /><rect x="17.5" y="14" width="4" height="6" rx="1.5" /><circle class="pulse-ring" cx="12" cy="7" r="1.6" fill="#7ac7c4" stroke="none" /></svg>
+            </div>
+            <div><div class="pt-t">配戴頭帶</div><div class="pt-d body">自動連線、校準</div></div>
+          </div>
+          <div class="pt">
+            <div class="icon-tile">
+              <svg width="56" height="56" viewBox="0 0 56 56"><g class="mini-wave" data-layout-allow-overflow><path d="M0 28 q5 -14 10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0" fill="none" stroke="#7ac7c4" stroke-width="3" /></g></svg>
+            </div>
+            <div><div class="pt-t">讀取腦波訊號</div><div class="pt-d body">專注狀態即時可見</div></div>
+          </div>
+          <div class="pt">
+            <div class="icon-tile">
+              <svg width="56" height="56" viewBox="0 0 56 56"><circle class="pulse-ring" cx="28" cy="28" r="10" fill="none" stroke="#ff8a65" stroke-width="3" /><circle cx="28" cy="28" r="10" fill="#ff8a65" /><path d="M28 22v7M28 33v.5" stroke="#0e1430" stroke-width="3" stroke-linecap="round" /></svg>
+            </div>
+            <div><div class="pt-t">即時通知與調整</div><div class="pt-d body">疲勞時主動提醒休息</div></div>
+          </div>
+        </div>
+        <div id="n-quote" class="heading">不是監控，而是更早理解。</div>
+        <div id="n-frame">
+          <video id="neuro-v1" class="n-clip" src="assets/neuro-1.mp4" muted playsinline preload="auto" data-start="80" data-duration="10" data-track-index="3"></video>
+          <video id="neuro-v2" class="n-clip" src="assets/neuro-2.mp4" muted playsinline preload="auto" data-start="80" data-duration="10" data-track-index="4"></video>
+          <video id="neuro-v3" class="n-clip" src="assets/neuro-3.mp4" muted playsinline preload="auto" data-start="80" data-duration="10" data-track-index="5"></video>
+          <div id="n-hl"></div>
+          <div id="n-mask"><div id="n-mask-label" class="heading">聚焦訊號 →</div></div>
+        </div>
+      </div>
+
+      <!-- ============ 10 · 商業模式 ============ -->
+      <div id="scene-model" class="scene-frame" data-composition-id="model" data-start="90" data-duration="10" data-label="商業模式" data-width="1920" data-height="1080">
+        <div class="ambient" style="background: radial-gradient(ellipse 30% 36% at 50% 46%, rgba(245, 190, 60, 0.2), rgba(245, 190, 60, 0) 70%)"></div>
+        <div class="corner-mark wordmark">Learn<span>8</span></div>
+        <div class="rpt-eyebrow hidden-init">商業模式 · B2B2C</div>
+        <div class="rpt-title heading hidden-init">學校付費，師生使用</div>
+        <svg class="layer" viewBox="0 0 1920 1080" aria-hidden="true">
+          <defs>
+            <marker id="bm-head" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#d9a640" /></marker>
+          </defs>
+          <path id="bm-a1" class="bm-arrow" pathLength="1" marker-end="url(#bm-head)" d="M 690 440 L 838 440" />
+          <path id="bm-a2" class="bm-arrow" pathLength="1" marker-end="url(#bm-head)" d="M 1082 410 C 1160 380, 1200 355, 1280 355" />
+          <path id="bm-a3" class="bm-arrow" pathLength="1" marker-end="url(#bm-head)" d="M 1082 470 C 1160 500, 1200 545, 1280 545" />
+          <text id="bm-l1" class="bm-lab" x="764" y="412" text-anchor="middle">訂閱</text>
+          <text id="bm-l2" class="bm-lab" x="1180" y="338" text-anchor="middle">備課</text>
+          <text id="bm-l3" class="bm-lab" x="1180" y="598" text-anchor="middle">學習</text>
+          <g id="bm-f1" class="bm-flow">
+            <circle r="8" fill="#f5be3c"><animateMotion dur="1.6s" repeatCount="indefinite" path="M 690 440 L 838 440" /></circle>
+            <circle r="8" fill="#f5be3c"><animateMotion dur="1.6s" begin="-0.8s" repeatCount="indefinite" path="M 690 440 L 838 440" /></circle>
+          </g>
+          <g id="bm-f2" class="bm-flow">
+            <circle r="8" fill="#f5be3c"><animateMotion dur="1.8s" repeatCount="indefinite" path="M 1082 410 C 1160 380, 1200 355, 1280 355" /></circle>
+            <circle r="8" fill="#f5be3c"><animateMotion dur="1.8s" begin="-0.9s" repeatCount="indefinite" path="M 1082 470 C 1160 500, 1200 545, 1280 545" /></circle>
+          </g>
+        </svg>
+        <div id="bm-hub"><div id="bm-hub-ring"></div><div id="bm-hub-core" class="wordmark">Learn<span>8</span></div></div>
+        <div id="bm-pay" class="bm-card">
+          <div class="icon-tile"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#b57800" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6M9 11h.01M15 11h.01" /></svg></div>
+          <div><div class="bm-k heading">付費方</div><div class="bm-name heading">學校・補習班</div><div class="bm-desc body">企業內訓也適用</div></div>
+        </div>
+        <div id="bm-tch" class="bm-card">
+          <div class="icon-tile"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#b57800" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></svg></div>
+          <div><div class="bm-k heading">使用者</div><div class="bm-name heading">老師</div><div class="bm-desc body">備課、調整課程</div></div>
+        </div>
+        <div id="bm-stu" class="bm-card">
+          <div class="icon-tile"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#b57800" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 4-6 8-6s8 2 8 6" /></svg></div>
+          <div><div class="bm-k heading">使用者</div><div class="bm-name heading">學生</div><div class="bm-desc body">學習路徑、競技對戰</div></div>
+        </div>
+        <div id="bm-add">
+          <div class="bm-addon heading"><span class="st st-rule heading">B2C</span>學生個人加購進階內容、競技賽事</div>
+          <div class="bm-addon heading"><span class="st st-rule heading">誘因</span>教案被他校採用，老師拿版稅分潤</div>
+        </div>
+        <div id="b-stats">
+          <div class="b-stat"><div id="b-n1" class="b-num display">NT$2.4</div><div class="b-lab body">每堂個人化課程成本（估算）</div></div>
+          <div class="b-stat"><div id="b-n2" class="b-num display">70%</div><div class="b-lab body">點數方案目標毛利率</div></div>
+        </div>
+      </div>
+
+      <!-- ============ 11 · 結尾 ============ -->
+      <div id="scene-close" class="scene-frame" data-composition-id="close" data-start="100" data-duration="10" data-label="結尾" data-width="1920" data-height="1080">
+        <div class="ambient" style="background: radial-gradient(ellipse 55% 45% at 50% 55%, rgba(245, 190, 60, 0.12), rgba(245, 190, 60, 0) 70%)"></div>
+        <div id="c-main" class="display">
+          <div class="c-row">學習不缺內容，</div>
+          <div class="c-row">缺的是理解。</div>
+        </div>
+        <div id="c-mascot-glow"></div>
+        <div id="c-mascot"><img src="assets/mascot.png" alt="Learn8 吉祥物" /></div>
+        <div id="c-mark">
+          <div class="wordmark">Learn<span>8</span></div>
+          <div id="c-tag" class="heading">為每個學生，長出他需要的課</div>
+          <div id="c-sdg" class="heading"><b>4</b>SDG 優質教育</div>
+        </div>
+      </div>
+      <div id="scene-qa" class="scene-frame qa-scene" data-composition-id="qa" data-start="110" data-duration="10" data-label="Q&amp;A 補充" data-width="1920" data-height="1080">
+        <div class="ambient" style="background: radial-gradient(ellipse 55% 50% at 60% 55%, rgba(245, 190, 60, 0.1), rgba(245, 190, 60, 0) 70%)"></div>
+        <div class="corner-mark wordmark">Learn<span>8</span></div>
+        <div class="rpt-eyebrow hidden-init">附錄</div>
+        <div class="rpt-title heading hidden-init">Q&amp;A 補充</div>
+        <div class="toc">
+          <div class="toc-item"><div class="toc-n display">01</div><div class="toc-q heading">跟 ChatGPT、拍照搜題差在哪？</div></div>
+          <div class="toc-item"><div class="toc-n display">02</div><div class="toc-q heading">AI 生成的課會不會出錯？</div></div>
+          <div class="toc-item"><div class="toc-n display">03</div><div class="toc-q heading">上傳的教材本身有錯怎麼辦？</div></div>
+          <div class="toc-item"><div class="toc-n display">04</div><div class="toc-q heading">版權怎麼處理？</div></div>
+          <div class="toc-item"><div class="toc-n display">05</div><div class="toc-q heading">偏鄉沒預算，誰付錢？</div></div>
+          <div class="toc-item"><div class="toc-n display">06</div><div class="toc-q heading">一堂課的成本怎麼算？</div></div>
+          <div class="toc-item"><div class="toc-n display">07</div><div class="toc-q heading">系統架構長什麼樣？</div></div>
+          <div class="toc-item"><div class="toc-n display">08</div><div class="toc-q heading">學習成效怎麼衡量？</div></div>
+          <div class="toc-item"><div class="toc-n display">09</div><div class="toc-q heading">Neuro Link 準不準？隱私呢？</div></div>
+          <div class="toc-item"><div class="toc-n display">10</div><div class="toc-q heading">跟現有產品比有什麼不同？</div></div>
+        </div>
+      </div>
+
+      <div id="scene-qa1" class="scene-frame qa-scene" data-composition-id="qa1" data-start="120" data-duration="10" data-label="Q1" data-width="1920" data-height="1080">
+        <div class="ambient" style="background: radial-gradient(ellipse 55% 50% at 60% 55%, rgba(245, 190, 60, 0.1), rgba(245, 190, 60, 0) 70%)"></div>
+        <div class="corner-mark wordmark">Learn<span>8</span></div>
+        <div class="rpt-eyebrow hidden-init">Q&amp;A 補充 · 01　跟 ChatGPT、拍照搜題差在哪？</div>
+        <div class="rpt-title heading hidden-init">它們給答案，Learn8 確保學會</div>
+        <table class="qa-table qa-anim"><thead><tr><th class="heading"></th><th class="heading">拍照搜題・AI 問答</th><th class="heading hl">Learn8</th></tr></thead><tbody><tr><td class="heading">起點</td><td class="body">你得先問得出問題</td><td class="body hl">先診斷程度、建立學員畫像</td></tr><tr><td class="heading">過程</td><td class="body">一問一答，看完就結束</td><td class="body hl">知識地圖，一關一關解鎖</td></tr><tr><td class="heading">答錯</td><td class="body">直接給正確答案</td><td class="body hl">生成補救關卡，搞懂才前進</td></tr><tr><td class="heading">老師</td><td class="body">看不到學習過程</td><td class="body hl">可編輯課程、調整難度與題型</td></tr><tr><td class="heading">動機</td><td class="body">靠自律</td><td class="body hl">競技場 Elo 對戰</td></tr></tbody></table>
+      </div>
+
+      <div id="scene-qa2" class="scene-frame qa-scene" data-composition-id="qa2" data-start="130" data-duration="10" data-label="Q2" data-width="1920" data-height="1080">
+        <div class="ambient" style="background: radial-gradient(ellipse 55% 50% at 60% 55%, rgba(245, 190, 60, 0.1), rgba(245, 190, 60, 0) 70%)"></div>
+        <div class="corner-mark wordmark">Learn<span>8</span></div>
+        <div class="rpt-eyebrow hidden-init">Q&amp;A 補充 · 02　AI 生成的課會不會出錯？</div>
+        <div class="rpt-title heading hidden-init">四道防線，讓 AI 不亂教</div>
+        <div class="qa-grid">
+          <div class="qa-card qa-anim"><div class="qa-ch"><div class="qa-n display">1</div><div class="qa-ct heading">依教材生成</div></div><div class="qa-cd body">上傳的講義切片存入向量庫，出題時檢索並附上來源檔名</div></div>
+          <div class="qa-card qa-anim"><div class="qa-ch"><div class="qa-n display">2</div><div class="qa-ct heading">雙代理人審查</div></div><div class="qa-cd body">規劃者產出課綱，審查者批判並修正，最多兩輪</div></div>
+          <div class="qa-card qa-anim"><div class="qa-ch"><div class="qa-n display">3</div><div class="qa-ct heading">結構驗證</div></div><div class="qa-cd body">課綱以 Schema、題型以 YAML 定義，格式強制檢查</div></div>
+          <div class="qa-card qa-anim"><div class="qa-ch"><div class="qa-n display">4</div><div class="qa-ct heading">教師把關</div></div><div class="qa-cd body">老師在編輯器檢查、替換題目與正解</div></div>
+        </div>
+      </div>
+
+      <div id="scene-qa3" class="scene-frame qa-scene" data-composition-id="qa3" data-start="140" data-duration="10" data-label="Q3" data-width="1920" data-height="1080">
+        <div class="ambient" style="background: radial-gradient(ellipse 55% 50% at 60% 55%, rgba(245, 190, 60, 0.1), rgba(245, 190, 60, 0) 70%)"></div>
+        <div class="corner-mark wordmark">Learn<span>8</span></div>
+        <div class="rpt-eyebrow hidden-init">Q&amp;A 補充 · 03　上傳的教材本身有錯怎麼辦？</div>
+        <div class="rpt-title heading hidden-init">忠於教材，錯誤交給老師把關</div>
+        <div class="qa-grid">
+          <div class="qa-card qa-anim"><div class="qa-ch"><div class="qa-n display">1</div><div class="qa-ct heading">忠於原教材</div></div><div class="qa-cd body">AI 以上傳內容為依據出題，不自行改寫教材事實</div></div>
+          <div class="qa-card qa-anim"><div class="qa-ch"><div class="qa-n display">2</div><div class="qa-ct heading">老師直接修正</div></div><div class="qa-cd body">在編輯器修改題目、選項與正解</div></div>
+          <div class="qa-card qa-anim"><div class="qa-ch"><div class="qa-n display">3</div><div class="qa-ct heading">學生回報存疑</div></div><div class="qa-cd body">標記可疑題目，通知老師複核</div></div>
+          <div class="qa-card qa-anim"><div class="qa-ch"><div class="qa-n display">4</div><div class="qa-ct heading">外部資料比對</div></div><div class="qa-cd body">對照權威資料，提示「原教材可能有誤」</div></div>
+        </div>
+      </div>
+
+      <div id="scene-qa4" class="scene-frame qa-scene" data-composition-id="qa4" data-start="150" data-duration="10" data-label="Q4" data-width="1920" data-height="1080">
+        <div class="ambient" style="background: radial-gradient(ellipse 55% 50% at 60% 55%, rgba(245, 190, 60, 0.1), rgba(245, 190, 60, 0) 70%)"></div>
+        <div class="corner-mark wordmark">Learn<span>8</span></div>
+        <div class="rpt-eyebrow hidden-init">Q&amp;A 補充 · 04　版權怎麼處理？</div>
+        <div class="rpt-title heading hidden-init">只讓合法授權的教材流通</div>
+        <div class="qa-grid">
+          <div class="qa-card qa-anim"><div class="qa-ch"><div class="qa-n display">1</div><div class="qa-ct heading">公開庫審核</div></div><div class="qa-cd body">只有通過審核的授權教材能公開分享</div></div>
+          <div class="qa-card qa-anim"><div class="qa-ch"><div class="qa-n display">2</div><div class="qa-ct heading">通知與下架</div></div><div class="qa-cd body">參考 YouTube 版權機制，接獲通知即下架</div></div>
+          <div class="qa-card qa-anim"><div class="qa-ch"><div class="qa-n display">3</div><div class="qa-ct heading">課程 Fork</div></div><div class="qa-cd body">可以複製、改編其他人的公開課程</div></div>
+          <div class="qa-card qa-anim"><div class="qa-ch"><div class="qa-n display">4</div><div class="qa-ct heading">創作者分潤</div></div><div class="qa-cd body">課程被使用時，依比例分潤給原作者</div></div>
+        </div>
+      </div>
+
+      <div id="scene-qa5" class="scene-frame qa-scene" data-composition-id="qa5" data-start="160" data-duration="10" data-label="Q5" data-width="1920" data-height="1080">
+        <div class="ambient" style="background: radial-gradient(ellipse 55% 50% at 60% 55%, rgba(245, 190, 60, 0.1), rgba(245, 190, 60, 0) 70%)"></div>
+        <div class="corner-mark wordmark">Learn<span>8</span></div>
+        <div class="rpt-eyebrow hidden-init">Q&amp;A 補充 · 05　偏鄉沒預算，誰付錢？</div>
+        <div class="rpt-title heading hidden-init">付得起的人付費，讓付不起的地方也用得到</div>
+        <div class="fl">
+          <div class="fl-box qa-anim"><div class="fl-k heading">付費方</div><div class="fl-t heading">一般學校・補習班・企業內訓</div><div class="fl-d body">訂閱帳號，換取備課時間與學習數據</div></div>
+          <svg class="fl-arrow" width="60" height="40" viewBox="0 0 60 40"><path d="M4 20 H 50 M 36 6 L 52 20 L 36 34" fill="none" stroke="#d9a640" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" /></svg>
+          <div class="fl-box gold qa-anim"><div class="fl-k heading">Learn8</div><div class="fl-t heading">營收＋企業 CSR 贊助</div><div class="fl-d body">支撐偏鄉免費方案</div></div>
+          <svg class="fl-arrow" width="60" height="40" viewBox="0 0 60 40"><path d="M4 20 H 50 M 36 6 L 52 20 L 36 34" fill="none" stroke="#d9a640" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" /></svg>
+          <div class="fl-box qa-anim"><div class="fl-k heading">受益方</div><div class="fl-t heading">偏遠地區學校</div><div class="fl-d body">師生免費使用完整功能</div></div>
+        </div>
+        <div class="fl-note qa-anim heading"><span>一堂課成本約 NT$2.4，多開一個偏鄉帳號的邊際成本很低</span></div>
+      </div>
+
+      <div id="scene-qa6" class="scene-frame qa-scene" data-composition-id="qa6" data-start="170" data-duration="10" data-label="Q6" data-width="1920" data-height="1080">
+        <div class="ambient" style="background: radial-gradient(ellipse 55% 50% at 60% 55%, rgba(245, 190, 60, 0.1), rgba(245, 190, 60, 0) 70%)"></div>
+        <div class="corner-mark wordmark">Learn<span>8</span></div>
+        <div class="rpt-eyebrow hidden-init">Q&amp;A 補充 · 06　一堂課的成本怎麼算？</div>
+        <div class="rpt-title heading hidden-init">一堂個人化課程 ≈ US$0.074（約 NT$2.4）</div>
+        <div class="cost-l">
+          <div class="cost-row qa-anim"><span class="heading">課綱規劃與審查</span><div class="cost-track"><div class="cost-fill" style="width: 100.0%"></div></div><span class="cost-v display">$0.045</span></div>
+          <div class="cost-row qa-anim"><span class="heading">出題與關卡生成</span><div class="cost-track"><div class="cost-fill" style="width: 20.0%"></div></div><span class="cost-v display">$0.009</span></div>
+          <div class="cost-row qa-anim"><span class="heading">費曼解釋評分</span><div class="cost-track"><div class="cost-fill" style="width: 17.8%"></div></div><span class="cost-v display">$0.008</span></div>
+          <div class="cost-row qa-anim"><span class="heading">AI 語音</span><div class="cost-track"><div class="cost-fill" style="width: 26.7%"></div></div><span class="cost-v display">$0.012</span></div>
+          <div class="cost-sum qa-anim"><span class="heading">合計（估算）</span><span class="display accent">$0.074 ≈ NT$2.4</span></div>
+        </div>
+        <ul class="cost-r qa-anim"><h4 class="heading">降本方式</h4><li><b class="heading">模型分流</b><span class="body">簡單任務改用輕量模型，LLM 成本約 −65%</span></li><li><b class="heading">熱門主題快取</b><span class="body">命中時不再呼叫模型</span></li><li><b class="heading">語音預先生成</b><span class="body">通用語音放 CDN 重複使用</span></li></ul>
+        <div class="qa-foot body qa-anim">以一堂 3 單元、6 關卡估算；來源：團隊成本模型</div>
+      </div>
+
+      <div id="scene-qa7" class="scene-frame qa-scene" data-composition-id="qa7" data-start="180" data-duration="10" data-label="Q7" data-width="1920" data-height="1080">
+        <div class="ambient" style="background: radial-gradient(ellipse 55% 50% at 60% 55%, rgba(245, 190, 60, 0.1), rgba(245, 190, 60, 0) 70%)"></div>
+        <div class="corner-mark wordmark">Learn<span>8</span></div>
+        <div class="rpt-eyebrow hidden-init">Q&amp;A 補充 · 07　系統架構長什麼樣？</div>
+        <div class="rpt-title heading hidden-init">從生成到對戰，一套完整的系統</div>
+        <div class="arch">
+          <div class="arch-row qa-anim"><div class="arch-box"><div class="arch-k heading">前端</div><div class="arch-t heading">Next.js 14 · React</div><div class="arch-d body">Zustand · Framer Motion</div></div><div class="arch-box"><div class="arch-k heading">API</div><div class="arch-t heading">FastAPI</div><div class="arch-d body">JWT 認證 · Pydantic 驗證</div></div></div>
+          <div class="arch-row qa-anim"><div class="arch-box core"><div class="arch-k heading">AI 引擎</div><div class="arch-t heading">LangGraph 雙代理人</div><div class="arch-d body">Gemini · OpenAI</div></div><div class="arch-box core"><div class="arch-k heading">知識庫</div><div class="arch-t heading">ChromaDB 向量檢索</div><div class="arch-d body">MarkItDown · PyMuPDF</div></div><div class="arch-box core"><div class="arch-k heading">非同步任務</div><div class="arch-t heading">PostgreSQL + SSE</div><div class="arch-d body">LISTEN/NOTIFY 推播進度</div></div><div class="arch-box core"><div class="arch-k heading">即時對戰</div><div class="arch-t heading">Redis + WebSocket</div><div class="arch-d body">Pub/Sub · Elo 排位</div></div></div>
+          <div class="arch-row qa-anim"><div class="arch-box"><div class="arch-k heading">語音</div><div class="arch-t heading">VoxCPM</div><div class="arch-d body">PyTorch 自架推論</div></div><div class="arch-box"><div class="arch-k heading">腦波</div><div class="arch-t heading">MUSE 2 頭帶</div><div class="arch-d body">BLE · muselsl</div></div><div class="arch-box"><div class="arch-k heading">資料</div><div class="arch-t heading">PostgreSQL</div><div class="arch-d body">SQLAlchemy · Alembic</div></div></div>
+        </div>
+      </div>
+
+      <div id="scene-qa8" class="scene-frame qa-scene" data-composition-id="qa8" data-start="190" data-duration="10" data-label="Q8" data-width="1920" data-height="1080">
+        <div class="ambient" style="background: radial-gradient(ellipse 55% 50% at 60% 55%, rgba(245, 190, 60, 0.1), rgba(245, 190, 60, 0) 70%)"></div>
+        <div class="corner-mark wordmark">Learn<span>8</span></div>
+        <div class="rpt-eyebrow hidden-init">Q&amp;A 補充 · 08　學習成效怎麼衡量？</div>
+        <div class="rpt-title heading hidden-init">三層指標，都在平台內可追蹤</div>
+        <div class="met">
+          <div class="met-c qa-anim"><div class="met-k heading">短期</div><div class="met-t heading"><span class="ln">完課率</span><span class="ln">練習回訪率</span></div><div class="met-bar"></div></div>
+          <div class="met-c qa-anim"><div class="met-k heading">中期</div><div class="met-t heading"><span class="ln">同類題目</span><span class="ln">答對率的變化</span></div><div class="met-bar"></div></div>
+          <div class="met-c qa-anim"><div class="met-k heading">長期</div><div class="met-t heading"><span class="ln">競技場</span><span class="ln">Elo 成長曲線</span></div><div class="met-bar"></div></div>
+        </div>
+        <div class="fl-note qa-anim heading" style="top: 740px"><span>也能與傳統線上課程做對照實驗</span></div>
+      </div>
+
+      <div id="scene-qa9" class="scene-frame qa-scene" data-composition-id="qa9" data-start="200" data-duration="10" data-label="Q9" data-width="1920" data-height="1080">
+        <div class="ambient" style="background: radial-gradient(ellipse 55% 50% at 60% 55%, rgba(245, 190, 60, 0.1), rgba(245, 190, 60, 0) 70%)"></div>
+        <div class="corner-mark wordmark">Learn<span>8</span></div>
+        <div class="rpt-eyebrow hidden-init">Q&amp;A 補充 · 09　Neuro Link 準不準？隱私呢？</div>
+        <div class="rpt-title heading hidden-init">訊號已經接通，判讀還在驗證</div>
+        <div class="qa-grid">
+          <div class="qa-card qa-anim"><div class="qa-ch"><div class="qa-n display">1</div><div class="qa-ct heading">真實頭帶擷取</div></div><div class="qa-cd body">MUSE 2 經藍牙連線，4 通道、256 Hz 原始腦波</div></div>
+          <div class="qa-card qa-anim"><div class="qa-ch"><div class="qa-n display">2</div><div class="qa-ct heading">介入流程原型</div></div><div class="qa-cd body">以合成訊號驗證偵測、通知、休息的流程</div></div>
+          <div class="qa-card qa-anim"><div class="qa-ch"><div class="qa-n display">3</div><div class="qa-ct heading">真實訊號判讀</div></div><div class="qa-cd body">把頭帶訊號接進介面，進行小規模可用性研究</div></div>
+          <div class="qa-card qa-anim"><div class="qa-ch"><div class="qa-n display">4</div><div class="qa-ct heading">隱私原則</div></div><div class="qa-cd body">只用即時趨勢調整介面，不作為監控或評分依據</div></div>
+        </div>
+      </div>
+
+      <div id="scene-qa10" class="scene-frame qa-scene" data-composition-id="qa10" data-start="210" data-duration="10" data-label="Q10" data-width="1920" data-height="1080">
+        <div class="ambient" style="background: radial-gradient(ellipse 55% 50% at 60% 55%, rgba(245, 190, 60, 0.1), rgba(245, 190, 60, 0) 70%)"></div>
+        <div class="corner-mark wordmark">Learn<span>8</span></div>
+        <div class="rpt-eyebrow hidden-init">Q&amp;A 補充 · 10　跟現有產品比有什麼不同？</div>
+        <div class="rpt-title heading hidden-init">Learn8 把分散的能力，接成同一條路</div>
+        <table class="qa-table qa-anim center"><thead><tr><th class="heading"></th><th class="heading hl">Learn8</th><th class="heading">Duolingo</th><th class="heading">NotebookLM</th></tr></thead><tbody><tr><td class="heading">任意學科、用自己的教材</td><td class="body hl">✓</td><td class="body">—</td><td class="body">✓</td></tr><tr><td class="heading">系統化學習路徑與關卡</td><td class="body hl">✓</td><td class="body">✓</td><td class="body">—</td></tr><tr><td class="heading">遊戲化、競技排位</td><td class="body hl">✓</td><td class="body">✓</td><td class="body">—</td></tr><tr><td class="heading">教師可編輯課程</td><td class="body hl">✓</td><td class="body">—</td><td class="body">—</td></tr><tr><td class="heading">即時狀態理解（腦波）</td><td class="body hl">✓</td><td class="body">—</td><td class="body">—</td></tr></tbody></table>
+        <div class="qa-foot body qa-anim">依各產品公開功能整理</div>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        window.__timelines = window.__timelines || {};
+
+        var SLIDE_LEN = 10;
+        // Under automation (check / render) every seek lands on its exact rest state; live beat
+        // animations only run in a real presenter browser.
+        var LIVE = !navigator.webdriver;
+        var EASE = "power2.out";
+
+        var island = JSON.parse(
+          document.querySelector('script[type="application/hyperframes-slideshow+json"]').textContent
+        );
+        // every scene — main line and Q&A branches — occupies one SLIDE_LEN slot in DOM order
+        var FR = {};
+        island.slides.forEach(function (s) {
+          FR[s.sceneId] = s.fragments;
+        });
+        (island.slideSequences || []).forEach(function (q) {
+          q.slides.forEach(function (s) {
+            FR[s.sceneId] = s.fragments;
+          });
+        });
+        var slides = Array.prototype.slice
+          .call(document.querySelectorAll("#root > .scene-frame"))
+          .map(function (el) {
+            var id = el.getAttribute("data-composition-id");
+            var start = parseFloat(el.getAttribute("data-start"));
+            return { id: id, frags: FR[id] || [start + 0.2], start: start };
+          });
+        var TOTAL = slides.length * SLIDE_LEN;
+
+        // ---------- the seekable root timeline (the slideshow player seeks this) ----------
+        var tl = gsap.timeline({ paused: true });
+        tl.to({}, { duration: TOTAL });
+        window.__timelines["main"] = tl;
+
+        function $(sel) {
+          return document.querySelector(sel);
+        }
+        function $$(sel) {
+          return Array.prototype.slice.call(document.querySelectorAll(sel));
+        }
+
+        // ---------- beat primitives (brief: text 0.3s y8, card 0.4s scale .97) ----------
+        function textIn(st, sel, pos) {
+          gsap.set(sel, { y: 8 });
+          st.to(sel, { opacity: 1, y: 0, duration: 0.3, ease: EASE }, pos);
+        }
+        function textOut(st, sel, pos) {
+          st.to(sel, { opacity: 0, y: -8, duration: 0.25, ease: "power1.in" }, pos);
+        }
+        function cardIn(st, sel, pos) {
+          gsap.set(sel, { scale: 0.97 });
+          st.to(sel, { opacity: 1, scale: 1, duration: 0.4, ease: EASE }, pos);
+        }
+        function draw(st, sel, dur, pos) {
+          st.to(sel, { strokeDashoffset: 0, opacity: 1, duration: dur || 0.6, ease: "power1.inOut" }, pos);
+        }
+        function hold(st, d) {
+          st.to({}, { duration: d || 0.01 });
+        }
+        function header(st) {
+          var scene = st.vars.data;
+          textIn(st, scene + " .rpt-eyebrow");
+          textIn(st, scene + " .rpt-title", "<0.08");
+        }
+        // text that changes during a tween but restores its prior value when rewound
+        function textTween(st, el, from, dur, pos, fmt) {
+          st.to(
+            {},
+            {
+              duration: dur,
+              ease: "none",
+              onUpdate: function () {
+                var p = this.progress();
+                el.textContent = p <= 0 ? from : fmt(p);
+              },
+            },
+            pos
+          );
+        }
+        function countUp(st, el, to, fmt, pos, dur) {
+          var o = { v: 0 };
+          st.to(
+            o,
+            {
+              v: to,
+              duration: dur || 1.2,
+              ease: "power1.inOut",
+              onUpdate: function () {
+                el.textContent = fmt(o.v);
+              },
+            },
+            pos
+          );
+        }
+
+        var STEP_IDLE = { backgroundColor: "rgba(255,255,255,0)", borderColor: "rgba(22,33,63,0.15)", color: "rgba(22,33,63,0.45)", duration: 0.2 };
+        var STEP_ON = { backgroundColor: "rgba(245,190,60,1)", borderColor: "rgba(245,190,60,1)", color: "rgba(22,33,63,1)", duration: 0.2 };
+        var STEP_DONE = { backgroundColor: "rgba(245,190,60,0.22)", borderColor: "rgba(181,120,0,0.55)", color: "rgba(181,120,0,1)", duration: 0.2 };
+
+        // ---------- per-slide beat timelines: label bK = resting state after beat K ----------
+        var BUILD = {
+          pain: function (st) {
+            hold(st, 0.2);
+            st.addLabel("b0");
+            // 1 — a classroom: a teacher asks, a stuck student can't say
+            gsap.set(".bub", { y: 14 });
+            gsap.set("#pf-teacher, #pf-student", { y: 24 });
+            gsap.set("#pf-head", { svgOrigin: "190 182" });
+            gsap.set(".pf-qm", { opacity: 0, y: 10 });
+            st.to(".pf-room", { opacity: 1, duration: 0.5, ease: "power1.out" });
+            st.to("#pf-teacher", { opacity: 1, y: 0, duration: 0.45, ease: EASE }, "<0.15");
+            st.to("#pf-student", { opacity: 1, y: 0, duration: 0.45, ease: EASE }, "<0.1");
+            st.to("#pb-adult", { opacity: 1, y: 0, duration: 0.4, ease: EASE }, ">-0.1");
+            st.to("#pb-dots", { opacity: 1, duration: 0.25 }, ">0.35");
+            st.to("#pf-head", { rotation: 14, duration: 0.7, ease: "power2.inOut" }, "<");
+            st.to("#pb-dots", { opacity: 0, duration: 0.15 }, ">0.5");
+            st.to("#pb-kid", { opacity: 1, y: 0, duration: 0.4, ease: EASE }, "<");
+            st.to(".pf-qm", { opacity: 1, y: 0, duration: 0.3, ease: EASE, stagger: 0.15 }, "<0.2");
+            st.addLabel("b1");
+            // 2 — snap, flash, answer in 0.8 s — and it flies straight into the homework
+            st.to("#pfig", { opacity: 0, y: 30, duration: 0.4, ease: "power1.in" });
+            st.to("#pb-wrap", { y: -190, scale: 0.62, transformOrigin: "50% 0%", duration: 0.55, ease: "power2.inOut" }, "<0.1");
+            cardIn(st, "#pp", "<0.2");
+            st.to("#pp-flash", { opacity: 0.95, duration: 0.07 }, ">0.5");
+            st.to("#pp-flash", { opacity: 0, duration: 0.35, ease: "power1.out" });
+            gsap.set("#pp-res", { scale: 0.9 });
+            st.to("#pp-res", { opacity: 1, scale: 1, duration: 0.3, ease: "back.out(2)" }, "<0.1");
+            st.to("#pp-arrow", { opacity: 1, duration: 0.3 }, ">0.15");
+            cardIn(st, "#pnote", "<0.1");
+            gsap.set("#pp-fly", { scale: 0.8 });
+            st.to("#pp-fly", { opacity: 1, scale: 1, duration: 0.2 }, ">0.1");
+            st.to("#pp-fly", { x: 770, y: -100, duration: 0.6, ease: "power2.inOut" });
+            st.to("#pp-fly", { opacity: 0, duration: 0.12 });
+            textTween(st, $("#pn-ans"), "", 0.12, "<", function () {
+              return "7/20";
+            });
+            st.addLabel("b2");
+            // 3 — homework ticked 100; the exam crossed out, 48 circled in red
+            draw(st, "#pn-check .ink", 0.35);
+            gsap.set("#pn-stamp, #pt-stamp", { scale: 1.6, rotation: -10 });
+            st.to("#pn-stamp", { opacity: 1, scale: 1, duration: 0.3, ease: "back.out(2)" }, ">0.05");
+            gsap.set("#ptest", { x: 60 });
+            st.to("#ptest", { opacity: 1, x: 0, duration: 0.45, ease: EASE }, ">0.3");
+            $$("#ptest .pt-x").forEach(function (x, i) {
+              draw(st, x, 0.22, i === 0 ? ">0.1" : ">0.05");
+            });
+            st.to("#pt-stamp", { opacity: 1, scale: 1, duration: 0.3, ease: "back.out(2)" }, ">0.1");
+            draw(st, "#pt-circle .ink", 0.5, ">0.05");
+            gsap.set("#pain-line", { scale: 0.94 });
+            st.to("#pain-line", { opacity: 1, scale: 1, duration: 0.45, ease: "back.out(1.6)" }, ">0.25");
+            st.addLabel("b3");
+          },
+          rural: function (st) {
+            textIn(st, "#r-eyebrow");
+            textIn(st, "#r-l1", "<0.08");
+            gsap.set("#r-people .r-person", { y: 16 });
+            st.to("#r-people .r-person", { opacity: 1, y: 0, duration: 0.35, ease: EASE, stagger: 0.1 }, "<0.1");
+            textIn(st, "#r-src", "<0.2");
+            st.addLabel("b0");
+            // 1 — one in four is a substitute teacher
+            st.to("#r-p4-old", { x: 90, opacity: 0, duration: 0.55, ease: "power2.in" });
+            gsap.set("#r-p4-new", { x: 90 });
+            st.to("#r-p4-new", { x: 0, opacity: 1, duration: 0.55, ease: "power2.out" }, ">-0.1");
+            textIn(st, "#r-p4-tag", "<-0.2");
+            st.to("#r-stat", { opacity: 1, duration: 0.3 }, "<0.1");
+            countUp(st, $("#r-num"), 25.84, function (v) { return v.toFixed(2) + "%"; }, "<");
+            st.addLabel("b1");
+            // 2 — turnover twice the national average
+            textIn(st, "#r-l2");
+            st.to("#r-right .r-bars", { opacity: 1, duration: 0.3 }, "<0.1");
+            gsap.set("#r-f1, #r-f2", { scaleX: 0 });
+            st.to("#r-f1", { scaleX: 1, duration: 0.6, ease: "power2.out" }, "<0.1");
+            st.to("#r-f2", { scaleX: 1, duration: 0.9, ease: "power2.out" }, "<0.25");
+            st.to("#r-mult", { opacity: 1, duration: 0.3 }, ">-0.2");
+            countUp(st, $("#r-mult-n"), 2.1, function (v) { return v.toFixed(1) + " 倍"; }, "<", 0.8);
+            st.addLabel("b2");
+          },
+          mission: function (st) {
+            gsap.set("#m-word-inner", { scale: 0.85 });
+            st.to("#m-word-inner", { opacity: 1, scale: 1, duration: 0.7, ease: "power3.out" });
+            hold(st, 0.9);
+            var from = [
+              { x: -520, y: 0 },
+              { x: 0, y: -320 },
+              { x: 0, y: 300 },
+              { x: 520, y: 0 },
+            ];
+            ["#m-n1", "#m-n2", "#m-n3", "#m-n4"].forEach(function (sel, i) {
+              gsap.set(sel, from[i]);
+              st.to(sel, { opacity: 1, x: 0, y: 0, duration: 0.6, ease: "power3.out" }, i === 0 ? ">" : "<0.06");
+            });
+            gsap.set("#m-nodes .m-dot", { scale: 0 });
+            st.to("#m-nodes .m-dot", { opacity: 1, scale: 1, duration: 0.3, ease: "back.out(2)", stagger: 0.08 }, ">-0.15");
+            gsap.set(".m-ico", { transformOrigin: "50% 100%" });
+            st.to(".m-ico", { scale: 1.15, duration: 0.18, ease: "power1.out", stagger: 0.12, yoyo: true, repeat: 1 }, ">-0.05");
+            draw(st, "#m-track", 0.7, "<0.1");
+            st.to("#m-flow", { opacity: 1, duration: 0.3 }, ">-0.1");
+            st.addLabel("b0");
+          },
+          sdg: function (st) {
+            header(st);
+            cardIn(st, "#sdg-badge", "<0.1");
+            st.to("#sdg-rings", { opacity: 1, duration: 0.3 }, "<0.2");
+            textIn(st, "#sdg-cap", "<");
+            st.addLabel("b0");
+            var links = $$("#scene-sdg .sdg-link");
+            $$("#scene-sdg .sdg-row").forEach(function (row, i) {
+              draw(st, links[i], 0.4);
+              gsap.set(row, { x: 40 });
+              st.to(row, { opacity: 1, x: 0, duration: 0.45, ease: EASE }, "<0.2");
+              var bar = row.querySelector(".sdg-bar");
+              gsap.set(bar, { scaleY: 0, transformOrigin: "50% 0%" });
+              st.to(bar, { scaleY: 1, duration: 0.4, ease: EASE }, "<0.1");
+              st.addLabel("b" + (i + 1));
+            });
+          },
+          system: function (st) {
+            header(st);
+            var stg = $$("#sys .stg");
+            var vis = $$("#sys .stg-vis");
+            var arr = $$("#sys .stg-arrow");
+            var ON = { boxShadow: "0 0 0 4px rgba(245,190,60,0.95), 0 22px 54px rgba(181,120,0,0.28)", scale: 1.04, duration: 0.35, ease: EASE };
+            var OFF = { boxShadow: "0 16px 44px rgba(22,33,63,0.1)", scale: 1, duration: 0.35, ease: EASE };
+            gsap.set(vis, { transformOrigin: "50% 100%" });
+            function stageIn(i, pos) {
+              gsap.set(stg[i], { y: 16 });
+              st.to(stg[i], { opacity: 1, y: 0, duration: 0.4, ease: EASE }, pos);
+            }
+            // spotlight: the step being explained glows, earlier steps step back
+            // 0 — diagnose → learner profile
+            stageIn(0, "<0.1");
+            gsap.set("#stg1 .qb", { opacity: 0, y: 10 });
+            st.to("#stg1 .qb", { opacity: 1, y: 0, duration: 0.25, stagger: 0.18 }, "<0.2");
+            st.to(arr[0], { opacity: 1, duration: 0.25 });
+            stageIn(1, "<0.05");
+            gsap.set("#stg2 .pf-tag", { opacity: 0, scale: 0.8 });
+            st.to("#stg2 .pf-tag", { opacity: 1, scale: 1, duration: 0.25, stagger: 0.12, ease: "back.out(2)" }, "<0.2");
+            st.to([vis[0], vis[1]], ON, ">-0.1");
+            st.addLabel("b0");
+            // 1 — planner ⇄ auditor
+            st.to(arr[1], { opacity: 1, duration: 0.25 });
+            stageIn(2, "<0.05");
+            st.to([vis[0], vis[1]], OFF, "<");
+            st.to([stg[0], stg[1]], { opacity: 0.38, duration: 0.35 }, "<");
+            st.to(vis[2], ON, "<0.15");
+            st.addLabel("b1");
+            // 2 — knowledge map, first node unlocked
+            st.to(arr[2], { opacity: 1, duration: 0.25 });
+            stageIn(3, "<0.05");
+            st.to(vis[2], OFF, "<");
+            st.to(stg[2], { opacity: 0.38, duration: 0.35 }, "<");
+            st.to(vis[3], ON, "<0.15");
+            st.to("#stg4 .km-node", { opacity: 1, duration: 0.2, stagger: 0.1 }, "<0.1");
+            st.addLabel("b2");
+            // 3 — remedial loop
+            st.to(arr[3], { opacity: 1, duration: 0.25 });
+            stageIn(4, "<0.05");
+            st.to(vis[3], OFF, "<");
+            st.to(stg[3], { opacity: 0.38, duration: 0.35 }, "<");
+            st.to(vis[4], ON, "<0.15");
+            st.addLabel("b3");
+          },
+          paths: function (st) {
+            header(st);
+            textIn(st, "#p-steps", "<0.1");
+            cardIn(st, "#pw", "<0.05");
+            st.addLabel("b0");
+            var nums = $$("#p-steps .step-n");
+            var textEl = $("#pw-text");
+            function stepsTo(k, pos) {
+              nums.forEach(function (n, j) {
+                st.to(n, j < k ? STEP_DONE : j === k ? STEP_ON : STEP_IDLE, j === 0 ? pos : "<");
+              });
+            }
+            var subjects = [
+              { text: "我想學圍棋", img: "#pw-go" },
+              { text: "我想學排序演算法", img: "#pw-heap" },
+            ];
+            subjects.forEach(function (sub, i) {
+              var prev = i > 0 ? subjects[i - 1] : null;
+              stepsTo(0);
+              textTween(st, textEl, prev ? prev.text : "", 0.12 * sub.text.length, ">", function (p) {
+                return sub.text.slice(0, Math.max(0, Math.ceil(p * sub.text.length)));
+              });
+              st.to("#pw-btn", { scale: 0.93, duration: 0.09 });
+              st.to("#pw-btn", { scale: 1, duration: 0.14 });
+              stepsTo(1, "<");
+              if (prev) st.to(prev.img, { opacity: 0, x: -50, duration: 0.3, ease: "power1.in" }, "<");
+              st.to("#pw-skel", { opacity: 1, duration: 0.2 }, "<0.1");
+              st.fromTo("#pw-prog", { scaleX: 0 }, { scaleX: 1, duration: 0.9, ease: "power1.inOut", immediateRender: false }, "<");
+              stepsTo(2);
+              st.to("#pw-skel", { opacity: 0, duration: 0.2 }, "<");
+              gsap.set(sub.img, { scale: 0.96, y: 14 });
+              st.to(sub.img, { opacity: 1, scale: 1, y: 0, duration: 0.45, ease: EASE }, "<0.05");
+              if (i === subjects.length - 1) st.addLabel("b1");
+              else hold(st, 0.9);
+            });
+            // 3 — goals fire one after another and every question type bursts out into a wall
+            var goals = ["我想學專案管理", "我想學資料結構", "我想學 AI 名詞", "我想學圍棋數氣", "我想學報表稽核", "我想學雜湊表", "想學什麼都可以"];
+            stepsTo(0);
+            textTween(st, textEl, subjects[1].text, 2.1, ">", function (p) {
+              return goals[Math.min(goals.length - 1, Math.floor(p * goals.length))];
+            });
+            st.to("#pw-btn", { scale: 0.93, duration: 0.09, repeat: 5, yoyo: true }, "<");
+            stepsTo(1, "<0.3");
+            st.fromTo("#pw-prog", { scaleX: 0 }, { scaleX: 1, duration: 1.8, ease: "none", immediateRender: false }, "<");
+            st.to("#pw", { opacity: 0, scale: 0.9, duration: 0.5, ease: "power1.in" }, "<0.45");
+            var cardsEl = $$("#p-wall .tw");
+            var fromRot = [-14, 10, -8, 16, 8, -16, 12, -10, 10, -8, 16, -12];
+            var restRot = [-1, 1, -1.5, 1, 1.5, -1, 1, -1.5, -1, 1.5, -1, 1];
+            cardsEl.forEach(function (c, i) {
+              var cx = parseFloat(c.style.left) + 120;
+              var cy = parseFloat(c.style.top) + 98;
+              gsap.set(c, { x: 500 - cx, y: 380 - cy, scale: 0.25, rotation: fromRot[i] });
+              st.to(c, { opacity: 1, x: 0, y: 0, scale: 1, rotation: restRot[i], duration: 0.6, ease: "back.out(1.5)" }, i === 0 ? "<0.15" : "<0.11");
+            });
+            stepsTo(2, ">-0.3");
+            gsap.set("#p-final-wrap", { y: 10 });
+            st.to("#p-final-wrap", { opacity: 1, y: 0, duration: 0.4, ease: EASE }, ">0.05");
+            st.addLabel("b2");
+            gsap.set("#pw-prog", { scaleX: 0 });
+          },
+          editor: function (st) {
+            header(st);
+            cardIn(st, "#ew", "<0.1");
+            st.addLabel("b0");
+            var pts = $$("#e-pts .pt");
+            var Z = "#ew-zoom";
+            function cursorTo(x, y, dur, pos) {
+              st.to("#ecur", { left: x + "%", top: y + "%", duration: dur || 0.6, ease: "power2.inOut" }, pos);
+            }
+            function click(x, y, pos) {
+              st.set("#erip", { left: x + "%", top: y + "%" }, pos);
+              st.fromTo("#erip", { scale: 0.4, opacity: 1 }, { scale: 1.6, opacity: 0, duration: 0.45, ease: "power1.out", immediateRender: false }, "<");
+            }
+            // 1 — upload a handout: the file drops into the editor, the unit tree lights up
+            textIn(st, pts[0]);
+            gsap.set("#e-file", { y: 10 });
+            st.to("#e-file", { opacity: 1, y: 0, duration: 0.3, ease: EASE }, "<0.1");
+            st.to("#e-file", { x: -40, y: 300, scale: 0.45, opacity: 0, duration: 0.65, ease: "power2.in" }, ">0.35");
+            st.to(Z, { scale: 1.45, transformOrigin: "0% 42%", duration: 0.7, ease: "power2.inOut" }, "<0.3");
+            st.to("#ehl-tree", { opacity: 1, duration: 0.3 }, "<0.4");
+            hold(st, 0.5);
+            // 2 — reorder a unit, then set difficulty
+            textIn(st, pts[1]);
+            st.to("#ecur", { opacity: 1, duration: 0.2 }, "<");
+            cursorTo(9, 22.4, 0.5);
+            click(9, 22.4);
+            st.to("#eghost", { opacity: 1, duration: 0.15 }, "<");
+            cursorTo(9, 32.4, 0.55, ">0.05");
+            st.to("#eghost", { top: "30.6%", duration: 0.55, ease: "power2.inOut" }, "<");
+            st.to("#eghost", { opacity: 0, duration: 0.2 });
+            click(9, 32.4, "<");
+            st.to(Z, { scale: 1.45, transformOrigin: "44% 34%", duration: 0.7, ease: "power2.inOut" }, ">0.1");
+            st.to("#ehl-tree", { opacity: 0, duration: 0.2 }, "<");
+            st.to("#ehl-diff", { opacity: 1, duration: 0.3 }, "<0.4");
+            cursorTo(32.1, 20.6, 0.6, "<-0.2");
+            click(32.1, 20.6);
+            st.addLabel("b1");
+            // 3 — switch question type
+            textIn(st, pts[2]);
+            st.to(Z, { scale: 1.5, transformOrigin: "100% 26%", duration: 0.7, ease: "power2.inOut" }, "<");
+            st.to("#ehl-diff", { opacity: 0, duration: 0.2 }, "<");
+            st.to("#ehl-type", { opacity: 1, duration: 0.3 }, "<0.4");
+            cursorTo(85.8, 40, 0.6, "<-0.2");
+            click(85.8, 40);
+            gsap.set("#e-chip", { y: 8 });
+            st.to("#e-chip", { opacity: 1, y: 0, duration: 0.3, ease: EASE }, "<");
+            st.addLabel("b2");
+          },
+          arena: function (st) {
+            header(st);
+            gsap.set("#a-monitor", { x: 700 });
+            st.to("#a-monitor", { opacity: 1, x: 0, duration: 0.65, ease: "power3.out" }, "<0.05");
+            st.addLabel("b0");
+            gsap.set("#a-pts .pt", { y: 8 });
+            st.to("#a-pts .pt", { opacity: 1, y: 0, duration: 0.3, ease: EASE, stagger: 0.12 });
+            st.to("#a-toastw", { opacity: 1, duration: 0.3 }, "<0.2");
+            st.addLabel("b1");
+            gsap.set("#a-tag", { y: 12, scale: 0.97, transformOrigin: "0% 50%" });
+            st.to("#a-tag", { opacity: 1, y: 0, scale: 1, duration: 0.45, ease: EASE });
+            st.addLabel("b2");
+          },
+          neuro: function (st) {
+            // beats follow the video's three phases: 配戴 → 訊號 → 通知
+            gsap.set("#n-mask", { xPercent: -101 });
+            header(st);
+            cardIn(st, "#n-frame", "<0.05");
+            var pts = $$("#n-pts .pt");
+            textIn(st, pts[0], "<0.1");
+            st.addLabel("b0");
+            textIn(st, pts[1]);
+            st.to("#n-mask", { xPercent: 0, duration: 0.5, ease: "power2.out" }, "<");
+            st.to("#n-hl", { borderColor: "rgba(122,199,196,1)", boxShadow: "0 0 60px rgba(122,199,196,0.75)", duration: 0.5, ease: EASE }, "<0.15");
+            st.to("#n-frame", { boxShadow: "0 0 60px rgba(122,199,196,0.32)", duration: 0.5, ease: EASE }, "<");
+            st.addLabel("b1");
+            textIn(st, pts[2]);
+            st.to("#n-mask", { xPercent: -101, duration: 0.45, ease: "power2.in" }, "<");
+            st.to("#n-hl", { borderColor: "rgba(122,199,196,0.5)", boxShadow: "0 0 18px rgba(122,199,196,0.2)", duration: 0.4 }, "<");
+            st.to("#n-frame", { boxShadow: "0 0 30px rgba(122,199,196,0.16)", duration: 0.4 }, "<");
+            gsap.set("#n-quote", { x: -16 });
+            st.to("#n-quote", { opacity: 1, x: 0, duration: 0.4, ease: EASE }, "<0.25");
+            st.addLabel("b2");
+          },
+          model: function (st) {
+            header(st);
+            gsap.set("#bm-hub", { scale: 0.8 });
+            st.to("#bm-hub", { opacity: 1, scale: 1, duration: 0.5, ease: "back.out(1.6)" }, "<0.1");
+            st.addLabel("b0");
+            // 1 — who pays
+            gsap.set("#bm-pay", { x: -60 });
+            st.to("#bm-pay", { opacity: 1, x: 0, duration: 0.45, ease: EASE });
+            draw(st, "#bm-a1", 0.45, "<0.2");
+            st.to("#bm-l1", { opacity: 1, duration: 0.3 }, "<0.2");
+            st.to("#bm-f1", { opacity: 1, duration: 0.3 }, "<0.1");
+            hold(st, 0.4);
+            // 2 — who uses it
+            draw(st, "#bm-a2, #bm-a3", 0.5);
+            st.to("#bm-l2, #bm-l3", { opacity: 1, duration: 0.3 }, "<0.2");
+            st.to("#bm-f2", { opacity: 1, duration: 0.3 }, "<0.1");
+            gsap.set("#bm-tch, #bm-stu", { x: 60 });
+            st.to("#bm-tch, #bm-stu", { opacity: 1, x: 0, duration: 0.45, ease: EASE, stagger: 0.12 }, "<-0.2");
+            st.addLabel("b1");
+            // 3 — add-ons
+            gsap.set("#bm-add .bm-addon", { y: 12 });
+            st.to("#bm-add .bm-addon", { opacity: 1, y: 0, duration: 0.35, ease: EASE, stagger: 0.15 });
+            st.addLabel("b2");
+            // 4 — unit economics
+            gsap.set(".b-stat", { y: 8 });
+            st.to(".b-stat", { opacity: 1, y: 0, duration: 0.3, ease: EASE, stagger: 0.08 });
+            countUp(st, $("#b-n1"), 2.4, function (v) { return "NT$" + v.toFixed(1); }, "<");
+            countUp(st, $("#b-n2"), 70, function (v) { return Math.round(v) + "%"; }, "<");
+            st.addLabel("b3");
+          },
+          close: function (st) {
+            // 1 — the line, revealed by a sweep of light
+            gsap.set("#c-main", { y: 60 });
+            st.to("#c-main", { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" });
+            st.to("#c-main", { "--reveal": "118%", duration: 1.15, ease: "power1.inOut" }, "<");
+            st.to(".c-row", { backgroundPosition: "0% 0", duration: 1.5, ease: "power1.inOut" }, "<0.1");
+            hold(st, 1.0);
+            // 2 — mascot, wordmark + tagline, SDG
+            gsap.set("#c-mascot", { y: 500, scale: 0.4, transformOrigin: "50% 100%" });
+            st.to("#c-mascot", { opacity: 1, y: 0, scale: 1, duration: 0.7, ease: "back.out(1.3)" });
+            st.to("#c-mascot-glow", { opacity: 1, duration: 0.8, ease: EASE }, "<0.2");
+            gsap.set("#c-mark", { y: 8 });
+            st.to("#c-mark", { opacity: 1, y: 0, duration: 0.4, ease: EASE }, "<0.3");
+            st.addLabel("b0");
+          },
+        };
+
+        // Q&A appendix: header, then the slide's content blocks
+        function buildQA(st) {
+          header(st);
+          var scene = st.vars.data;
+          gsap.set(scene + " .qa-anim, " + scene + " .toc-item", { y: 12 });
+          st.to(scene + " .qa-anim, " + scene + " .toc-item", { opacity: 1, y: 0, duration: 0.35, ease: EASE, stagger: 0.06 }, "<0.1");
+          var fills = $$(scene + " .cost-fill");
+          if (fills.length) {
+            gsap.set(fills, { scaleX: 0 });
+            st.to(fills, { scaleX: 1, duration: 0.6, ease: EASE, stagger: 0.08 }, "<0.2");
+          }
+          st.addLabel("b0");
+        }
+
+        // count-ups start at zero; the markup holds the final values for no-JS readers
+        $("#b-n1").textContent = "NT$0.0";
+        $("#b-n2").textContent = "0%";
+        $("#r-num").textContent = "0.00%";
+        $("#r-mult-n").textContent = "0.0 倍";
+
+        var frames = slides.map(function (s) {
+          return $('[data-composition-id="' + s.id + '"]');
+        });
+        var beatTls = slides.map(function (s, i) {
+          var st = gsap.timeline({ paused: true, data: "#" + frames[i].id });
+          (BUILD[s.id] || buildQA)(st);
+          return st;
+        });
+
+        // ---------- slide media ----------
+        var VIDEO = { arena: $("#arena-video") };
+        function stopVideos() {
+          $$("video").forEach(function (v) {
+            if (!v.paused) v.pause();
+          });
+        }
+        // per-beat video clips: beat k plays clip k from its first frame and holds on its last.
+        // (Clips instead of seeking one file: the present server does not serve byte ranges,
+        // so in-file seeks snap back to 0.) Later clips stack on top of earlier ones.
+        var CLIPS = { neuro: ["#neuro-v1", "#neuro-v2", "#neuro-v3"].map($) };
+        function playClip(id, b, live) {
+          var clips = CLIPS[id];
+          if (!clips) return;
+          clips.forEach(function (c, k) {
+            if (k > b) c.style.opacity = "0";
+            if (k !== b && !c.paused) c.pause();
+          });
+          var v = clips[b];
+          if (!v) return;
+          v.style.opacity = "1";
+          try {
+            v.muted = true;
+            v.currentTime = 0;
+            if (live) {
+              var p = v.play();
+              if (p && p.catch) p.catch(function () {});
+            } else v.pause();
+          } catch (e) {}
+        }
+        function startVideo(id) {
+          var v = VIDEO[id];
+          if (!v) return;
+          try {
+            v.muted = true;
+            v.currentTime = 0;
+            var p = v.play();
+            if (p && p.catch) p.catch(function () {});
+          } catch (e) {}
+        }
+
+        // ---------- scene visibility + beat driver ----------
+        var cur = -1;
+        var curBeat = -1;
+        var driver = null;
+
+        function showFrame(i, animate) {
+          frames.forEach(function (f, k) {
+            if (k === i) return;
+            gsap.killTweensOf(f);
+            if (animate && k === cur) {
+              gsap.to(f, {
+                opacity: 0,
+                duration: 0.3,
+                ease: "power1.out",
+                onComplete: function () {
+                  f.style.visibility = "hidden";
+                  f.style.pointerEvents = "none";
+                },
+              });
+            } else {
+              f.style.opacity = "0";
+              f.style.visibility = "hidden";
+              f.style.pointerEvents = "none";
+            }
+          });
+          var f = frames[i];
+          gsap.killTweensOf(f);
+          f.style.visibility = "visible";
+          f.style.pointerEvents = "auto";
+          if (animate) gsap.fromTo(f, { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power1.out" });
+          else f.style.opacity = "1";
+        }
+
+        function goBeat(st, b, animate) {
+          if (driver) driver.kill();
+          driver = null;
+          var label = "b" + b;
+          if (animate) driver = st.tweenTo(label);
+          else {
+            // jump: rewind to the slide's start first so zooms/positions rebuild exactly
+            st.pause();
+            st.seek(0, false);
+            st.seek(label, false);
+          }
+        }
+
+        function locate(t) {
+          var i = Math.max(0, Math.min(slides.length - 1, Math.floor((t + 1e-4) / SLIDE_LEN)));
+          var f = slides[i].frags || [];
+          var b = 0;
+          for (var k = 0; k < f.length; k++) if (t + 1e-4 >= f[k]) b = k;
+          return { i: i, b: b };
+        }
+
+        function update(t) {
+          var p = locate(t);
+          var st = beatTls[p.i];
+          var id = slides[p.i].id;
+          if (p.i !== cur) {
+            var animate = LIVE && cur !== -1;
+            showFrame(p.i, animate);
+            if (driver) driver.kill();
+            driver = null;
+            // rewind with callbacks on, so typed text, timers and count-ups restore their start values
+            st.pause();
+            st.seek(0, false);
+            if (p.b === 0) goBeat(st, 0, LIVE);
+            else goBeat(st, p.b, false);
+            stopVideos();
+            if (CLIPS[id]) playClip(id, p.b, LIVE);
+            else startVideo(id);
+            cur = p.i;
+            curBeat = p.b;
+            return;
+          }
+          if (p.b === curBeat) return;
+          goBeat(st, p.b, LIVE && p.b === curBeat + 1);
+          if (CLIPS[id]) playClip(id, p.b, LIVE);
+          curBeat = p.b;
+        }
+
+        tl.eventCallback("onUpdate", function () {
+          update(tl.time());
+        });
+        update(slides[0].frags[0]);
+
+        // ---------- scene manifest for <hyperframes-slideshow> (no engine injects it under `present`) ----------
+        var FPS = 30;
+        var scenes = slides.map(function (s, i) {
+          return {
+            id: s.id,
+            label: frames[i].getAttribute("data-label") || s.id,
+            start: s.start,
+            duration: SLIDE_LEN,
+          };
+        });
+        function postTimeline() {
+          try {
+            parent.postMessage(
+              { source: "hf-preview", type: "timeline", durationInFrames: TOTAL * FPS, scenes: scenes },
+              "*"
+            );
+          } catch (e) {}
+        }
+
+        // ---------- direct-open fallback: opened as a plain page (no slideshow player) ----------
+        var standalone = window.parent === window && !navigator.webdriver;
+        if (standalone) {
+          var holds = [];
+          slides.forEach(function (s) {
+            s.frags.forEach(function (f) {
+              holds.push(f);
+            });
+          });
+          var idx = 0;
+          var root = $("#root");
+          document.documentElement.style.cssText = "width:100%;height:100%;background:#000;overflow:hidden";
+          document.body.style.cssText = "position:fixed;inset:0;width:auto;height:auto;margin:0;background:#000;overflow:hidden;cursor:none;touch-action:none";
+          root.style.cssText = "position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0";
+          // size of what is actually visible (iPad Safari: 100vh includes the toolbar, innerWidth can lag a frame)
+          var fit = function () {
+            var vv = window.visualViewport;
+            var W = (vv && vv.width) || document.documentElement.clientWidth || window.innerWidth;
+            var H = (vv && vv.height) || window.innerHeight || document.documentElement.clientHeight;
+            if (!W || !H) return;
+            var k = Math.min(W / 1920, H / 1080);
+            root.style.transform = "translate(" + (W - 1920 * k) / 2 + "px," + (H - 1080 * k) / 2 + "px) scale(" + k + ")";
+          };
+          var refit = function () {
+            fit();
+            setTimeout(fit, 30);
+            setTimeout(fit, 250);
+            setTimeout(fit, 800);
+          };
+          // no zooming on tablets/phones: iOS ignores user-scalable=no, so block double-tap and pinch directly,
+          // and if a zoom slips through anyway, snap back to 100%.
+          var css = document.createElement("style");
+          css.textContent = "html,body,body *{touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}";
+          document.head.appendChild(css);
+          var lastTouchEnd = 0;
+          document.addEventListener("touchend", function (e) {
+            var now = e.timeStamp;
+            if (now - lastTouchEnd < 350) e.preventDefault();
+            lastTouchEnd = now;
+          }, { passive: false });
+          document.addEventListener("touchmove", function (e) {
+            if (e.touches && e.touches.length > 1) e.preventDefault();
+          }, { passive: false });
+          ["gesturestart", "gesturechange", "gestureend", "dblclick"].forEach(function (t) {
+            document.addEventListener(t, function (e) {
+              e.preventDefault();
+            }, { passive: false });
+          });
+          var vpMeta = document.querySelector('meta[name="viewport"]');
+          var unzoom = function () {
+            var vv = window.visualViewport;
+            if (!vv || vv.scale <= 1.01 || !vpMeta) return;
+            var c = vpMeta.getAttribute("content");
+            vpMeta.setAttribute("content", c + ", minimum-scale=1");
+            setTimeout(function () {
+              vpMeta.setAttribute("content", c);
+            }, 60);
+          };
+          var fitBase = fit;
+          fit = function () {
+            unzoom();
+            fitBase();
+          };
+          refit();
+          window.addEventListener("resize", refit);
+          window.addEventListener("orientationchange", refit);
+          window.addEventListener("load", refit);
+          window.addEventListener("pageshow", refit);
+          if (window.visualViewport) window.visualViewport.addEventListener("resize", refit);
+          if (document.fonts && document.fonts.ready) document.fonts.ready.then(refit);
+          var goHold = function (n) {
+            idx = Math.max(0, Math.min(holds.length - 1, n));
+            tl.seek(holds[idx], false);
+            update(holds[idx]);
+          };
+          window.addEventListener("keydown", function (e) {
+            var k = e.key;
+            if (k === " " || k === "ArrowRight" || k === "PageDown" || k === "Enter") goHold(idx + 1);
+            else if (k === "ArrowLeft" || k === "PageUp" || k === "Backspace") goHold(idx - 1);
+            else if (k === "Home") goHold(0);
+            else if (k === "f" || k === "F") {
+              if (document.fullscreenElement) document.exitFullscreen();
+              else document.documentElement.requestFullscreen().catch(function () {});
+            } else return;
+            e.preventDefault();
+          });
+          // touch & mouse: tap right side = next, tap left third = back, swipe left/right.
+          // (iOS Safari never sends "click" to window for taps on plain content, so use pointer events.)
+          var downX = null, downY = null;
+          window.addEventListener("pointerdown", function (e) {
+            downX = e.clientX;
+            downY = e.clientY;
+          });
+          window.addEventListener("pointerup", function (e) {
+            if (downX === null) return;
+            var dx = e.clientX - downX, dy = e.clientY - downY;
+            downX = null;
+            if (e.target.closest && e.target.closest(".toc-item")) return;
+            if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) goHold(idx + (dx < 0 ? 1 : -1));
+            else if (e.clientX < window.innerWidth / 3) goHold(idx - 1);
+            else goHold(idx + 1);
+          });
+        }
+
+        // ---------- Q&A table of contents: click a card (or press 1–0) to open that answer ----------
+        // The slideshow renders each hotspot as a small pill on the parent page; we hide those and
+        // drive the same pills from the composition so branch navigation (and back) stays native.
+        var pdoc = null;
+        try {
+          if (window.parent !== window) pdoc = window.parent.document;
+        } catch (e) {}
+        if (pdoc) {
+          var hsStyle = pdoc.createElement("style");
+          hsStyle.textContent = ".hf-hotspot-pill{opacity:0!important;pointer-events:none!important}";
+          pdoc.head.appendChild(hsStyle);
+        }
+        var tocIndex = -1;
+        slides.forEach(function (s, i) {
+          if (s.id === "qa") tocIndex = i;
+        });
+        function openQA(k) {
+          if (pdoc) {
+            var pill = pdoc.querySelector('.hf-hotspot-pill[data-hotspot-id="h' + (k + 1) + '"]');
+            if (pill) pill.click();
+          } else if (standalone) {
+            var target = FR["qa" + (k + 1)];
+            if (target) goHold(holds.indexOf(target[0]));
+          }
+        }
+        $$("#scene-qa .toc-item").forEach(function (el, k) {
+          el.addEventListener("click", function (e) {
+            e.stopPropagation();
+            openQA(k);
+          });
+        });
+        // keys land on whichever window has focus (the parent page, or this iframe after a click)
+        function onDigit(e) {
+          if (cur !== tocIndex || !/^[0-9]$/.test(e.key)) return;
+          openQA(e.key === "0" ? 9 : parseInt(e.key, 10) - 1);
+          e.preventDefault();
+        }
+        window.addEventListener("keydown", onDigit, true);
+        if (pdoc) pdoc.defaultView.addEventListener("keydown", onDigit, true);
+        // ← steps back one beat (previous fragment, or the previous slide's last beat); Q&A branches keep the default (back to TOC)
+        function onBack(e) {
+          if (e.key !== "ArrowLeft" && e.key !== "PageUp" && e.key !== "Backspace") return;
+          var host = pdoc && pdoc.querySelector("hyperframes-slideshow");
+          var c = host && host.controller;
+          if (!c || !c.frame || (c.stack && c.stack.length > 1)) return;
+          var f = c.frame;
+          if (f.fragmentIndex > 0) c.resumeSlide(f.slideIndex, f.fragmentIndex - 1);
+          else if (f.slideIndex > 0) {
+            var prev = c.slidesOf(f.sequenceId)[f.slideIndex - 1];
+            var n = prev && prev.fragments ? prev.fragments.length : 0;
+            if (c.stopSlideMedia) c.stopSlideMedia();
+            c.resumeSlide(f.slideIndex - 1, n ? n - 1 : -1);
+          } else return;
+          e.preventDefault();
+          e.stopImmediatePropagation();
+        }
+        window.addEventListener("keydown", onBack, true);
+        if (pdoc) pdoc.defaultView.addEventListener("keydown", onBack, true);
+        if (standalone)
+          window.addEventListener("keydown", function (e) {
+            if (e.key === "Escape" && cur > tocIndex && tocIndex >= 0) goHold(holds.indexOf(slides[tocIndex].frags[0]));
+          });
+
+        if (document.readyState === "complete") setTimeout(postTimeline, 300);
+        else
+          window.addEventListener("load", function () {
+            setTimeout(postTimeline, 300);
+          });
+      })();
+    </script>
+  </body>
+</html>
