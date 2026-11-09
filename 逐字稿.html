@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Learn8 逐字稿</title>
+<style>
+  :root {
+    --bg: #fbf7ef; --card: #ffffff; --ink: #16213f; --sub: rgba(22,33,63,.6); --line: rgba(22,33,63,.1);
+    --gold: #f5be3c; --amber: #8a5a00; --coral: #e0532c; --chip: rgba(245,190,60,.2); --fs: 19px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0e1430; --card: #172046; --ink: #f3efe5; --sub: rgba(243,239,229,.62); --line: rgba(255,255,255,.1);
+      --amber: #f5be3c; --coral: #ff8a65; --chip: rgba(245,190,60,.16);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0e1430; --card: #172046; --ink: #f3efe5; --sub: rgba(243,239,229,.62); --line: rgba(255,255,255,.1);
+    --amber: #f5be3c; --coral: #ff8a65; --chip: rgba(245,190,60,.16);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 64px; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, "PingFang TC", "Noto Sans TC", system-ui, sans-serif; line-height: 1.75; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 0 16px 80px; }
+  .top { position: sticky; top: 0; z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); }
+  .bar { max-width: 720px; margin: 0 auto; padding: 10px 16px; display: flex; gap: 8px; align-items: center; }
+  .nav { flex: 1; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+  .nav::-webkit-scrollbar { display: none; }
+  .nav a { flex: none; min-width: 34px; height: 34px; padding: 0 10px; border-radius: 17px; display: grid; place-items: center;
+    background: var(--card); border: 1px solid var(--line); color: var(--ink); text-decoration: none; font-size: 14px; font-weight: 700; }
+  .tools button { height: 34px; min-width: 34px; border-radius: 10px; border: 1px solid var(--line); background: var(--card);
+    color: var(--ink); font-weight: 700; font-size: 14px; }
+  .tools { display: flex; gap: 6px; flex: none; }
+  h1 { font-size: 26px; margin: 22px 0 6px; }
+  .sum { color: var(--sub); font-size: 15px; margin: 0 0 6px; }
+  .legend { font-size: 14px; color: var(--sub); margin: 0 0 18px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 16px 16px 6px; margin: 14px 0; }
+  .card header { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-bottom: 6px; }
+  .num { width: 30px; height: 30px; border-radius: 50%; background: var(--gold); color: #16213f; display: grid; place-items: center; font-weight: 800; }
+  h2 { font-size: 20px; margin: 0; }
+  .meta { width: 100%; font-size: 13px; color: var(--sub); }
+  .tip { font-size: 14px; background: var(--chip); color: var(--amber); padding: 6px 10px; border-radius: 10px; margin: 6px 0 10px; }
+  .beat { border-top: 1px dashed var(--line); padding: 10px 0 4px; }
+  .cue { display: inline-block; font-size: 13px; font-weight: 800; padding: 1px 10px; border-radius: 999px; background: var(--gold); color: #16213f; }
+  .cue.enter { background: transparent; border: 1.5px solid var(--gold); color: var(--amber); }
+  .screen { font-size: 13px; color: var(--sub); margin: 6px 0 2px; }
+  .say { font-size: var(--fs); margin: 4px 0 8px; }
+  .say.silent { color: var(--sub); font-size: 15px; }
+  .pause { display: inline-block; font-size: .62em; font-weight: 800; color: var(--coral); border: 1.5px solid var(--coral);
+    border-radius: 6px; padding: 0 5px; margin: 0 4px; vertical-align: .18em; line-height: 1.5; }
+  .next { font-size: 13px; color: var(--sub); text-align: right; margin: 0 0 10px; }
+  body.hide .say:not(.silent) { filter: blur(7px); transition: filter .2s; cursor: pointer; }
+  body.hide .say.show { filter: none; }
+  details { background: var(--card); border: 1px solid var(--line); border-radius: 14px; margin: 10px 0; padding: 4px 14px; }
+  summary { font-weight: 700; padding: 10px 0; cursor: pointer; }
+  .qn { color: var(--amber); margin-right: 8px; }
+  h3 { font-size: 20px; margin: 30px 0 6px; }
+  .src { font-size: 14px; color: var(--sub); }
+  .src a { color: var(--amber); word-break: break-all; }
+  .full p { font-size: var(--fs); }
+</style>
+</head>
+<body>
+<div class="top"><div class="bar"><nav class="nav"><a href="#s1">1</a><a href="#s2">2</a><a href="#s3">3</a><a href="#s4">4</a><a href="#s5">5</a><a href="#s6">6</a><a href="#s7">7</a><a href="#s8">8</a><a href="#s9">9</a><a href="#s10">10</a><a href="#s11">11</a><a href="#qa">Q&amp;A</a></nav>
+<div class="tools"><button id="fsm" aria-label="字變小">A−</button><button id="fsp" aria-label="字變大">A+</button><button id="hide" aria-label="背稿模式">背</button></div></div></div>
+<main class="wrap">
+<h1>Learn8 逐字稿</h1>
+<p class="sum">11 張投影片 · 共 32 次按鍵 · 預估 5:25（目標 6:00）</p>
+<p class="legend"><span class="cue enter">進場</span> 換到這張時自動出現　<span class="cue">▶1</span> 按一次後出現　<span class="pause">停</span> 停一拍<br />按「背」進入背稿模式：講稿會模糊，點一下才顯示。</p>
+<section class="card" id="s1"><header><span class="num">1</span><h2>痛點</h2><span class="meta">約 0:36 · 按 3 次 · 累計 0:36</span></header><div class="beat"><span class="cue enter">進場</span><p class="screen">暗場</p><p class="say silent">（不說話，停一拍）</p></div><div class="beat"><span class="cue">▶1</span><p class="screen">老師與低著頭的學生；對話泡泡「你到底哪裡不會？」「……我也不知道。」，學生頭上冒出問號</p><p class="say">「你到底哪裡不會？」<span class="pause">停</span>「……我也不知道。」<span class="pause">停</span>這可能是教室裡最常出現，也最無力的一段對話。</p></div><div class="beat"><span class="cue">▶2</span><p class="screen">手機拍照搜題，0.8 秒出答案，答案被抄進作業本</p><p class="say">現在，答案從來不難拿。拍一張照，零點八秒，解答就在眼前。所以他做了一件很合理的事——把答案抄上去。</p></div><div class="beat"><span class="cue">▶3</span><p class="screen">作業 100、考卷 48；「看見答案，沒看見卡住。」</p><p class="say">作業一百分，考試四十八分。<span class="pause">停</span>這中間發生了什麼？他卡住、他放棄、他假裝自己懂了——而這一切，沒有任何人看見。</p></div><p class="next">→ 按一次，換到第 2 張</p></section><section class="card" id="s2"><header><span class="num">2</span><h2>城鄉師資落差</h2><span class="meta">約 0:35 · 按 2 次 · 累計 1:10</span></header><div class="beat"><span class="cue enter">進場</span><p class="screen">偏遠地區國小，四位老師的剪影</p><p class="say">而有些孩子，連那個會問他「你哪裡不會」的人，都留不住。</p></div><div class="beat"><span class="cue">▶1</span><p class="screen">第四位變成「代理」，25.84% 跳出</p><p class="say">在偏遠地區的國小，每四位老師，就有一位是代理教師。</p></div><div class="beat"><span class="cue">▶2</span><p class="screen">流動率長條圖：偏遠國中是全國的 2.1 倍</p><p class="say">偏遠國中老師離開的速度，是全國的兩倍。老師每換一次，就有一群孩子，要重新被認識一次。<span class="pause">停</span>我們沒辦法替每個孩子留住一位老師。但我們可以讓對他的理解，不再跟著老師一起離開。</p></div><p class="next">→ 按一次，換到第 3 張</p></section><section class="card" id="s3"><header><span class="num">3</span><h2>Learn8</h2><span class="meta">約 0:15 · 按 0 次 · 累計 1:25</span></header><p class="tip">進場自動播完，不用再按。</p><div class="beat"><span class="cue enter">進場</span><p class="screen">Learn8 亮燈，接著四個環節自動飛入、連成一條路徑</p><p class="say">所以，我們做了 Learn8。<span class="pause">停</span>我們把內容生成、學習過程、競技挑戰、即時理解，接成同一條路。只為了一件事：讓每個學生，真的學進去。</p></div><p class="next">→ 按一次，換到第 4 張</p></section><section class="card" id="s4"><header><span class="num">4</span><h2>呼應主題 SDG 4</h2><span class="meta">約 0:25 · 按 3 次 · 累計 1:50</span></header><div class="beat"><span class="cue enter">進場</span><p class="screen">SDG 4 徽章</p><p class="say">這正是聯合國永續發展目標 SDG 4「優質教育」，要回答的問題。</p></div><div class="beat"><span class="cue">▶1</span><p class="screen">4.1 有效的學習成果</p><p class="say">4.1，學習要有成果——不是看完，是學會。</p></div><div class="beat"><span class="cue">▶2</span><p class="screen">4.5 平等的受教機會</p><p class="say">4.5，機會要平等——偏鄉的孩子，值得和城市的孩子，一樣被理解。</p></div><div class="beat"><span class="cue">▶3</span><p class="screen">4.c 支援第一線教師</p><p class="say">4.c，老師要被支持——讓代理老師、新手老師，都不必一個人從零開始。</p></div><p class="next">→ 按一次，換到第 5 張</p></section><section class="card" id="s5"><header><span class="num">5</span><h2>系統：個人學習路徑</h2><span class="meta">約 0:39 · 按 3 次 · 累計 2:29</span></header><div class="beat"><span class="cue enter">進場</span><p class="screen">① 診斷問卷 → ② 學員畫像</p><p class="say">那系統怎麼「看見」一個學生？從第一分鐘就開始：三道診斷問題，建立他的學員畫像——他會什麼、卡在哪、習慣怎麼學。</p></div><div class="beat"><span class="cue">▶1</span><p class="screen">③ 雙代理人：規劃 ⇄ 審查</p><p class="say">接著，兩個 AI 代理人分工：一個規劃課程，一個專門挑錯，來回修正，確保課不會教錯。</p></div><div class="beat"><span class="cue">▶2</span><p class="screen">④ 知識地圖，第一個節點解鎖</p><p class="say">產出一張知識地圖，一關一關解鎖，學生隨時知道自己走到哪。</p></div><div class="beat"><span class="cue">▶3</span><p class="screen">⑤ 作答 → 答錯 → 補救關卡</p><p class="say">而最關鍵的是這裡：答錯，不會被扣分了事。系統會針對他錯的地方，馬上生成補救關卡——直到他真的懂了，才往下走。</p></div><p class="next">→ 按一次，換到第 6 張</p></section><section class="card" id="s6"><header><span class="num">6</span><h2>題型自動對應學科</h2><span class="meta">約 0:28 · 按 2 次 · 累計 2:58</span></header><p class="tip">每按一次會播 3–7 秒動畫，等動畫跑完再接下一句。</p><div class="beat"><span class="cue enter">進場</span><p class="screen">三步驟與空白的生成視窗</p><p class="say">而每一門課，都會長成那個學科該有的樣子。</p></div><div class="beat"><span class="cue">▶1</span><p class="screen">打字「我想學圍棋」→ 棋盤題型，接著自動打「我想學排序演算法」→ HeapSort 模擬器</p><p class="say">學圍棋，就是一張能落子的棋盤；學演算法，就是一台會跑的模擬器；</p></div><div class="beat"><span class="cue">▶2</span><p class="screen">輸入框連打各種目標，所有題型噴出排成一面牆；「想學什麼，就長成什麼。」</p><p class="say">專案管理、資料結構、AI、財務報表——每一種學科，都有它自己的互動題型。不管你想學什麼，Learn8 就長成那個樣子。</p></div><p class="next">→ 按一次，換到第 7 張</p></section><section class="card" id="s7"><header><span class="num">7</span><h2>教師編輯器</h2><span class="meta">約 0:36 · 按 2 次 · 累計 3:34</span></header><p class="tip">每按一次會播 3–7 秒動畫，等動畫跑完再接下一句。</p><div class="beat"><span class="cue enter">進場</span><p class="screen">編輯器視窗</p><p class="say">但 AI 再聰明，也不會比老師更懂他的學生。所以最後的決定權，必須在老師手上。</p></div><div class="beat"><span class="cue">▶1</span><p class="screen">講義 PDF 飛進編輯器，接著游標自動拖曳單元、設定難度</p><p class="say">老師上傳自己的講義，系統就照著它生成課程；再依照班上的程度，調順序、調難度；</p></div><div class="beat"><span class="cue">▶2</span><p class="screen">放大題型面板，一鍵切換題型</p><p class="say">連題型都能一鍵替換，不用寫一行程式。<span class="pause">停</span>對一位剛到偏鄉報到的代理老師來說，這代表他不必從零開始——AI 先搭好骨架，他只要補上，對學生的了解。</p></div><p class="next">→ 按一次，換到第 8 張</p></section><section class="card" id="s8"><header><span class="num">8</span><h2>競技場</h2><span class="meta">約 0:22 · 按 2 次 · 累計 3:56</span></header><div class="beat"><span class="cue enter">進場</span><p class="screen">競技場影片滑入並循環播放</p><p class="say">課再好，學生不回來，一切都是零。</p></div><div class="beat"><span class="cue">▶1</span><p class="screen">倒數計時、Elo 排位、即時對手分數；Elo +25 跳出</p><p class="say">所以我們把練習變成對戰：倒數計時、實力相近的對手、即時跳動的分數。學生來，不是為了寫完作業——是為了贏。</p></div><div class="beat"><span class="cue">▶2</span><p class="screen">「練習就是競賽，競賽就是練習。」</p><p class="say">練習就是競賽，競賽就是練習。當他自己想回來，學習才會真的累積。</p></div><p class="next">→ 按一次，換到第 9 張</p></section><section class="card" id="s9"><header><span class="num">9</span><h2>Neuro Link</h2><span class="meta">約 0:34 · 按 2 次 · 累計 4:30</span></header><div class="beat"><span class="cue enter">進場</span><p class="screen">影片：配戴頭帶、連線校準</p><p class="say">但再好的課、再好玩的對戰，都擋不住那一刻——學生卡住、準備放棄的那一刻。Neuro Link，就是為那一刻做的。戴上頭帶，自動連線。</p></div><div class="beat"><span class="cue">▶1</span><p class="screen">影片：作答畫面＋右側即時訊號（左側遮罩收起）</p><p class="say">他作答的同時，系統讀取腦波，看見他的專注正在變化。</p></div><div class="beat"><span class="cue">▶2</span><p class="screen">影片：疲勞通知、休息畫面；「不是監控，而是更早理解。」</p><p class="say">當疲勞和挫折開始累積，介面會先一步調整——給提示、拆概念，或讓他先休息三十秒。<span class="pause">停</span>我們不是在監控學生。我們是在他放棄之前，先接住他。</p></div><p class="next">→ 按一次，換到第 10 張</p></section><section class="card" id="s10"><header><span class="num">10</span><h2>商業模式</h2><span class="meta">約 0:36 · 按 3 次 · 累計 5:06</span></header><div class="beat"><span class="cue enter">進場</span><p class="screen">標題「學校付費，師生使用」與中央的 Learn8</p><p class="say">商業模式上，Learn8 是 B2B2C。</p></div><div class="beat"><span class="cue">▶1</span><p class="screen">付費方：學校・補習班 → 訂閱，接著自動分流到老師、學生</p><p class="say">學校和補習班付費，企業內訓也適用；老師用它備課，學生用它學習、對戰。</p></div><div class="beat"><span class="cue">▶2</span><p class="screen">附加：學生個人加購（B2C）、老師版稅分潤（誘因）</p><p class="say">學生可以自己加購進階內容；老師的好教案被別校採用，就能分到版稅——讓好的教案，流到更多需要它的地方。</p></div><div class="beat"><span class="cue">▶3</span><p class="screen">NT$2.4 · 70% 數字跳動</p><p class="say">而一堂個人化課程的成本，估算只要台幣兩塊四，目標毛利七成。正因為成本這麼低，我們才有能力，把同樣的服務帶進偏鄉。</p></div><p class="next">→ 按一次，換到第 11 張</p></section><section class="card" id="s11"><header><span class="num">11</span><h2>結尾</h2><span class="meta">約 0:19 · 按 0 次 · 累計 5:25</span></header><p class="tip">這張放慢速度講。進場會自動播完，不用再按。</p><div class="beat"><span class="cue enter">進場</span><p class="screen">自動播放：光掃揭幕「學習不缺內容，缺的是理解。」，約 1 秒後吉祥物彈起、Learn8、SDG 4</p><p class="say">這個時代，學習從來不缺內容。<span class="pause">停</span>缺的，是理解。Learn8 想做的，就是為每個學生，長出他需要的課。因為每個孩子，都值得被理解。<span class="pause">停</span>謝謝。</p></div><p class="next">→ 再按一次進入「Q&amp;A 補充」目錄</p></section>
+<h3 id="qa">Q&amp;A 補充</h3>
+<p class="src">「謝謝」之後再按一次是目錄。點題目（或按數字鍵 1–0）跳到答案，答完按 ← 回目錄。</p>
+<details><summary><span class="qn">Q1</span>跟 ChatGPT、拍照搜題差在哪？</summary><p class="screen">投影片：它們給答案，Learn8 確保學會</p><p class="say">AI 問答和搜題工具都很強，但它們有一個前提：學生知道自己要問什麼。而它們給的，是答案。Learn8 從診斷開始，用知識地圖帶著學生走，答錯就生成補救關卡，老師也能隨時介入。我們不是比誰答得快，而是確保學生真的學會。</p></details><details><summary><span class="qn">Q2</span>AI 生成的課會不會出錯？</summary><p class="screen">投影片：四道防線，讓 AI 不亂教</p><p class="say">我們設了四道防線。第一，內容照著上傳的教材生成，並標記來源檔案。第二，規劃和審查兩個代理人互相檢查課綱。第三，課綱和題型都有固定的結構格式，不符合就進不了系統。最後，老師可以在編輯器裡檢查、修改。</p></details><details><summary><span class="qn">Q3</span>上傳的教材本身有錯怎麼辦？</summary><p class="screen">投影片：忠於教材，錯誤交給老師把關</p><p class="say">我們的原則是忠於教材——AI 不自作主張改寫內容，因為老師的教材，往往有他自己的教學設計。如果教材真的有錯，老師可以直接在編輯器修正；學生回報有疑慮的題目、再對照外部資料，則會進一步提醒老師複核。</p></details><details><summary><span class="qn">Q4</span>版權怎麼處理？</summary><p class="screen">投影片：只讓合法授權的教材流通</p><p class="say">要進入公開庫的教材，必須是通過審核的授權內容；收到權利人通知，就比照 YouTube 的機制下架。課程可以被複製、改編，而分潤機制，讓原作者因為被使用而獲益。</p></details><details><summary><span class="qn">Q5</span>偏鄉沒預算，誰付錢？</summary><p class="screen">投影片：付得起的人付費，讓付不起的地方也用得到</p><p class="say">我們的模式是 B2B2C，付費的是一般學校、補習班和企業內訓。這些營收，加上企業的 CSR 贊助，支撐偏遠學校的免費方案。一堂個人化課程的成本只要大約台幣兩塊四，多開一個偏鄉帳號，邊際成本非常低。</p></details><details><summary><span class="qn">Q6</span>一堂課的成本怎麼算？</summary><p class="screen">投影片：一堂個人化課程 ≈ US$0.074（約 NT$2.4）</p><p class="say">我們以一堂三個單元、六個關卡的課程估算：課綱規劃與審查約 0.045 美元、出題約 0.009、費曼解釋評分約 0.008、AI 語音約 0.012，合計約 0.074 美元。降本有三個方向：簡單任務改用輕量模型、熱門主題直接用快取、通用語音預先生成。</p></details><details><summary><span class="qn">Q7</span>系統架構長什麼樣？</summary><p class="screen">投影片：從生成到對戰，一套完整的系統</p><p class="say">前端是 Next.js，後端 FastAPI。AI 引擎用 LangGraph 跑規劃和審查兩個代理人，教材進 ChromaDB 做向量檢索。課程生成很耗時，所以用 PostgreSQL 的通知機制加 SSE 即時推播進度；競技場用 Redis 和 WebSocket 做即時對戰。語音是自架的 VoxCPM，腦波則用 MUSE 2 頭帶藍牙擷取。</p></details><details><summary><span class="qn">Q8</span>學習成效怎麼衡量？</summary><p class="screen">投影片：三層指標，都在平台內可追蹤</p><p class="say">我們看三層。短期，看完課率和回訪率；中期，看同類題目的答對率有沒有提升；長期，看競技場的 Elo 分數成長。這些數據平台裡都有，也能和傳統線上課程做對照比較。</p></details><details><summary><span class="qn">Q9</span>Neuro Link 準不準？隱私呢？</summary><p class="screen">投影片：訊號已經接通，判讀還在驗證</p><p class="say">我們已經能用 MUSE 2 頭帶，透過藍牙擷取四個通道的原始腦波。介面上的偵測、通知和休息流程已經串起來，接著把真實訊號接進來，做小規模的可用性研究。隱私上，我們只用即時趨勢來調整介面，不拿來監控，也不拿來評分。</p></details><details><summary><span class="qn">Q10</span>跟現有產品比有什麼不同？</summary><p class="screen">投影片：Learn8 把分散的能力，接成同一條路</p><p class="say">Duolingo 遊戲化做得最好，但只有語言、內容是封閉的；NotebookLM 能讀你自己的資料，但沒有學習路徑和闖關。Learn8 把任意學科、學習路徑、競技和教師編輯接在一起，再加上即時狀態理解。</p></details>
+<h3>資料來源</h3>
+<p class="src">代理教師比率：偏遠地區國小 25.84%、全國國小 16.58%（111 學年度）<br />教師流動率：偏遠地區國中 1.26%、全國國中 0.60%（約 2.1 倍）<br />出處：立法院預算中心〈教育部主管 111 年度單位決算評估報告〉<br /><a href="https://www.ly.gov.tw/Pages/Detail.aspx?nodeid=46515&amp;pid=233548">ly.gov.tw 原文</a><br />NT$2.4（US$0.074）／堂、目標毛利率 70%：團隊成本模型估算，口頭請說「估算」「目標」。</p>
+<h3>連續講稿（排練用）</h3>
+<div class="full"><p><b>1. 痛點</b>　「你到底哪裡不會？」<span class="pause">停</span>「……我也不知道。」<span class="pause">停</span>這可能是教室裡最常出現，也最無力的一段對話。現在，答案從來不難拿。拍一張照，零點八秒，解答就在眼前。所以他做了一件很合理的事——把答案抄上去。作業一百分，考試四十八分。<span class="pause">停</span>這中間發生了什麼？他卡住、他放棄、他假裝自己懂了——而這一切，沒有任何人看見。</p><p><b>2. 城鄉師資落差</b>　而有些孩子，連那個會問他「你哪裡不會」的人，都留不住。在偏遠地區的國小，每四位老師，就有一位是代理教師。偏遠國中老師離開的速度，是全國的兩倍。老師每換一次，就有一群孩子，要重新被認識一次。<span class="pause">停</span>我們沒辦法替每個孩子留住一位老師。但我們可以讓對他的理解，不再跟著老師一起離開。</p><p><b>3. Learn8</b>　所以，我們做了 Learn8。<span class="pause">停</span>我們把內容生成、學習過程、競技挑戰、即時理解，接成同一條路。只為了一件事：讓每個學生，真的學進去。</p><p><b>4. 呼應主題 SDG 4</b>　這正是聯合國永續發展目標 SDG 4「優質教育」，要回答的問題。4.1，學習要有成果——不是看完，是學會。4.5，機會要平等——偏鄉的孩子，值得和城市的孩子，一樣被理解。4.c，老師要被支持——讓代理老師、新手老師，都不必一個人從零開始。</p><p><b>5. 系統：個人學習路徑</b>　那系統怎麼「看見」一個學生？從第一分鐘就開始：三道診斷問題，建立他的學員畫像——他會什麼、卡在哪、習慣怎麼學。接著，兩個 AI 代理人分工：一個規劃課程，一個專門挑錯，來回修正，確保課不會教錯。產出一張知識地圖，一關一關解鎖，學生隨時知道自己走到哪。而最關鍵的是這裡：答錯，不會被扣分了事。系統會針對他錯的地方，馬上生成補救關卡——直到他真的懂了，才往下走。</p><p><b>6. 題型自動對應學科</b>　而每一門課，都會長成那個學科該有的樣子。學圍棋，就是一張能落子的棋盤；學演算法，就是一台會跑的模擬器；專案管理、資料結構、AI、財務報表——每一種學科，都有它自己的互動題型。不管你想學什麼，Learn8 就長成那個樣子。</p><p><b>7. 教師編輯器</b>　但 AI 再聰明，也不會比老師更懂他的學生。所以最後的決定權，必須在老師手上。老師上傳自己的講義，系統就照著它生成課程；再依照班上的程度，調順序、調難度；連題型都能一鍵替換，不用寫一行程式。<span class="pause">停</span>對一位剛到偏鄉報到的代理老師來說，這代表他不必從零開始——AI 先搭好骨架，他只要補上，對學生的了解。</p><p><b>8. 競技場</b>　課再好，學生不回來，一切都是零。所以我們把練習變成對戰：倒數計時、實力相近的對手、即時跳動的分數。學生來，不是為了寫完作業——是為了贏。練習就是競賽，競賽就是練習。當他自己想回來，學習才會真的累積。</p><p><b>9. Neuro Link</b>　但再好的課、再好玩的對戰，都擋不住那一刻——學生卡住、準備放棄的那一刻。Neuro Link，就是為那一刻做的。戴上頭帶，自動連線。他作答的同時，系統讀取腦波，看見他的專注正在變化。當疲勞和挫折開始累積，介面會先一步調整——給提示、拆概念，或讓他先休息三十秒。<span class="pause">停</span>我們不是在監控學生。我們是在他放棄之前，先接住他。</p><p><b>10. 商業模式</b>　商業模式上，Learn8 是 B2B2C。學校和補習班付費，企業內訓也適用；老師用它備課，學生用它學習、對戰。學生可以自己加購進階內容；老師的好教案被別校採用，就能分到版稅——讓好的教案，流到更多需要它的地方。而一堂個人化課程的成本，估算只要台幣兩塊四，目標毛利七成。正因為成本這麼低，我們才有能力，把同樣的服務帶進偏鄉。</p><p><b>11. 結尾</b>　這個時代，學習從來不缺內容。<span class="pause">停</span>缺的，是理解。Learn8 想做的，就是為每個學生，長出他需要的課。因為每個孩子，都值得被理解。<span class="pause">停</span>謝謝。</p></div>
+</main>
+<script>
+  (function () {
+    var root = document.documentElement, body = document.body;
+    function get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+    function set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+    var fs = parseInt(get("l8-fs") || "19", 10);
+    function applyFs() { root.style.setProperty("--fs", fs + "px"); set("l8-fs", fs); }
+    applyFs();
+    document.getElementById("fsp").onclick = function () { fs = Math.min(28, fs + 2); applyFs(); };
+    document.getElementById("fsm").onclick = function () { fs = Math.max(15, fs - 2); applyFs(); };
+    document.getElementById("hide").onclick = function () {
+      body.classList.toggle("hide");
+      document.querySelectorAll(".say.show").forEach(function (e) { e.classList.remove("show"); });
+    };
+    document.addEventListener("click", function (e) {
+      var s = e.target.closest(".say");
+      if (s && body.classList.contains("hide")) s.classList.toggle("show");
+    });
+  })();
+</script>
+</body>
+</html>
