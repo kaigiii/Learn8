@@ -81,3 +81,11 @@ backend/logs/*
 # Docs
 docs/b2b/
 
+
+# Large media / generated artifacts
+*.mov
+*.mp4
+素材/learn8-deck/.hyperframes/artifacts/
+learn8-test.db
+推甄準備/
+素材/learn8-video/renders/
