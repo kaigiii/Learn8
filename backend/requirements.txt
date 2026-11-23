@@ -49,8 +49,10 @@ pypdf
 PyYAML==6.0.1
 
 # MarkItDown & Document Parsing
-markitdown>=0.1.6
-markitdown-ocr @ git+https://github.com/microsoft/markitdown.git#subdirectory=packages/markitdown-ocr
+# Pinned together: markitdown 0.1.9 / markitdown-ocr 0.1.2 require mammoth>=1.12.2,
+# which conflicts with the tested mammoth 1.11. Upgrade all three at once, then re-test.
+markitdown==0.1.6
+markitdown-ocr==0.1.0
 pdfminer-six>=20260107
 pdfplumber>=0.11.10
 mammoth~=1.11.0

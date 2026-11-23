@@ -50,90 +50,26 @@ Learn8 是一個先進且完整的 **AI 驅動型學習平台**。透過大語�
 - **Google Gemini** & **OpenAI LLM APIs**
 - **VoxCPM Engine** (基於 PyTorch 的 Zero-shot 高擬真語音合成)
 - **ChromaDB** & **Vector Embeddings** (向量語義特徵庫與語義檢索)
-- **Media Processing** (`yt-dlp`, `ffmpeg`, `PyMuPDF`) (多媒體解析與文件處理)
+- **Document Parsing** (`MarkItDown`, `PyMuPDF`, `pdfplumber`) (PDF / Word / PPT / Excel 教材解析)
 - **Security Architecture** (JWT 認證, Bcrypt 密碼雜湊, OAuth2 規範)
 - **PyYAML** & **JSON Repair** (YAML 題型解析與 JSON 輸出修復)
 
-## 先安裝什麼
+## 安裝與執行
 
-- `Python 3.12+`
-- `Node.js 20+`
-- `PostgreSQL 14+`
-- `Redis 6+`
-- (選用) `Docker` / `Docker Compose`
+完整步驟（Docker 一鍵啟動、手動安裝、選用功能、測試、常見問題）見 **[docs/INSTALLATION.md](docs/INSTALLATION.md)**。
+使用的第三方程式庫、外部服務與開發工具見 **[docs/THIRD_PARTY_LIBRARIES.md](docs/THIRD_PARTY_LIBRARIES.md)**。
 
-## 本地啟動
-
-### Docker（最快）
+快速啟動（Docker）：
 
 ```bash
-cp backend/.env.example backend/.env
+cp backend/.env.example backend/.env   # 填入 GOOGLE_API_KEY
 docker compose up --build
+docker compose exec backend python -m alembic upgrade head
 ```
-
-### 手動（開發）
-
-Backend：
-
-```bash
-cd backend
-python3.12 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-python3.12 -m alembic upgrade head
-python3.12 -m uvicorn app.main:app --reload --port 13105
-```
-
-Frontend：
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-VoxCPM (TTS 語音服務，請從「專案根目錄」出發)：
-
-**方式 A：使用 `uv` 啟動（推薦，最快）**
-```bash
-cd VoxCPM
-uv run python -m uvicorn Learn8_tts.api:app --reload --port 15060
-```
-
-**方式 B：使用傳統 `venv` 啟動**
-```bash
-cd VoxCPM
-source .venv/bin/activate
-python -m uvicorn Learn8_tts.api:app --reload --port 15060
-```
-
-啟動後：
 
 - Frontend: `http://localhost:13104`
 - Backend API docs: `http://localhost:13105/docs`
-- VoxCPM TTS: `http://localhost:15060`
 
-環境變數補充：
-
-- `.env` 需填 `GOOGLE_API_KEY` 與 `DATABASE_URL`
-- 前端 API 預設 `http://localhost:13105/api/v1`
-
-## Linux 安裝 Redis
-
-  ```bash
-  sudo apt update
-  sudo apt install redis-server -y
-  ```
-## Redis 防火牆設置
-  ```bash
-  sudo ufw allow 6379
-  ```
-
-## windows wsl 啟動 redis
-  ```bash
-  sudo service redis-server start
-  ```
 ## 常用指令 (Useful Scripts)
 
 所有的腳本建議在 `backend` 目錄下執行：
@@ -167,5 +103,9 @@ python -m uvicorn Learn8_tts.api:app --reload --port 15060
 - [11. 背景任務調度系統](./docs/active_docs/11_background_workers_and_scheduling.md)
 - [12. 提示詞工程與 AI 代理人畫像](./docs/active_docs/12_prompt_engineering_and_agent_personas.md)
 - [13. 部署與環境配置](./docs/active_docs/13_deployment_and_environment_config.md)
+- [14. 圍棋題目生成流程](./docs/active_docs/14_go_puzzle_generation_workflow.md)
+- [15. 西洋棋題型實作指南](./docs/active_docs/15_chess_puzzle_implementation.md)
+- [安裝與執行說明](./docs/INSTALLATION.md)
+- [第三方程式庫與開發工具清單](./docs/THIRD_PARTY_LIBRARIES.md)
 
 ---
