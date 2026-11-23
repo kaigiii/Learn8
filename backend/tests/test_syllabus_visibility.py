@@ -3,6 +3,7 @@ from fastapi.testclient import TestClient
 from fastapi import HTTPException
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from app.main import app
 from app.db.base import Base
@@ -15,8 +16,14 @@ client = TestClient(app)
 
 @pytest.fixture()
 def local_db_session():
-    # Set check_same_thread=False for multi-threaded access in TestClient
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    # TestClient serves requests on another thread. StaticPool makes every thread share
+    # the same connection, i.e. the same in-memory database (SQLAlchemy 2.1 no longer
+    # does this implicitly for :memory:).
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     Base.metadata.create_all(bind=engine)
     session = TestingSessionLocal()
