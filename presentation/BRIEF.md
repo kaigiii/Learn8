@@ -15,10 +15,10 @@ flow: standard
 
 ## 素材目錄
 
-所有素材在 `/Users/kaigiii/Coding/Learn8/素材/`：
+所有素材在 `/Users/kaigiii/Coding/Learn8/presentation/`：
 
 ```
-素材/
+presentation/
 ├── 吉祥物.png                              # 學士服小雞，RGBA 透明，4096×4096
 ├── 課程編輯器.png                          # 編輯器截圖，3456×1922
 ├── 腦波儀帶入動畫_右邊數據_疲憊通知_demo.mov  # Neuro Link demo，27.7s，120fps
@@ -261,5 +261,5 @@ beat 觸發:  空白鍵 / 右方向鍵
 2. 讀取 slideshow workflow 的完整規格
 3. 在此目錄初始化專案：`npx hyperframes init --template slideshow`
 4. 按照以上 8 張 slide 的規格製作 `index.html`
-5. 素材路徑全部在 `/Users/kaigiii/Coding/Learn8/素材/` 下
+5. 素材路徑全部在 `/Users/kaigiii/Coding/Learn8/presentation/` 下
 6. 完成後用 `npx hyperframes check` 驗證，再用 `npx hyperframes preview` 預覽

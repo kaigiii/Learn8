@@ -85,7 +85,32 @@ docs/b2b/
 # Large media / generated artifacts
 *.mov
 *.mp4
-素材/learn8-deck/.hyperframes/artifacts/
+**/.hyperframes/
 learn8-test.db
 推甄準備/
-素材/learn8-video/renders/
+presentation/learn8-video/renders/
+presentation/learn8-poster/.print-tmp/
+**/dist/
+
+# ─────────────────────────────────────────────────────────────
+# Private — never publish (secrets, personal / research data,
+# internal strategy docs). Kept locally only.
+# ─────────────────────────────────────────────────────────────
+# secrets & local config (any location)
+**/.env
+**/.env.*
+!**/.env.example
+# runtime user data
+backend/data/uploads/
+backend/data/logs/
+backend/data/temp/
+backend/data/chroma_db/
+backend/learn8-test.db
+# raw EEG recordings of study participants, and test papers / answers
+muse2/Data/
+muse2/Test_PDF/
+# internal strategy, business & planning documents
+docs/research/
+docs/market/
+docs/plan/
+docs/b2b/

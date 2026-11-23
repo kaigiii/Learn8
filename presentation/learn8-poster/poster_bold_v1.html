@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Learn8 海報（張力版）</title>
+    <!-- A0 portrait canvas (3179 × 4494 px @ 96 dpi). Vector-safe: no box-shadow / filter / blur.
+         Depth comes from flat offset blocks, rotation, overlap and bleed. -->
+    <style>
+      @font-face {
+        font-family: "P Huninn";
+        src: url("fonts/huninn.ttf") format("truetype");
+      }
+      @font-face {
+        font-family: "P Noto";
+        src: url("fonts/notosanstc.ttf") format("truetype");
+        font-weight: 100 900;
+      }
+      @font-face {
+        font-family: "P Righteous";
+        src: url("fonts/righteous.ttf") format("truetype");
+      }
+      @page {
+        size: 841mm 1189mm;
+        margin: 0;
+      }
+      :root {
+        --navy: #16213f;
+        --navy-2: #22305a;
+        --cream: #fbf7ef;
+        --gold: #f5be3c;
+        --gold-d: #b57800;
+        --coral: #e0532c;
+        --white: #ffffff;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: var(--navy);
+      }
+      #poster {
+        position: relative;
+        width: 3179px;
+        height: 4494px;
+        overflow: hidden;
+        background: var(--navy);
+        color: var(--white);
+        font-family: "P Noto", sans-serif;
+        font-weight: 500;
+      }
+      .abs {
+        position: absolute;
+      }
+      .hn {
+        font-family: "P Huninn", sans-serif;
+        font-weight: 400;
+      }
+      .rt {
+        font-family: "P Righteous", sans-serif;
+      }
+      .word {
+        font-family: "P Righteous", sans-serif;
+        line-height: 1;
+        white-space: nowrap;
+      }
+      .shot {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      /* devices: dark bezel + flat offset "shadow" block behind */
+      .dev {
+        position: absolute;
+        background: #0c1226;
+        border: 6px solid #2c3a66;
+        overflow: hidden;
+      }
+      .dev-shadow {
+        position: absolute;
+        background: rgba(22, 33, 63, 0.9);
+      }
+      .pill {
+        position: absolute;
+        width: 640px;
+        text-align: center;
+      }
+      .pill .ic {
+        margin: 0 auto;
+        width: 170px;
+        height: 170px;
+        border-radius: 50%;
+        background: var(--gold);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .pill .k {
+        margin-top: 26px;
+        font-family: "P Huninn", sans-serif;
+        font-size: 84px;
+        color: var(--white);
+      }
+      .pill .v {
+        margin-top: 10px;
+        font-size: 44px;
+        line-height: 1.4;
+        color: #c9d0e4;
+      }
+      .feat {
+        display: flex;
+        gap: 22px;
+        align-items: flex-start;
+        font-size: 50px;
+        line-height: 1.35;
+        color: #3b2e0c;
+      }
+      .feat b {
+        font-family: "P Huninn", sans-serif;
+        font-weight: 400;
+        color: var(--navy);
+      }
+      .ck {
+        flex: none;
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        background: var(--navy);
+        color: var(--gold);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 40px;
+        font-weight: 900;
+      }
+      .dlab {
+        position: absolute;
+        padding: 12px 30px;
+        border-radius: 999px;
+        background: var(--navy);
+        color: var(--gold);
+        font-family: "P Huninn", sans-serif;
+        font-size: 46px;
+        white-space: nowrap;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="poster">
+      <!-- ================= HERO ================= -->
+      <div class="abs word" style="left: 140px; top: 140px; font-size: 200px; color: var(--white)">Learn<span style="color: var(--gold)">8</span></div>
+      <div class="abs hn" style="left: 140px; top: 380px; font-size: 64px; line-height: 1.35; color: #c9d0e4">以無盡內容與個人化學習為核心的<br />AI 教育生態系</div>
+      <!-- giant gold disc + mascot bleeding off the right edge -->
+      <div class="abs" style="left: 1820px; top: 160px; width: 1600px; height: 1600px; border-radius: 50%; background: var(--gold)"></div>
+      <img class="abs" src="assets/mascot.png" alt="Learn8 吉祥物" style="left: 1700px; top: 120px; width: 1700px; height: 1700px" />
+      <!-- the hook, as big as it gets -->
+      <div class="abs hn" style="left: 130px; top: 700px; font-size: 300px; line-height: 1.12; color: var(--white)">學習<br />不缺內容，</div>
+      <div class="abs hn" style="left: 130px; top: 1400px; font-size: 300px; line-height: 1.12; color: var(--white)">缺的是<span style="color: var(--gold)">理解。</span></div>
+
+      <!-- ================= PROBLEM (cream, slanted) ================= -->
+      <div class="abs" style="left: 0; top: 1850px; width: 3179px; height: 760px; background: var(--cream); clip-path: polygon(0 12%, 100% 0, 100% 88%, 0 100%)"></div>
+      <div class="abs" style="left: 140px; top: 2010px">
+        <div class="hn" style="display: inline-block; padding: 30px 60px; border-radius: 64px 64px 64px 14px; background: var(--navy); color: #fff; font-size: 78px">你到底哪裡不會？</div><br />
+        <div class="hn" style="display: inline-block; margin: 30px 0 0 300px; padding: 30px 60px; border-radius: 64px 64px 14px 64px; background: var(--coral); color: #fff; font-size: 78px">……我也不知道。</div>
+        <div class="hn" style="margin-top: 40px; font-size: 66px; color: var(--navy)">答案很好拿，卡住的地方沒人看見。</div>
+      </div>
+      <div class="abs" style="left: 1330px; top: 1990px; width: 900px; color: var(--navy)">
+        <div class="rt" style="font-size: 230px; line-height: 1; color: var(--coral)">25.84%</div>
+        <div class="hn" style="margin-top: 18px; font-size: 56px; line-height: 1.3">偏遠國小每 4 位老師<br />就有 1 位是代理</div>
+      </div>
+      <div class="abs" style="left: 2330px; top: 1990px; width: 760px; color: var(--navy)">
+        <div class="rt" style="font-size: 230px; line-height: 1; color: var(--coral)">2.1<span class="hn" style="font-size: 130px; margin-left: 14px">倍</span></div>
+        <div class="hn" style="margin-top: 18px; font-size: 56px; line-height: 1.3">偏遠國中教師流動率<br />老師一換，理解歸零</div>
+      </div>
+      <div class="abs" style="left: 1330px; top: 2410px; font-size: 30px; color: #6b7390">資料：立法院預算中心〈教育部主管 111 年度單位決算評估報告〉，111 學年度（全國國小代理比例 16.58%）</div>
+
+      <!-- ================= PRODUCT (gold, slanted, tilted devices) ================= -->
+      <div class="abs" style="left: 0; top: 2560px; width: 3179px; height: 1150px; background: var(--gold); clip-path: polygon(0 10%, 100% 0, 100% 100%, 0 90%)"></div>
+      <div class="abs hn" style="left: 140px; top: 2760px; width: 1100px; font-size: 104px; line-height: 1.2; color: var(--navy)">想學什麼，<br />課就長成什麼。</div>
+      <div class="abs" style="left: 140px; top: 3045px; width: 900px; display: flex; flex-direction: column; gap: 26px">
+        <div class="feat"><span class="ck">✓</span><span><b>12 種以上互動題型</b><br />依學科自動配對</span></div>
+        <div class="feat"><span class="ck">✓</span><span><b>雙代理人</b>：AI 規劃、AI 審查</span></div>
+        <div class="feat"><span class="ck">✓</span><span><b>知識地圖</b>，答錯即補救</span></div>
+        <div class="feat"><span class="ck">✓</span><span><b>教師編輯器</b>，一鍵改課</span></div>
+      </div>
+      <!-- laptop: editor -->
+      <div class="dev-shadow" style="left: 1240px; top: 2700px; width: 1460px; height: 850px; border-radius: 40px; transform: rotate(-5deg) translate(26px, 30px)"></div>
+      <div class="dev" style="left: 1240px; top: 2700px; width: 1460px; height: 850px; border-radius: 40px; padding: 28px; transform: rotate(-5deg)">
+        <div style="width: 100%; height: 100%; border-radius: 16px; overflow: hidden"><img class="shot" src="assets/editor.jpg" alt="Learn8 教師課程編輯器" style="object-position: 0% 0%" /></div>
+      </div>
+      <!-- tablet: go board -->
+      <div class="dev-shadow" style="left: 2500px; top: 2980px; width: 560px; height: 680px; border-radius: 50px; transform: rotate(6deg) translate(24px, 28px)"></div>
+      <div class="dev" style="left: 2500px; top: 2980px; width: 560px; height: 680px; border-radius: 50px; padding: 26px; transform: rotate(6deg)">
+        <div style="width: 100%; height: 100%; border-radius: 26px; overflow: hidden"><img class="shot" src="assets/tile-go.jpg" alt="圍棋落子題型" style="object-position: 50% 52%" /></div>
+      </div>
+      <!-- phone: arena -->
+      <div class="dev-shadow" style="left: 1080px; top: 3150px; width: 390px; height: 570px; border-radius: 54px; transform: rotate(-9deg) translate(22px, 26px)"></div>
+      <div class="dev" style="left: 1080px; top: 3150px; width: 390px; height: 570px; border-radius: 54px; padding: 22px; transform: rotate(-9deg)">
+        <div style="width: 100%; height: 100%; border-radius: 36px; overflow: hidden"><img class="shot" src="assets/arena.jpg" alt="Learn8 競技場對戰畫面" style="object-position: 22% 30%" /></div>
+      </div>
+
+      <div class="dlab" style="left: 2180px; top: 2620px">教師編輯器</div>
+      <div class="dlab" style="left: 2640px; top: 3640px">圍棋 → 棋盤題型</div>
+      <div class="dlab" style="left: 1050px; top: 3600px; transform: rotate(-9deg)">競技場 Elo 對戰</div>
+
+      <!-- ================= FOUR PARTS (navy) ================= -->
+      <div class="pill" style="left: 110px; top: 3770px">
+        <div class="ic"><svg width="92" height="92" viewBox="0 0 24 24" fill="none" stroke="#16213f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l4 4v14H7z" /><path d="M14 3v4h4M10 12h5M10 16h5" /></svg></div>
+        <div class="k">內容生成</div>
+        <div class="v">輸入目標或上傳講義<br />AI 生成整門課</div>
+      </div>
+      <div class="pill" style="left: 845px; top: 3770px">
+        <div class="ic"><svg width="92" height="92" viewBox="0 0 24 24" fill="none" stroke="#16213f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="18" r="2" /><circle cx="19" cy="6" r="2" /><path d="M7 18c6 0 4-12 10-12" stroke-dasharray="2 3" /></svg></div>
+        <div class="k">學習過程</div>
+        <div class="v">診斷程度、規劃路徑<br />搞懂才前進</div>
+      </div>
+      <div class="pill" style="left: 1580px; top: 3770px">
+        <div class="ic"><svg width="92" height="92" viewBox="0 0 24 24" fill="none" stroke="#16213f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z" /><path d="M7 6H4v1a3 3 0 0 0 3 3M17 6h3v1a3 3 0 0 1-3 3" /></svg></div>
+        <div class="k">競技挑戰</div>
+        <div class="v">Elo 排位即時對戰<br />讓學生自己想回來</div>
+      </div>
+      <div class="pill" style="left: 2315px; top: 3770px">
+        <div class="ic"><svg width="92" height="92" viewBox="0 0 24 24" fill="none" stroke="#16213f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="14" rx="3" /><path d="M5 11h3l2-4 3 8 2-4h4" /></svg></div>
+        <div class="k">即時理解</div>
+        <div class="v">Neuro Link 讀取腦波<br />疲勞時主動調整</div>
+      </div>
+
+      <!-- ================= FOOTER ================= -->
+      <div class="abs" style="left: 140px; top: 4230px; width: 2899px; height: 3px; background: #2f3a63"></div>
+      <div class="abs" style="left: 140px; top: 4280px; width: 130px; height: 130px; border-radius: 18px; background: #c5192d; padding: 8px 14px">
+        <div class="rt" style="font-size: 60px; line-height: 1; color: #fff">4</div>
+        <div class="hn" style="font-size: 22px; margin-top: 2px; color: #fff">優質教育</div>
+      </div>
+      <div class="abs" style="left: 310px; top: 4282px; font-size: 44px; line-height: 1.45; color: #c9d0e4"><b class="hn" style="font-weight: 400; color: #fff">組員</b>　范愷鈞・沈晨利・楊詠恩・羅云駿<br /><b class="hn" style="font-weight: 400; color: #fff">指導教授</b>　楊傳凱</div>
+      <div class="abs hn" style="left: 1480px; top: 4305px; font-size: 60px; color: var(--gold)">為每個學生，長出他需要的課</div>
+      <div class="abs" style="left: 2560px; top: 4300px; width: 260px; text-align: right; font-size: 40px; line-height: 1.3; color: #c9d0e4">掃描看<br />完整簡報 →</div>
+      <div class="abs" style="left: 2859px; top: 4265px; width: 180px; height: 180px; background: #fff; padding: 12px; border-radius: 16px"><img src="assets/qr.svg" alt="Learn8 線上簡報 QR code" style="display: block; width: 100%; height: 100%" /></div>
+    </div>
+  </body>
+</html>
