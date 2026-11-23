@@ -2,6 +2,7 @@
 #  Learn8 .gitignore
 #  原則：repo 只放「讓系統能建置、執行、測試」所需的檔案與說明文件。
 #  其餘（機密、使用者資料、可重建的產物、簡報與歷史素材）只留在本機。
+#  muse2/.gitignore 另外管理腦波模組的 CSV 規則。
 # ═════════════════════════════════════════════════════════════
 
 # ─── 1. 機密與本機設定（任何位置）──────────────────────────────
@@ -11,18 +12,14 @@
 .claude/settings.local.json
 
 # ─── 2. 執行期產生的使用者資料 ────────────────────────────────
-backend/data/uploads/
+uploads/
 backend/data/logs/
 backend/data/temp/
 backend/data/chroma_db/
-backend/logs/*
-!backend/logs/.gitkeep
-projects_pool/
-uploads/
 *.db
 *.sqlite3
 
-# ─── 3. 研究原始資料（受試者腦波、測驗卷與解答）────────────────
+# ─── 3. 研究原始資料（受試者腦波、測驗卷與解答），不可上傳 ─────
 muse2/Data/
 muse2/Test_PDF/
 
@@ -37,40 +34,21 @@ docs/b2b/
 /presentation/
 /archive/
 services/voxcpm/
-/推甄準備/
+*.mov
+*.mp4
 
 # ─── 6. 可重建的產物與快取 ─────────────────────────────────────
 # Python
+.venv/
+venv/
+env/
 __pycache__/
 *.py[cod]
-*$py.class
-*.so
-.Python
 *.egg-info/
-*.egg
-.eggs/
-.installed.cfg
 .pytest_cache/
 .ruff_cache/
-.coverage
-htmlcov/
-venv/
-.venv/
-env/
 build/
 dist/
-**/dist/
-develop-eggs/
-downloads/
-eggs/
-lib/
-!/frontend/src/lib/
-!/frontend/src/lib/**
-lib64/
-parts/
-sdist/
-var/
-wheels/
 # Node / Next.js
 node_modules/
 .next/
@@ -79,13 +57,6 @@ out/
 coverage/
 *.tsbuildinfo
 npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-# 媒體與工具快取
-*.mov
-*.mp4
-**/.hyperframes/
 
 # ─── 7. 系統與編輯器 ───────────────────────────────────────────
 .DS_Store
