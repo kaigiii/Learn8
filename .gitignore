@@ -1,27 +1,68 @@
-# System
-.DS_Store
-Thumbs.db
+# ═════════════════════════════════════════════════════════════
+#  Learn8 .gitignore
+#  原則：repo 只放「讓系統能建置、執行、測試」所需的檔案與說明文件。
+#  其餘（機密、使用者資料、可重建的產物、簡報與歷史素材）只留在本機。
+# ═════════════════════════════════════════════════════════════
 
-# IDEs
-.vscode/
-.idea/
-
-# Claude Code local settings
+# ─── 1. 機密與本機設定（任何位置）──────────────────────────────
+**/.env
+**/.env.*
+!**/.env.example
 .claude/settings.local.json
 
-# Python / Backend
+# ─── 2. 執行期產生的使用者資料 ────────────────────────────────
+backend/data/uploads/
+backend/data/logs/
+backend/data/temp/
+backend/data/chroma_db/
+backend/logs/*
+!backend/logs/.gitkeep
+projects_pool/
+uploads/
+*.db
+*.sqlite3
+
+# ─── 3. 研究原始資料（受試者腦波、測驗卷與解答）────────────────
+muse2/Data/
+muse2/Test_PDF/
+
+# ─── 4. 內部文件（策略、商業、計畫、合作）──────────────────────
+docs/research/
+docs/market/
+docs/plan/
+docs/b2b/
+
+# ─── 5. 非系統內容：簡報、影片、海報、歷史版本、外部服務 ──────
+#    本機保留；簡報另存於 github.com/kaigiii/Learn8_presentation
+/presentation/
+/archive/
+services/voxcpm/
+/推甄準備/
+
+# ─── 6. 可重建的產物與快取 ─────────────────────────────────────
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
+*.egg-info/
+*.egg
+.eggs/
+.installed.cfg
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+venv/
+.venv/
 env/
 build/
-develop-eggs/
 dist/
+**/dist/
+develop-eggs/
 downloads/
 eggs/
-.eggs/
 lib/
 !/frontend/src/lib/
 !/frontend/src/lib/**
@@ -30,87 +71,24 @@ parts/
 sdist/
 var/
 wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-.pytest_cache/
-.coverage
-htmlcov/
-
-# Virtual Env
-venv/
-.venv/
-
-# Node / Frontend
+# Node / Next.js
 node_modules/
+.next/
+.next-dev/
+out/
+coverage/
+*.tsbuildinfo
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
-.next/
-*.tsbuildinfo
-out/
-build/
-coverage/
-
-# Environment Variables
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-backend/.env
-frontend/.env
-
-# Database & Storage
-*.db
-*.sqlite3
-backend/data/chroma_db/
-backend/data/uploads/
-# Learn8 Specific
-projects_pool/
-uploads/
-backend/data/uploads/*
-!backend/data/uploads/avatar/
-backend/data/uploads/avatar/*
-backend/data/logs/
-backend/data/temp/
-backend/logs/*
-!backend/logs/.gitkeep
-
-# Docs
-docs/b2b/
-
-
-# Large media / generated artifacts
+# 媒體與工具快取
 *.mov
 *.mp4
 **/.hyperframes/
-learn8-test.db
-推甄準備/
-presentation/learn8-video/renders/
-presentation/learn8-poster/.print-tmp/
-**/dist/
 
-# ─────────────────────────────────────────────────────────────
-# Private — never publish (secrets, personal / research data,
-# internal strategy docs). Kept locally only.
-# ─────────────────────────────────────────────────────────────
-# secrets & local config (any location)
-**/.env
-**/.env.*
-!**/.env.example
-# runtime user data
-backend/data/uploads/
-backend/data/logs/
-backend/data/temp/
-backend/data/chroma_db/
-backend/learn8-test.db
-# raw EEG recordings of study participants, and test papers / answers
-muse2/Data/
-muse2/Test_PDF/
-# internal strategy, business & planning documents
-docs/research/
-docs/market/
-docs/plan/
-docs/b2b/
+# ─── 7. 系統與編輯器 ───────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

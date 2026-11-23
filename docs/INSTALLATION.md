@@ -34,7 +34,6 @@ Learn8/
 │   ├── active_docs/  系統設計文件（15 份）
 │   ├── INSTALLATION.md
 │   └── THIRD_PARTY_LIBRARIES.md
-├── presentation/     競賽簡報、海報與展示素材
 └── docker-compose.yml
 ```
 
@@ -174,7 +173,7 @@ AUTH_DEV_LOGIN_PASSWORD=自訂密碼
 
 ### 4.1 AI 語音助教（VoxCPM）
 
-語音合成是獨立的微服務，不包含在本 repo。`.env.example` 預設 `AUDIO_ENABLED=False`，關閉時系統其他功能完全正常。若另行架設 VoxCPM 服務，將 `AUDIO_ENABLED` 改為 `True`，並確認 `VOXCPM_URL` 指向該服務（預設 `http://127.0.0.1:15060`）。詳見 [7_voxcpm_microservice.md](active_docs/7_voxcpm_microservice.md)。
+語音合成是獨立的微服務，原始碼在 [kaigiii/Microservices-VoxCPM](https://github.com/kaigiii/Microservices-VoxCPM)，可 clone 到 `services/voxcpm/`（已列入 `.gitignore`），以 `uv sync && uv run python -m uvicorn Learn8_tts.api:app --port 15060` 啟動。`.env.example` 預設 `AUDIO_ENABLED=False`，關閉時系統其他功能完全正常。若另行架設 VoxCPM 服務，將 `AUDIO_ENABLED` 改為 `True`，並確認 `VOXCPM_URL` 指向該服務（預設 `http://127.0.0.1:15060`）。詳見 [7_voxcpm_microservice.md](active_docs/7_voxcpm_microservice.md)。
 
 ### 4.2 Neuro Link 腦波理解
 

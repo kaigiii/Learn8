@@ -219,7 +219,7 @@ export default function LoginPageClient() {
 
 
   return (
-    <div className="relative flex min-h-screen flex-col overflow-hidden bg-[#d9ecf6] bg-[url('/backgrounds/LogInBg.png')] bg-cover bg-center bg-no-repeat">
+    <div className="relative flex min-h-screen flex-col overflow-hidden bg-[#d9ecf6] bg-[url('/backgrounds/MainBg.png')] bg-cover bg-center bg-no-repeat">
 
       <main className="relative z-10 mx-auto flex w-full max-w-[1440px] flex-1 flex-wrap items-center justify-center gap-8 px-4 py-10 lg:flex-nowrap lg:justify-between lg:gap-20 lg:px-10">
         <section className="flex w-full max-w-xl flex-col items-start shrink-0 lg:max-w-[760px]">
