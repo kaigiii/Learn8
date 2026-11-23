@@ -56,8 +56,8 @@ Learn8 是一個先進且完整的 **AI 驅動型學習平台**。透過大語�
 
 ## 安裝與執行
 
-完整步驟（Docker 一鍵啟動、手動安裝、選用功能、測試、常見問題）見 **[docs/INSTALLATION.md](docs/INSTALLATION.md)**。
-使用的第三方程式庫、外部服務與開發工具見 **[docs/THIRD_PARTY_LIBRARIES.md](docs/THIRD_PARTY_LIBRARIES.md)**。
+完整步驟（Docker 一鍵啟動、手動安裝、選用功能、測試、常見問題）見 **[INSTALLATION.md](INSTALLATION.md)**。
+使用的第三方程式庫、外部服務與開發工具見 **[THIRD_PARTY_LIBRARIES.md](THIRD_PARTY_LIBRARIES.md)**。
 
 快速啟動（Docker）：
 
@@ -88,24 +88,10 @@ docker compose exec backend python -m alembic upgrade head
 
 ---
 
-## 相關技術文件
+## 相關文件
 
-- [1. 題型組件與 AI 評估](./docs/active_docs/1_component_management.md)
-- [2. API 服務與 VoxCPM 微服務指南](./docs/active_docs/2_api_service_guide.md)
-- [3. 個人化課程生成流與核心流程功能](./docs/active_docs/3_personalization_generation.md)
-- [4. 競技場對戰流](./docs/active_docs/4_arena_flows.md)
-- [5. 自製與自訂課程流程指南](./docs/active_docs/5_custom_courses_flows.md)
-- [6. 全站技術架構與亮點總覽](./docs/active_docs/6_architecture_overview.md)
-- [7. VoxCPM 語音微服務](./docs/active_docs/7_voxcpm_microservice.md)
-- [8. 管理後台與運作機制](./docs/active_docs/8_admin_management_system.md)
-- [9. 社交好友與消息系統](./docs/active_docs/9_social_friendship_system.md)
-- [10. 資料庫模型與賬本](./docs/active_docs/10_database_schema_and_models.md)
-- [11. 背景任務調度系統](./docs/active_docs/11_background_workers_and_scheduling.md)
-- [12. 提示詞工程與 AI 代理人畫像](./docs/active_docs/12_prompt_engineering_and_agent_personas.md)
-- [13. 部署與環境配置](./docs/active_docs/13_deployment_and_environment_config.md)
-- [14. 圍棋題目生成流程](./docs/active_docs/14_go_puzzle_generation_workflow.md)
-- [15. 西洋棋題型實作指南](./docs/active_docs/15_chess_puzzle_implementation.md)
-- [安裝與執行說明](./docs/INSTALLATION.md)
-- [第三方程式庫與開發工具清單](./docs/THIRD_PARTY_LIBRARIES.md)
+- [安裝與執行說明](./INSTALLATION.md)
+- [第三方程式庫與開發工具清單](./THIRD_PARTY_LIBRARIES.md)
+- [MUSE 2 腦波模組說明](./muse2/README.md)
 
 ---

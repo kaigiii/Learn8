@@ -23,12 +23,9 @@ backend/data/chroma_db/
 muse2/Data/
 muse2/Test_PDF/
 
-# ─── 4. 內部文件（策略、商業、計畫、合作、過時的舊規劃）────────
-docs/research/
-docs/market/
-docs/plan/
-docs/b2b/
-docs/archive/
+# ─── 4. 內部文件（技術文件、規劃、商業資料）─────────────────────
+#    要給人看的說明文件放在根目錄（README、INSTALLATION、THIRD_PARTY_LIBRARIES）
+/docs/
 
 # ─── 5. 非系統內容：簡報、影片、海報、歷史版本、外部服務 ──────
 #    本機保留；簡報另存於 github.com/kaigiii/Learn8_presentation
