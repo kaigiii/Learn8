@@ -1,7 +1,7 @@
 import pytest
 from app.core.component_loader import registry
 
-def test_b2b_modules_loaded():
+def test_gamification_modules_loaded():
     """驗證新組件已被註冊加載"""
     names = registry.get_component_names()
     assert "DynamicCategorySorter" in names

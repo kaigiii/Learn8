@@ -95,8 +95,8 @@ python -m signal_monitor      # 或安裝後直接執行 signal-monitor
 - 四個資料夾都在 `Model/` 底下，而 `Model/` 是選單 [8] 預設保護的；
   `Data/*_Original.csv` 同樣預設保護，清 CSV 時不會被連帶刪掉
   （要連這些一起刪得加 `--include-model`）。
-- `Data/*.csv` 會一起上傳到 GitHub（含 `_Original.csv`），實驗的原始資料與歸檔都留在版控裡。
-  原始錄製每分鐘約 0.8 MB，repo 會隨實驗次數持續變大，留意一下容量。
+- `Data/` 的原始腦波錄製屬於受測者個資，已列入 `.gitignore`，**不會上傳到 GitHub**；
+  repo 只保留 `Model/` 底下去識別化的特徵 CSV（受測者以 S1–S5 編號），用來重現模型訓練結果。
 
 ### 選單 [5] 模型預測
 

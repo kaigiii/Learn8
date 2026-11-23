@@ -83,15 +83,8 @@ docker compose exec backend python -m alembic upgrade head
   python3.12 -m alembic upgrade head
   ```
 
-
-
-
----
-
 ## 相關文件
 
 - [安裝與執行說明](./INSTALLATION.md)
 - [第三方程式庫與開發工具清單](./THIRD_PARTY_LIBRARIES.md)
 - [MUSE 2 腦波模組說明](./muse2/README.md)
-
----
